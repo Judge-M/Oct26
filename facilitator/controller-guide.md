@@ -1,0 +1,54 @@
+# Controller guide and staged injects
+
+Keep this guide and the vault private. Start the elapsed exercise clock after all
+cells can access evidence. Scenario time starts at 09:30Z; elapsed minutes advance
+one-for-one in the default 180-minute run. Evidence timestamps remain UTC regardless
+of the host's timezone. Read configured inject times from `config.json`; release is
+manual so pauses do not silently disclose information.
+
+At start, read participant handover aloud. Ask each cell to name a reporter and to
+locate its ticket and collection note. Coach tool usage without stating conclusions.
+Log observed behaviors and elapsed times for assessment. Reward an early qualified
+warning over a late unsupported claim of certainty.
+
+| Inject | Default release / deadline | Command prompt and evidence | Expected change |
+|---|---|---|---|
+| 1 | 35 / 45 | `python scripts/exercise.py release 1`; DLP body, request ID, hash | Establish exact v3 disclosure; give credible exposure report |
+| 2 | 75 / 85 | `python scripts/exercise.py release 2`; late IdP refresh, version comparison | Recognize reset insufficiency and distinguish stale details from retained word |
+| 3 | 115 / 130 | `python scripts/exercise.py release 3`; delayed inventory with benign comparator | Broaden collection to WS-31 while avoiding task-name-only compromise claims |
+
+After release, tell all cells to refresh the portal, verify the release manifest,
+and read the command prompt. In Jira, post the command question manually to all
+five tickets and link the same release URL. Do not attach future injects to Jira.
+If delayed by a technical failure, freeze elapsed time and announce the revised
+deadline. Record actual release UTC and elapsed time in the controller ledger.
+
+## Action adjudication
+
+Cells submit recommendations only. Record request ID, elapsed time, cited evidence,
+benefit, availability cost, decision and effective exercise time. Apply the same rule
+to all cells and announce approved changes on every ticket. Canonical evidence is
+historical: do not edit logs when a proposed action is approved.
+
+| Request | Default simulated response | Required follow-up |
+|---|---|---|
+| Isolate WS-17, preserve evidence | Approve after cell identifies lost clerk access; effective request+5 minutes | Controller confirms simulated isolation only; ask how they would verify and collect memory/disk |
+| Revoke S-41 and other m.ellis sessions | Approve with helpdesk coordination; effective request+3 | Controller states simulated revocation, no new forensic export; distinguish control assertion from logged evidence |
+| Reset password only | Acknowledge reset history; ask about existing sessions | Supply no invented successful containment |
+| Block example egress address/domain | Approve as supplementary control; effective request+5 | Ask about alternate destinations and legitimate service impact |
+| Collect WS-31 image/telemetry | Approve collection request; no result before ENDEX | Remains unresolved; collection order and owner required |
+| Ask whether anyone read data or patrol was harmed | No corroborating report available | Preserve uncertainty; do not convert it into no-harm proof |
+| Recommend reassessing exposed check-in information | Simulated command acknowledges risk and owns response | Participants do not direct patrols or design physical maneuvers |
+| Wipe all workstations / revoke every enterprise account | Request proportionality and preservation justification | Do not reward blanket disruption unsupported by scope evidence |
+
+If cells request containment before inject 2, I201 remains a historical 09:26 event,
+predating their 09:30-or-later request. Explicitly explain this to avoid implying
+that a newly approved revocation failed. The same timing rule applies to all logs.
+
+If a cell stalls for 10 minutes, offer hint 1 from solutions; after another 10,
+offer hint 2. Hint 3 is a recovery aid. Log hints for coaching context, not automatic
+penalties. Ask the cell to reproduce the conclusion and explain its uncertainty.
+
+At minute 150, stop investigation and collect handovers. Export the fallback board
+and Jira project work separately. Do not publish participant names, credentials,
+comments or performance assessments to this public repository. Run AAR before reset.

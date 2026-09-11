@@ -1,0 +1,32 @@
+name: silent-ridge
+services:
+  exercise:
+    build: .
+    ports:
+      - "${BIND_IP:-127.0.0.1}:${PORT:-8080}:8080"
+    volumes:
+      - ./runtime/public:/public:ro
+      - ./runtime/state:/state
+    secrets:
+      - credentials
+    networks:
+      - exercise
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 64
+    mem_limit: 256m
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+secrets:
+  credentials:
+    file: ./runtime/credentials.json
+networks:
+  exercise:
+    internal: true

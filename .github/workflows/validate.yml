@@ -1,0 +1,40 @@
+name: Validate exercise
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  portable:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m unittest discover -s tests -v
+  container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python scripts/exercise.py init
+      - run: docker compose config --quiet
+      - run: docker compose build
+      - run: docker compose up -d --wait
+      - run: python scripts/smoke.py
+      - run: docker compose restart
+      - run: python scripts/smoke.py --expect-persistence
+      - run: python scripts/exercise.py release 1
+      - run: python scripts/exercise.py verify
+      - run: python scripts/smoke.py --expect-persistence --released
+      - run: python scripts/exercise.py export
+      - run: docker compose down
+      - run: python scripts/exercise.py reset --stopped
+      - run: docker compose up -d --wait
+      - run: python scripts/smoke.py
+      - if: always()
+        run: docker compose down
