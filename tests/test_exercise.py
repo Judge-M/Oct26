@@ -164,6 +164,31 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(self.request('/files/inject-2/late-auth.csv')[0],404)
         exercise.verify()
 
+    def test_independent_tab_sessions(self):
+        self.assertEqual(self.request('/', None)[0], 200)
+        tokens = {}
+        for cell in generate.CELLS:
+            status, body = self.request('/api/login', None, {'cell': cell, 'password': self.logins[cell]})
+            self.assertEqual(status, 200)
+            tokens[cell] = json.loads(body)['token']
+        self.assertEqual(len(set(tokens.values())), 5)
+        for cell, token in tokens.items():
+            headers = {'Authorization': 'Bearer ' + token}
+            self.assertEqual(json.loads(self.request('/api/me', None, headers=headers)[1])['cell'], cell)
+            self.assertEqual(self.request('/files/common/collection.md', None, headers=headers)[0], 200)
+            self.assertEqual(self.request('/api/update', None, {'ticket': 1, 'body': cell}, headers)[0], 201)
+        endpoint = {'Authorization': 'Bearer ' + tokens['endpoint']}
+        self.assertEqual(self.request('/api/update', None, {'ticket': 1, 'body': 'deny', 'status': 'Closed'}, endpoint)[0], 403)
+        network = {'Authorization': 'Bearer ' + tokens['network']}
+        self.assertEqual(self.request('/api/logout', None, {}, network)[0], 200)
+        self.assertEqual(self.request('/api/me', None, headers=network)[0], 401)
+        self.assertEqual(self.request('/api/me', None, headers=endpoint)[0], 200)
+        self.server.sessions[tokens['endpoint']] = ('endpoint', 0)
+        self.assertEqual(self.request('/api/me', None, headers=endpoint)[0], 401)
+        self.assertEqual(self.request('/api/login', None, {'cell': 'network', 'password': 'wrong'})[0], 401)
+        self.stop(); self.start()
+        self.assertEqual(self.request('/api/me', None, headers={'Authorization': 'Bearer ' + tokens['server']})[0], 401)
+
     def test_shared_comments_owner_status_and_restart(self):
         for user in generate.CELLS:
             self.assertEqual(self.request('/api/update',user,{'ticket':1,'body':f'{user}: evidence comment'})[0],201)

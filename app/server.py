@@ -6,6 +6,9 @@ import hmac
 import html
 import json
 import sqlite3
+import secrets
+import threading
+import time
 from contextlib import closing
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -42,14 +45,20 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header('Cache-Control', 'no-store')
         self.send_header('X-Content-Type-Options', 'nosniff')
         self.send_header('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; frame-ancestors 'none'")
-        if status == 401:
-            self.send_header('WWW-Authenticate', 'Basic realm="Silent Ridge"')
         self.end_headers()
         self.wfile.write(body)
 
     def auth(self):
         try:
             method, token = self.headers.get('Authorization', '').split(' ', 1)
+            if method == 'Bearer':
+                with self.server.session_lock:
+                    session = self.server.sessions.get(token)
+                    if session and session[1] > time.monotonic():
+                        return session[0]
+                    self.server.sessions.pop(token, None)
+                self.send(401, {'error': 'Session expired. Sign in again.'})
+                return None
             user, password = base64.b64decode(token, validate=True).decode().split(':', 1)
             entry = self.server.credentials.get(user)
             if method == 'Basic' and entry:
@@ -65,6 +74,15 @@ class Handler(BaseHTTPRequestHandler):
         path = urlsplit(self.path).path
         if path == '/health':
             return self.send(200, {'status': 'ok'})
+        if path in ('/', '/ui.js', '/style.css'):
+            filename = {'/': 'index.html', '/ui.js': 'ui.js', '/style.css': 'style.css'}[path]
+            mime = {'/': 'text/html; charset=utf-8', '/ui.js': 'text/javascript', '/style.css': 'text/css'}[path]
+            return self.send(200, (Path(__file__).parent / filename).read_bytes(), mime)
+        if path == '/api/me':
+            user = self.auth()
+            if user:
+                self.send(200, {'cell': user})
+            return
         if not self.auth():
             return
         if path == '/api/tickets':
@@ -76,10 +94,6 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(200, tickets)
         if path == '/api/files':
             return self.send(200, sorted(p.relative_to(self.server.root).as_posix() for p in self.server.root.rglob('*') if p.is_file() and not p.is_symlink()))
-        if path in ('/', '/ui.js', '/style.css'):
-            filename = {'/': 'index.html', '/ui.js': 'ui.js', '/style.css': 'style.css'}[path]
-            mime = {'/': 'text/html; charset=utf-8', '/ui.js': 'text/javascript', '/style.css': 'text/css'}[path]
-            return self.send(200, (Path(__file__).parent / filename).read_bytes(), mime)
         if path.startswith('/files/'):
             relative = unquote(path[7:])
             if '\\' in relative or ':' in relative or any(x in ('.', '..') for x in relative.split('/')):
@@ -90,12 +104,43 @@ class Handler(BaseHTTPRequestHandler):
         self.send(404, {'error': 'Unknown resource'})
 
     def do_POST(self):
+        path = urlsplit(self.path).path
+        if path == '/api/login':
+            if self.headers.get('X-Exercise-Request') != '1' or self.headers.get('Content-Type') != 'application/json':
+                return self.send(403, {'error': 'Use the exercise client'})
+            try:
+                length = int(self.headers.get('Content-Length', '0'))
+                if not 0 < length <= 4096:
+                    raise ValueError()
+                payload = json.loads(self.rfile.read(length))
+                user, password = payload['cell'], payload['password']
+                if not isinstance(user, str) or not isinstance(password, str):
+                    raise ValueError()
+                entry = self.server.credentials.get(user)
+                if not entry or not hmac.compare_digest(entry['hash'], hashlib.pbkdf2_hmac(
+                        'sha256', password.encode(), bytes.fromhex(entry['salt']), 200000).hex()):
+                    return self.send(401, {'error': 'Incorrect cell or password'})
+                token = secrets.token_urlsafe(32)
+                with self.server.session_lock:
+                    now = time.monotonic()
+                    self.server.sessions = {k: v for k, v in self.server.sessions.items() if v[1] > now}
+                    if len(self.server.sessions) >= 1000:
+                        return self.send(503, {'error': 'Session capacity reached; sign out unused tabs'})
+                    self.server.sessions[token] = (user, now + 8 * 3600)
+                return self.send(200, {'cell': user, 'token': token})
+            except (ValueError, KeyError, TypeError):
+                return self.send(400, {'error': 'Choose a cell and enter its password'})
         user = self.auth()
         if not user:
             return
         # JSON plus explicit custom header prevents browser cross-origin form requests.
         if self.headers.get('X-Exercise-Request') != '1' or self.headers.get('Content-Type') != 'application/json':
             return self.send(403, {'error': 'Use the exercise client'})
+        if path == '/api/logout':
+            token = self.headers.get('Authorization', '').removeprefix('Bearer ')
+            with self.server.session_lock:
+                self.server.sessions.pop(token, None)
+            return self.send(200, {'signed_out': True})
         if urlsplit(self.path).path != '/api/update':
             return self.send(404, {'error': 'Unknown resource'})
         try:
@@ -130,6 +175,8 @@ def serve(host, port, root, state, credentials):
     server = ThreadingHTTPServer((host, port), Handler)
     server.root, server.state = root, state
     server.credentials = json.loads(Path(credentials).read_text())
+    server.sessions = {}
+    server.session_lock = threading.Lock()
     if set(server.credentials) != set(CELLS):
         raise ValueError('Expected five cell credentials')
     database(state).close()

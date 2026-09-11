@@ -36,7 +36,14 @@ in transit. Use a locally managed TLS reverse proxy if crossing an untrusted or
 shared network; never reuse organizational passwords. Do not publish the port to
 the internet. The portable server defaults to loopback and has the same API.
 
-All evidence routes require authentication, except a content-free health check.
+The login page, JavaScript, CSS and content-free health check are public; evidence
+and ticket routes require authentication. Browser login exchanges a cell/password
+for an eight-hour opaque bearer token held in tab-scoped sessionStorage. Passwords
+are cleared after login, and tokens never enter URLs or cookies. New-cell links use
+noopener to prevent copying a session. Sign-out revokes only that token; restart
+invalidates all tokens. Explicit Basic headers remain supported for CLI clients,
+but no browser authentication challenge is sent. Browser requests omit ambient
+credentials so a cached Basic login cannot override a tab's selected cell.
 File resolution rejects traversal and constrains resolved paths to public. Files
 download as application/octet-stream with nosniff; comments render with textContent
 and a restrictive CSP. JSON mutations require a custom header, have size limits,

@@ -34,7 +34,14 @@ docker compose ps
 Switch to the feature branch while this implementation is an unmerged PR; after
 merge use main. Open [the local portal](http://127.0.0.1:8080). The controller reads
 runtime/cell-logins.txt locally and privately gives each cell only its own line.
-Cell usernames are network, endpoint, identity, server and hunting. Do not paste
+Choose network, endpoint, identity, server or hunting on the login page and enter
+that cell's password. Use the **Open [cell] tab** links to sign in as all five cells
+in one browser. Each link opens an independent tab; a visible label and tab title
+identify the active cell. **Switch cell / Sign out** affects only that session.
+Sessions survive refresh, expire after eight hours, and require a new login after
+a server restart. Passwords are not saved by the application. Use these links
+rather than the browser's Duplicate Tab feature, which may copy session storage.
+Do not paste
 credentials into tickets, Git or screenshots. Config changes require a new run.
 
 For multiple seats, create an ignored .env containing `BIND_IP=<training-interface-ip>`
