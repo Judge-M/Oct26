@@ -25,6 +25,7 @@ jobs:
       - run: docker compose config --quiet
       - run: docker compose build
       - run: docker compose up -d --wait
+      - run: python scripts/check_container.py
       - run: python scripts/smoke.py
       - run: docker compose restart
       - run: python scripts/smoke.py --expect-persistence

@@ -3,14 +3,16 @@
 ```mermaid
 flowchart LR
   C[Controller host: config, generator, private vault] -->|manual atomic directory release| P[runtime/public]
-  U[Five participant cells] -->|authenticated HTTP on lab interface| S[Exercise service]
+  U[Five participant cells] -->|authenticated HTTP on lab interface| G[Nginx gateway]
+  G -->|internal network| S[Exercise service]
   P -->|read-only bind| S
   S -->|write| D[runtime/state: SQLite tickets]
   K[Credential hashes: secret mount] --> S
   U -->|separate approved connection| J[Jira training project]
 ```
 
-One unprivileged Python service hosts released evidence and a small fallback ticket
+An unprivileged Nginx gateway publishes the host port and forwards to one
+unprivileged Python service, which hosts released evidence and a small fallback ticket
 board. Standard-library HTTP/SQLite avoids extra packages and supports offline use.
 Use existing Wireshark/SQLite tools for investigation and an existing Jira deployment
 for the intended ticket workflow. Historical DOCS-1, IDP-1 and workstations exist as
@@ -21,7 +23,10 @@ generator, private vault, repository, .git, runtime secrets and student data nev
 enter the image. The container mounts runtime/public read-only, state writable and
 hashed credentials as a secret. It does not mount the controller vault or Docker
 socket. A read-only root filesystem, dropped capabilities and UID 10001 limit writes.
-The internal Compose network provides no normal external gateway; host firewalls
+The application has only an internal Compose network and no normal external gateway.
+Nginx bridges a frontend network to that internal network; it holds no credentials,
+evidence or state and exposes no forward-proxy function. Only Nginx publishes a port.
+Its frontend can have normal engine egress, while the application cannot. Host firewalls
 and the isolated lab network remain part of the physical access boundary.
 
 Host port defaults to 127.0.0.1:8080. For multi-seat rehearsal, bind only the training

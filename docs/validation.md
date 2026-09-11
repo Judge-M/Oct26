@@ -25,6 +25,11 @@ AGENTS.md or pre-existing implementation/test requirements were found.
 
 The first test run exposed SQLite handles left open during Windows export/reset;
 explicit connection closure fixed it and the full suite passed afterward. CI is
+also checking the unprivileged user, mounts, image exclusions and network boundary.
+The first container CI run found that directly publishing a port on the internal
+network did not expose it to the host. A separate unprivileged Nginx gateway now
+connects the published frontend to the internal application network.
+CI is
 configured for Windows/Linux portable tests and Linux container build, health,
 HTTP boundaries, release, restart persistence, export and reset. Record the actual
 CI result from the PR before rehearsal; configuration alone is not a passing run.
