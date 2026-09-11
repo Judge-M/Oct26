@@ -25,6 +25,7 @@ python -m unittest discover -s tests -v
 python scripts/exercise.py init
 python scripts/exercise.py verify
 docker compose config --quiet
+docker compose pull gateway
 docker compose build
 docker compose up -d --wait
 docker compose ps

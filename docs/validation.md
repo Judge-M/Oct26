@@ -20,6 +20,9 @@ AGENTS.md or pre-existing implementation/test requirements were found.
 | JavaScript syntax | Passed Node --check |
 | Compose configuration parsing | Passed docker compose config --quiet |
 | Local Docker build/start | Not executed successfully: desktop-linux engine pipe unavailable, including after attempting Docker Desktop startup |
+| Linux CI container build and full lifecycle | Passed on implementation commit 1c8959c; see linked run below |
+| Linux CI container user, mounts, image exclusions and internal app network | Passed |
+| Windows and Linux CI portable suites | Passed |
 | Live Jira import/permissions/export | Not executed; no training project supplied |
 | Multi-seat lab routing, firewall/TLS and timed human rehearsal | Not executed; hardware/participants unspecified |
 
@@ -29,10 +32,10 @@ also checking the unprivileged user, mounts, image exclusions and network bounda
 The first container CI run found that directly publishing a port on the internal
 network did not expose it to the host. A separate unprivileged Nginx gateway now
 connects the published frontend to the internal application network.
-CI is
-configured for Windows/Linux portable tests and Linux container build, health,
-HTTP boundaries, release, restart persistence, export and reset. Record the actual
-CI result from the PR before rehearsal; configuration alone is not a passing run.
+The [successful Linux container and Windows/Linux test run](https://github.com/Judge-M/Oct26/actions/runs/34555316863)
+validated build, health, HTTP boundaries, release, restart persistence, export,
+reset, and a clean new run on implementation commit 1c8959c. Rehearse the same
+workflow on the actual event host; local Docker remains unavailable here.
 
 Manual content review confirms each cell has an independent initial evidence path
 and useful findings before correlation. Inject 1 resolves payload identity, inject 2
