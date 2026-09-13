@@ -15,7 +15,7 @@ gateway=json.loads(docker('inspect',gateway_id))[0]
 assert app['Config']['User']=='10001:10001'
 assert app['HostConfig']['ReadonlyRootfs']
 assert not app['HostConfig']['PortBindings']
-assert set(m['Destination'] for m in app['Mounts'])=={'/public','/state','/run/secrets/credentials'}
+assert set(m['Destination'] for m in app['Mounts'])=={'/public','/state','/control','/run/secrets/credentials'}
 assert all(not m['RW'] for m in app['Mounts'] if m['Destination']!='/state')
 networks=app['NetworkSettings']['Networks']
 assert len(networks)==1

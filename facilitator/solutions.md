@@ -108,11 +108,29 @@ The normalized SIEM timestamps align with the corrected endpoint timeline. WS-31
 is unobservable after 08:50 and cannot be cleared. Inject 3 adds an inventory lead
 on WS-31, while H202 demonstrates why matching BriefSync by name over-scopes.
 
-Query example: filter rows where `host == 'WS-17'`, sort by `time`, then separately
-enumerate coverage rows with `offline` or `not collected`. For inject 3 compare
-artifact + path + publisher, not artifact name alone. This yields an explicit matrix:
-WS-17 strongly supported; WS-31 suspected/pending collection; WS-22 observed benign
-comparator; DOCS-1 affected data service with no demonstrated host compromise.
+Query example (run against the downloaded JSONL):
+
+```python
+import json
+from pathlib import Path
+rows = [json.loads(line) for line in Path('siem.jsonl').read_text().splitlines()]
+account_events = sorted((r for r in rows if r['user'] == 'm.ellis'), key=lambda r: r['time'])
+for row in account_events:
+    print(row['id'], row['time'], row['host'], row['value'])
+session_events = [r for r in account_events if 'S-41' in r['value']]
+```
+
+This returns H101–H104, including H102 under IDP-1. `host` is the event-producing
+system: WS-17 produces endpoint observations, while IDP-1 produces the account's
+session anomaly. Correlate m.ellis across hosts, then join S-41 to identity I101/I102
+and server S101. An endpoint-only host filter would miss the identity event; H102
+does not demonstrate that IDP-1 is compromised. Account correlation is a hypothesis
+supported by session IDs and normalized times, not proof every account event is malicious.
+
+Separately enumerate coverage rows with `offline` or `not collected`. For inject 3,
+compare artifact + path + publisher. Scope matrix: WS-17 strongly supported; WS-31
+suspected/pending collection; WS-22 observed benign comparator; DOCS-1 affected data
+service with no demonstrated host compromise.
 
 Alternative: common authorized software rollout could explain names; divergent
 paths/publishers and missing telemetry require collection, not blanket conviction.

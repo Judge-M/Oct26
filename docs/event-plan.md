@@ -8,14 +8,20 @@ are part of the exercise.
 
 ## Planning assumptions and ownership
 
-`config.json` proposes 15 October 2026, 180 minutes, 20 participants (four per cell),
-and injects at elapsed minutes 35, 75 and 115. These are configurable assumptions,
-not confirmed event arrangements. The cyber lane owner must confirm the actual date,
-attendance, duration, skill mix, hardware and Jira availability before rehearsal.
-Changing the date and reinitializing regenerates all evidence timestamps. Changing
-duration or inject minutes changes the controller's schedule, not automated release;
-preserve at least 10 minutes after injects 1/2 and 15 after inject 3 for reporting.
-No absolute calendar scheduling runs in the application.
+`config.json` is the planning authority. `python scripts/schedule.py` validates it
+and prints the run schedule. Duration 180 selects the standard profile; duration
+120 selects the compressed profile, including all reporting and closure times.
+Optional `timing` overrides are validated as a complete ordered schedule. Other
+durations require all timing fields. Unknown fields, overlapping deadlines and
+insufficient response windows are rejected before initialization.
+
+Initialization writes the resolved configuration to runtime/run-config.json,
+controller schedule to runtime/vault/controller-schedule.md, and participant schedule
+to runtime/public/common/schedule.md. It also renders handout deadlines and inject
+headings from the same schedule. Source handouts contain template fields; distribute
+the rendered copies. Configuration changes require a new run. The scenario clock
+starts at 09:30Z and advances with exercise elapsed minutes; historical evidence
+remains on its original timeline. The actual UTC clock is recorded separately.
 
 Proposed host: Linux container engine with 2 CPU cores, 4 GB RAM, 2 GB free disk,
 plus one browser per cell (prefer one per analyst) on an isolated training network.
@@ -41,31 +47,23 @@ Optional offers to the other instructors: reuse the fictional patrol name LANTER
 the need to distinguish observations from assessments, and the abstract AMBER/BLUE
 sector labels. Reporting instructors may optionally use the cyber report template
 with their own facts. These are narrative options, not prescribed objectives,
-tasks, terrain, routes or instructor conduct. Do not use the attached Word document's
-targeting tasking in this lane.
+tasks, terrain, routes or instructor conduct.
 
-## Proposed cyber schedule
+## Cyber schedule and joint report
 
-| Elapsed minute | Activity | Output / owner |
-|---|---|---|
-| 0–10 | Safety, access, incoming shift handover | Lead confirms all five cells connected |
-| 10–25 | Independent triage | Each cell posts first evidence-based report at 25 |
-| 25–35 | Cross-cell sharing | Reporter checks another ticket; coach logs observations |
-| 35 | Inject 1 | DLP body; command exposure report due at 45 |
-| 45–65 | Correlate file identity and access scope | Updated shared exposure assessment |
-| 65–75 | Brief pause / controller collection requests | Lead resolves workflow problems |
-| 75 | Inject 2 | Persistent session and version change; recommendation due at 85 |
-| 85–115 | Containment and competing hypotheses | Written requests with costs and verification |
-| 115 | Inject 3 | Broader scope and false positive; priorities due at 130 |
-| 130–150 | Final synthesis | Joint report and five ticket handovers |
-| 150–175 | AAR | Evidence-based discussion and improvement actions |
-| 175–180 | Export and close | Technical facilitator secures work and shuts down |
+Use the generated controller and participant schedules for every deadline. They
+cover briefing, initial reports, three staged injects and responses, contributions,
+joint assessment, investigation closure, AAR and export. Record start, pause and
+resume in the controller ledger. A pause freezes elapsed time and shifts actual UTC
+deadlines; it never rewrites historical evidence. For late releases, record an
+explicit revised response deadline as a controller note and announce it to all cells.
 
-For 120 minutes: brief 0–10, initial report 20, injects 25/50/75, final 95,
-AAR 100–120. For 240 minutes: keep decision deadlines early and spend additional
-time on independent query reproduction, recovery planning and AAR. State the
-chosen elapsed schedule before distributing handouts; the 09:30Z scenario start
-and relative evidence facts stay fixed.
+The hunting reporter owns the joint assessment on ticket 5 (the hunting Jira issue
+or fallback ticket 5). Each cell posts its contribution there by `cell_handover`,
+linking its evidence and own ticket/comment IDs. The hunting reporter posts JOINT
+ASSESSMENT by `joint_report`, reconciling facts and retaining unresolved differences.
+The controller records receipt and any decisions in the external ledger. The five
+specialist tickets remain open for their own investigations; there is no sixth cell.
 
 ## Preparation checklist
 

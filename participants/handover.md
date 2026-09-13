@@ -10,7 +10,7 @@ exports. An account password was reset at 09:20Z. Do not assume the incident end
 Begin with `common/collection.md` and the evidence assigned to your cell. Initial
 evidence is available to all cells; share your work and ask for help.
 
-Your first command update is due at elapsed minute 25. Submit a brief even when
+Your first command update is due at elapsed minute {{initial_report}}. Submit a brief even when
 confidence is low. Exercise control will release further information and questions.
 All command messages and defensive recommendations go to the controller, who plays
 simulated command. Do not contact, track, or direct real personnel in the field.
@@ -24,3 +24,7 @@ to LANTERN without inventing harm, adversary identity, or real-world movements.
 Success means a defensible shared assessment, timely updates, evidence citations,
 and proportionate recommendations. There are no competitive flags or points for speed
 alone. Use the reporting templates and keep an explicit unanswered-questions list.
+
+Use common/schedule.md for all run deadlines. The hunting reporter coordinates the joint
+assessment on ticket 5; each cell contributes by minute {{cell_handover}}, and the
+joint report is due at minute {{joint_report}}.
