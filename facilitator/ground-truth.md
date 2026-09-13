@@ -8,12 +8,9 @@ not protect conclusions. This public version is best treated as a coached exerci
 
 ## Implementation decisions
 
-The user-authorized SOC disclosure scenario is the sole narrative foundation.
-The attached Operation Silent Ridge document was reviewed as reference; its separate
-targeting, location-finding and exploitation tasking was not adopted. Silent Ridge
-is a working event name only. All accounts, hosts, patrol names, plan details and
-technical events here were invented for this defensive exercise. No real route,
-coordinates, unit, person or adversary is represented.
+Silent Ridge is a defensive SOC disclosure exercise. All accounts, hosts, patrol
+names, plan details and technical events are fictional. No real route, coordinates,
+unit, person or adversary is represented.
 
 Fictional clerk m.ellis uses WS-17 and DOCS-1; planner r.chen uses WS-22. The program
 brief-viewer.exe is modeled as an unauthorized session-stealing utility, but no

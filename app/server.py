@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
+from exercise_clock import elapsed_at
 
 CELLS = ('network', 'endpoint', 'identity', 'server', 'hunting')
 
@@ -26,6 +27,10 @@ def database(state):
         CREATE TABLE IF NOT EXISTS comments(id INTEGER PRIMARY KEY, ticket INTEGER REFERENCES tickets(id),
           author TEXT, created TEXT, body TEXT);
     ''')
+    columns={row[1] for row in con.execute('PRAGMA table_info(comments)')}
+    for name,kind in [('elapsed_seconds','REAL'),('clock_event','TEXT')]:
+        if name not in columns:
+            con.execute(f'ALTER TABLE comments ADD COLUMN {name} {kind}')
     for i, cell in enumerate(CELLS, 1):
         con.execute('INSERT OR IGNORE INTO tickets VALUES (?, ?, ?)', (i, cell, 'Investigating'))
     con.commit()
@@ -85,12 +90,14 @@ class Handler(BaseHTTPRequestHandler):
             return
         if not self.auth():
             return
+        if path == '/api/control':
+            return self.send(200, self.control_events())
         if path == '/api/tickets':
             with closing(database(self.server.state)) as con, con:
                 tickets = [dict(zip(('id', 'owner', 'status'), row)) for row in con.execute('SELECT * FROM tickets ORDER BY id')]
                 for ticket in tickets:
-                    ticket['comments'] = [dict(zip(('id', 'author', 'created', 'body'), row)) for row in con.execute(
-                        'SELECT id,author,created,body FROM comments WHERE ticket=? ORDER BY id', (ticket['id'],))]
+                    ticket['comments'] = [dict(zip(('id', 'author', 'created', 'body', 'elapsed_seconds', 'clock_event'), row)) for row in con.execute(
+                        'SELECT id,author,created,body,elapsed_seconds,clock_event FROM comments WHERE ticket=? ORDER BY id', (ticket['id'],))]
             return self.send(200, tickets)
         if path == '/api/files':
             return self.send(200, sorted(p.relative_to(self.server.root).as_posix() for p in self.server.root.rglob('*') if p.is_file() and not p.is_symlink()))
@@ -159,8 +166,10 @@ class Handler(BaseHTTPRequestHandler):
                 owner = con.execute('SELECT owner FROM tickets WHERE id=?', (ticket,)).fetchone()[0]
                 if status and owner != user:
                     return self.send(403, {'error': 'Only the owning cell changes status; all cells may comment'})
-                con.execute('INSERT INTO comments(ticket,author,created,body) VALUES(?,?,?,?)',
-                            (ticket, user, datetime.now(timezone.utc).isoformat(), body.strip()))
+                created=datetime.now(timezone.utc).isoformat()
+                events=self.control_events()
+                con.execute('INSERT INTO comments(ticket,author,created,body,elapsed_seconds,clock_event) VALUES(?,?,?,?,?,?)',
+                            (ticket, user, created, body.strip(), elapsed_at(events,created), events[-1]['id'] if events else None))
                 if status:
                     con.execute('UPDATE tickets SET status=? WHERE id=?', (status, ticket))
             self.send(201, {'saved': True})
@@ -168,12 +177,18 @@ class Handler(BaseHTTPRequestHandler):
             self.send(400, {'error': 'Invalid ticket, text, or status'})
 
 
-def serve(host, port, root, state, credentials):
+    def control_events(self):
+        path=self.server.control/'ledger.json'
+        return json.loads(path.read_text()) if path.exists() else []
+
+
+def serve(host, port, root, state, credentials, control=None):
     root, state = Path(root).resolve(), Path(state).resolve()
     if not root.is_dir() or not state.is_dir():
         raise ValueError('Run exercise.py init first')
     server = ThreadingHTTPServer((host, port), Handler)
     server.root, server.state = root, state
+    server.control=Path(control).resolve() if control else root.parent/'control'
     server.credentials = json.loads(Path(credentials).read_text())
     server.sessions = {}
     server.session_lock = threading.Lock()
@@ -190,5 +205,6 @@ if __name__ == '__main__':
     parser.add_argument('--root', default='runtime/public')
     parser.add_argument('--state', default='runtime/state')
     parser.add_argument('--credentials', default='runtime/credentials.json')
+    parser.add_argument('--control', default='runtime/control')
     args = parser.parse_args()
     serve(**vars(args)).serve_forever()

@@ -1,21 +1,24 @@
 # Controller guide and staged injects
 
-Keep this guide and the vault private. Start the elapsed exercise clock after all
-cells can access evidence. Scenario time starts at 09:30Z; elapsed minutes advance
-one-for-one in the default 180-minute run. Evidence timestamps remain UTC regardless
-of the host's timezone. Read configured inject times from `config.json`; release is
-manual so pauses do not silently disclose information.
+Keep this guide and the vault private. Read runtime/vault/controller-schedule.md
+for the validated run's releases, responses, joint report and closure. Start the
+ledger clock after all cells can access evidence. Scenario time begins at 09:30Z;
+actual UTC and pause-aware elapsed time are recorded separately. Release is manual.
+See docs/controller-ledger.md for exact clock, decision and export commands.
 
 At start, read participant handover aloud. Ask each cell to name a reporter and to
 locate its ticket and collection note. Coach tool usage without stating conclusions.
 Log observed behaviors and elapsed times for assessment. Reward an early qualified
 warning over a late unsupported claim of certainty.
 
-| Inject | Default release / deadline | Command prompt and evidence | Expected change |
-|---|---|---|---|
-| 1 | 35 / 45 | `python scripts/exercise.py release 1`; DLP body, request ID, hash | Establish exact v3 disclosure; give credible exposure report |
-| 2 | 75 / 85 | `python scripts/exercise.py release 2`; late IdP refresh, version comparison | Recognize reset insufficiency and distinguish stale details from retained word |
-| 3 | 115 / 130 | `python scripts/exercise.py release 3`; delayed inventory with benign comparator | Broaden collection to WS-31 while avoiding task-name-only compromise claims |
+| Inject | Command and evidence | Expected change |
+|---|---|---|
+| 1 | `python scripts/exercise.py release 1 --operator EXCON-A`; DLP body and hash | Establish v3 disclosure |
+| 2 | `python scripts/exercise.py release 2 --operator EXCON-A`; late refresh and version comparison | Revise containment and current exposure |
+| 3 | `python scripts/exercise.py release 3 --operator EXCON-A`; delayed inventory and comparator | Broaden collection without name-only compromise claims |
+
+Use the generated schedule for planned elapsed releases and response deadlines.
+Each actual release records UTC, elapsed time and operator in the control ledger.
 
 After release, tell all cells to refresh the portal, verify the release manifest,
 and read the command prompt. In Jira, post the command question manually to all
@@ -49,6 +52,7 @@ If a cell stalls for 10 minutes, offer hint 1 from solutions; after another 10,
 offer hint 2. Hint 3 is a recovery aid. Log hints for coaching context, not automatic
 penalties. Ask the cell to reproduce the conclusion and explain its uncertainty.
 
-At minute 150, stop investigation and collect handovers. Export the fallback board
+At the generated investigation_end, stop investigation. Collect each cell contribution
+by cell_handover and the hunting reporter’s JOINT ASSESSMENT on ticket 5 by joint_report. Export the fallback board
 and Jira project work separately. Do not publish participant names, credentials,
 comments or performance assessments to this public repository. Run AAR before reset.

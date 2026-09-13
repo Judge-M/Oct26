@@ -1,49 +1,34 @@
 # Validation record
 
-Initial local validation: 10 September 2026 (America/New_York; tool logs after
-midnight UTC), Windows, bundled Python 3.12 runtime. No repository-specific
-AGENTS.md or pre-existing implementation/test requirements were found.
+Portable validation uses Windows and Python 3.12.14. The suite preserves the ten
+original evidence/runtime tests and the tab-login test, and adds ten review regressions.
 
-| Check | Result |
+| Check | Executed result |
 |---|---|
-| 10 automated evidence/runtime tests | Passed |
-| Deterministic regeneration and tamper detection | Passed; same runtime/config |
-| Cross-source file hashes, request IDs, sessions and clock offsets | Passed |
-| PCAP framing, IPv4 checksum, lengths and timestamps | Passed |
-| SQLite forensic artifact integrity and downloads query | Passed |
-| Date reconfiguration across initial and late evidence | Passed |
-| Five authenticated cells, unauthenticated denial and traversal attempts | Passed over HTTP |
-| Cross-cell comments and owner-only status mutation | Passed over HTTP |
-| Inject order, repeat release, future-file denial and release visibility | Passed |
-| Process restart persistence, export, reset and old-password rejection | Passed automated integration tests |
-| Standalone portable server and separate smoke client | Passed before/after inject 1; export passed |
-| JavaScript syntax | Passed Node --check |
-| Compose configuration parsing | Passed docker compose config --quiet |
-| Local Docker build/start | Not executed successfully: desktop-linux engine pipe unavailable, including after attempting Docker Desktop startup |
-| Linux CI container build and full lifecycle | Passed on implementation commit 1c8959c; see linked run below |
-| Linux CI container user, mounts, image exclusions and internal app network | Passed |
-| Windows and Linux CI portable suites | Passed |
-| Live Jira import/permissions/export | Not executed; no training project supplied |
-| Multi-seat lab routing, firewall/TLS and timed human rehearsal | Not executed; hardware/participants unspecified |
+| 21 portable tests | Passed locally |
+| Default and 120-minute schedules | Passed: rendered handouts, inject clocks/deadlines, joint report, closure and unchanged historical evidence |
+| Invalid configuration | Rejected before generation |
+| Canonical initial manifest and rehashed public inject tampering | Rejected by regressions |
+| Release directory/log/ledger consistency | Passed mismatch and duplicate checks |
+| Clock start/pause/resume and named controller decisions | Passed; UTC/elapsed mapping, restart and export tested |
+| Read-only controller API and comment attribution | Passed; cells cannot write controller records |
+| Cross-host hunting correlation | Passed: H101–H104 include IDP-1's H102 |
+| Offline package checksums | Passed tamper regression |
+| Browser exercise | Headless Edge passed five simultaneous cells, displayed T1-C1 and CTL IDs, download, isolated sign-out and refresh |
+| Portable CLI rehearsal | Start/pause/resume, decision, release, verify and export passed on an isolated QA run |
+| JavaScript syntax and Compose configuration | Passed locally |
+| Local Docker execution | Unavailable: docker info exceeded a ten-second timeout |
+| Current CI container and offline restoration | Pending current PR run; workflow tests both images and packaged source with --no-build --pull never |
 
-The first test run exposed SQLite handles left open during Windows export/reset;
-explicit connection closure fixed it and the full suite passed afterward. CI is
-also checking the unprivileged user, mounts, image exclusions and network boundary.
-The first container CI run found that directly publishing a port on the internal
-network did not expose it to the host. A separate unprivileged Nginx gateway now
-connects the published frontend to the internal application network.
-The [successful Linux container and Windows/Linux test run](https://github.com/Judge-M/Oct26/actions/runs/34555316863)
-validated build, health, HTTP boundaries, release, restart persistence, export,
-reset, and a clean new run on implementation commit 1c8959c. Rehearse the same
-workflow on the actual event host; local Docker remains unavailable here.
+CI runs portable tests on Windows/Linux and Linux container build, read-only mounts,
+image/network boundaries, shared comments, controller ledger, release, persistence,
+export and reset. It also saves/loads exact images and starts the packaged controller
+source with builds and pulls disabled. Image identities and package checksum are
+printed in the offline-pack step and recorded in the package.
 
-Manual content review confirms each cell has an independent initial evidence path
-and useful findings before correlation. Inject 1 resolves payload identity, inject 2
-changes containment/version assessment, and inject 3 changes scope/false-positive
-reasoning. Automated checks establish internal consistency, not training difficulty;
-a timed human rehearsal remains necessary.
-
-Do not describe this initial implementation as live-event validated. Use the README
-and preparation checklist to close Docker/Jira/network/human-rehearsal gaps on the
-actual host. No student data, runtime credentials or private reference document is
-included in the source commit.
+Outstanding: actual Jira import/permissions/comment export; separate participant
+seats and lab firewall/TLS; clean physical offline host with preinstalled compatible
+engine/Python; accessibility checks; and a timed human rehearsal. CI restoration
+is not evidence that those site-specific checks passed. Controller attribution
+requires named operators on access-controlled host accounts; the external ledger
+is not cryptographically tamper-proof.

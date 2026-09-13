@@ -28,6 +28,7 @@ services:
     volumes:
       - ./runtime/public:/public:ro
       - ./runtime/state:/state
+      - ./runtime/control:/control:ro
     secrets:
       - credentials
     networks:

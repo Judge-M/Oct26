@@ -3,6 +3,5 @@
   "duration_minutes": 180,
   "participants": 20,
   "cells": ["network", "endpoint", "identity", "server", "hunting"],
-  "inject_minutes": [35, 75, 115],
   "note": "Planning assumptions only; date and staffing require event-owner confirmation. Evidence clock is UTC; event wall clock is separate."
 }

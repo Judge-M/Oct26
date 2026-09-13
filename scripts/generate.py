@@ -9,6 +9,7 @@ import sqlite3
 import struct
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from schedule import validate, markdown, clock
 
 REPO = Path(__file__).resolve().parents[1]
 CELLS = ('network', 'endpoint', 'identity', 'server', 'hunting')
@@ -42,17 +43,28 @@ def generate(output, config=None):
     output = Path(output)
     if output.exists():
         raise ValueError('Generation destination must not exist; use a new directory')
-    config = config or json.loads((REPO / 'config.json').read_text())
+    config, schedule = validate(config if config is not None else json.loads((REPO / 'config.json').read_text()))
     day = datetime.strptime(config['exercise_date'], '%Y-%m-%d').replace(tzinfo=timezone.utc)
     def ts(time):
         return day.strftime('%Y-%m-%dT') + time + 'Z'
     initial = output / 'initial'
     initial.mkdir(parents=True)
     shutil.copytree(REPO / 'participants', initial / 'handouts')
+    for path in (initial/'handouts').glob('*.md'):
+        content = path.read_text(encoding='utf-8')
+        for key, value in schedule.items():
+            if isinstance(value, int):
+                content = content.replace('{{'+key+'}}', str(value))
+        if '{{' in content:
+            raise ValueError(f'Unresolved handout placeholder: {path.name}')
+        path.write_text(content, encoding='utf-8')
     def textfile(root, name, body):
         path = root / name
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(body, encoding='utf-8')
+    textfile(initial, 'common/schedule.md', markdown(schedule))
+    textfile(output, 'controller-schedule.md', markdown(schedule))
+    textfile(output, 'resolved-config.json', json.dumps(config, indent=2)+'\n')
     # Fictional plan content intentionally uses abstract sectors, no actual routes or locations.
     plan = b'EXERCISE ONLY\nPatrol LANTERN movement brief v3\nSector AMBER; window 10:00-11:00Z; check-in word CEDAR.\nNo real coordinates or personnel.\n'
     plan_hash = hashlib.sha256(plan).hexdigest()
@@ -142,8 +154,8 @@ packets; packet timestamps are the corresponding proxy event times.
     for number in (1,2,3):
         (output/f'inject-{number}').mkdir()
     one=output/'inject-1'
-    textfile(one,'command.md',f'''# Inject 1 — exercise clock 10:05Z
-Simulated command asks for a first exposure assessment within 10 exercise minutes.
+    textfile(one,'command.md',f'''# Inject 1 — planned exercise clock {clock(schedule['inject_minutes'][0])}
+Simulated command asks for a first exposure assessment by elapsed minute {schedule['inject_deadlines'][0]}.
 LANTERN remains in the field. State what movement details may be exposed and what
 you cannot yet establish. Do not wait for all cells to finish.
 The controller provides a DLP reconstruction of the body sent in req-72. This is
@@ -152,9 +164,9 @@ not an adversary-system retrieval. Compare its hash with available file metadata
     (one/'dlp-body.txt').write_bytes(plan)
     textfile(one,'dlp-metadata.json',json.dumps(dict(time=ts('09:06:00'),request='req-72',source='fictional TLS-inspecting proxy DLP',sha256=plan_hash,bytes=len(plan)),indent=2))
     two=output/'inject-2'
-    textfile(two,'command.md','''# Inject 2 — exercise clock 10:45Z
+    textfile(two,'command.md',f'''# Inject 2 — planned exercise clock {clock(schedule['inject_minutes'][1])}
 The password was reset at 09:20Z. Does that contain the incident? Give a revised
-recommendation within 10 exercise minutes. A delayed IdP export has arrived.
+recommendation by elapsed minute {schedule['inject_deadlines'][1]}. A delayed IdP export has arrived.
 Simulated planner confirms v4 superseded v3 at 09:10Z. The sector and window changed;
 the check-in word remained CEDAR. Command has not reported whether exposure was acted on.
 Distinguish stale movement details from information that remains sensitive.
@@ -162,8 +174,8 @@ Distinguish stale movement details from information that remains sensitive.
     write_csv(two/'late-auth.csv',[dict(id='I201',time=ts('09:26:00'),user='m.ellis',src='198.51.100.77',action='session_refresh',session='S-41',result='success',mfa='previous_claim')])
     textfile(two,'version-comparison.csv','field,v3,v4\nsector,AMBER,BLUE\nwindow,10:00-11:00Z,10:30-11:30Z\ncheck_in_word,CEDAR,CEDAR\n')
     three=output/'inject-3'
-    textfile(three,'command.md','''# Inject 3 — exercise clock 11:25Z
-Within 15 exercise minutes, state containment priorities and limits on any all-clear.
+    textfile(three,'command.md',f'''# Inject 3 — planned exercise clock {clock(schedule['inject_minutes'][2])}
+By elapsed minute {schedule['inject_deadlines'][2]}, state containment priorities and limits on any all-clear.
 The hunt team receives delayed WS-31 inventory. Exercise control has not executed
 any action unless your request has a written controller acknowledgment.
 Prepare a handover identifying remaining collection and recovery requirements.

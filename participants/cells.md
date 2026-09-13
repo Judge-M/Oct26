@@ -32,6 +32,18 @@ Hunting: write two hypotheses and a query or reproducible filtering method for e
 Track supporting and contradicting observations, affected hosts, hosts needing
 collection, and hosts for which no conclusion is possible. Ask other cells for row IDs.
 
-Every cell: post an initial update by minute 25, respond to command deadlines,
+Every cell: post an initial update by minute {{initial_report}}, respond to command deadlines,
 comment on at least one other cell's ticket with useful evidence, and nominate
 one next collection step that could change your assessment.
+
+
+## Joint assessment ownership
+
+The hunting cell reporter coordinates the joint assessment. Every cell posts a
+contribution on ticket 5 by elapsed minute {{cell_handover}}, linking its own ticket
+and comment IDs, facts, confidence, unresolved questions and defensive priorities.
+The hunting reporter reconciles disagreements and posts a comment headed
+JOINT ASSESSMENT on ticket 5 by minute {{joint_report}}. Keep unresolved differences
+explicit; agreement is not a prerequisite for reporting. Command acknowledgments
+are in the read-only controller ledger, not comments attributed to a cell.
+In Jira use the hunting issue as ticket 5 and link the same five contributions.

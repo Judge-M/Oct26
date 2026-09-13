@@ -5,6 +5,7 @@ const el = id => document.getElementById(id);
 function signedOut() {
   generation++; token = null; sessionStorage.removeItem('silent-ridge-token');
   el('workspace').hidden = true; el('login-panel').hidden = false;
+  el('control-events').replaceChildren();
   el('tickets').replaceChildren(); el('files').replaceChildren(); el('body').value = '';
   document.title = 'Sign in · Silent Ridge';
 }
@@ -31,12 +32,14 @@ async function download(file) {
 }
 async function refresh() {
   const epoch = generation;
-  const [files,tickets] = await Promise.all([api('/api/files').then(r=>r.json()),api('/api/tickets').then(r=>r.json())]);
+  const [files,tickets,control] = await Promise.all([api('/api/files').then(r=>r.json()),api('/api/tickets').then(r=>r.json()),api('/api/control').then(r=>r.json())]);
   if (epoch !== generation || !token) return;
   el('files').replaceChildren();
   files.forEach(file => { const li=document.createElement('li'), button=document.createElement('button'); button.textContent=file; button.className='file-link'; button.addEventListener('click',()=>download(file).catch(failure)); li.append(button); el('files').append(li); });
+  el('control-events').replaceChildren();
+  control.forEach(event => { const p=document.createElement('p'); p.textContent=`${event.id} · ${event.actual_utc} · elapsed ${event.elapsed_seconds == null ? 'not started' : (event.elapsed_seconds/60).toFixed(2)+' min'} · ${event.operator} (${event.host_user}) · ${event.kind}\n${JSON.stringify(event.details)}`; el('control-events').append(p); });
   el('tickets').replaceChildren();
-  tickets.forEach(ticket => { const article=document.createElement('article'), h=document.createElement('h3'); h.textContent=`${ticket.id} · ${ticket.owner} · ${ticket.status}`; article.append(h); ticket.comments.forEach(comment=> { const p=document.createElement('p'); p.textContent=`${comment.created} — ${comment.author}\n${comment.body}`; article.append(p); }); el('tickets').append(article); });
+  tickets.forEach(ticket => { const article=document.createElement('article'), h=document.createElement('h3'); h.textContent=`${ticket.id} · ${ticket.owner} · ${ticket.status}`; article.append(h); ticket.comments.forEach(comment=> { const p=document.createElement('p'); p.textContent=`T${ticket.id}-C${comment.id} · ${comment.created} · elapsed ${comment.elapsed_seconds == null ? 'not started / unavailable' : (comment.elapsed_seconds/60).toFixed(2)+' min'} · ${comment.author} · clock ${comment.clock_event || 'none'}\n${comment.body}`; article.append(p); }); el('tickets').append(article); });
 }
 for (const id of ['cell-tabs','more-tabs']) cells.forEach(cell=> { const a=document.createElement('a'); a.href='/?cell='+cell; a.target='_blank'; a.rel='noopener noreferrer'; a.textContent=`Open ${cell} tab`; el(id).append(a); });
 const selected=new URLSearchParams(location.search).get('cell');

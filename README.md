@@ -20,7 +20,6 @@ from the repository root. Review config.json before initialization: 15 October,
 ```text
 git clone https://github.com/Judge-M/Oct26.git
 cd Oct26
-git switch feat/silent-ridge-exercise
 python -m unittest discover -s tests -v
 python scripts/exercise.py init
 python scripts/exercise.py verify
@@ -31,8 +30,7 @@ docker compose up -d --wait
 docker compose ps
 ```
 
-Switch to the feature branch while this implementation is an unmerged PR; after
-merge use main. Open [the local portal](http://127.0.0.1:8080). The controller reads
+Use current main or a validated release tag. Open [the local portal](http://127.0.0.1:8080). The controller reads
 runtime/cell-logins.txt locally and privately gives each cell only its own line.
 Choose network, endpoint, identity, server or hunting on the login page and enter
 that cell's password. Use the **Open [cell] tab** links to sign in as all five cells
@@ -47,7 +45,7 @@ credentials into tickets, Git or screenshots. Config changes require a new run.
 For multiple seats, create an ignored .env containing `BIND_IP=<training-interface-ip>`
 and optionally `PORT=8080`. Recreate with `docker compose up -d --wait`, restrict
 the host firewall to the lab subnet and distribute `http://<training-host>:8080`.
-HTTP Basic authentication requires an isolated lab network; use locally managed
+HTTP authentication requires an isolated lab network; use locally managed
 TLS if crossing a shared network. Do not expose the service publicly.
 
 Portable fallback after the same init/verify commands:
@@ -153,3 +151,13 @@ Confirm date, duration, count/skills, staff, hardware/virtualization, network/TL
 Jira project and permissions or fallback, public-answer exposure, accessibility and
 retention. Optional narrative connections for other instructors are in the event
 plan; the cyber lane depends on no other lane's products.
+
+
+## Controller records, timing and offline restoration
+
+Run `python scripts/schedule.py` before initialization. Set duration_minutes to 120
+or 180 to select a validated schedule; all deadlines and inject headings are rendered
+from that schedule. Read [controller ledger](docs/controller-ledger.md) for named
+acknowledgments, clock start/pause/resume, comment IDs and export traceability.
+Read [offline deployment](docs/offline.md) to package both exact images plus the
+controller source/configuration and restore without a build or network pull.

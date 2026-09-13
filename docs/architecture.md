@@ -8,6 +8,8 @@ flowchart LR
   P -->|read-only bind| S
   S -->|write| D[runtime/state: SQLite tickets]
   K[Credential hashes: secret mount] --> S
+  C --> L[runtime/control: controller ledger]
+  L -->|read-only mount| S
   U -->|separate approved connection| J[Jira training project]
 ```
 
@@ -20,7 +22,7 @@ synthetic evidence, not vulnerable live targets; no simulation depends on exploi
 
 Only app/ enters the image through an allowlist build context. Facilitator guides,
 generator, private vault, repository, .git, runtime secrets and student data never
-enter the image. The container mounts runtime/public read-only, state writable and
+enter the image. The container mounts runtime/public and runtime/control read-only, state writable and
 hashed credentials as a secret. It does not mount the controller vault or Docker
 socket. A read-only root filesystem, dropped capabilities and UID 10001 limit writes.
 The application has only an internal Compose network and no normal external gateway.
@@ -30,8 +32,8 @@ Its frontend can have normal engine egress, while the application cannot. Host f
 and the isolated lab network remain part of the physical access boundary.
 
 Host port defaults to 127.0.0.1:8080. For multi-seat rehearsal, bind only the training
-interface's IP via .env and firewall it to the training subnet. Basic authentication
-is suitable only for this isolated lab over HTTP: its credentials are not encrypted
+interface's IP via .env and firewall it to the training subnet. Authentication
+is suitable only for this isolated lab over HTTP: passwords and tokens are not encrypted
 in transit. Use a locally managed TLS reverse proxy if crossing an untrusted or
 shared network; never reuse organizational passwords. Do not publish the port to
 the internet. The portable server defaults to loopback and has the same API.
@@ -55,13 +57,15 @@ directory through restarts/rebuilds. The host owns run config, release log and p
 files. Release copies a verified bundle to a staging directory then renames it into
 public, so a cell cannot see a partially copied inject. Releases must be sequential
 and repeated releases are no-ops. There is a small crash window between directory
-rename and release-log write; after interruption, inspect public inject directories
-and reconcile the private log before resuming. File integrity verification detects
-missing, changed, extra or symlinked public evidence.
+rename and ledger/release-log writes. Verification rejects mismatched logs and directories;
+preserve any interrupted runtime and restore a known consistent backup or reset for
+a rehearsal. Verification compares the participant manifest and each released bundle
+directly with its canonical vault original, including manifest bytes.
 
 Exports use SQLite backup for a coherent database snapshot and include released
-artifacts, config and release times but exclude credentials. Pause releases during
-export for a stable evidence/log snapshot. Reset requires a stopped service, exports
+artifacts, config, release times and the controller ledger but exclude credentials.
+A controller lock serializes ledger writes/releases with export. Comments retain
+actual UTC, elapsed seconds and the latest clock-event ID. Reset requires a stopped service, exports
 the run, archives the old runtime under ignored exports/, rotates credentials and
 reinitializes with only initial evidence. Old archives contain prior credentials
 and participant work; restrict host access and choose retention before event day.

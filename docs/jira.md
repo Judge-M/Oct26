@@ -57,3 +57,19 @@ Reference checked 10 September 2026:
 [Atlassian CSV import documentation](https://support.atlassian.com/jira-cloud-administration/docs/import-data-from-a-csv-file/).
 The importer maps columns to Jira fields; project permission and workflow setup
 are separate administrator tasks. UI labels may differ by Jira deployment.
+
+
+## Joint report and controller traceability
+
+The hunting issue is the joint-report record (fallback ticket 5). Each of the five
+cells posts a contribution there by the generated `cell_handover`; the hunting
+reporter posts JOINT ASSESSMENT by `joint_report`. Include source IDs and links to
+each contributing issue/comment, confidence and unresolved disagreements. Use
+runtime/public/common/schedule.md for the selected run, including 120-minute events.
+
+Controller acknowledgments are written by a named operator into the external
+controller ledger described in controller-ledger.md. In Jira the controller may
+also paste the ledger ID and decision into the issue under their own Jira account.
+The ledger is authoritative in both modes; a cell-authored copied decision is only
+a reference. Export Jira comments with their IDs and UTC timestamps alongside the
+ledger so elapsed time can be reconstructed across start, pause and resume events.

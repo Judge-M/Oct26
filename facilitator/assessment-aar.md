@@ -23,18 +23,25 @@ rating, coaching given, next practice. Use cell labels instead of personal names
 in shared reports. Score report quality even if a technical tool failed; document
 the limitation and whether an alternate format enabled the same reasoning.
 
-## 25-minute AAR
+## AAR within the generated schedule
 
-Minutes 0–5: each cell gives one fact that changed its assessment and cites the source.
-Minutes 5–10: reconstruct when command first received a credible warning; compare
+Use aar_start and aar_end from common/schedule.md. Divide that interval into five
+roughly equal phases (five minutes for the standard profile; four for the compressed).
+
+First fifth: each cell gives one fact that changed its assessment and cites the source.
+Second fifth: reconstruct when command first received a credible warning; compare
 actual reports with the decision deadlines. What was actionable before full certainty?
-Minutes 10–15: reveal the canonical timeline and clock offset. Discuss v3 versus v4,
+Third fifth: reveal the canonical timeline and clock offset. Discuss v3 versus v4,
 password reset versus revocation, denied roster access and WS-31's uncertainty.
-Minutes 15–20: examine one cross-cell collaboration and one recommendation's tradeoff.
-Minutes 20–25: assign three improvements with owners, rehearsal dates and observable
+Fourth fifth: examine one cross-cell collaboration and one recommendation's tradeoff.
+Final fifth: assign three improvements with owners, rehearsal dates and observable
 success criteria. Separate exercise design defects from participant learning needs.
 
 Output template: observation / supporting ticket and time / why it mattered /
 retain or change / owner / due date / evidence that improvement worked. Capture
 unanswered questions, tool friction and inject timing adjustments. Keep individual
 performance notes and exported participant work outside Git.
+
+Cite fallback T<ticket>-C<comment> IDs and CTL ledger event IDs. Each comment shows
+actual UTC and captured elapsed time; ledger start/pause/resume records explain the
+mapping. For Jira, retain issue/comment IDs and UTC timestamps with the same ledger.
