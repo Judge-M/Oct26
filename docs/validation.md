@@ -18,7 +18,8 @@ original evidence/runtime tests and the tab-login test, and adds ten review regr
 | Portable CLI rehearsal | Start/pause/resume, decision, release, verify and export passed on an isolated QA run |
 | JavaScript syntax and Compose configuration | Passed locally |
 | Local Docker execution | Unavailable: docker info exceeded a ten-second timeout |
-| Current CI container and offline restoration | Pending current PR run; workflow tests both images and packaged source with --no-build --pull never |
+| Windows/Linux CI portable suites | Passed |
+| Linux CI container and offline restoration | Passed: both images saved/loaded, packaged source restored, startup with --no-build --pull never, boundary and HTTP smoke checks |
 
 CI runs portable tests on Windows/Linux and Linux container build, read-only mounts,
 image/network boundaries, shared comments, controller ledger, release, persistence,
@@ -32,3 +33,7 @@ engine/Python; accessibility checks; and a timed human rehearsal. CI restoration
 is not evidence that those site-specific checks passed. Controller attribution
 requires named operators on access-controlled host accounts; the external ledger
 is not cryptographically tamper-proof.
+
+Executed CI evidence: [successful portable/container/offline run](https://github.com/Judge-M/Oct26/actions/runs/34732840276)
+on implementation commit cd8c0a5. The package records exact image identities; the
+current PR checks cover subsequent changes.

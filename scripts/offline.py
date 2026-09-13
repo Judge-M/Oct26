@@ -3,6 +3,7 @@ import argparse
 import hashlib
 import json
 import platform
+import sqlite3
 import subprocess
 import zipfile
 from pathlib import Path
@@ -41,6 +42,7 @@ def pack(root):
                 raise ValueError('Unsafe source archive path')
         archive.extractall(root/'source')
     info={'git_commit':run('git','rev-parse','HEAD'), 'host_python':platform.python_version(),
+          'host_platform':platform.platform(),'sqlite_version':sqlite3.sqlite_version,
           'engine':run('docker','version','--format','{{.Server.Version}}'),
           'compose':run('docker','compose','version','--short'),'images':{}}
     tags=[]

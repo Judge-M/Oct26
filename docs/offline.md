@@ -30,7 +30,7 @@ Use a clean rehearsal checkout; init refuses an existing runtime and smoke write
 a rehearsal comment. Packaging captures the source commit with git archive, config,
 controller scripts, handout templates, Dockerfile, Compose, nginx.conf, and tests.
 It saves both **running** image IDs with `docker image save` into images.tar, records
-RepoDigests where present, OS/architecture, Python and engine/Compose versions, and
+RepoDigests where present, OS/architecture, host Python/SQLite and engine/Compose versions, and
 creates a compose.offline.json override with immutable-ID-derived local tags.
 The locally built app may have no RepoDigest; its full sha256 image ID is recorded.
 Do not rebuild on the offline host: that could resolve a different base image.
