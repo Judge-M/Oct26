@@ -1,11 +1,13 @@
 """Offline rehearsal board. No outbound requests, upload, or controller HTTP API."""
 import argparse
+import analysis_tools
 import base64
 import hashlib
 import hmac
 import html
 import json
 import sqlite3
+import struct
 import secrets
 import threading
 import time
@@ -17,6 +19,21 @@ from urllib.parse import unquote, urlsplit
 from exercise_clock import elapsed_at
 
 CELLS = ('network', 'endpoint', 'identity', 'server', 'hunting')
+
+
+def participant_events(events):
+    # Host ledger remains complete for administration and assessment exports.
+    # Notes are private; decision text is an explicitly published acknowledgment.
+    result = []
+    for event in events:
+        kind = event['kind']
+        if kind not in ('start', 'pause', 'resume', 'release', 'decision'):
+            continue
+        item = {key: event[key] for key in ('id', 'actual_utc', 'elapsed_seconds', 'kind', 'operator')}
+        allowed = ('request', 'outcome', 'effective_minute', 'text') if kind == 'decision' else (('inject',) if kind == 'release' else ())
+        item['details'] = {key: event['details'][key] for key in allowed if key in event['details']}
+        result.append(item)
+    return result
 
 
 def database(state):
@@ -79,9 +96,9 @@ class Handler(BaseHTTPRequestHandler):
         path = urlsplit(self.path).path
         if path == '/health':
             return self.send(200, {'status': 'ok'})
-        if path in ('/', '/ui.js', '/style.css'):
-            filename = {'/': 'index.html', '/ui.js': 'ui.js', '/style.css': 'style.css'}[path]
-            mime = {'/': 'text/html; charset=utf-8', '/ui.js': 'text/javascript', '/style.css': 'text/css'}[path]
+        if path in ('/', '/ui.js', '/style.css', '/analysis.js'):
+            filename = {'/': 'index.html', '/ui.js': 'ui.js', '/style.css': 'style.css', '/analysis.js': 'analysis.js'}[path]
+            mime = {'/': 'text/html; charset=utf-8', '/ui.js': 'text/javascript', '/style.css': 'text/css', '/analysis.js': 'text/javascript; charset=utf-8'}[path]
             return self.send(200, (Path(__file__).parent / filename).read_bytes(), mime)
         if path == '/api/me':
             user = self.auth()
@@ -91,7 +108,7 @@ class Handler(BaseHTTPRequestHandler):
         if not self.auth():
             return
         if path == '/api/control':
-            return self.send(200, self.control_events())
+            return self.send(200, participant_events(self.control_events()))
         if path == '/api/tickets':
             with closing(database(self.server.state)) as con, con:
                 tickets = [dict(zip(('id', 'owner', 'status'), row)) for row in con.execute('SELECT * FROM tickets ORDER BY id')]
@@ -148,6 +165,17 @@ class Handler(BaseHTTPRequestHandler):
             with self.server.session_lock:
                 self.server.sessions.pop(token, None)
             return self.send(200, {'signed_out': True})
+        if path == '/api/analyze':
+            try:
+                length = int(self.headers.get('Content-Length', '0'))
+                if not 0 < length <= 16384:
+                    return self.send(413, {'error': 'Request limit is 16 KB'})
+                payload = json.loads(self.rfile.read(length))
+                if not isinstance(payload, dict):
+                    raise ValueError()
+                return self.send(200, analysis_tools.inspect(self.server.root, payload))
+            except (ValueError, TypeError, OSError, sqlite3.Error, KeyError, struct.error):
+                return self.send(400, {'error': 'Cannot analyze this file or query. Use a released artifact and a bounded read-only SELECT.'})
         if urlsplit(self.path).path != '/api/update':
             return self.send(404, {'error': 'Unknown resource'})
         try:

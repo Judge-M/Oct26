@@ -56,3 +56,20 @@ At the generated investigation_end, stop investigation. Collect each cell contri
 by cell_handover and the hunting reporter’s JOINT ASSESSMENT on ticket 5 by joint_report. Export the fallback board
 and Jira project work separately. Do not publish participant names, credentials,
 comments or performance assessments to this public repository. Run AAR before reset.
+
+
+## Participant and controller separation
+
+The participant board serves only runtime/public. Do not copy facilitator files,
+solutions, ground truth, or the private vault into that directory.
+The participant schedule contains reporting milestones; the complete release
+sequence is in runtime/vault/controller-schedule.md on the controller host.
+Cell coaching prompts are in facilitator/cell-coaching.md, not participant assignments.
+
+The complete ledger remains at runtime/control/ledger.json and in private exports.
+Controller note text and host account names are excluded from the participant API.
+Start/pause/resume records expose timing only, and release records expose only
+the already released inject number. Decision text IS participant-visible:
+write the acknowledgment there; keep coaching, planned developments, assessment
+notes, and answers in a separate note event. Release/reset administration remains
+host-only. A separate loopback-only facilitator panel is available on the controller host. See docs/admin-panel.md. It is not served by the participant service.
