@@ -1,4 +1,4 @@
-name: Validate exercise
+name: Validate expanded Silent Ridge
 on: [push, pull_request]
 permissions:
   contents: read
@@ -14,47 +14,35 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m unittest discover -s tests -v
-  container:
+      - run: python -m compileall -q ridge integrations expanded deployment/expanded
+  ctfd-adapter:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -f deployment/expanded/Dockerfile.ctfd -t silent-ridge-ctfd-smoke .
+      - name: Actual CTFd adapter smoke (isolated, disposable, no network)
+        run: docker run --rm --network none --user 0 --entrypoint python -v "$PWD/tests/ctfd_container_smoke.py:/tmp/smoke.py:ro" -e PYTHONPATH=/opt/CTFd silent-ridge-ctfd-smoke /tmp/smoke.py
+  preparation-fixtures:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: python scripts/exercise.py init
-      - run: docker compose config --quiet
-      - run: docker compose build
-      - run: docker compose up -d --wait
-      - run: python scripts/check_container.py
-      - run: python scripts/smoke.py
-      - run: docker compose restart
-      - run: python scripts/smoke.py --expect-persistence
-      - run: python scripts/exercise.py start --operator CI-controller --text "Rehearsal clock started"
-      - run: python scripts/exercise.py pause --operator CI-controller --text "Pause test"
-      - run: python scripts/exercise.py resume --operator CI-controller --text "Resume test"
-      - run: python scripts/exercise.py decision --operator CI-controller --request T1-C1 --outcome approved --effective-minute 3 --text "Simulated isolation approved"
-      - run: python scripts/exercise.py release 1
-      - run: python scripts/exercise.py verify
-      - run: python scripts/smoke.py --expect-persistence --released --expect-control
-      - run: python scripts/exercise.py export
-      - run: docker compose down
-      - run: python scripts/exercise.py reset --stopped
-      - run: docker compose up -d --wait
-      - run: python scripts/smoke.py
-      - run: python scripts/offline.py pack build/offline
-      - run: docker compose down
-      - run: python scripts/offline.py load build/offline
-      - run: python -c "import shutil; shutil.copytree('build/offline/source', 'build/restored')"
-      - run: python scripts/exercise.py init
-        working-directory: build/restored
-      - run: docker compose -f compose.yaml -f compose.offline.json up -d --no-build --pull never --wait
-        working-directory: build/restored
-      - run: python scripts/check_container.py
-        working-directory: build/restored
-      - run: python scripts/smoke.py
-        working-directory: build/restored
-      - run: docker compose -f compose.yaml -f compose.offline.json down
-        working-directory: build/restored
-      - run: python scripts/offline.py verify build/offline
-      - if: always()
-        run: docker compose down
+      - run: python expanded/prepare.py work/evidence
+      - name: Build harmless static training surrogate
+        run: |
+          mkdir -p work/evidence/initial/binary
+          cc -O0 -g -fno-inline -o work/evidence/initial/binary/brief-viewer-training expanded/binary/brief-viewer-training.c
+          cc --version > work/compiler-version.txt
+          sha256sum work/evidence/initial/binary/brief-viewer-training > work/binary-sha256.txt
+          file work/evidence/initial/binary/brief-viewer-training
+      - uses: actions/upload-artifact@v4
+        with:
+          name: preparation-fixtures-not-a-complete-offline-bundle
+          path: |
+            work/evidence
+            work/compiler-version.txt
+            work/binary-sha256.txt
+          retention-days: 14

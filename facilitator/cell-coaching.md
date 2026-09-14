@@ -1,3 +1,5 @@
+> Historical baseline reference only. The expanded handoff is governed by README.md and docs/expanded-operations.md; specialist cells, Jira, reporting and approval gates are retired.
+
 # Controller-only cell coaching
 
 These prompts can reveal useful correlations. Offer selectively when a cell requests help.

@@ -1,3 +1,5 @@
+> Historical baseline reference only. The expanded handoff is governed by README.md and docs/expanded-operations.md; specialist cells, Jira, reporting and approval gates are retired.
+
 # Five cooperative investigation assignments
 
 All five cells investigate the same incident. Every cell can read and comment on

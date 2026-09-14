@@ -1,0 +1,46 @@
+name: silent-ridge-desktop-access
+services:
+  guacd:
+    image: guacamole/guacd:1.5.5
+    pull_policy: never
+    restart: unless-stopped
+    networks: [desktop, internal]
+  database:
+    image: postgres:16.8-alpine
+    pull_policy: never
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: guacamole
+      POSTGRES_USER: guacamole
+      POSTGRES_PASSWORD_FILE: /run/secrets/database_password
+    secrets: [database_password]
+    volumes:
+      - database:/var/lib/postgresql/data
+      - ${GUAC_INIT_SQL:?Set directory with official schema and private provisioning SQL}:/docker-entrypoint-initdb.d:ro
+    networks: [internal]
+  guacamole:
+    image: guacamole/guacamole:1.5.5
+    pull_policy: never
+    restart: unless-stopped
+    environment:
+      GUACD_HOSTNAME: guacd
+      POSTGRES_HOSTNAME: database
+      POSTGRES_DATABASE: guacamole
+      POSTGRES_USER: guacamole
+      POSTGRES_PASSWORD: ${GUAC_DATABASE_PASSWORD:?Set private runtime environment value}
+    ports:
+      - ${BIND_IP:-127.0.0.1}:${GUAC_PORT:-8082}:8080
+    networks: [internal, frontend]
+    depends_on: [database, guacd]
+secrets:
+  database_password:
+    file: ${GUAC_DATABASE_PASSWORD_FILE:?Set private password file matching runtime value}
+volumes:
+  database:
+networks:
+  internal:
+    internal: true
+  frontend:
+  desktop:
+    external: true
+    name: ${RIDGE_DESKTOP_NETWORK:?Set network routed only to team desktop VNC ports}

@@ -1,0 +1,12 @@
+{
+  "status": "candidate pins; compatibility validation pending",
+  "iris": "v2.4.20",
+  "ctfd": "3.7.7",
+  "guacamole": "1.5.5",
+  "wazuh": "4.9.2",
+  "autopsy": "4.22.0",
+  "cutter": "2.3.4",
+  "desktop_os": "Ubuntu 24.04 LTS amd64, Xfce",
+  "python": "3.12.10",
+  "note": "Record exact image digests, OS ISO checksum, apt package versions, Java/TSK versions, native library versions, and prepared-case hashes in the final artifact manifest. These candidate pins are not a claim of tested compatibility."
+}

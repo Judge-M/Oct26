@@ -2,3 +2,9 @@
 !app/
 !app/**
 !Dockerfile
+!ridge/
+!ridge/**
+!integrations/
+!integrations/**
+**/__pycache__/
+**/*.pyc

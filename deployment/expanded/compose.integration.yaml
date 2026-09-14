@@ -1,0 +1,42 @@
+name: silent-ridge-integration
+services:
+  integration:
+    image: ${RIDGE_IMAGE:?Set validated locally loaded integration image digest}
+    pull_policy: never
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    volumes:
+      - ${RIDGE_STATE_DIR:?Set private state directory}:/state
+      - ${RIDGE_RELEASE_VAULT:?Set private authored release directory}:/release-vault:ro
+      - ${RIDGE_EVIDENCE_PUBLIC:?Set published evidence directory}:/evidence-public
+    environment:
+      RIDGE_STATE: /state/state.sqlite
+      RIDGE_IRIS_FILE: /run/secrets/ridge_iris
+      RIDGE_CTFD_FILE: /run/secrets/ridge_ctfd
+      IRIS_URL: ${IRIS_INTERNAL_URL:?Set internal IRIS URL}
+      CTFD_URL: ${CTFD_INTERNAL_URL:?Set internal CTFd URL}
+      RIDGE_RELEASE_VAULT: /release-vault
+      RIDGE_EVIDENCE_PUBLIC: /evidence-public
+      WAZUH_INDEX_CREDENTIAL_FILE: /run/secrets/wazuh_index
+      WAZUH_INDEXER_URL: ${WAZUH_INDEXER_URL:?Set reachable local Wazuh indexer HTTPS URL}
+      WAZUH_INDEX: ${WAZUH_INDEX:?Set dedicated silent-ridge-* index}
+    secrets: [ridge_iris, ridge_ctfd, wazuh_index]
+    networks: [central]
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8091/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+secrets:
+  wazuh_index:
+    file: ${WAZUH_INDEX_CREDENTIAL_FILE:?Set private index credential file}
+  ridge_iris:
+    file: ${RIDGE_IRIS_SECRET_FILE:?Set private IRIS bridge secret file}
+  ridge_ctfd:
+    file: ${RIDGE_CTFD_SECRET_FILE:?Set private CTFd bridge secret file}
+networks:
+  central:
+    external: true
+    name: ${RIDGE_CENTRAL_NETWORK:?Set isolated shared service network}

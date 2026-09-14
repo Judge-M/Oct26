@@ -1,0 +1,5 @@
+FROM python:3.12.10-slim
+WORKDIR /opt/silent-ridge
+COPY ridge ./ridge
+USER 10001:10001
+CMD ["python", "-m", "ridge.service", "--host", "0.0.0.0"]
