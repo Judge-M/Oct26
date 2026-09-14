@@ -37,6 +37,6 @@ Transfer all application images, dependencies, symbols/data, templates, evidence
 
 ## Retired baseline
 
-The specialist-cell portal, Jira board, reporting worksheets and approval workflow under app/, admin/, jira/ and the original controller scripts remain only as baseline reference/test fixtures. They are **not the expanded workflow**. Default Compose no longer launches the old portal. The expanded generator preserves established incident facts while replacing old participant prompts and source IDs. The retained SQL helper and legacy image packer received regression fixes. The [old README](https://github.com/Judge-M/Oct26/blob/b4def5d4b65395aa0f441e785f225e053eec10d9/README.md) is historical.
+The old portal under app/, admin/ and the original controller scripts remain only as baseline test fixtures. Participant and facilitator guides now describe the IRIS/CTFd workflow; obsolete board imports have been removed. They are **not the expanded workflow**. Default Compose no longer launches the old portal. The expanded generator preserves established incident facts while replacing old participant prompts and source IDs. The retained SQL helper and legacy image packer received regression fixes. The [old README](https://github.com/Judge-M/Oct26/blob/b4def5d4b65395aa0f441e785f225e053eec10d9/README.md) is historical.
 
 All identities, addresses and activity are fictional. Public solutions make this coached material; a private assessment variant is not required.
