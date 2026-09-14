@@ -34,7 +34,8 @@ class TimingTests(unittest.TestCase):
                 handout=(root/'initial/handouts/handover.md').read_text(encoding='utf-8')
                 self.assertIn(f'elapsed minute {initial}',handout)
                 self.assertNotIn('{{',handout)
-                self.assertEqual((root/'controller-schedule.md').read_bytes(),(root/'initial/common/schedule.md').read_bytes())
+                self.assertNotIn('planned release',(root/'initial/common/schedule.md').read_text())
+                self.assertIn('planned release',(root/'controller-schedule.md').read_text())
                 for i in range(3):
                     command=(root/f'inject-{i+1}/command.md').read_text(encoding='utf-8')
                     self.assertIn(schedule.clock(release[i]),command)
@@ -118,13 +119,20 @@ class ReviewRuntimeTests(unittest.TestCase):
         self.assertEqual(decision['operator'],'EXCON-A')
         self.assertTrue(decision['host_user'])
         self.assertEqual(elapsed_at(control.read(self.runtime),(now-timedelta(seconds=60)).isoformat()),30)
+        record('note',-10,{'text':'PRIVATE SPOILER: next inject answer'})
+        public=json.loads(self.request('/api/control')[1])
+        self.assertNotIn('PRIVATE SPOILER',json.dumps(public))
+        self.assertNotIn('host_user',json.dumps(public))
+        self.assertEqual(public[-1]['id'],decision['id'])
+        for path in ('/files/../vault/controller-schedule.md','/files/facilitator/cell-coaching.md','/files/control/ledger.json'):
+            self.assertEqual(self.request(path)[0],404)
         self.assertEqual(self.request('/api/control',None)[0],401)
         self.assertEqual(self.request('/api/control',payload={'kind':'decision'})[0],404)
         for cell in generate.CELLS:
             self.assertEqual(json.loads(self.request('/api/control',cell)[1])[-1]['id'],decision['id'])
         self.request('/api/update',payload={'ticket':1,'body':'request preserved'})
         comment=json.loads(self.request('/api/tickets')[1])[0]['comments'][0]
-        self.assertEqual(comment['clock_event'],decision['id'])
+        self.assertEqual(comment['clock_event'],control.read(self.runtime)[-1]['id'])
         self.assertGreaterEqual(comment['elapsed_seconds'],60)
         self.assertLess(comment['elapsed_seconds'],90)
         exercise.release(1,'EXCON-B'); exercise.verify()

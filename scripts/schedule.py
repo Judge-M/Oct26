@@ -63,11 +63,13 @@ def clock(minute):
     return (datetime(2000,1,1,9,30)+timedelta(minutes=minute)).strftime('%H:%MZ')
 
 
-def markdown(schedule):
+def markdown(schedule, participant=False):
     rows = [(0, 'Incoming shift / controller starts clock'),
             (schedule['brief_end'], 'Independent investigation begins'),
             (schedule['initial_report'], 'Each cell posts initial report')]
     for i, (release, deadline) in enumerate(zip(schedule['inject_minutes'], schedule['inject_deadlines']),1):
+        if participant:
+            continue
         rows += [(release, f'Inject {i} planned release'), (deadline, f'Command response {i} due')]
     rows += [(schedule['cell_handover'], 'Five cell contributions due on ticket 5'),
              (schedule['joint_report'], 'Hunting reporter posts JOINT ASSESSMENT on ticket 5'),

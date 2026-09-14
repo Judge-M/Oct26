@@ -62,7 +62,7 @@ def generate(output, config=None):
         path = root / name
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(body, encoding='utf-8')
-    textfile(initial, 'common/schedule.md', markdown(schedule))
+    textfile(initial, 'common/schedule.md', markdown(schedule, participant=True))
     textfile(output, 'controller-schedule.md', markdown(schedule))
     textfile(output, 'resolved-config.json', json.dumps(config, indent=2)+'\n')
     # Fictional plan content intentionally uses abstract sectors, no actual routes or locations.
