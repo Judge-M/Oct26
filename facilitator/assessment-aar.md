@@ -1,49 +1,25 @@
-> Historical baseline reference only. The expanded handoff is governed by README.md and docs/expanded-operations.md; specialist cells, Jira, reporting and approval gates are retired.
+# Scoring and after-action review
 
-# Assessment rubric and AAR
+CTFd records one point for each globally accepted correct answer. Incorrect
+answers earn no points. Hints are free. There are no report-quality scores,
+manual bonuses, penalties or facilitator approval gates. A ticket transfer keeps
+solved answers and points with their original solving team.
 
-Assess the cooperative incident response, not flag collection. Apply the same
-rubric to each cell's observed contributions and to the joint report; do not rank
-cells against one another. Record evidence (ticket update ID and elapsed time).
+Use IRIS findings, question history and the private audit export to discuss what
+teams learned. Coaching observations are separate from the scoreboard.
 
-| Dimension | Weight | Full-credit behavior | Partial / weak behavior |
-|---|---:|---|---|
-| Evidence and reproducibility | 25 | Accurate IDs/hashes, normalized time, repeatable query, preservation log | Findings plausible but uncited / incorrect normalization or invented evidence |
-| Reasoning and scope | 25 | Separates facts/assessments/gaps, tests alternatives, revises after injects | Qualified but incomplete / certainty from absence or task-name matches |
-| Timely command reporting | 20 | Initial and inject deadlines met with actionable uncertainty | Late but useful / silence until certainty or unsupported alarm |
-| Collaboration | 15 | Useful cross-ticket evidence, named collection owners, reconciled disagreements | One-way sharing / isolated duplicate investigation |
-| Defensive recommendations | 15 | Proportionate actions with impact, preservation, controller acknowledgment and verification | Correct action without tradeoffs / requests treated as completed containment |
+## After-action review
 
-For each dimension rate 0 (absent/unsafe), 1 (major coaching), 2 (partially correct),
-3 (sound with minor gaps), or 4 (independent and well supported). Score = weight ×
-rating / 4. Proposed coached proficiency is 70/100 with no fabricated evidence or
-real-world action; the event owner confirms its use. Record hints separately to
-guide future training. A well-justified “unknown” can earn full reasoning credit.
+Reserve AAR time separately from investigation activity. Ask each team to explain
+one finding and its supporting evidence, then discuss:
 
-Observation sheet: cell, elapsed time, behavior, source/update ID, rubric dimension,
-rating, coaching given, next practice. Use cell labels instead of personal names
-in shared reports. Score report quality even if a technical tool failed; document
-the limitation and whether an alternate format enabled the same reasoning.
+- How clock normalization or a cross-source correlation changed an assessment.
+- What versions, sessions, denied accesses and collection gaps establish.
+- Which uncertainties remain and what further evidence would resolve them.
+- Whether shared IRIS findings and ownership transfers helped other teams.
+- Which tool instructions or exercise defects need improvement before the next run.
 
-## AAR within the generated schedule
-
-Use aar_start and aar_end from common/schedule.md. Divide that interval into five
-roughly equal phases (five minutes for the standard profile; four for the compressed).
-
-First fifth: each cell gives one fact that changed its assessment and cites the source.
-Second fifth: reconstruct when command first received a credible warning; compare
-actual reports with the decision deadlines. What was actionable before full certainty?
-Third fifth: reveal the canonical timeline and clock offset. Discuss v3 versus v4,
-password reset versus revocation, denied roster access and WS-31's uncertainty.
-Fourth fifth: examine one cross-cell collaboration and one recommendation's tradeoff.
-Final fifth: assign three improvements with owners, rehearsal dates and observable
-success criteria. Separate exercise design defects from participant learning needs.
-
-Output template: observation / supporting ticket and time / why it mattered /
-retain or change / owner / due date / evidence that improvement worked. Capture
-unanswered questions, tool friction and inject timing adjustments. Keep individual
-performance notes and exported participant work outside Git.
-
-Cite fallback T<ticket>-C<comment> IDs and CTL ledger event IDs. Each comment shows
-actual UTC and captured elapsed time; ledger start/pause/resume records explain the
-mapping. For Jira, retain issue/comment IDs and UTC timestamps with the same ledger.
+Record improvement, owner, target rehearsal date and observable success criterion.
+Keep participant identities, performance notes and exports private. Use the
+[combined export procedure](../docs/expanded-operations.md) to preserve IRIS,
+CTFd and integration records; do not maintain a second ticket-system export.

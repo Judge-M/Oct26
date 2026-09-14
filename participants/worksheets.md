@@ -1,74 +1,17 @@
-> Historical baseline reference only. The expanded handoff is governed by README.md and docs/expanded-operations.md; specialist cells, Jira, reporting and approval gates are retired.
+# Optional investigation notes
 
-# Investigation and reporting templates
+These notes are optional aids for your team workspace. They are not a report to
+submit, a scoring requirement, or an approval step. Claim tickets in IRIS and
+answer their questions in CTFd; accepted answers publish findings automatically.
 
-Copy these sections into your cell's Jira ticket (or the rehearsal board).
+| Source / record | Observation | Time correction | Interpretation | Remaining uncertainty |
+|---|---|---|---|---|
+| | | | | |
 
-## Evidence handling log
+Keep original evidence unchanged and use working copies. Record the tool, filter
+or navigation steps that let you reproduce an observation. Verify supplied
+checksums and report mismatches to the facilitator. Keep facts separate from
+inferences; missing telemetry is not proof that nothing happened.
 
-| Artifact path | SHA-256 at receipt | Collector / receipt UTC | Working-copy location | Tool and version | Changes made |
-|---|---|---|---|---|---|
-| | | | | | |
-
-Keep the downloaded original read-only and analyze a copy. Compare hashes with
-SHA256SUMS.json in the same release package (`Get-FileHash -Algorithm SHA256` on
-PowerShell, `sha256sum` on Linux). A mismatch is a collection issue: notify control,
-retain both versions, and do not silently replace evidence. Record every derived
-filter or SQL query so another cell can reproduce it. Never upload evidence to
-public analysis services. Cite filenames and stable row IDs, not screenshots alone.
-
-## Analysis worksheet
-
-Question / hypothesis:
-
-| UTC time (normalization recorded) | Source and row ID | Observation | Interpretation and confidence | Alternative explanation | Missing evidence / next test |
-|---|---|---|---|---|---|
-| | | | | | |
-
-Scope table: host / account / object; confirmed, assessed, or unknown; evidence;
-coverage limitations; requested collection; responsible cell.
-
-## Ticket update
-
-Exercise elapsed time / author / cell:
-
-Confirmed facts (filename + row IDs):
-
-Assessment and confidence (high / medium / low, with reason):
-
-Contradicting evidence and alternatives:
-
-Potential impact to LANTERN:
-
-Recommended defensive action; rationale; dependency; availability cost:
-
-Unknowns; request to another cell; next test; next update time:
-
-## Initial command report (60 seconds)
-
-As of [UTC / elapsed time], we confirm [facts]. We assess [risk] with [confidence]
-because [evidence]. We cannot yet establish [gap]. We recommend exercise control
-consider [defensive action] with [tradeoff]. We need [decision/collection] by [time].
-Next update at [time].
-
-## Action request and acknowledgment
-
-Request ID / requesting cell / submitted elapsed time:
-
-Proposed action and affected fictional systems:
-
-Expected benefit / disruption / evidence-preservation plan / rollback:
-
-Controller acknowledgment, decision and effective exercise time:
-
-Observation needed to verify success:
-
-A request is not an executed action. Only controller acknowledgment changes the
-simulation state. Record the controller's response in the shared ticket.
-
-## Final shift handover
-
-Incident summary and exposure boundaries; normalized timeline with citations;
-current scope; actions requested versus acknowledged; containment verification;
-unresolved risks; recovery priorities; collection owners and next deadlines.
-Include one paragraph revising an earlier assessment in light of new evidence.
+Use the free hints and [beginner guide](../expanded/guides.md). Team notes do not
+need to be copied into IRIS or handed to another team to preserve question progress.

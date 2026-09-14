@@ -3,7 +3,7 @@
 The expanded exercise has no report, grading or facilitator-approval gate. IRIS
 contains native shared tasks and automatic findings. Team ownership mutations
 originate in its queue extension; CTFd's extension presents current questions and
-completed shared history. Do not provision the retired Jira/rehearsal board.
+completed shared history. IRIS is the only participant ticket system.
 
 ## Start, pause and announcements
 
