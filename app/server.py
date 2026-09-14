@@ -132,6 +132,12 @@ class Handler(BaseHTTPRequestHandler):
         if path == '/api/login':
             if self.headers.get('X-Exercise-Request') != '1' or self.headers.get('Content-Type') != 'application/json':
                 return self.send(403, {'error': 'Use the exercise client'})
+            with self.server.session_lock:
+                now = time.monotonic()
+                self.server.attempts = [t for t in self.server.attempts if t > now - 60]
+                if len(self.server.attempts) >= 20:
+                    return self.send(429, {'error': 'Too many sign-in attempts; wait one minute'})
+                self.server.attempts.append(now)
             try:
                 length = int(self.headers.get('Content-Length', '0'))
                 if not 0 < length <= 4096:
@@ -219,6 +225,7 @@ def serve(host, port, root, state, credentials, control=None):
     server.control=Path(control).resolve() if control else root.parent/'control'
     server.credentials = json.loads(Path(credentials).read_text())
     server.sessions = {}
+    server.attempts = []
     server.session_lock = threading.Lock()
     if set(server.credentials) != set(CELLS):
         raise ValueError('Expected five cell credentials')

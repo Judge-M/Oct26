@@ -43,7 +43,7 @@ and ticket routes require authentication. Browser login exchanges a cell/passwor
 for an eight-hour opaque bearer token held in tab-scoped sessionStorage. Passwords
 are cleared after login, and tokens never enter URLs or cookies. New-cell links use
 noopener to prevent copying a session. Sign-out revokes only that token; restart
-invalidates all tokens. Explicit Basic headers remain supported for CLI clients,
+invalidates all tokens. Sign-in is rate limited to 20 attempts per minute per process. Explicit Basic headers remain supported for CLI clients,
 but no browser authentication challenge is sent. Browser requests omit ambient
 credentials so a cached Basic login cannot override a tab's selected cell.
 File resolution rejects traversal and constrains resolved paths to public. Files

@@ -164,5 +164,31 @@ class ReviewRuntimeTests(unittest.TestCase):
         self.assertEqual(json.loads((self.runtime/'run-config.json').read_text())['timing']['joint_report'],95)
         self.assertIn('elapsed minute 20',(self.runtime/'public/handouts/handover.md').read_text())
 
+    def test_login_attempts_are_throttled(self):
+        for _ in range(20):
+            self.assertEqual(self.request('/api/login',None,{'cell':'network','password':'wrong'})[0],401)
+        self.assertEqual(self.request('/api/login',None,{'cell':'network','password':'wrong'})[0],429)
+        self.assertEqual(self.request('/api/login',None,{'cell':'network','password':self.logins['network']})[0],429)
+
+    def test_lock_error_reports_holder(self):
+        with control.locked(self.runtime):
+            with self.assertRaisesRegex(ValueError,'pid='):
+                with control.locked(self.runtime):
+                    pass
+
+    def test_clock_projection_is_shared(self):
+        now=datetime.now(timezone.utc)
+        def record(kind,seconds):
+            return control.append(self.runtime,kind,'EXCON-A',now=(now+timedelta(seconds=seconds)).isoformat())
+        record('start',-300); record('pause',-240); record('resume',-120)
+        events=control.read(self.runtime)
+        for seconds,expected in [(-300,0.0),(-240,60.0),(-180,60.0),(-120,60.0),(-60,120.0)]:
+            at=now+timedelta(seconds=seconds)
+            self.assertEqual(control.position(events,at)[0],expected)
+            self.assertEqual(elapsed_at(events,at.isoformat()),expected)
+        self.assertTrue(control.position(events,now+timedelta(seconds=-180))[1])
+        self.assertFalse(control.position(events,now+timedelta(seconds=-60))[1])
+
+
 
 if __name__=='__main__': unittest.main()

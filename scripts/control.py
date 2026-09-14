@@ -2,8 +2,16 @@
 import getpass
 import json
 import os
+import socket
+import sys
 from contextlib import contextmanager
 from datetime import datetime, timezone
+from pathlib import Path
+
+# The pause-aware clock mapping lives with the participant service so the host
+# CLI, the panel and the app cannot drift apart.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'app'))
+from exercise_clock import project
 
 
 def utc(value=None):
@@ -14,17 +22,8 @@ def utc(value=None):
 
 
 def position(events, at):
-    elapsed, anchor, paused = 0.0, None, False
-    for event in events:
-        when = utc(event['actual_utc'])
-        kind = event['kind']
-        if kind == 'start': anchor = when
-        elif kind == 'pause':
-            elapsed += (when-anchor).total_seconds(); anchor = None; paused = True
-        elif kind == 'resume': anchor = when; paused = False
-    if anchor is not None:
-        elapsed += (at-anchor).total_seconds()
-    return (round(elapsed,3) if any(e['kind']=='start' for e in events) else None), paused
+    # Delegates to the shared pause-aware projection in app/exercise_clock.py.
+    return project(events, at)
 
 
 def read(runtime):
@@ -67,13 +66,22 @@ def save(runtime, events):
 
 @contextmanager
 def locked(runtime):
-    path=runtime/'control.lock'
-    try: fd=os.open(path,os.O_CREAT|os.O_EXCL|os.O_WRONLY,0o600)
-    except FileExistsError: raise ValueError('Another controller command is active; inspect any interrupted operation before clearing control.lock')
+    path = runtime/'control.lock'
+    payload = f'pid={os.getpid()} host={socket.gethostname()} utc={datetime.now(timezone.utc).isoformat()}\n'
     try:
+        fd = os.open(path, os.O_CREAT|os.O_EXCL|os.O_WRONLY, 0o600)
+    except FileExistsError:
+        try: holder = path.read_text().strip()
+        except OSError: holder = 'unknown holder'
+        raise ValueError(f'Another controller command is active ({holder}); inspect any interrupted operation before clearing control.lock')
+    try:
+        os.write(fd, payload.encode())
+    finally:
         os.close(fd)
+    try:
         yield
-    finally: path.unlink()
+    finally:
+        path.unlink()
 
 
 def append(runtime, kind, operator=None, details=None, now=None):

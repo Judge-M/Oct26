@@ -52,7 +52,10 @@ times: sum running intervals since start, excluding pause/resume intervals. Befo
 start, elapsed is undefined. The app's exercise_clock.elapsed_at implements this rule.
 
 Only one host command may write at a time; an exclusive control.lock prevents
-concurrent releases/decisions. Pause ledger writes and releases during export to keep
+concurrent releases/decisions. The lock file records the holder's pid, host and
+acquisition UTC, and the conflict error prints them so an operator can judge
+whether the holder is dead before clearing the lock; it is never removed
+automatically. Pause ledger writes and releases during export to keep
 the SQLite snapshot, ledger, manifests and release log aligned. The export includes
 control/ledger.json and comment clock fields. Archive individual operator attribution
 privately with participant work.
