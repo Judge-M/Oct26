@@ -1,0 +1,99 @@
+name: silent-ridge-central
+services:
+  iris:
+    image: ${IRIS_IMAGE:?Set validated extended IRIS image digest}
+    pull_policy: never
+    command: [nohup, ./iris-entrypoint.sh, iriswebapp]
+    env_file: ${IRIS_ENV_FILE:?Set private complete IRIS environment file}
+    environment:
+      RIDGE_URL: http://integration:8091
+      RIDGE_IRIS_FILE: /run/secrets/ridge_iris
+      IRIS_PUBLIC_URL: ${IRIS_PUBLIC_URL:?Set participant IRIS URL}
+      CTFD_PUBLIC_URL: ${CTFD_PUBLIC_URL:?Set participant CTFd URL}
+      RIDGE_IRIS_CASE: ${RIDGE_IRIS_CASE:?Set dedicated exercise case ID}
+      RIDGE_IRIS_SERVICE_USER: ${RIDGE_IRIS_SERVICE_USER:?Set service user ID}
+      RIDGE_IRIS_OPEN_STATUS: ${RIDGE_IRIS_OPEN_STATUS:?Set verified open status ID}
+      RIDGE_IRIS_CLOSED_STATUS: ${RIDGE_IRIS_CLOSED_STATUS:?Set verified closed status ID}
+      POSTGRES_SERVER: iris-db
+    ports: ["${BIND_IP:-127.0.0.1}:${IRIS_PORT:-8081}:8000"]
+    volumes: [iris-downloads:/home/iris/downloads, iris-templates:/home/iris/user_templates, iris-data:/home/iris/server_data]
+    secrets: [ridge_iris]
+    networks: [central, iris-backend, frontend]
+    depends_on: [iris-db, rabbitmq]
+    restart: unless-stopped
+  iris-worker:
+    image: ${IRIS_IMAGE:?Set validated extended IRIS image digest}
+    pull_policy: never
+    command: [./wait-for-iriswebapp.sh, iris:8000, ./iris-entrypoint.sh, iris-worker]
+    env_file: ${IRIS_ENV_FILE:?Set private complete IRIS environment file}
+    environment:
+      POSTGRES_SERVER: iris-db
+    volumes: [iris-downloads:/home/iris/downloads, iris-templates:/home/iris/user_templates, iris-data:/home/iris/server_data]
+    networks: [iris-backend]
+    depends_on: [iris]
+    restart: unless-stopped
+  iris-db:
+    image: ghcr.io/dfir-iris/iriswebapp_db:v2.4.20
+    pull_policy: never
+    env_file: ${IRIS_ENV_FILE:?Set private complete IRIS environment file}
+    volumes: [iris-db:/var/lib/postgresql/data]
+    networks: [iris-backend]
+    restart: unless-stopped
+  rabbitmq:
+    image: ${RABBITMQ_IMAGE:?Set pinned locally loaded RabbitMQ image digest}
+    pull_policy: never
+    networks: [iris-backend]
+    restart: unless-stopped
+  ctfd:
+    image: ${CTFD_IMAGE:?Set validated extended CTFd image digest}
+    pull_policy: never
+    env_file: ${CTFD_ENV_FILE:?Set private CTFd environment file with DATABASE_URL SECRET_KEY REDIS_URL}
+    environment:
+      RIDGE_URL: http://integration:8091
+      RIDGE_CTFD_FILE: /run/secrets/ridge_ctfd
+      IRIS_PUBLIC_URL: ${IRIS_PUBLIC_URL:?Set participant IRIS URL}
+      CTFD_PUBLIC_URL: ${CTFD_PUBLIC_URL:?Set participant CTFd URL}
+      UPLOAD_FOLDER: /var/uploads
+      LOG_FOLDER: /var/log/CTFd
+      WORKERS: 1
+    ports: ["${BIND_IP:-127.0.0.1}:${CTFD_PORT:-8083}:8000"]
+    secrets: [ridge_ctfd]
+    volumes: [ctfd-uploads:/var/uploads, ctfd-logs:/var/log/CTFd]
+    networks: [central, ctfd-backend, frontend]
+    depends_on: [ctfd-db, ctfd-cache]
+    restart: unless-stopped
+  ctfd-db:
+    image: ${MARIADB_IMAGE:?Set pinned locally loaded MariaDB image digest}
+    pull_policy: never
+    env_file: ${CTFD_DB_ENV_FILE:?Set private MariaDB environment file}
+    command: [mysqld, --character-set-server=utf8mb4, --collation-server=utf8mb4_unicode_ci]
+    volumes: [ctfd-db:/var/lib/mysql]
+    networks: [ctfd-backend]
+    restart: unless-stopped
+  ctfd-cache:
+    image: ${REDIS_IMAGE:?Set pinned locally loaded Redis image digest}
+    pull_policy: never
+    networks: [ctfd-backend]
+    restart: unless-stopped
+secrets:
+  ridge_iris:
+    file: ${RIDGE_IRIS_SECRET_FILE:?Set private IRIS bridge secret file}
+  ridge_ctfd:
+    file: ${RIDGE_CTFD_SECRET_FILE:?Set private CTFd bridge secret file}
+volumes:
+  iris-downloads:
+  iris-templates:
+  iris-data:
+  iris-db:
+  ctfd-db:
+  ctfd-uploads:
+  ctfd-logs:
+networks:
+  central:
+    external: true
+    name: ${RIDGE_CENTRAL_NETWORK:?Set isolated shared service network}
+  iris-backend:
+    internal: true
+  ctfd-backend:
+    internal: true
+  frontend:

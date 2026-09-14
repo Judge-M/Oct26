@@ -1,3 +1,5 @@
+> Historical baseline reference only. The expanded handoff is governed by README.md and docs/expanded-operations.md; specialist cells, Jira, reporting and approval gates are retired.
+
 # Assessment rubric and AAR
 
 Assess the cooperative incident response, not flag collection. Apply the same

@@ -1,3 +1,5 @@
+> Historical baseline reference only. The expanded handoff is governed by README.md and docs/expanded-operations.md; specialist cells, Jira, reporting and approval gates are retired.
+
 # Controller guide and staged injects
 
 Keep this guide and the vault private. Read runtime/vault/controller-schedule.md

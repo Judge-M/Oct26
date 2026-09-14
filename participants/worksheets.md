@@ -1,3 +1,5 @@
+> Historical baseline reference only. The expanded handoff is governed by README.md and docs/expanded-operations.md; specialist cells, Jira, reporting and approval gates are retired.
+
 # Investigation and reporting templates
 
 Copy these sections into your cell's Jira ticket (or the rehearsal board).

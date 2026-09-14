@@ -5,3 +5,16 @@ exports/
 __pycache__/
 *.pyc
 .venv/
+work/
+baseline-tests.txt
+runtime-expanded/
+*.img
+*.raw
+*.mem
+*.qcow2
+*.vmdk
+*.vdi
+*.aut
+*.db
+*.sqlite
+/expanded/tickets.json

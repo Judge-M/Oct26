@@ -1,0 +1,3 @@
+FROM ctfd/ctfd:3.7.7
+COPY ridge /opt/CTFd/ridge
+COPY integrations/ctfd_silent_ridge /opt/CTFd/CTFd/plugins/ctfd_silent_ridge
