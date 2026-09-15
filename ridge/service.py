@@ -4,6 +4,8 @@ import hmac
 import json
 import os
 import threading
+import time
+import logging
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from ridge.state import State, Conflict
 from ridge.transport import secret, remote_sink
@@ -23,7 +25,15 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(data)
 
     def do_GET(self):
-        self.send(200 if self.path == '/health' else 404, {'service':'silent-ridge'})
+        if self.path != '/health':
+            return self.send(404, {})
+        try:
+            status = self.server.state.diagnostics()
+            alive = time.monotonic()-self.server.worker_heartbeat < 45 or status['active_leases'] > 0
+            healthy = alive and not status['failures']
+            self.send(200 if healthy else 503, {'service':'silent-ridge', 'healthy':healthy})
+        except Exception:
+            self.send(503, {'service':'silent-ridge', 'healthy':False})
 
     def do_POST(self):
         try:
@@ -43,7 +53,10 @@ class Handler(BaseHTTPRequestHandler):
             if action == 'snapshot':
                 return self.send(200, dict(state.snapshot(), team=team))
             if app == 'iris' and action in ('claim','release'):
-                getattr(state, action)(team, data['ticket'])
+                if action == 'release':
+                    state.release(team, data['ticket'], data['generation'])
+                else:
+                    state.claim(team, data['ticket'], data['generation'])
                 return self.send(200, {'ok':True})
             if app == 'ctfd' and action == 'questions':
                 return self.send(200, state.questions(team, data.get('question')))
@@ -66,22 +79,23 @@ def main():
     parser.add_argument('--port',type=int,default=8091)
     args=parser.parse_args()
     state=State(os.environ['RIDGE_STATE'])
-    state.snapshot()  # Refuse to report healthy against absent/uninitialized state.
+    state.diagnostics()  # Refuse old/uninitialized schemas before starting the worker.
     server=ThreadingHTTPServer((args.host,args.port),Handler)
     server.state=state
     server.secrets={app:secret('RIDGE_'+app.upper()) for app in ('iris','ctfd')}
     if server.secrets['iris'] == server.secrets['ctfd']:
         raise ValueError('Use distinct application credentials')
     stop=threading.Event()
+    server.worker_heartbeat=time.monotonic()
     def sync():
-        delay=1
         while not stop.is_set():
             try:
                 success=state.sync_once(remote_sink)
-            except Exception:
+            except Exception as exc:
+                logging.error('Synchronization failed: %s', type(exc).__name__)
                 success=False
-            delay=1 if success else min(delay*2,30)
-            stop.wait(0.05 if success else delay)
+            server.worker_heartbeat=time.monotonic()
+            stop.wait(0.05 if success else 1)
     threading.Thread(target=sync,daemon=True).start()
     try:
         server.serve_forever()

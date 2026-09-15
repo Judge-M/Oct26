@@ -165,6 +165,7 @@ class RuntimeTests(unittest.TestCase):
         exercise.verify()
 
     def test_independent_tab_sessions(self):
+        exercise.control.append(self.runtime,'start')
         self.assertEqual(self.request('/', None)[0], 200)
         tokens = {}
         for cell in generate.CELLS:
@@ -190,6 +191,7 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(self.request('/api/me', None, headers={'Authorization': 'Bearer ' + tokens['server']})[0], 401)
 
     def test_shared_comments_owner_status_and_restart(self):
+        exercise.control.append(self.runtime,'start')
         for user in generate.CELLS:
             self.assertEqual(self.request('/api/update',user,{'ticket':1,'body':f'{user}: evidence comment'})[0],201)
         self.assertEqual(self.request('/api/update','identity',{'ticket':1,'body':'close','status':'Closed'})[0],403)
@@ -199,6 +201,15 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(len(ticket['comments']),6)
         self.assertEqual(ticket['status'],'Assessment sent')
 
+    def test_updates_rejected_before_start_and_while_paused(self):
+        payload={'ticket':1,'body':'premature','status':'Closed'}
+        self.assertEqual(self.request('/api/update',payload=payload)[0],409)
+        exercise.control.append(self.runtime,'start')
+        self.assertEqual(self.request('/api/update',payload=payload)[0],201)
+        exercise.control.append(self.runtime,'pause')
+        self.assertEqual(self.request('/api/update',payload=payload)[0],409)
+        self.assertEqual(len(json.loads(self.request('/api/tickets')[1])[0]['comments']),1)
+
     def test_input_validation_and_csrf(self):
         for payload in [[],{}, {'ticket':99,'body':'x'},{'ticket':True,'body':'x'},{'ticket':1,'body':' '},{'ticket':1,'body':'x','status':'Hacked'}]:
             self.assertEqual(self.request('/api/update',payload=payload)[0],400)
@@ -206,6 +217,7 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(self.request('/api/update',payload={'ticket':1,'body':'x'*20000})[0],413)
 
     def test_release_order_export_reset_and_new_credentials(self):
+        exercise.control.append(self.runtime,'start')
         with self.assertRaises(ValueError): exercise.release(2)
         exercise.release(1); exercise.release(1); exercise.release(2); exercise.release(3)
         self.request('/api/update',payload={'ticket':1,'body':'preserve me'})

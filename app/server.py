@@ -191,11 +191,15 @@ class Handler(BaseHTTPRequestHandler):
             if status not in (None, 'Investigating', 'Assessment sent', 'Closed'):
                 raise ValueError()
             with closing(database(self.server.state)) as con, con:
+                con.execute('BEGIN IMMEDIATE')
+                events=self.control_events()
+                transitions=[event['kind'] for event in events if event['kind'] in ('start','pause','resume')]
+                if not transitions or transitions[-1]=='pause':
+                    return self.send(409, {'error':'Exercise has not started or is paused'})
                 owner = con.execute('SELECT owner FROM tickets WHERE id=?', (ticket,)).fetchone()[0]
                 if status and owner != user:
                     return self.send(403, {'error': 'Only the owning cell changes status; all cells may comment'})
                 created=datetime.now(timezone.utc).isoformat()
-                events=self.control_events()
                 con.execute('INSERT INTO comments(ticket,author,created,body,elapsed_seconds,clock_event) VALUES(?,?,?,?,?,?)',
                             (ticket, user, created, body.strip(), elapsed_at(events,created), events[-1]['id'] if events else None))
                 if status:

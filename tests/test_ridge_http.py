@@ -24,6 +24,8 @@ class APITests(unittest.TestCase):
         core_tests.WorkflowTests.tearDown(self)
 
     def request(self,application,identity,action,key=None,**payload):
+        if action=='claim':
+            payload.setdefault('generation',0)
         body=json.dumps(dict(payload,application=application,identity=identity,action=action)).encode()
         request=Request('http://127.0.0.1:'+str(self.server.server_port)+'/action',body,
                         {'Content-Type':'application/json','Authorization':'Bearer '+(key or self.server.secrets[application])})

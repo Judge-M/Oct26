@@ -1,6 +1,7 @@
 """Execute inside the actual extended CTFd 3.7.7 image, using a disposable database."""
 import concurrent.futures
 import os
+from unittest.mock import patch
 from pathlib import Path
 
 os.environ.update(DATABASE_URL='sqlite:////tmp/ctfd-smoke.sqlite',SECRET_KEY='disposable-ci-key-only-000000000000',
@@ -35,6 +36,23 @@ with concurrent.futures.ThreadPoolExecutor(4) as pool:
 with app.app_context():
     assert Awards.query.count()==1
     assert Awards.query.first().value==1
+
+# The award survives failed cache invalidation; a receipt retry must invalidate again.
+from CTFd.plugins import ctfd_silent_ridge as plugin
+retry_body={**body,'key':'smoke-run:point:T01-Q2'}
+with app.test_client() as client:
+    with patch.object(plugin,'invalidate_scores',side_effect=ConnectionError('cache unavailable')):
+        try:
+            response=client.post('/silent-ridge/internal',json=retry_body,headers={'X-Ridge-Key':'Bearer '+'c'*40})
+            assert response.status_code==500
+        except ConnectionError:
+            pass  # Some test configurations propagate application exceptions.
+    with patch.object(plugin,'invalidate_scores') as invalidated:
+        response=client.post('/silent-ridge/internal',json=retry_body,headers={'X-Ridge-Key':'Bearer '+'c'*40})
+        assert response.status_code==200
+        invalidated.assert_called_once()
+with app.app_context():
+    assert Awards.query.count()==2
 
 with app.test_client() as client:
     assert client.post('/silent-ridge/internal',json=body).status_code in (401,403)

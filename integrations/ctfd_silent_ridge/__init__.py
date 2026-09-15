@@ -10,7 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from CTFd.models import db, Awards
 from CTFd.utils.decorators import authed_only
 from CTFd.utils.user import get_current_user, is_admin
-from ridge.transport import bridge, secret
+from ridge.transport import bridge, secret, TRANSPORT_ERRORS
 from ridge.web import PAGE
 
 
@@ -56,19 +56,35 @@ def load(app):
                 iris=os.environ['IRIS_PUBLIC_URL'],ctfd=os.environ['CTFD_PUBLIC_URL'],csrf=session['nonce'],message=message)
         except HTTPError as exc:
             return 'Question unavailable or exercise paused. Return to the incident queue.',exc.code
-        except (URLError,TimeoutError):
+        except TRANSPORT_ERRORS:
             return 'Connection interrupted. Accepted answers are retained; retry shortly.',503
 
     @app.route('/silent-ridge/status')
     @authed_only
     def ridge_status():
-        return jsonify(bridge('ctfd',identity(),'snapshot'))
+        try:
+            return jsonify(bridge('ctfd',identity(),'snapshot'))
+        except TRANSPORT_ERRORS:
+            return jsonify(error='Questions temporarily unavailable'),503
 
     @app.route('/silent-ridge/internal',methods=['POST'])
     def ridge_credit():
         if not hmac.compare_digest(request.headers.get('X-Ridge-Key',''),'Bearer '+secret('RIDGE_CTFD')):
             abort(401)
         body=request.get_json(); key=body['key']; p=body['payload']
+        if body['kind']=='preflight':
+            from CTFd.models import Teams
+            from CTFd.utils import get_config
+            if get_config('user_mode')!='teams':
+                abort(409)
+            identities=[]
+            for identifier in p['identities']:
+                team=db.session.get(Teams,int(identifier))
+                if team is None or team.banned or team.hidden:
+                    abort(409)
+                identities.append({'id':str(team.id),'name':team.name})
+            db.session.query(RidgeCredit).limit(1).all()
+            return jsonify(ready=True,identities=identities)
         if body['kind']=='export':
             credits=db.session.query(RidgeCredit).all()
             awards=db.session.query(Awards).join(RidgeCredit,RidgeCredit.award_id==Awards.id).all()
@@ -78,6 +94,7 @@ def load(app):
             abort(400)
         existing=db.session.get(RidgeCredit,key)
         if existing:
+            invalidate_scores()
             return jsonify(id=existing.award_id)
         try:
             award=Awards(team_id=p['ctfd_team'],name=p['question'],description='Silent Ridge accepted answer '+p['event'],
@@ -89,9 +106,15 @@ def load(app):
             db.session.rollback()
             existing=db.session.get(RidgeCredit,key)
             if existing:
+                invalidate_scores()
                 return jsonify(id=existing.award_id)
             raise
-        from CTFd.cache import cache
-        cache.clear()
+        invalidate_scores()
         return jsonify(id=award.id)
     ridge_credit._bypass_csrf=True  # Machine endpoint authenticates its own distinct secret.
+
+
+def invalidate_scores():
+    # Retry invalidation even when the receipt already exists after an ambiguous commit.
+    from CTFd.cache import clear_standings
+    clear_standings()

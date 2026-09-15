@@ -8,10 +8,14 @@ import hashlib
 import hmac
 import json
 import sqlite3
+import threading
+import time
 import uuid
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Protocol, TypedDict, Any
+from ridge.schema import migrate, VERSION
 
 
 def now():
@@ -22,17 +26,27 @@ class Conflict(ValueError):
     pass
 
 
+class DeliveryContext(TypedDict):
+    iris_id: int | None
+    release_files: str
+
+
+class Sink(Protocol):
+    def __call__(self, kind: str, key: str, payload: dict[str, Any], context: DeliveryContext) -> int | str: ...
+
+
 class State:
-    def __init__(self, path):
+    def __init__(self, path, retry_delay=2):
         self.path = Path(path)
+        self.retry_delay = retry_delay
 
     @contextmanager
-    def transaction(self):
+    def transaction(self, write=True):
         con = sqlite3.connect(self.path, timeout=30, isolation_level=None)
         con.row_factory = sqlite3.Row
         con.execute('PRAGMA foreign_keys=ON')
         try:
-            con.execute('BEGIN IMMEDIATE')
+            con.execute('BEGIN IMMEDIATE' if write else 'BEGIN')
             yield con
             con.commit()
         except BaseException:
@@ -86,6 +100,7 @@ class State:
         finally:
             con.close()
         with self.transaction() as con:
+            migrate(con)
             if con.execute('SELECT 1 FROM run').fetchone():
                 raise Conflict('Run exists; export before resetting')
             con.execute('INSERT INTO run VALUES (?,?)', (str(uuid.uuid4()), 'paused'))
@@ -93,8 +108,10 @@ class State:
                 con.execute('INSERT INTO teams VALUES (?,?,?,?)', (t['id'], str(t['iris']), t['ctfd'], t['name']))
             for t in tickets:
                 requires = t.get('requires', [])
-                con.execute('INSERT INTO tickets VALUES (?,?,?,?,?,?,?)',
+                con.execute('INSERT INTO tickets(id,title,subject,owner,status,iris_id,requires) VALUES (?,?,?,?,?,?,?)',
                             (t['id'], t['title'], t['subject'], None, 'locked' if requires else 'available', None, json.dumps(requires)))
+                con.execute('UPDATE tickets SET release_files=? WHERE id=?',
+                            (json.dumps(t.get('release_files', [])), t['id']))
                 for q in t['questions']:
                     if not q['answer'].strip() or not q['finding']['evidence'] or not q['finding']['limitation']:
                         raise ValueError('Answer and traceable finding required')
@@ -116,13 +133,67 @@ class State:
     @staticmethod
     def enqueue(con, key, kind, payload):
         run = con.execute('SELECT id FROM run').fetchone()[0]
-        con.execute('INSERT OR IGNORE INTO outbox(id,kind,payload) VALUES (?,?,?)',
-                    (run+':'+key, kind, json.dumps(payload)))
+        identifier = run+':'+key
+        if con.execute('SELECT 1 FROM outbox WHERE id=?', (identifier,)).fetchone():
+            return
+        previous = con.execute('SELECT id FROM outbox WHERE ticket=? ORDER BY rowid DESC LIMIT 1',
+                               (payload['ticket'],)).fetchone()
+        con.execute('INSERT INTO outbox(id,kind,payload,ticket,created) VALUES (?,?,?,?,?)',
+                    (identifier, kind, json.dumps(payload), payload['ticket'], time.time()))
+        dependencies = [previous[0]] if previous else []
+        if kind == 'ticket':
+            requires = json.loads(con.execute('SELECT requires FROM tickets WHERE id=?',
+                                               (payload['ticket'],)).fetchone()[0])
+            dependencies.extend(run+':close:'+ticket for ticket in requires)
+        con.executemany('INSERT INTO delivery_dependencies VALUES (?,?)',
+                        [(identifier, dependency) for dependency in dependencies])
+
+    def migrate(self):
+        with self.transaction() as con:
+            migrate(con)
+
+    @staticmethod
+    def mutable(con):
+        if con.execute('SELECT export_token FROM control').fetchone()[0]:
+            raise Conflict('Export in progress; mutations are frozen')
+
+    def provision(self, actor):
+        """Explicitly permit initial delivery while participant mutations stay paused."""
+        with self.transaction() as con:
+            self.mutable(con)
+            con.execute('UPDATE control SET provisioned=1')
+            self.record(con, actor, 'provision', {})
+
+    @contextmanager
+    def export_barrier(self):
+        token = str(uuid.uuid4())
+        with self.transaction() as con:
+            self.mutable(con)
+            if con.execute('SELECT mode FROM run').fetchone()[0] != 'paused' or con.execute(
+                    'SELECT 1 FROM outbox WHERE done=0').fetchone():
+                raise Conflict('Pause and drain before export')
+            con.execute('UPDATE control SET export_token=?', (token,))
+        try:
+            yield token
+        finally:
+            with self.transaction() as con:
+                con.execute('UPDATE control SET export_token=NULL WHERE export_token=?', (token,))
+
+    def verify_export_token(self, token):
+        with self.transaction(write=False) as con:
+            if con.execute('SELECT export_token FROM control').fetchone()[0] != token:
+                raise Conflict('Export barrier was revoked; discard this export')
+
+    def cancel_export(self, actor, token):
+        with self.transaction() as con:
+            if con.execute('UPDATE control SET export_token=NULL WHERE export_token=?', (token,)).rowcount != 1:
+                raise Conflict('Export token does not match')
+            self.record(con, actor, 'cancel_export', {'token':token})
 
     def identity(self, application, external):
         if application not in ('iris', 'ctfd'):
             raise ValueError('Unknown application')
-        with self.transaction() as con:
+        with self.transaction(write=False) as con:
             row = con.execute(f'SELECT id FROM teams WHERE {application}=?', (external,)).fetchone()
             if row is None:
                 raise PermissionError('Identity is not mapped to a team')
@@ -130,6 +201,7 @@ class State:
 
     @staticmethod
     def running(con):
+        State.mutable(con)
         if con.execute('SELECT mode FROM run').fetchone()[0] != 'running':
             raise Conflict('Exercise is paused')
 
@@ -137,6 +209,9 @@ class State:
         if value not in ('running', 'paused'):
             raise ValueError('Invalid mode')
         with self.transaction() as con:
+            self.mutable(con)
+            if value == 'running' and not con.execute('SELECT provisioned FROM control').fetchone()[0]:
+                raise Conflict('Provision and validate the deployment before starting')
             if con.execute('SELECT mode FROM run').fetchone()[0] == value:
                 return
             con.execute('UPDATE run SET mode=?', (value,))
@@ -146,9 +221,10 @@ class State:
         if not isinstance(text, str) or not text.strip() or len(text)>4000:
             raise ValueError('Announcement must contain 1–4000 characters')
         with self.transaction() as con:
+            self.mutable(con)
             self.record(con, actor, 'announcement', {'text':text})
 
-    def claim(self, team, ticket):
+    def claim(self, team, ticket, generation=0):
         with self.transaction() as con:
             self.running(con)
             if not con.execute('SELECT 1 FROM teams WHERE id=?', (team,)).fetchone():
@@ -158,26 +234,31 @@ class State:
             row = con.execute('SELECT * FROM tickets WHERE id=?', (ticket,)).fetchone()
             if row is None or row['status'] != 'available' or row['iris_id'] is None:
                 raise Conflict('Ticket is not available in IRIS')
-            con.execute("UPDATE tickets SET owner=?,status='active' WHERE id=?", (team, ticket))
+            if type(generation) is not int or generation != row['generation']:
+                raise Conflict('Ticket changed; reload before claiming')
+            con.execute("UPDATE tickets SET owner=?,status='active',generation=generation+1 WHERE id=?", (team, ticket))
             self.record(con, team, 'claim', {'ticket':ticket})
             self.enqueue(con, 'ownership:'+str(uuid.uuid4()), 'ownership', {'ticket':ticket, 'team':team})
 
-    def release(self, team, ticket, recovery_actor=None, reason=None):
+    def release(self, team, ticket, generation, recovery_actor=None, reason=None):
         if recovery_actor and not reason:
             raise ValueError('Recovery requires a reason')
         with self.transaction() as con:
+            self.mutable(con)
             if not recovery_actor:
                 self.running(con)
             row = con.execute('SELECT * FROM tickets WHERE id=?', (ticket,)).fetchone()
             if row is None or row['status'] != 'active' or (not recovery_actor and row['owner'] != team):
                 raise PermissionError('Only the owner can relinquish this ticket')
+            if type(generation) is not int or generation != row['generation']:
+                raise Conflict('Ownership changed; reload before relinquishing')
             con.execute("UPDATE tickets SET owner=NULL,status='available' WHERE id=?", (ticket,))
             self.record(con, recovery_actor or team, 'recover' if recovery_actor else 'release',
                         {'ticket':ticket, 'previous_owner':row['owner'], 'reason':reason})
             self.enqueue(con, 'ownership:'+str(uuid.uuid4()), 'ownership', {'ticket':ticket, 'team':None})
 
     def questions(self, team, question=None):
-        with self.transaction() as con:
+        with self.transaction(write=False) as con:
             if not con.execute('SELECT 1 FROM teams WHERE id=?', (team,)).fetchone():
                 raise PermissionError('Unknown team')
             rows = con.execute('''SELECT q.*,t.owner,t.status,a.team solver,a.timestamp FROM questions q
@@ -226,7 +307,7 @@ class State:
             return {'correct':True, 'event':event, 'closed':not remaining, 'synchronization':'pending'}
 
     def snapshot(self):
-        with self.transaction() as con:
+        with self.transaction(write=False) as con:
             stamp=now();total=0;anchor=None
             for event in con.execute("SELECT timestamp,action FROM audit WHERE action IN ('running','paused') ORDER BY id"):
                 at=datetime.fromisoformat(event['timestamp'])
@@ -240,44 +321,95 @@ class State:
                     'elapsed_seconds':max(total,0),'server_time':stamp,
                     'announcements':[dict(id=r['id'],timestamp=r['timestamp'],text=json.loads(r['detail'])['text'])
                                      for r in con.execute("SELECT * FROM audit WHERE action='announcement' ORDER BY id")],
-                    'tickets':[dict(r) for r in con.execute("SELECT id,title,subject,owner,status,iris_id FROM tickets WHERE status!='locked'")],
+                    'tickets':[dict(r) for r in con.execute("SELECT id,title,subject,owner,status,iris_id,generation FROM tickets WHERE status!='locked'")],
                     'scores':[dict(r) for r in con.execute('''SELECT t.id,t.name,COUNT(a.question) points FROM teams t
                                   LEFT JOIN answers a ON a.team=t.id GROUP BY t.id ORDER BY points DESC,t.id''')],
                     'pending':con.execute('SELECT COUNT(*) FROM outbox WHERE done=0').fetchone()[0]}
 
-    def sync_once(self, sink):
-        """One serialized consumer; remote adapters must reconcile stable IDs before creating.
+    def sync_once(self, sink: Sink) -> bool:
+        """Lease one eligible delivery; no database lock spans network or filesystem I/O.
 
-        Hold the write transaction across the bounded remote request. A crash after
-        remote success rolls back the local ack; the next attempt finds its marker.
-        Preserve ordering: findings precede closure, and closure precedes follow-ups.
+        Leases recover after worker death. Application receipts make late/retried
+        deliveries safe. Ticket chains and prerequisite closures preserve causality.
         """
+        token = str(uuid.uuid4())
         with self.transaction() as con:
-            row = con.execute('SELECT rowid,* FROM outbox WHERE done=0 ORDER BY rowid LIMIT 1').fetchone()
+            control = con.execute('SELECT * FROM control').fetchone()
+            if not control['provisioned'] or control['export_token']:
+                return False
+            row = con.execute('''SELECT o.* FROM outbox o WHERE o.done=0 AND o.retry_at<=?
+                AND o.lease_until<=? AND NOT EXISTS (
+                  SELECT 1 FROM delivery_dependencies d JOIN outbox p ON p.id=d.prerequisite
+                  WHERE d.event=o.id AND p.done=0) ORDER BY o.rowid LIMIT 1''',
+                (time.time(), time.time())).fetchone()
             if not row:
                 return False
-            try:
-                result = sink(row['kind'], row['id'], json.loads(row['payload']), con)
+            con.execute('UPDATE outbox SET lease=?,lease_until=?,attempts=attempts+1 WHERE id=?',
+                        (token, time.time()+30, row['id']))
+            context = dict(con.execute('SELECT iris_id,release_files FROM tickets WHERE id=?',
+                                       (row['ticket'],)).fetchone())
+        stopped = threading.Event()
+        def renew():
+            while not stopped.wait(5):
+                try:
+                    with self.transaction() as con:
+                        con.execute('UPDATE outbox SET lease_until=? WHERE id=? AND lease=?',
+                                    (time.time()+30, row['id'], token))
+                except sqlite3.Error:
+                    # Lost leases cannot acknowledge. The next worker retries the same key.
+                    return
+        heartbeat = threading.Thread(target=renew, daemon=True)
+        heartbeat.start()
+        try:
+            result = sink(row['kind'], row['id'], json.loads(row['payload']), context)
+            if row['kind'] == 'ticket':
+                result = int(result)
+            with self.transaction() as con:
+                if not con.execute('SELECT 1 FROM outbox WHERE id=? AND lease=?',
+                                   (row['id'], token)).fetchone():
+                    return False
                 if row['kind'] == 'ticket':
                     con.execute('UPDATE tickets SET iris_id=? WHERE id=?',
-                                (int(result), json.loads(row['payload'])['ticket']))
-                con.execute('UPDATE outbox SET done=1,error=NULL,remote=?,attempts=attempts+1 WHERE id=?',
+                                (result, row['ticket']))
+                con.execute('UPDATE outbox SET done=1,error=NULL,remote=?,lease=NULL,lease_until=0 WHERE id=?',
                             (str(result), row['id']))
-            except Exception as exc:
-                # Never persist HTTP bodies, tokens or participant submissions in errors.
-                con.execute('UPDATE outbox SET error=?,attempts=attempts+1 WHERE id=?',
-                            (type(exc).__name__, row['id']))
-                return False
             return True
+        except Exception as exc:
+            with self.transaction() as con:
+                con.execute('''UPDATE outbox SET error=?,lease=NULL,lease_until=0,retry_at=?
+                               WHERE id=? AND lease=?''',
+                            (type(exc).__name__, time.time()+min(30, self.retry_delay*2**min(row['attempts'], 4)), row['id'], token))
+            return False
+        finally:
+            stopped.set()
+            heartbeat.join()
+
+    def diagnostics(self):
+        with self.transaction(write=False) as con:
+            if con.execute('PRAGMA user_version').fetchone()[0] != VERSION:
+                raise ValueError('Stop old workers and run ridge.cli migrate')
+            control = dict(con.execute('SELECT * FROM control').fetchone())
+            row = con.execute('SELECT COUNT(*) pending,MIN(created) oldest FROM outbox WHERE done=0').fetchone()
+            return dict(control, pending=row['pending'], oldest_pending_seconds=max(0, time.time()-(row['oldest'] or time.time())),
+                        active_leases=con.execute('SELECT COUNT(*) FROM outbox WHERE done=0 AND lease_until>?',(time.time(),)).fetchone()[0],
+                        failures=[dict(r) for r in con.execute('SELECT id,kind,attempts,error FROM outbox WHERE done=0 AND error IS NOT NULL')])
 
     def export(self, destination):
         """A complete, coherent private integration snapshot; no stored submitted flags."""
         destination = Path(destination)
         if destination.exists():
             raise ValueError('Export destination already exists')
-        with self.transaction() as con:
-            data = {name:[dict(r) for r in con.execute('SELECT * FROM '+name)] for name in
-                    ('run','teams','tickets','questions','answers','audit','outbox')}
+        with self.transaction(write=False) as con:
             with destination.open('x', encoding='utf-8') as f:
-                json.dump(data, f, indent=2)
+                f.write('{')
+                for number,name in enumerate(('run','teams','tickets','questions','answers','audit','outbox','delivery_dependencies')):
+                    if number:
+                        f.write(',')
+                    f.write(json.dumps(name)+':[')
+                    for row_number,row in enumerate(con.execute('SELECT * FROM '+name)):
+                        if row_number:
+                            f.write(',')
+                        json.dump(dict(row),f)
+                    f.write(']')
+                f.write('}\n')
         return destination

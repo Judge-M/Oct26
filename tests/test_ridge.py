@@ -11,13 +11,14 @@ from ridge.state import State, Conflict
 class WorkflowTests(unittest.TestCase):
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory()
-        self.state=State(Path(self.tmp.name)/'state.sqlite')
+        self.state=State(Path(self.tmp.name)/'state.sqlite',retry_delay=0)
         teams=[dict(id=str(i),iris=str(i+10),ctfd=i+20,name='Team '+str(i)) for i in range(3)]
         def ticket(id,requires=None):
             return dict(id=id,title=id,subject='general',requires=requires or [],questions=[
                 dict(id=id+str(i),prompt='Question',answer='answer',finding=dict(text='Finding',evidence=['ref'],limitation='Scope only')) for i in range(2)])
         self.state.initialize(teams,[ticket('A'),ticket('B'),ticket('C',['A'])])
         self.deliveries={}
+        self.state.provision('controller')
         self.drain()
         self.state.mode('controller','running')
 
@@ -57,8 +58,8 @@ class WorkflowTests(unittest.TestCase):
     def test_transfer_global_close_history_followup(self):
         self.state.claim('0','A')
         self.assertTrue(self.state.answer('0','A0',' ANSWER ')['correct'])
-        self.state.release('0','A')
-        self.state.claim('1','A')
+        self.state.release('0','A',1)
+        self.state.claim('1','A',1)
         questions=self.state.questions('1')
         self.assertEqual(questions[0]['solved_by'],'0')
         self.assertFalse(questions[0]['answerable'])
@@ -77,7 +78,7 @@ class WorkflowTests(unittest.TestCase):
             with self.subTest(team=team,q=q):
                 with self.assertRaises(PermissionError):self.state.questions(team,q)
                 with self.assertRaises(PermissionError):self.state.answer(team,q,'answer')
-        with self.assertRaises(PermissionError):self.state.release('1','A')
+        with self.assertRaises(PermissionError):self.state.release('1','A',1)
         self.assertNotIn('digest',json.dumps(self.state.questions('0')))
         self.assertNotIn('Finding',json.dumps(self.state.questions('0')))
         self.assertEqual(self.state.answer('0','A0','wrong'),{'correct':False})
@@ -100,7 +101,7 @@ class WorkflowTests(unittest.TestCase):
             raise TimeoutError('response lost after commit')
         self.assertFalse(self.state.sync_once(lost_response))
         self.assertGreater(self.state.snapshot()['pending'],0)
-        self.state=State(self.state.path)
+        self.state=State(self.state.path,retry_delay=0)
         self.drain()
         self.assertEqual(sum(v[0]=='point' for v in self.deliveries.values()),1)
         self.assertEqual(sum(v[0]=='finding' for v in self.deliveries.values()),1)
@@ -110,7 +111,7 @@ class WorkflowTests(unittest.TestCase):
         self.state.claim('0','A');self.state.answer('0','A0','answer')
         self.state.mode('controller','paused')
         with self.assertRaises(Conflict):self.state.answer('0','A1','answer')
-        self.state.release(None,'A',recovery_actor='controller',reason='Absent team')
+        self.state.release(None,'A',1,recovery_actor='controller',reason='Absent team')
         path=self.state.export(Path(self.tmp.name)/'export.json')
         data=json.loads(path.read_text())
         self.assertEqual(len(data['answers']),1)

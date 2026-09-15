@@ -5,7 +5,10 @@ rehearsal results; content targeting missing forensic artifacts is explicitly ga
 by the release acceptance record.
 """
 import json
+import sys
 from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from ridge.scenario import RELEASE_FILES, incident_day
 
 # title, subject/tool, evidence, selection, dependencies, question/answer pairs.
 SPECS = [
@@ -102,7 +105,9 @@ FINDINGS = [
 ]
 
 
-def build():
+def build(config=None):
+    config = config or json.loads(Path(__file__).with_name('config.json').read_text(encoding='utf-8'))
+    day = incident_day(config['exercise_date'])
     tickets=[]
     for n,(title,tool,evidence,selection,requires,pairs) in enumerate(SPECS,1):
         tid=f'T{n:02}'
@@ -114,8 +119,10 @@ def build():
         elif tool=='Wazuh':
             opening=['Open the Wazuh shortcut and sign in with the supplied read-only account.',
                 'Open Discover and choose the silent-ridge-* data view.',
-                'Set an absolute UTC range of 2026-10-15 08:00:00 through 09:30:00.',
+                f'Set an absolute UTC range of {day} 08:00:00 through 09:30:00.',
                 'Search '+selection+'. Expand a row to inspect fields; compare adjacent records and policy.']
+            if selection=='data.type:coverage':
+                opening[2]='Use a data view without a time field for coverage records: these describe collection intervals, not individual event timestamps.'
         elif tool=='Wireshark':
             opening=['Open Wireshark > File > Open > /evidence/'+evidence+'.',
                 'Select View > Time Display Format > UTC Date and Time of Day.',
@@ -139,7 +146,7 @@ def build():
                        'Compare the selected record with adjacent events; apply clock correction only to device_time.',
                        'Walkthrough: '+prompt+' The supplied record/comparison yields '+answer+'. Enter '+answer+'. '+LIMITS[tool]],
                 finding=dict(text=FINDINGS[n-1][i-1],evidence=[evidence+' ('+selection+')'],limitation=LIMITS[tool])))
-        tickets.append(dict(id=tid,title=title,subject=tool,requires=requires,estimate_minutes=65,
+        tickets.append(dict(id=tid,title=title,subject=tool,requires=requires,release_files=RELEASE_FILES.get(tid, []),estimate_minutes=65,
             estimate_basis='Unmeasured planning allowance: opening/orientation 10, four guided investigations 40, cross-check and recovery 15. Must be replaced by beginner rehearsal measurements.',questions=questions))
     return tickets
 
