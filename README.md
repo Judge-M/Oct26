@@ -30,12 +30,13 @@ The 20 ticket outlines contain 80 questions with navigation, free hints, explici
 
 ## Deployment and operation
 
+- [Versioned GitHub packages, release downloads and asset policy](docs/github-distribution.md)
 - [Central services, Linux template and Guacamole](docs/expanded-deployment.md)
 - [Evidence preparation and Autopsy acceptance](docs/expanded-evidence.md)
 - [Controller operations, export and reset](docs/expanded-operations.md)
 - [Executed checks and outstanding acceptance](docs/expanded-validation.md)
 
-Transfer all application images, dependencies, symbols/data, templates, evidence and guides before offline use. Secrets, state, exports and large artifacts stay outside Git. Final hardware and artifact-store provider remain configurable. The artifact verifier fails complete-bundle checks until every required category and verified compatibility are present.
+Transfer all application images, dependencies, symbols/data, templates, evidence and guides before offline use. GitHub distributes source, curated Git LFS assets, container packages and release bundles. Secrets, live state and team exports stay outside Git. Final hardware remains configurable. The artifact verifier fails complete-bundle checks until every required category and verified compatibility are present.
 
 ## Retired baseline
 

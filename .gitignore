@@ -18,3 +18,12 @@ runtime-expanded/
 *.db
 *.sqlite
 /expanded/tickets.json
+
+# Curated exercise inputs may be tracked despite the runtime extension rules.
+!/assets/large/**
+# Real credentials remain private wherever the deployment is hosted.
+*.pem
+*.key
+.env.*
+!.env.example
+/secrets/

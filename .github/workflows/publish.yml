@@ -1,0 +1,103 @@
+name: Publish GitHub distribution
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: read
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: true
+      - name: Require a versioned commit merged to main
+        run: |
+          [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?$ ]]
+          git merge-base --is-ancestor HEAD origin/main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m unittest discover -s tests -v
+      - run: docker build -f deployment/expanded/Dockerfile.ctfd -t silent-ridge-ctfd-smoke .
+      - run: docker run --rm --network none --user 0 --entrypoint python -v "$PWD/tests/ctfd_container_smoke.py:/tmp/smoke.py:ro" -e PYTHONPATH=/opt/CTFd silent-ridge-ctfd-smoke /tmp/smoke.py
+  images:
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        component: [integration, iris, ctfd]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: name
+        env:
+          OWNER: ${{ github.repository_owner }}
+          COMPONENT: ${{ matrix.component }}
+        run: echo "image=ghcr.io/${OWNER,,}/oct26-$COMPONENT" >> "$GITHUB_OUTPUT"
+      - uses: docker/build-push-action@v6
+        id: build
+        with:
+          context: .
+          file: deployment/expanded/Dockerfile.${{ matrix.component }}
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.name.outputs.image }}:${{ github.ref_name }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ github.ref_name }}
+      - name: Record immutable reference
+        env:
+          COMPONENT: ${{ matrix.component }}
+          IMAGE: ${{ steps.name.outputs.image }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          mkdir -p digests
+          printf '{"%s":"%s@%s"}\n' "$COMPONENT" "$IMAGE" "$DIGEST" > "digests/$COMPONENT.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: digest-${{ matrix.component }}
+          path: digests/*.json
+  release:
+    needs: images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: digest-*
+          merge-multiple: true
+          path: work/digests
+      - name: Assemble source and generated fixtures
+        env:
+          RELEASE: ${{ github.ref_name }}
+        run: |
+          python -c 'import json,pathlib; images={}; [images.update(json.loads(p.read_text())) for p in pathlib.Path("work/digests").glob("*.json")]; pathlib.Path("work/images.json").write_text(json.dumps(images))'
+          python -m ridge.distribution pack --release "$RELEASE" --images work/images.json --destination work/distribution
+          python -m ridge.distribution verify work/distribution --release "$RELEASE"
+      - name: Publish candidate release after all components succeed
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE: ${{ github.ref_name }}
+        run: |
+          gh release create "$RELEASE" work/distribution/* --verify-tag --prerelease --title "$RELEASE — deployment candidate" --notes-file docs/distribution-release-notes.md
