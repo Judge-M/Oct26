@@ -53,4 +53,4 @@ def verify(root,manifest,complete=True):
 if __name__=='__main__':
     p=argparse.ArgumentParser();p.add_argument('store',type=Path);p.add_argument('manifest',type=Path)
     p.add_argument('--allow-incomplete',action='store_true',help='Integrity inspection only; cannot certify deployment')
-    a=p.parse_args();print(verify(a.store,json.loads(a.manifest.read_text()),not a.allow_incomplete))
+    a=p.parse_args();print(verify(a.store,json.loads(a.manifest.read_text(encoding='utf-8')),not a.allow_incomplete))

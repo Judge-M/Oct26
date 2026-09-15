@@ -22,7 +22,9 @@ python -m ridge.cli init --config expanded/config.json --content expanded/ticket
 python -m ridge.cli status
 ```
 
-Replace sample application IDs and VM addresses with provisioned identities. Initialization starts paused and does not create application accounts. Core tests use a simulated remote sink, not live IRIS or CTFd.
+Replace sample application IDs and VM addresses with provisioned identities. Add each team's expected `iris_login` and `ctfd_name` to `expanded/config.json`; preflight compares names as well as numeric IDs. Initialization starts paused with delivery disabled and does not create application accounts. Run `python -m ridge.cli provision --operator EXCON-A` in the configured deployment environment to validate identities, evidence, storage and the historical index before enabling delivery. `mode running` repeats preflight. Core tests use a simulated remote sink, not live IRIS or CTFd.
+
+Existing deployments must stop old workers and apply the [schema migration and operating procedure](docs/resilience.md). Deploy core and both adapters together: ownership forms now carry a generation number. Do not mix protocol versions.
 
 The 20 ticket outlines contain 80 questions with navigation, free hints, explicit walkthroughs and question-specific findings. Their 1,300 team-minute workload is **an unmeasured estimate** (260 minutes for five teams). Content targeting missing Autopsy cases is not yet runnable. Verify dates and navigation against installed packages and representative beginners.
 

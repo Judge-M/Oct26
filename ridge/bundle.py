@@ -91,4 +91,4 @@ def pack(store,manifest,destination):
 
 if __name__=='__main__':
     p=argparse.ArgumentParser();p.add_argument('store',type=Path);p.add_argument('manifest',type=Path);p.add_argument('destination',type=Path)
-    a=p.parse_args();print(pack(a.store,json.loads(a.manifest.read_text()),a.destination))
+    a=p.parse_args();print(pack(a.store,json.loads(a.manifest.read_text(encoding='utf-8')),a.destination))

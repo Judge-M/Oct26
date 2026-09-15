@@ -6,7 +6,7 @@ Ownership mutations use the bridge; native task edits remain controller-only.
 """
 import hmac
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from urllib.error import HTTPError, URLError
 from flask import abort, jsonify, render_template_string, request
 from flask_login import current_user, login_required
@@ -15,7 +15,7 @@ from wtforms.validators import ValidationError
 from sqlalchemy.exc import IntegrityError
 from app import db
 from app.models.models import CaseTasks, Comments, TaskComments
-from ridge.transport import bridge, secret
+from ridge.transport import bridge, secret, TRANSPORT_ERRORS
 from ridge.web import PAGE
 
 
@@ -42,26 +42,52 @@ def install(app):
                 action=request.form.get('action')
                 if action not in ('claim','release'):
                     abort(400)
-                bridge('iris',current_user.id,action,ticket=request.form['ticket'])
+                payload={'ticket':request.form['ticket'],'generation':int(request.form['generation'])}
+                bridge('iris',current_user.id,action,**payload)
             snapshot=bridge('iris',current_user.id,'snapshot')
             return render_template_string(PAGE,lane='iris',snapshot=snapshot,
                 iris=os.environ['IRIS_PUBLIC_URL'],ctfd=os.environ['CTFD_PUBLIC_URL'],
                 csrf=generate_csrf(),case=os.environ['RIDGE_IRIS_CASE'],message='')
         except HTTPError as exc:
             return 'Ticket unavailable, another team claimed it, or exercise paused. Reload the queue.',exc.code
-        except (URLError,TimeoutError):
+        except TRANSPORT_ERRORS:
             return 'Queue connection interrupted. Existing work is retained; retry shortly.',503
 
     @app.route('/silent-ridge/status')
     @login_required
     def ridge_status():
-        return jsonify(bridge('iris',current_user.id,'snapshot'))
+        try:
+            return jsonify(bridge('iris',current_user.id,'snapshot'))
+        except TRANSPORT_ERRORS:
+            return jsonify(error='Queue temporarily unavailable'),503
 
     @app.route('/silent-ridge/internal',methods=['POST'])
     def ridge_event():
         if not hmac.compare_digest(request.headers.get('X-Ridge-Key',''),'Bearer '+secret('RIDGE_IRIS')):
             abort(401)
         body=request.get_json();key=body['key'];kind=body['kind'];p=body['payload']
+        if kind=='preflight':
+            from app.models.authorization import User, UserCaseEffectiveAccess, CaseAccessLevel
+            from app.models.cases import Cases
+            from app.models.models import TaskStatus
+            case=int(os.environ['RIDGE_IRIS_CASE'])
+            if db.session.get(Cases,case) is None:
+                abort(409)
+            status_ids=[int(os.environ['RIDGE_IRIS_'+value+'_STATUS']) for value in ('OPEN','CLOSED')]
+            if len(set(status_ids))!=2 or any(db.session.get(TaskStatus,value) is None for value in status_ids):
+                abort(409)
+            service=db.session.get(User,int(os.environ['RIDGE_IRIS_SERVICE_USER']))
+            if service is None or not service.active:
+                abort(409)
+            identities=[]
+            for identifier in p['identities']:
+                user=db.session.get(User,int(identifier))
+                access=db.session.query(UserCaseEffectiveAccess).filter_by(user_id=int(identifier),case_id=case).one_or_none()
+                if user is None or not user.active or access is None or access.access_level!=CaseAccessLevel.read_only.value:
+                    abort(409)
+                identities.append({'id':str(user.id),'name':user.user})
+            db.session.query(RidgeReceipt).limit(1).all()
+            return jsonify(ready=True,identities=identities)
         if kind=='export':
             case=int(os.environ['RIDGE_IRIS_CASE'])
             tasks=db.session.query(CaseTasks).filter_by(task_case_id=case).all()
@@ -77,7 +103,8 @@ def install(app):
         if receipt:
             return jsonify(id=receipt.remote)
         case=int(os.environ['RIDGE_IRIS_CASE']);user=int(os.environ['RIDGE_IRIS_SERVICE_USER'])
-        stamp=datetime.utcnow()
+        # Pinned IRIS columns store naive UTC; normalize explicitly at this ORM boundary.
+        stamp=datetime.now(timezone.utc).replace(tzinfo=None)
         try:
             if kind=='ticket':
                 task=CaseTasks(task_title=p['ticket']+' · '+p['title'],

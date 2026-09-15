@@ -53,7 +53,10 @@ Source contracts inspected: [IRIS tasks](https://github.com/dfir-iris/iris-web/b
    off NFS and participant shares.
 8. Supply distinct IRIS and CTFd bridge secret files to their corresponding apps
    and the integration stack. Configure private release vault, published evidence
-   and indexer paths. Start the integration Compose file. Initial tickets become
+   and indexer paths. Add expected `iris_login` and `ctfd_name` values to every
+   team mapping. Run `ridge.cli provision --operator EXCON-A` with the deployment
+   environment to perform preflight and explicitly enable delivery. Start the
+   integration Compose file. Initial tickets become
    claimable only after remote creation is acknowledged.
 9. Start the Guacamole Compose file. Perform the end-to-end rehearsal below.
 

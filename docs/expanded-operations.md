@@ -34,7 +34,7 @@ must be validated with beginners.
 ## Ownership recovery and outages
 
 ```text
-python -m ridge.cli recover T03 --operator EXCON-A --reason "Team disconnected; release remaining questions for another team"
+python -m ridge.cli recover T03 --generation 1 --operator EXCON-A --reason "Team disconnected; release remaining questions for another team"
 ```
 
 Recovery records the previous owner, operator and reason. Solved answers and
@@ -49,12 +49,16 @@ after remote commit can therefore be retried without duplication. Findings prece
 closure, and closure precedes follow-up creation. The participant view displays
 pending synchronization; authoritative accepted state is retained locally.
 
-Delivery is intentionally ordered. An unavailable point/finding destination delays
-later deliveries, including new remote ticket creation, but does not erase answers.
+Delivery is ordered per ticket and across prerequisite closures. An unavailable
+destination delays its dependent deliveries while unrelated tickets can advance.
 Inspect private `outbox.error`/`attempts` and application logs. Fix connectivity,
 credentials or schema mismatch and let the worker retry. Do not manually edit
 receipts, award points again, or delete queued events. Schema/runtime behavior of
 the application extensions still needs live outage testing.
+
+See [schema-v2 operation](resilience.md) for explicit provisioning, ownership generations,
+export barriers, preflight and backup-verified retention. Use the actual generation
+from `status` in recovery commands; the example above is not a fixed value.
 
 ## Export and reset
 
