@@ -147,6 +147,7 @@ def build(config=None):
         for i,(prompt,answer) in enumerate(pairs,1):
             qid=f'{tid}-Q{i}'
             questions.append(dict(id=qid,prompt=prompt,answer=answer,tool=tool,evidence='/evidence/'+evidence,
+                selection=selection,source_record=evidence,
                 purpose='Use '+title.lower()+' to answer this specific question and identify the limits of the evidence.',
                 steps=opening,format='Enter only the requested value; times use HH:MM:SS UTC. Case and outer whitespace are ignored.',
                 recovery='If no results appear, clear filters, check the evidence release and absolute UTC range, and reopen your writable case. Never re-ingest a large image during the activity.',
