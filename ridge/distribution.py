@@ -16,6 +16,7 @@ from ridge.artifacts import safe, sha256
 
 COMPONENTS = {'integration', 'iris', 'ctfd'}
 REPOSITORY = 'Judge-M/Oct26'
+MAX_ASSET_BYTES = 1024 ** 3
 
 
 def image_lock(images):
@@ -57,7 +58,19 @@ def pack(root, destination, release, images):
     destination.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(dir=destination.parent) as scratch:
         stage = Path(scratch)
-        archive(root, names, stage / 'source.zip')
+        large = sorted(name for name in names if name.startswith('assets/large/'))
+        archive(root, [name for name in names if name not in large], stage / 'source.zip')
+        assets = {}
+        for index, name in enumerate(large):
+            source = safe(root, name)
+            if not source.is_file() or source.stat().st_size > MAX_ASSET_BYTES:
+                raise ValueError('Missing asset or asset needs splitting into 1 GiB parts: ' + name)
+            with source.open('rb') as stream:
+                if stream.read(128).startswith(b'version https://git-lfs.github.com/spec/v1'):
+                    raise ValueError('Download Git LFS content before packaging: ' + name)
+            asset = f'asset-{index:04d}.bin'
+            shutil.copyfile(source, stage / asset)
+            assets[asset] = name
         # Import only here so fetching a release needs no fixture dependencies.
         import sys
         subprocess.run([sys.executable, str(root / 'expanded/prepare.py'), str(stage / 'fixtures')],
@@ -71,11 +84,13 @@ def pack(root, destination, release, images):
         archive(stage / 'fixtures', [p.relative_to(stage / 'fixtures').as_posix()
                                     for p in (stage / 'fixtures').rglob('*') if p.is_file()],
                 stage / 'fixtures.zip')
-        manifest = dict(schema=1, repository=REPOSITORY, release=release, source_commit=commit,
+        manifest = dict(schema=2, repository=REPOSITORY, release=release, source_commit=commit,
                         event_ready=False, complete_offline_bundle=False,
-                        images=image_lock(images), files={})
-        for name in ('source.zip', 'fixtures.zip'):
+                        images=image_lock(images), files={}, assets=assets)
+        for name in ['source.zip', 'fixtures.zip', *assets]:
             file = stage / name
+            if file.stat().st_size > MAX_ASSET_BYTES:
+                raise ValueError('Distribution file exceeds 1 GiB: ' + name)
             manifest['files'][name] = dict(bytes=file.stat().st_size, sha256=sha256(file))
         (stage / 'distribution.json').write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
         shutil.rmtree(stage / 'fixtures')
@@ -87,12 +102,19 @@ def pack(root, destination, release, images):
 def verify(root, release):
     root = Path(root)
     manifest = json.loads((root / 'distribution.json').read_text(encoding='utf-8'))
-    if (manifest.get('schema') != 1 or manifest.get('repository') != REPOSITORY
+    if (manifest.get('schema') not in (1, 2) or manifest.get('repository') != REPOSITORY
             or manifest.get('release') != release
             or not re.fullmatch('[0-9a-f]{40}', manifest.get('source_commit', ''))):
         raise ValueError('Distribution identity mismatch')
     image_lock(manifest['images'])
-    if set(manifest['files']) != {'source.zip', 'fixtures.zip'}:
+    assets = manifest.get('assets', {}) if manifest['schema'] == 2 else {}
+    if (not isinstance(assets, dict) or len(set(assets.values())) != len(assets)
+            or any(not re.fullmatch(r'asset-[0-9]{4,}\.bin', name)
+                   or not target.startswith('assets/large/') for name, target in assets.items())):
+        raise ValueError('Invalid asset inventory')
+    for target in assets.values():
+        safe(root, target)
+    if set(manifest['files']) != {'source.zip', 'fixtures.zip', *assets}:
         raise ValueError('Incomplete distribution inventory')
     for name, record in manifest['files'].items():
         file = safe(root, name)
@@ -113,7 +135,8 @@ def fetch(release, destination):
         stage = Path(scratch)
         subprocess.run(['gh', 'release', 'download', release, '--repo', REPOSITORY,
                         '--dir', str(stage), '--pattern', 'distribution.json',
-                        '--pattern', 'source.zip', '--pattern', 'fixtures.zip'], check=True)
+                        '--pattern', 'source.zip', '--pattern', 'fixtures.zip',
+                        '--pattern', 'asset-*.bin'], check=True)
         verify(stage, release)
         stage.rename(destination)
     return destination
