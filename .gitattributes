@@ -2,3 +2,5 @@
 Dockerfile* text eol=lf
 # Deliberately scoped: do not accidentally version live databases or exports.
 /assets/large/** filter=lfs diff=lfs merge=lfs -text
+/assets/**/*.json text eol=lf
+/expanded/binary/*.c text eol=lf
