@@ -1,0 +1,32 @@
+{
+  "silent-ridge-writer": {
+    "cluster_permissions": [],
+    "index_permissions": [
+      {
+        "index_patterns": ["silent-ridge-*"],
+        "allowed_actions": [
+          "create_index",
+          "indices:data/write/index",
+          "indices:data/write/bulk",
+          "indices:admin/mappings/put",
+          "indices:admin/template/put",
+          "indices:data/read/search",
+          "indices:data/read/get"
+        ]
+      }
+    ]
+  },
+  "silent-ridge-participant": {
+    "cluster_permissions": [],
+    "index_permissions": [
+      {
+        "index_patterns": ["silent-ridge-*"],
+        "allowed_actions": [
+          "indices:data/read/search",
+          "indices:data/read/get",
+          "indices:admin/mappings/get"
+        ]
+      }
+    ]
+  }
+}

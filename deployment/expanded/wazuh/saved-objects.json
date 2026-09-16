@@ -1,0 +1,12 @@
+[
+  {
+    "type": "index-pattern",
+    "id": "silent-ridge-timed",
+    "attributes": {"title": "silent-ridge-*", "timeFieldName": "timestamp"}
+  },
+  {
+    "type": "index-pattern",
+    "id": "silent-ridge-timeless",
+    "attributes": {"title": "silent-ridge-*", "timeFieldName": null}
+  }
+]
