@@ -1,0 +1,8 @@
+from pathlib import Path
+import subprocess
+root=Path('/opt/silent-ridge-build')
+for plugin,args in [('pslist',[]),('cmdline',['--pid','6364','7644']),('netscan',[])]:
+    with (root/f'memory-{plugin}.json').open('w') as out,(root/f'memory-{plugin}.log').open('w') as log:
+        subprocess.run([str(root/'volatility-venv/bin/vol'),'-q','-c',str(root/'memory-resolved.json'),
+                        '-r','json','windows.'+plugin,*args],stdout=out,stderr=log,check=True,timeout=600)
+    print(plugin+' complete',flush=True)

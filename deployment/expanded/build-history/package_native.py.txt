@@ -1,0 +1,45 @@
+from pathlib import Path
+import hashlib
+import json
+import shutil
+import tarfile
+
+repo=Path('/mnt/c/Users/mj777/Documents/Codex/2026-09-14/i/work/Oct26-fixes')
+source=repo.parent/'windows-capture/output'
+build=Path('/opt/silent-ridge-build')
+stage=build/'native-package-v1'
+stage.mkdir(exist_ok=True)
+symbols=stage/'symbols'
+symbols.mkdir(exist_ok=True)
+config=json.loads((build/'memory-resolved.json').read_text())
+symbol=Path(config['kernel.symbol_table_name.isf_url'].removeprefix('file://'))
+shutil.copy2(symbol,symbols/symbol.name)
+config['kernel.layer_name.memory_layer.location']='file:///originals/windows/WS17.raw'
+config['kernel.symbol_table_name.isf_url']='file:///originals/windows/symbols/'+symbol.name
+(stage/'memory-layer.json').write_text(json.dumps(config,indent=2)+'\n')
+archive=repo/'assets/large/native/WS17-native-v1.tar.gz'
+archive.parent.mkdir(parents=True,exist_ok=True)
+names=['Security.evtx','TaskScheduler.evtx','Security.evtx.records.json','TaskScheduler.evtx.records.json',
+       'observed-processes.json','observed-connections.json','native-provenance.json','BriefSync.xml',
+       'brief-viewer.exe','browser.exe','move-cache.txt','acquisition.log','memory-sha256.json']
+def digest(path):
+    with path.open('rb') as f: return hashlib.file_digest(f,'sha256').hexdigest()
+inventory={}
+with tarfile.open(archive,'w:gz',compresslevel=3) as tar:
+    def add(path,name):
+        tar.add(path,arcname='originals/windows/'+name)
+        inventory[name]={'bytes':path.stat().st_size,'sha256':digest(path)}
+    add(build/'native/WS17.raw','WS17.raw')
+    for name in names: add(source/name,name)
+    for name in ('memory-pslist.json','memory-cmdline.json','memory-info-explicit.json'):
+        add(build/name,'analysis/'+name)
+    add(stage/'memory-layer.json','memory-layer.json')
+    add(symbols/symbol.name,'symbols/'+symbol.name)
+record=dict(schema=1,version='native-windows-v1',artifact=archive.relative_to(repo).as_posix(),
+            bytes=archive.stat().st_size,sha256=digest(archive),files=inventory,
+            acquisition_tool=dict(url='https://github.com/Velocidex/WinPmem/releases/download/v4.1.dev1/go-winpmem_amd64_1.0-rc2_signed.exe',
+                sha256='86691bb4af2c17dd9ec4834c04a99ad51e04f780a07d1b05bc382a5d1892e0c4'),
+            memory_parser='Volatility 3 2.28.0',memory_processes_validated=True,memory_connections_validated=False,
+            native_logs_validated=True,event_ready=False)
+(repo/'assets/native-windows-v1/archive.json').write_text(json.dumps(record,indent=2)+'\n')
+print(json.dumps({k:v for k,v in record.items() if k!='files'},indent=2),flush=True)

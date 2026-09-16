@@ -1,0 +1,7 @@
+import subprocess
+import sys
+root='/opt/silent-ridge-build/desktop'
+raise SystemExit(subprocess.run(['ssh','-i',root+'/build-key','-p','2222',
+    '-o','BatchMode=yes','-o','StrictHostKeyChecking=accept-new',
+    '-o','UserKnownHostsFile='+root+'/known-hosts','-o','ConnectTimeout=10',
+    'builder@127.0.0.1',*sys.argv[1:]]).returncode)

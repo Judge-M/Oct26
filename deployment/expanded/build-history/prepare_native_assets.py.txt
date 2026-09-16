@@ -1,0 +1,75 @@
+from pathlib import Path
+import hashlib
+import json
+import shutil
+import xml.etree.ElementTree as ET
+
+repo=Path('/mnt/c/Users/mj777/Documents/Codex/2026-09-14/i/work/Oct26-fixes')
+source=repo.parent/'windows-capture/output'
+build=Path('/opt/silent-ridge-build')
+assets=repo/'assets/native-windows-v1'
+prepared=assets/'prepared'
+prepared.mkdir(parents=True,exist_ok=True)
+def digest(path):
+    with path.open('rb') as stream: return hashlib.file_digest(stream,'sha256').hexdigest()
+def read(path): return json.loads(path.read_text(encoding='utf-8-sig'))
+def save(path,value): path.write_text(json.dumps(value,indent=2)+'\n',encoding='utf-8')
+ns={'e':'http://schemas.microsoft.com/win/2004/08/events/event'}
+events=read(source/'Security.evtx.records.json')
+def event(event_id):
+    rows=[r for r in events if r['Id']==event_id and 'brief-viewer.exe' in r['Xml']]
+    assert len(rows)==1
+    row=rows[0]; xml=ET.fromstring(row['Xml'])
+    fields={v.attrib['Name']:v.text for v in xml.findall('e:EventData/e:Data',ns)}
+    return row,xml,fields
+common=dict(provenance='Native artifacts acquired from an isolated training reconstruction; not original incident acquisition',
+    scenario_host='WS-17',clock_semantics='Actual acquisition UTC; do not apply the historical WS-17 120-second offset')
+evtx_hash=digest(source/'Security.evtx')
+for event_id,name in ((4688,'windows-process'),(4698,'windows-task')):
+    row,xml,fields=event(event_id)
+    item=dict(common,event_id=event_id,record_id=row['RecordId'],fields=fields,
+        utc=xml.find('e:System/e:TimeCreated',ns).attrib['SystemTime'],
+        capture_host=xml.find('e:System/e:Computer',ns).text,
+        original_path='/originals/windows/Security.evtx',original_sha256=evtx_hash,
+        parser='Get-WinEvent PowerShell 7.6.5; source XML preserved',
+        command='Get-WinEvent -Path Security.evtx | ForEach-Object { $_.ToXml() }')
+    if event_id==4688:
+        item.update(pid=int(fields['NewProcessId'],16),ppid=int(fields['ProcessId'],16),
+                    process=fields['NewProcessName'],parent=fields['ParentProcessName'])
+    else:
+        task=ET.fromstring(fields['TaskContent'])
+        taskns={'t':'http://schemas.microsoft.com/windows/2004/02/mit/task'}
+        item.update(task=fields['TaskName'].lstrip('\\'),pid=int(fields['ClientProcessId']),
+                    executable=task.find('t:Actions/t:Exec/t:Command',taskns).text)
+    save(prepared/(name+'.json'),item)
+processes=read(build/'memory-pslist.json')
+viewer=next(r for r in processes if r['PID']==6364)
+parent=next(r for r in processes if r['PID']==viewer['PPID'])
+cmd=next(r for r in read(build/'memory-cmdline.json') if r['PID']==viewer['PID'])
+memory_hash=read(source/'memory-sha256.json')['Hash'].lower()
+assert (build/'native/memory.sha256').read_text().split()[0]==memory_hash
+save(prepared/'memory-processes.json',dict(common,pid=viewer['PID'],ppid=parent['PID'],
+    process_kernel_name=viewer['ImageFileName'],parent=parent['ImageFileName'],command_line=cmd['Args'],
+    utc=viewer['CreateTime'],memory_offset=hex(viewer['Offset(V)']),address_space='kernel virtual',
+    original_path='/originals/windows/WS17.raw',original_sha256=memory_hash,
+    parser='Volatility 3 2.28.0',commands=['vol -c memory-layer.json -r json windows.pslist',
+    'vol -c memory-layer.json -r json windows.cmdline --pid 6364 7644'],
+    process_record=viewer,parent_record=parent))
+rows=read(source/'observed-connections.json')
+connection=next(r for r in rows if r['RemotePort']==443 and r['OwningProcess']==6364)
+save(prepared/'windows-connections.json',dict(common,pid=connection['OwningProcess'],
+    remote=connection['RemoteAddress'],port=connection['RemotePort'],state='ESTABLISHED',record=connection,
+    original_path='/originals/windows/observed-connections.json',
+    original_sha256=digest(source/'observed-connections.json'),
+    parser='Windows Get-NetTCPConnection, captured in the guest immediately before acquisition',
+    command='Get-NetTCPConnection -OwningProcess 6364 | ConvertTo-Json',
+    limitation='Live guest snapshot, not a memory-derived connection finding. Standard and physical pool scans did not validate this endpoint.',
+    topology='198.51.100.77/32 was assigned to guest loopback; Sandbox external networking was disabled'))
+save(assets/'manifest.json',dict(schema=1,version='native-windows-v1',
+    capture=read(source/'native-provenance.json'),native_memory_validated=True,
+    memory_connection_validated=False,live_connection_snapshot_validated=True,
+    files={p.relative_to(assets).as_posix():digest(p) for p in sorted(prepared.glob('*.json'))}))
+script_dir=repo/'deployment/expanded/windows'
+script_dir.mkdir(parents=True,exist_ok=True)
+shutil.copyfile(repo.parent/'windows-capture/input/prepare-native.ps1',script_dir/'Capture-Guest.ps1')
+print('Prepared source-referenced native assets')

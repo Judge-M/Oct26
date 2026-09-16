@@ -1,0 +1,30 @@
+from pathlib import Path
+import json
+import subprocess
+
+root=Path('/opt/silent-ridge-build/desktop')
+key=root/'build-key'
+if not key.exists():
+    subprocess.run(['ssh-keygen','-q','-t','ed25519','-N','','-f',str(key)],check=True)
+pub=key.with_suffix('.pub').read_text().strip()
+config={'hostname':'ridge-desktop-build','manage_etc_hosts':True,
+        'users':[{'name':'builder','shell':'/bin/bash','sudo':'ALL=(ALL) NOPASSWD:ALL',
+                  'lock_passwd':True,'ssh_authorized_keys':[pub]}],
+        'ssh_pwauth':False,'disable_root':True,'package_update':True,
+        'packages':['xfce4','xfce4-terminal','tigervnc-standalone-server','tigervnc-tools',
+                    'dbus-x11','wireshark','openjdk-17-jre','openjfx','libafflib0v5',
+                    'libewf2','libvhdi1','libvmdk1','libpq5','libgstreamer1.0-0',
+                    'libgstreamer-plugins-base1.0-0','libfuse2t64','libnss3',
+                    'libasound2t64','libgbm1','linux-generic','python3','curl','unzip'],
+        'write_files':[{'path':'/etc/apt/apt.conf.d/99keep-build-debs',
+                        'content':'Binary::apt::APT::Keep-Downloaded-Packages "true";\nAPT::Keep-Downloaded-Packages "true";\n'}]}
+(root/'user-data').write_text('#cloud-config\n'+json.dumps(config))
+(root/'meta-data').write_text('instance-id: ridge-desktop-build-v1\nlocal-hostname: ridge-desktop-build\n')
+subprocess.run(['cloud-localds',str(root/'seed.img'),str(root/'user-data'),str(root/'meta-data')],check=True)
+subprocess.run(['qemu-system-x86_64','-enable-kvm','-cpu','host','-smp','4','-m','8192',
+    '-drive',f'file={root}/desktop-build.qcow2,if=virtio,format=qcow2',
+    '-drive',f'file={root}/seed.img,if=virtio,format=raw,readonly=on',
+    '-netdev','user,id=net0,hostfwd=tcp:127.0.0.1:2222-:22',
+    '-device','virtio-net-pci,netdev=net0','-display','none','-serial',f'file:{root}/console.log',
+    '-daemonize','-pidfile',str(root/'qemu.pid')],check=True)
+print('Desktop VM started; SSH forwarded only to WSL loopback port 2222.')

@@ -30,6 +30,7 @@ The 20 ticket outlines contain 80 questions with navigation, free hints, explici
 
 ## Deployment and operation
 
+- [Continue on another computer: handoff, task cards and build recipes](docs/handoff/CONTINUE-ELSEWHERE.md)
 - [Versioned GitHub packages, release downloads and asset policy](docs/github-distribution.md)
 - [Central services, Linux template and Guacamole](docs/expanded-deployment.md)
 - [Evidence preparation and Autopsy acceptance](docs/expanded-evidence.md)

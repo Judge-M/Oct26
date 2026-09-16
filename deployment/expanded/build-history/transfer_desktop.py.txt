@@ -1,0 +1,23 @@
+from pathlib import Path
+import subprocess
+import tarfile
+
+root=Path('/opt/silent-ridge-build/desktop')
+bundle=root/'runtime.tar'
+with tarfile.open(bundle,'w') as tar:
+    def filter_member(member):
+        if '/solr/server/logs/' in member.name or member.name.endswith(('.pid','.lck')): return None
+        return member
+    tar.add('/opt/silent-ridge-build/autopsy-4.22.0',arcname='opt/autopsy',filter=filter_member)
+    for p in Path('/usr/local/lib').glob('libtsk*.so*'): tar.add(p,arcname='usr/local/lib/'+p.name)
+    for p in Path('/usr/local/share/java').glob('sleuthkit*.jar'): tar.add(p,arcname='usr/local/share/java/'+p.name)
+    tar.add(root/'downloads/Cutter.AppImage',arcname='opt/cutter/Cutter.AppImage')
+    tar.add(root/'downloads/firefox.tar.xz',arcname='opt/firefox.tar.xz')
+    tar.add('/evidence',arcname='opt/silent-ridge/evidence')
+    case=next(Path('/opt/silent-ridge-build/repro-case-verified-v2/cases').iterdir())
+    tar.add(case,arcname='opt/silent-ridge/cases/'+case.name)
+base=['-i',str(root/'build-key'),'-o','BatchMode=yes','-o','StrictHostKeyChecking=yes',
+      '-o','UserKnownHostsFile='+str(root/'known-hosts')]
+subprocess.run(['scp',*base,'-P','2222',str(bundle),'builder@127.0.0.1:/home/builder/runtime.tar'],check=True)
+subprocess.run(['ssh',*base,'-p','2222','builder@127.0.0.1','sudo tar -xf /home/builder/runtime.tar -C / && sudo ldconfig'],check=True)
+print('Runtime copied into desktop disk',flush=True)

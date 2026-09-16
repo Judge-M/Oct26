@@ -4,3 +4,4 @@ Dockerfile* text eol=lf
 /assets/large/** filter=lfs diff=lfs merge=lfs -text
 /assets/**/*.json text eol=lf
 /expanded/binary/*.c text eol=lf
+/deployment/expanded/build-history/*.txt -text

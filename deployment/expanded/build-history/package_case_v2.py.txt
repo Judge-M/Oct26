@@ -1,0 +1,40 @@
+from pathlib import Path
+import hashlib
+import json
+import sqlite3
+import tarfile
+
+root = Path('/opt/silent-ridge-build/native-case-v2')
+case, = (root / 'cases').glob('*/WS17.aut')
+case = case.parent
+repo = Path('/mnt/c/Users/mj777/Documents/Codex/2026-09-14/i/work/Oct26-fixes')
+archive = repo / 'assets/large/autopsy/WS17-prepared-case-v2.tar.gz'
+assert not archive.exists()
+with sqlite3.connect(f'file:{case}/autopsy.db?mode=ro', uri=True) as db:
+    assert db.execute('pragma integrity_check').fetchall() == [('ok',)]
+    jobs = db.execute('select status_id from ingest_jobs').fetchall()
+    assert jobs == [(2,), (2,)], jobs
+    count = db.execute('select count(*) from tsk_files').fetchone()[0]
+assert list((case / 'ModuleOutput/keywordsearch').rglob('segments_*'))
+metadata = json.loads((root / 'case-build.json').read_text())
+metadata.update(native_windows_records_included=True, native_windows_memory_included=False,
+    note='Indexes released evidence and prepared native records. Original captures are packaged separately for /originals/windows.')
+(root / 'case-build-v2.json').write_text(json.dumps(metadata, indent=2)+'\n')
+with tarfile.open(archive, 'w:gz') as tar:
+    tar.add(case, arcname='cases/WS17')
+    tar.add('/evidence', arcname='evidence')
+    tar.add(root / 'case-build-v2.json', arcname='case-build.json')
+def digest(path):
+    with path.open('rb') as stream:
+        return hashlib.file_digest(stream, 'sha256').hexdigest()
+manifest = dict(schema=1, artifact=archive.relative_to(repo).as_posix(),
+    sha256=digest(archive), bytes=archive.stat().st_size, autopsy='4.22.0', sleuthkit='4.13.0',
+    case_path='cases/WS17/WS17.aut', evidence_mount='/evidence', data_sources=2,
+    case_file_records=count, database_integrity='ok', ingest_complete=True,
+    saved_keyword_index=True, relocated_case_reopened=True,
+    desktop_keyword_check=dict(query='text:BriefSync', matches=6, indexed_documents=90),
+    native_windows_records_included=True, native_windows_memory_included=False, event_ready=False,
+    evidence_files=[dict(path=p.relative_to('/evidence').as_posix(), bytes=p.stat().st_size,
+        sha256=digest(p)) for p in sorted(Path('/evidence').rglob('*')) if p.is_file()])
+(repo / 'assets/autopsy-case-v2.json').write_text(json.dumps(manifest, indent=2)+'\n')
+print(json.dumps({k:v for k,v in manifest.items() if k!='evidence_files'}, indent=2))
