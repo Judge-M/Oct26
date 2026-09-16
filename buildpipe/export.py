@@ -65,7 +65,7 @@ def compact(source, output, device=None, sys_block=Path('/sys/block')):
     source, output = Path(source), Path(output)
     if output.exists():
         raise ValueError('Choose a new compacted image; existing exports are never overwritten')
-    require_linux('qemu-nbd/zerofree')
+    require_linux('qemu-nbd/zerofree', ('qemu-nbd', 'qemu-img', 'e2fsck', 'zerofree'))
     device = device or allocate_nbd(sys_block=sys_block)
     connect_nbd(source, device)
     try:

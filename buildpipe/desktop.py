@@ -20,9 +20,16 @@ GENERIC_KERNEL = '6.8.0-139-generic'
 DATASOURCE_LIST = 'datasource_list: [ NoCloud, Ec2, None ]\n'
 
 
-def require_linux(capability='qemu/nbd'):
+def require_commands(*names):
+    missing = [name for name in names if shutil.which(name) is None]
+    if missing:
+        raise BuildEnvironmentError('Missing required build tool(s): ' + ', '.join(missing))
+
+
+def require_linux(capability='qemu/nbd', commands=()):
     if os.name != 'posix':
         raise BuildEnvironmentError(f'{capability} requires a Linux build host')
+    require_commands(*commands)
 
 
 def verify_inputs(root, expected):
@@ -52,7 +59,7 @@ def allocate_nbd(sys_block=Path('/sys/block'), device_root=Path('/dev')):
 
 
 def connect_nbd(image, device, read_only=False):
-    require_linux()
+    require_linux('qemu-nbd', ('qemu-nbd',))
     command = ['qemu-nbd']
     if read_only:
         command.append('--read-only')
@@ -62,7 +69,7 @@ def connect_nbd(image, device, read_only=False):
 
 
 def disconnect_nbd(device):
-    require_linux()
+    require_linux('qemu-nbd', ('qemu-nbd',))
     subprocess.run(['qemu-nbd', '--disconnect', str(device)], check=True)
 
 
@@ -105,7 +112,7 @@ def guest_command(build_root, memory_mib=8192, vcpus=4, ssh_port=2222):
 
 
 def start_guest(build_root, memory_mib=8192, vcpus=4, ssh_port=2222):
-    require_linux('qemu-system-x86_64')
+    require_linux('qemu-system-x86_64', ('qemu-system-x86_64',))
     build_root = Path(build_root)
     if (build_root / 'qemu.pid').exists():
         raise ValueError('Build guest is already running under this build root')
