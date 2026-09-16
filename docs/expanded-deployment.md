@@ -115,6 +115,17 @@ This script configures an existing guest; it does not create a bootable VM image
 Export the validated guest using the selected hypervisor to the artifact store.
 Final hypervisor, vCPU, memory and storage allocations require measurements.
 
+## Container desktop (alternative to the Linux template)
+
+The Docker-only alternative replaces the per-team VM with a container that
+exposes VNC on the external `desktop` network, which `guacd` already reaches at
+`hostname:5901`. See [container team desktop](docker-desktop.md) for the image
+contract, `compose.desktops.yaml` usage, capacity guidance and offline packaging.
+It removes QCOW2/`qemu-img`/Hyper-V/VirtualBox/cloud-init/AWS-AMI from the
+critical path. The Linux template above and the
+[prepared desktop image](desktop-image.md) remain the fallback. Nothing on this
+path has been built or run.
+
 ## End-to-end acceptance
 
 With Internet disconnected: log into every desktop; open each tool and the
