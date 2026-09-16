@@ -27,13 +27,15 @@ ticket unlocks and indexes released CSV records with stable document IDs.
 Repeated publication accepts identical files and rejects conflicting content.
 The controller preparation fixtures and source manifests are not desktop shares.
 
-## Native Windows and memory sources — still required
+## Native Windows and memory sources
 
 The JSON under `controller/preparation-fixtures/` is explicitly synthetic. It is
 not EVTX-derived evidence and is not a native memory capture. Do not relabel it or
-use it to certify these requirements. Create a small isolated fictional Windows
-preparation VM, reproduce the documented timestamps/artifacts, acquire native
-EVTX and memory there, and record actual preparation tools/commands/configuration.
+use it to certify these requirements. A separate Windows Sandbox reconstruction
+has now supplied native EVTX and memory. Its measured PIDs, task registration,
+memory process records and live connection snapshot drive T13–T16. See
+[the acquisition record](native-windows.md). Actual acquisition timestamps are
+preserved; the historical incident facts and clock offsets are unchanged.
 Any acquisition or expensive processing happens before the event on a separate
 preparation system. No participant imaging or ingestion wait is permitted.
 
@@ -62,7 +64,10 @@ Finish expensive ingest/indexing in preparation. Close Autopsy before packaging.
 Copy the closed case per team into a writable local directory. Original evidence
 paths must resolve to the shared read-only mount on every clone. Verify all source
 hashes, then reopen each copy without re-ingest or database repair. There are no
-ready-to-open Autopsy cases in this source deliverable yet.
+additional ingest steps required for the published version-two prepared case.
+The case was reopened in the desktop GUI; its 90-document keyword index returned
+six matches for `BriefSync`. The source archives and validation inventory are
+listed in `assets/autopsy-case-v2.json`.
 
 ## Harmless Cutter exercise
 
@@ -77,7 +82,9 @@ Record compiler/version/command and the binary hash. This program prints trainin
 text and has no networking, persistence, credential or file-acquisition behavior.
 It is a transparent surrogate for learning strings/configuration and one branch.
 Verify the outlined function/strings workflow in Cutter before release. No
-compiled binary or Cutter session was executed on this Windows host.
+participant-time compilation is required. The compiled binary is published with
+compiler/source hashes in `assets/training-binary.json`; Cutter 2.5.0 successfully
+analyzed it in the Ubuntu desktop guest (11 functions and 16 strings).
 
 ## Workload
 

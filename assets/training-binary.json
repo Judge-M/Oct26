@@ -1,0 +1,10 @@
+{
+  "path": "assets/large/binary/brief-viewer-training",
+  "sha256": "2ab86ebd0e692c44d79753ad3ca6558e67261d46575dd2df8331e1b00335238b",
+  "source": "expanded/binary/brief-viewer-training.c",
+  "source_sha256": "1d4f7d46be810f6df50d7a6286fb0e5e14b376576be50051b75954dacbcaa7f1",
+  "compiler": "cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+  "command": "cc -O0 -g -fno-inline -o brief-viewer-training expanded/binary/brief-viewer-training.c",
+  "architecture": "Linux x86-64",
+  "behavior": "Harmless static-analysis surrogate; no network or persistence behavior"
+}

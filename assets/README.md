@@ -13,8 +13,8 @@ is accepted by the event owner. Runtime release gating still controls the normal
 exercise experience; repository secrecy is not a requirement.
 
 A prepared Autopsy 4.22.0 case is supplied in
-`large/autopsy/WS17-prepared-case-v1.tar.gz`, with checksums and verification
-results in `autopsy-case-v1.json`. It includes the FAT disk image, released
+`large/autopsy/WS17-prepared-case-v2.tar.gz`, with checksums and verification
+results in `autopsy-case-v2.json`. It includes the FAT disk image, released
 logical evidence, compiled training binary, and saved keyword index. Both
 sources completed ingest; the database passed its integrity check and the
 case reopened successfully after relocation.
@@ -30,8 +30,14 @@ Rebuild using `deployment/expanded/build-autopsy-tools.sh`, then run
 `--evidence /evidence`, and a new `--output` directory. The builder selects
 Linux-supported modules and verifies completed ingest and the saved index.
 
-The case contains generated training evidence, not acquired native Windows
-memory. A desktop image and native memory capture are still outstanding.
+The case also includes source-referenced records from an acquired Windows Sandbox
+memory image and native EVTX. The originals are in
+`large/native/WS17-native-v1.tar.gz`; extract them at `/originals/windows`.
+See [native provenance and limitations](../docs/native-windows.md). Acquisition
+timestamps remain separate from the historical incident timeline. T16 uses a
+live connection snapshot; that connection was not recovered from memory.
+The version-one case remains available for provenance; use version two for the
+native-record questions. The desktop image includes these originals and the case.
 Validate the complete bundle with `ridge.artifacts` before declaring an
 event-ready release.
 

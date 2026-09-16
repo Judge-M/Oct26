@@ -1,0 +1,29 @@
+{
+  "provenance": "Native artifacts acquired from an isolated training reconstruction; not original incident acquisition",
+  "scenario_host": "WS-17",
+  "clock_semantics": "Actual acquisition UTC; do not apply the historical WS-17 120-second offset",
+  "event_id": 4698,
+  "record_id": 607,
+  "fields": {
+    "SubjectUserSid": "S-1-5-21-2047949552-857980807-821054962-504",
+    "SubjectUserName": "WDAGUtilityAccount",
+    "SubjectDomainName": "1CA9BC0F-EF75-4",
+    "SubjectLogonId": "0x3853e",
+    "TaskName": "\\BriefSync",
+    "TaskContent": "<?xml version=\"1.0\" encoding=\"UTF-16\"?>\n<Task version=\"1.2\" xmlns=\"http://schemas.microsoft.com/windows/2004/02/mit/task\">\n  <RegistrationInfo>\n    <Description>Harmless Silent Ridge training fixture</Description>\n    <URI>\\BriefSync</URI>\n  </RegistrationInfo>\n  <Triggers>\n    <LogonTrigger>\n      <Enabled>true</Enabled>\n    </LogonTrigger>\n  </Triggers>\n  <Settings>\n    <Enabled>true</Enabled>\n    <ExecutionTimeLimit>PT1M</ExecutionTimeLimit>\n  </Settings>\n  <Actions Context=\"Author\">\n    <Exec>\n      <Command>C:\\Fixture\\brief-viewer.exe</Command>\n      <Arguments>--task</Arguments>\n    </Exec>\n  </Actions>\n  <Principals>\n    <Principal id=\"Author\">\n      <UserId>1CA9BC0F-EF75-4\\WDAGUtilityAccount</UserId>\n      <LogonType>InteractiveToken</LogonType>\n      <RunLevel>LeastPrivilege</RunLevel>\n    </Principal>\n  </Principals>\n</Task>",
+    "ClientProcessStartKey": "281474976710824",
+    "ClientProcessId": "6364",
+    "ParentProcessId": "7644",
+    "RpcCallClientLocality": "0",
+    "FQDN": "1ca9bc0f-ef75-4a38-b18c-44564a55ee89"
+  },
+  "utc": "2026-09-15T23:22:01.5757109Z",
+  "capture_host": "1ca9bc0f-ef75-4a38-b18c-44564a55ee89",
+  "original_path": "/originals/windows/Security.evtx",
+  "original_sha256": "a505818400cc562085b2b8bbb0d515de07b9f0e24bea28f9a21cd3fffa36800b",
+  "parser": "Get-WinEvent PowerShell 7.6.5; source XML preserved",
+  "command": "Get-WinEvent -Path Security.evtx | ForEach-Object { $_.ToXml() }",
+  "task": "BriefSync",
+  "pid": 6364,
+  "executable": "C:\\Fixture\\brief-viewer.exe"
+}
