@@ -7,11 +7,32 @@ either this file's output or its credential input.
 import argparse
 import hashlib
 import json
+import re
 from pathlib import Path
 
 
 def quote(value):
     return "'"+str(value).replace("'","''")+"'"
+
+
+CONTAINER_ADDRESS=re.compile(r'desktop-team[0-9]{2}')
+
+
+def container_address(team_id):
+    """Service name Guacamole uses for a containerized team desktop.
+
+    On the external `desktop` network a desktop is addressed by its Compose
+    service name, for example `desktop-team01`, instead of a routed VM address.
+    """
+    match=re.search(r'([0-9]+)',str(team_id))
+    if not match:
+        raise ValueError('Team identifier must contain a number')
+    return 'desktop-team%02d' % int(match.group(1))
+
+
+def is_container_address(value):
+    """True when a desktop address is a container service name, not a host/IP."""
+    return bool(CONTAINER_ADDRESS.fullmatch(str(value)))
 
 
 def generate(config,credentials):
@@ -24,10 +45,15 @@ def generate(config,credentials):
     for id,d in desktops.items():
         if type(d['shared']) is not bool or not isinstance(d['max_connections'],int) or d['max_connections']<1:
             raise ValueError('Explicit desktop sharing and positive connection limit required')
+        address=d.get('address')
+        if not address and d.get('container'):
+            address=container_address(id)
+        if not address:
+            raise ValueError('Desktop address or container mapping required')
         maximum=d['max_connections'] if d['shared'] else 1
         sql.append('INSERT INTO guacamole_connection(connection_name,protocol,max_connections,max_connections_per_user) VALUES ('+
                    ','.join([quote(id),quote('vnc'),str(maximum),str(maximum)])+');')
-        for key,value in {'hostname':d['address'],'port':'5901','password':credentials['desktops'][id]['password'],
+        for key,value in {'hostname':address,'port':'5901','password':credentials['desktops'][id]['password'],
                           'read-only':'false','clipboard-encoding':'UTF-8'}.items():
             sql.append('INSERT INTO guacamole_connection_parameter(connection_id,parameter_name,parameter_value) SELECT connection_id,'+
                        quote(key)+','+quote(value)+' FROM guacamole_connection WHERE connection_name='+quote(id)+';')
