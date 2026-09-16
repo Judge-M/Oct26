@@ -2,9 +2,9 @@
 
 General-purpose teams investigate suspected disclosure of fictional patrol LANTERN's movement information. IRIS is the task queue; CTFd presents coached questions and equal-value points. Autopsy, Wireshark, Cutter and Wazuh provide the analysis interfaces. Linux desktops are accessed through Apache Guacamole.
 
-**This implementation is not event-ready.** The transactional core and generated fixtures have been exercised locally. Application adapters, Linux desktops, native Windows/memory evidence and ready-to-open Autopsy cases still require integration/preparation work and Linux validation. Read the [acceptance record](docs/expanded-validation.md).
+**This implementation is not event-ready.** The transactional core, generated fixtures, native Windows reconstruction, prepared Autopsy case and offline desktop image have each been built and checksummed: see the [acceptance record](docs/expanded-validation.md), [native manifest](assets/native-windows-v1/manifest.json), [prepared case](assets/autopsy-case-v2.json) and [desktop image](assets/desktop-v1.json). Whole-event acceptance is still outstanding: application adapters, Linux/Hyper-V/AWS desktops, live IRIS/CTFd/Wazuh/Guacamole behavior and per-question navigation on the installed tools are not yet demonstrated.
 
-Learning design: [learning objectives and NICE Framework mapping](docs/learning-objectives.md) states what participants should be able to do and the exercise mechanism behind each objective.
+Learning design: [learning objectives and NICE Framework mapping](docs/learning-objectives.md) states what participants should be able to do and the exercise mechanism behind each objective. That document is the merged PR #6 artifact (landed at `370ff50`); the reconciliation corrections are applied there. The President's Cup augmentation proposal (PR #7) is optional, unmerged and outside the release critical path.
 
 ## Workflow
 
@@ -28,7 +28,7 @@ Replace sample application IDs and VM addresses with provisioned identities. Add
 
 Existing deployments must stop old workers and apply the [schema migration and operating procedure](docs/resilience.md). Deploy core and both adapters together: ownership forms now carry a generation number. Do not mix protocol versions.
 
-The 20 ticket outlines contain 80 questions with navigation, free hints, explicit walkthroughs and question-specific findings. Their 1,300 team-minute workload is **an unmeasured estimate** (260 minutes for five teams). Content targeting missing Autopsy cases is not yet runnable. Verify dates and navigation against installed packages and representative beginners.
+The 20 ticket outlines contain 80 questions with navigation, free hints, explicit walkthroughs and question-specific findings. Their 1,300 team-minute workload is **an unmeasured estimate** (about 130 estimated minutes per team across ten teams, before dependencies, idle time and AAR). The native and prepared-case artifacts now exist, but per-question navigation against the installed packages and representative beginner timing remain unverified; see the [workload note](docs/expanded-evidence.md#workload) and the [acceptance record](docs/expanded-validation.md).
 
 ## Deployment and operation
 

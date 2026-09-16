@@ -1,9 +1,12 @@
 # Offline deployment candidate
 
-This Windows host has no Docker, installed WSL distribution, Java toolchain or
-Autopsy. Candidate versions are in `deployment/expanded/versions.json`; resolve
-all tags to immutable digests in the final artifact manifest. These are not yet
-validated compatible applications.
+This Windows authoring host has no Docker, installed WSL distribution, Java
+toolchain or Autopsy. Candidate versions are in
+`deployment/expanded/versions.json`; resolve all tags to immutable digests in the
+final artifact manifest. The delivered desktop image records Autopsy 4.22.0 /
+Sleuthkit 4.13.0 and Cutter 2.5.0 (`assets/desktop-v1.json`), and the prepared case
+records its Autopsy/Sleuthkit versions (`assets/autopsy-case-v2.json`). The
+IRIS/CTFd/Wazuh/Guacamole pins are still not validated compatible applications.
 
 ## Prepare and transfer
 
@@ -102,8 +105,9 @@ rebuilding a template; it is not required to assemble the published disk.
 Prepare Ubuntu 24.04/Xfce and an offline dependency closure for Firefox, Thunar,
 TigerVNC, dbus and Wireshark. Copy the verified Autopsy Linux installation and
 Cutter AppImage to the paths expected by `desktop/install.sh`. The installer
-fails if these or the offline packages are missing. Record exact Java/TSK/native
-library versions after successfully opening a representative Autopsy case.
+fails if these or the offline packages are missing. Autopsy 4.22.0 / Sleuthkit
+4.13.0 were recorded after reopening the prepared case (`assets/autopsy-case-v2.json`);
+Cutter 2.5.0 analysed the training binary (`assets/desktop-v1.json`).
 
 Supply `/etc/silent-ridge/vnc-password` in TigerVNC password-file format. Restrict
 VM port 5901 to guacd at the firewall. Mount only released evidence at `/evidence`
