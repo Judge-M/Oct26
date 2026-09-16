@@ -1,0 +1,24 @@
+{
+  "schema": 1,
+  "version": "native-windows-v1",
+  "capture": {
+    "windows": "10.0.26100",
+    "clock_semantics": "Actual acquisition UTC; no historic clock shift applied",
+    "scenario_host": "WS-17",
+    "capture_time_utc": "2026-09-15T23:22:04.3517080Z",
+    "executable": "Harmless C# training surrogate compiled in the guest; browser.exe is a parent surrogate, not a real browser",
+    "parent_pid": 7644,
+    "network": "Networking disabled; 198.51.100.77/32 assigned to guest loopback; TCP 443 is a local harmless listener, not Internet traffic",
+    "viewer_pid": 6364,
+    "capture_host": "1CA9BC0F-EF75-4"
+  },
+  "native_memory_validated": true,
+  "memory_connection_validated": false,
+  "live_connection_snapshot_validated": true,
+  "files": {
+    "prepared/memory-processes.json": "661d3bdfd47bdf6607059c6ecde2bdf788e5a903a5264f1a4e0e61d20fb3e2f0",
+    "prepared/windows-connections.json": "bee2425c83e52160a17e913fc135f45aeb928a8f978bcd53c30e1475c88c6832",
+    "prepared/windows-process.json": "73802f32f5ab2a625e7d15c7248b729d2323d862991530db61493fb01012fc53",
+    "prepared/windows-task.json": "947e40ad38cd3031b7a5694d60d1676f3a9934fd0c59675a38a0e0d8fc0107ff"
+  }
+}

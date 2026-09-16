@@ -83,6 +83,26 @@ class DistributionTests(unittest.TestCase):
                 self.assertEqual(dist.fetch('v0.1.0', target), target.resolve())
             dist.verify(target, 'v0.1.0')
 
+    def test_separate_large_assets_are_required_and_verified(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.fixture(root)
+            path = root / 'distribution.json'
+            manifest = json.loads(path.read_text())
+            manifest.update(schema=2, assets={'asset-0000.bin': 'assets/large/disk.part001'})
+            asset = root / 'asset-0000.bin'
+            asset.write_bytes(b'disk contents')
+            manifest['files'][asset.name] = dict(bytes=asset.stat().st_size, sha256=sha256(asset))
+            path.write_text(json.dumps(manifest))
+            dist.verify(root, 'v0.1.0')
+            asset.write_bytes(b'corrupt')
+            with self.assertRaises(ValueError):
+                dist.verify(root, 'v0.1.0')
+            manifest['assets'][asset.name] = 'assets/large/../../../outside'
+            path.write_text(json.dumps(manifest))
+            with self.assertRaises(ValueError):
+                dist.verify(root, 'v0.1.0')
+
 
 if __name__ == '__main__':
     unittest.main()

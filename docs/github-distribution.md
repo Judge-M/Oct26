@@ -14,13 +14,16 @@ python -m ridge.distribution fetch --release v0.1.0-rc.1 --destination work/down
 ```
 
 Use an actually published tag. Authenticate with `gh auth login` if repository
-access requires it. The command downloads all three release files to temporary
+access requires it. The command downloads the release inventory and assets to temporary
 storage, verifies version, image references, sizes and checksums, and only then
 publishes the destination directory. Existing destinations are never overwritten.
 An interrupted or corrupt download cannot masquerade as a complete distribution.
 Checksums rely on a trusted GitHub release manifest; they are not signatures.
 
-Extract `source.zip` and `fixtures.zip` into separate directories. Read
+Extract `source.zip` and `fixtures.zip` into separate directories. Copy each
+`asset-*.bin` file to its relative source-tree path in the manifest's `assets`
+mapping (creating parent directories). These files retain their original bytes;
+the `.bin` release name is only a transport name. Read
 `distribution.json` for the exact three custom image references and pull each
 with `docker pull REFERENCE`. Set the corresponding `RIDGE_IMAGE`, `IRIS_IMAGE`
 and `CTFD_IMAGE` values to those digest references. Other upstream containers and
@@ -53,12 +56,15 @@ and `contents: write` only to release publication. Ordinary PR validation does n
 publish. Builds currently use the existing candidate base-image tags; the output
 digest pins a release, but rebuilding a tag is not a reproducible base-image lock.
 
-Large LFS assets are materialized by release checkout and included in `source.zip`.
+Large LFS assets are materialized by release checkout and published individually,
+outside `source.zip`, with their original paths in the schema-two asset inventory.
+Schema-one distributions remain readable. Every output file is limited to 1 GiB;
+larger disk images must be stored as ordered parts before packaging.
 Unresolved LFS pointers and symlinks fail packaging. Source packaging includes only
 tracked paths, so ignored caches/secrets/runtime files cannot slip in through a
 recursive directory copy. Maintainers must still review tracked content for secrets.
 GitHub upload and LFS object size limits apply; split oversized distribution assets
-and extend the inventory before attempting a release that exceeds those limits.
+before attempting a release that exceeds those limits.
 
 See [asset policy](../assets/README.md). Complete offline distributions still use
 `ridge.bundle` and `ridge.artifacts`; this workflow does not bypass their required

@@ -26,6 +26,7 @@ sys.path.insert(0,str(REPO))
 import generate
 from ridge.scenario import incident_day, telemetry_record
 from ridge.artifacts import sha256
+from expanded.native import records as native_records, ROOT as NATIVE_ROOT
 
 
 def write(path,data):
@@ -167,6 +168,14 @@ def build(output,config=None):
       'memory-connections':{'pid':4240,'remote':'198.51.100.77','port':443,'state':'ESTABLISHED'}}
     for name,record in fixtures.items():
         write(vault/'preparation-fixtures'/f'{name}.json',json.dumps(dict(record,provenance='Synthetic preparation fixture, not native EVTX or a memory acquisition'),indent=2))
+    native_records()  # Verify the complete native record inventory before publication.
+    for source in sorted((NATIVE_ROOT/'prepared').glob('*.json')):
+        write(public/'prepared'/source.name,source.read_bytes())
+    binary = json.loads((REPO/'assets/training-binary.json').read_text(encoding='utf-8'))
+    if sha256(REPO/binary['path']) != binary['sha256'] or sha256(REPO/binary['source']) != binary['source_sha256']:
+        raise ValueError('Training binary or source differs from its reviewed manifest; rebuild before publication')
+    write(public/'binary/brief-viewer-training',(REPO/binary['path']).read_bytes())
+    (public/'binary/brief-viewer-training').chmod(0o755)
     telemetry=[dict(timestamp=r['time'],data=dict(r,source='hunting/siem.jsonl')) for r in hunt]
     for path in sorted(public.rglob('*.csv')):
         for row in read_csv(path):
@@ -192,7 +201,7 @@ def build(output,config=None):
     write(vault/'releases/manifest.json',json.dumps(release_manifest,sort_keys=True,indent=2))
     sources={p.relative_to(output).as_posix():sha256(p) for p in sorted(output.rglob('*')) if p.is_file()}
     write(output/'provenance.json',json.dumps(dict(generator='expanded/prepare.py',schema=1,sources=sources,
-        status='Preparation fixtures only; Autopsy cases, native EVTX and native memory capture outstanding',
+        status='Synthetic historical fixtures and verified native reconstruction records; originals and closed cases are separate versioned assets',
         command='python expanded/prepare.py <new-release-directory>',python=sys.version,sqlite=sqlite3.sqlite_version),indent=2))
     generate.stamp(output)
     return output

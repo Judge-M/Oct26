@@ -78,7 +78,8 @@ def build(autopsy, evidence, output):
     (output / 'case-build.json').write_text(json.dumps(dict(
         autopsy='4.22.0', sleuthkit='4.13.0', case=str(case), evidence=str(evidence),
         command_steps=steps, native_windows_memory_included=False,
-        note='Disk and synthetic released exports only; native Windows capture remains separate.'
+        native_windows_records_included=(evidence / 'prepared/memory-processes.json').is_file(),
+        note='The case indexes released evidence and prepared records. Native originals are packaged separately for /originals/windows.'
     ), indent=2) + '\n', encoding='utf-8')
     return case
 

@@ -1,0 +1,23 @@
+{
+  "provenance": "Native artifacts acquired from an isolated training reconstruction; not original incident acquisition",
+  "scenario_host": "WS-17",
+  "clock_semantics": "Actual acquisition UTC; do not apply the historical WS-17 120-second offset",
+  "pid": 6364,
+  "remote": "198.51.100.77",
+  "port": 443,
+  "state": "ESTABLISHED",
+  "record": {
+    "OwningProcess": 6364,
+    "LocalAddress": "198.51.100.77",
+    "LocalPort": 49673,
+    "RemoteAddress": "198.51.100.77",
+    "RemotePort": 443,
+    "State": 5
+  },
+  "original_path": "/originals/windows/observed-connections.json",
+  "original_sha256": "284fec42c077feda428df33666dfebba4f2b61555895d9c809acd17bca7fb940",
+  "parser": "Windows Get-NetTCPConnection, captured in the guest immediately before acquisition",
+  "command": "Get-NetTCPConnection -OwningProcess 6364 | ConvertTo-Json",
+  "limitation": "Live guest snapshot, not a memory-derived connection finding. Standard and physical pool scans did not validate this endpoint.",
+  "topology": "198.51.100.77/32 was assigned to guest loopback; Sandbox external networking was disabled"
+}

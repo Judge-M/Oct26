@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from ridge.scenario import RELEASE_FILES, incident_day
+from expanded.native import question_overrides
 
 # title, subject/tool, evidence, selection, dependencies, question/answer pairs.
 SPECS = [
@@ -109,7 +110,14 @@ def build(config=None):
     config = config or json.loads(Path(__file__).with_name('config.json').read_text(encoding='utf-8'))
     day = incident_day(config['exercise_date'])
     tickets=[]
+    native = question_overrides()
     for n,(title,tool,evidence,selection,requires,pairs) in enumerate(SPECS,1):
+        findings = FINDINGS[n-1]
+        limitation = LIMITS[tool]
+        if n in native:
+            title, selection, pairs, findings = native[n]
+            limitation = ('Isolated native training reconstruction with actual acquisition UTC. '
+                          'It does not replace the historical incident timeline. Consult the record provenance and original hash.')
         tid=f'T{n:02}'
         if tool=='Autopsy':
             opening=['Copy the prepared case template to ~/Cases/WS17; keep /evidence mounted read-only.',
@@ -144,8 +152,8 @@ def build(config=None):
                 recovery='If no results appear, clear filters, check the evidence release and absolute UTC range, and reopen your writable case. Never re-ingest a large image during the activity.',
                 hints=['Start with '+selection+' and read the fields named in the question.',
                        'Compare the selected record with adjacent events; apply clock correction only to device_time.',
-                       'Walkthrough: '+prompt+' The supplied record/comparison yields '+answer+'. Enter '+answer+'. '+LIMITS[tool]],
-                finding=dict(text=FINDINGS[n-1][i-1],evidence=[evidence+' ('+selection+')'],limitation=LIMITS[tool])))
+                       'Walkthrough: '+prompt+' The supplied record/comparison yields '+answer+'. Enter '+answer+'. '+limitation],
+                finding=dict(text=findings[i-1],evidence=[evidence+' ('+selection+')'],limitation=limitation)))
         tickets.append(dict(id=tid,title=title,subject=tool,requires=requires,release_files=RELEASE_FILES.get(tid, []),estimate_minutes=65,
             estimate_basis='Unmeasured planning allowance: opening/orientation 10, four guided investigations 40, cross-check and recovery 15. Must be replaced by beginner rehearsal measurements.',questions=questions))
     return tickets
