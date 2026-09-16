@@ -6,5 +6,9 @@
 !ridge/**
 !integrations/
 !integrations/**
+!deployment/
+!deployment/expanded/
+!deployment/expanded/desktop/
+!deployment/expanded/desktop/**
 **/__pycache__/
 **/*.pyc
