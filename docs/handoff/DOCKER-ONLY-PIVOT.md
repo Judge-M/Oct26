@@ -297,6 +297,122 @@ Keep secrets and live state outside the image.
 
 ---
 
+## 11. What was blocked, and why
+
+Acceptance work stopped for four different reasons, only one of which is really
+about hardware.
+
+| Category | Items | Why | Status after the pivot |
+|---|---|---|---|
+| Wrong environment assumption | B01–B05, C02, D01 live tests; the whole container-desktop path | Agents were told the host had no Docker/Linux; it does | **Runnable now** — Docker is up and all pinned images are reachable |
+| Environment-gated | Hyper-V boot, AWS AMI import, `qemu`/NBD image preparation (H01c/H01d), second-machine native rebuild (H01a), Autopsy/Sleuth Kit SHA-256 pins, desktop image build, ten-team/beginner rehearsal (F03–F06) | Needs a capability, a second machine, or people | Hypervisor/cloud targets drop out under the pivot; prep steps remain build-time only |
+| Authorization-gated | Live AWS (E03–E05), merge to `main` | Needs the organizer's spending envelope / PR review | Unchanged |
+| Process-gated | A04 focused architecture review | Needs a second reviewer | Unchanged |
+
+**Does anything need to run on hardware directly?** Mostly no. The container pivot
+removes the last non-Docker component. The genuine exceptions:
+
+- **A different delivery target.** Hyper-V boot and AWS AMI import prove a
+  hypervisor/cloud image, not the exercise logic. If the event ships containers,
+  these disappear.
+- **Privileged kernel/device work.** Image preparation mounts disk images via
+  `/dev/nbd*` and runs `e2fsck`/`zerofree` — that needs the host kernel. Build-time
+  only; participants never do it.
+- **Capacity.** Docker Desktop is itself a Linux VM with a fixed memory budget
+  (~9.5 GiB here). Ten Autopsy desktops (~4 GiB each) plus central services do not
+  fit. Testing one or two teams fits; the event needs a larger or multi-host
+  Docker environment. That is a resource limit, not a bare-metal requirement.
+- **Human usability.** Timing, navigation and beginner difficulty need people.
+
+Everything a participant touches (IRIS, CTFd, Wazuh, Guacamole, Autopsy, Cutter,
+Wireshark) runs in Docker.
+
+## 12. System interaction
+
+```mermaid
+flowchart LR
+  subgraph U["Participants — browser only"]
+    B["Analyst browser<br/>Guacamole (HTML5) + IRIS + CTFd + Wazuh"]
+  end
+
+  subgraph FE["frontend network — loopback-published ports"]
+    GUAC["guacamole 1.5.5 :8080"]
+    IRISWEB["IRIS 2.4.20 :8000"]
+    CTFDWEB["CTFd 3.7.7 :8000"]
+    WAZDASH["Wazuh dashboard 4.9.2 :443"]
+  end
+
+  subgraph DL["desktop network — external, no host ports"]
+    GUACD["guacd 1.5.5"]
+    D1["desktop-team01<br/>Xfce · Autopsy · Cutter · Wireshark · Firefox<br/>VNC :5901"]
+    DN["desktop-team02 … team10<br/>VNC :5901"]
+    EV[("released evidence<br/>/evidence · /originals — read-only")]
+  end
+
+  subgraph CE["central network — internal"]
+    INT["integration bridge :8091"]
+    CORE[("controller core<br/>SQLite journal")]
+  end
+
+  subgraph BE["internal backends"]
+    IDB[("IRIS Postgres")]
+    RMQ[("RabbitMQ")]
+    CDB[("MariaDB")]
+    RDS[("Redis")]
+    WIDX[("Wazuh indexer")]
+    GDB[("Guacamole Postgres")]
+  end
+
+  B --> GUAC
+  B --> IRISWEB
+  B --> CTFDWEB
+  B --> WAZDASH
+  GUAC --> GUACD
+  GUACD -->|VNC| D1
+  GUACD -->|VNC| DN
+  IRISWEB --> INT
+  CTFDWEB --> INT
+  INT --> CORE
+  INT --> WIDX
+  WAZDASH --> WIDX
+  IRISWEB --> IDB
+  IRISWEB --> RMQ
+  CTFDWEB --> CDB
+  CTFDWEB --> RDS
+  GUAC --> GDB
+  D1 -.-> EV
+  DN -.-> EV
+```
+
+## 13. Hardware and deployment layout
+
+```mermaid
+flowchart TB
+  subgraph HOST["Physical host — Windows · i7-10510U 4C/8T · 19.6 GiB RAM · 365 GB free"]
+    subgraph DD["Docker Desktop — Linux VM · 8 vCPU · ~9.5 GiB RAM · overlayfs"]
+      CS["central services<br/>IRIS + Postgres + RabbitMQ<br/>CTFd + MariaDB + Redis<br/>Wazuh indexer/dashboard/manager<br/>integration + worker + core"]
+      DT["desktop containers<br/>team01 … teamNN<br/>2–4 GiB each"]
+      VOL[("named volumes<br/>databases · evidence (ro)<br/>per-team Cases/Workspace/Scratch")]
+    end
+    VB["VirtualBox 7.2.8<br/>optional VM desktop fallback"]
+    WSL["WSL2 · Ubuntu-24.04 (build/prep)<br/>Kali"]
+  end
+
+  LFS["Git LFS / offline image tarballs<br/>desktop 5.2 GB · prepared case · native capture · training binary"]
+  BROWSER["Operator / participant browser"]
+
+  LFS -. "docker load" .-> DD
+  BROWSER --> DD
+```
+
+| Resource | This host | Event target |
+|---|---|---|
+| Docker engine RAM | ~9.5 GiB | central services + 10 × 2–4 GiB desktops |
+| Concurrent desktops | 1–2 | 10 |
+| Host RAM | 19.6 GiB | roughly 50+ GiB for the full event |
+| Disk | 365 GB free | images ~15–25 GB + volumes + exports |
+| Hypervisor | Docker Desktop (Linux VM); VirtualBox optional | larger Linux Docker host, or multi-host |
+
 ## Appendix A — Verification commands used
 
 ```powershell
