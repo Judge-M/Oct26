@@ -1,0 +1,10 @@
+from pathlib import Path
+import subprocess
+root=Path('/opt/silent-ridge-build/desktop')
+out=Path('/mnt/c/Users/mj777/Documents/Codex/2026-09-14/i/outputs/desktop-test.png')
+out.parent.mkdir(exist_ok=True)
+with out.open('wb') as f:
+    subprocess.run(['ssh','-i',str(root/'build-key'),'-p','2222','-o','BatchMode=yes',
+        '-o','UserKnownHostsFile='+str(root/'known-hosts'),'builder@127.0.0.1',
+        'sudo -u participant env DISPLAY=:1 import -window root /home/participant/desktop-test.png && sudo cat /home/participant/desktop-test.png'],stdout=f,check=True)
+print(out)

@@ -1,0 +1,22 @@
+from pathlib import Path
+import subprocess
+import time
+root = Path('/opt/silent-ridge-build/desktop')
+assert not (root / 'qemu.pid').exists()
+assert not Path('/sys/block/nbd0/pid').exists(), 'NBD is already in use'
+source = root / 'desktop-build.qcow2'
+output = root / 'silent-ridge-desktop-v1-compact.qcow2'
+assert not output.exists()
+subprocess.run(['qemu-nbd', '--connect=/dev/nbd0', str(source)], check=True)
+try:
+    for _ in range(50):
+        if Path('/dev/nbd0p1').exists(): break
+        time.sleep(.2)
+    check = subprocess.run(['e2fsck', '-f', '-p', '/dev/nbd0p1'])
+    assert check.returncode in (0, 1), check.returncode
+    subprocess.run(['zerofree', '/dev/nbd0p1'], check=True)
+finally:
+    subprocess.run(['qemu-nbd', '--disconnect', '/dev/nbd0'], check=True)
+subprocess.run(['qemu-img', 'convert', '-p', '-c', '-O', 'qcow2', str(source), str(output)], check=True)
+subprocess.run(['qemu-img', 'check', str(output)], check=True)
+print('Compacted export:', output.stat().st_size, flush=True)

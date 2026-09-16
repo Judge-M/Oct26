@@ -1,0 +1,9 @@
+import urllib.request
+from html.parser import HTMLParser
+class Links(HTMLParser):
+    def handle_starttag(self, tag, attrs):
+        href = dict(attrs).get('href', '')
+        if tag == 'a' and 'go.microsoft.com' in href:
+            print(href)
+request = urllib.request.Request('https://www.microsoft.com/en-us/evalcenter/download-windows-11-enterprise', headers={'User-Agent':'Mozilla/5.0'})
+Links().feed(urllib.request.urlopen(request, timeout=30).read().decode())

@@ -1,0 +1,48 @@
+from pathlib import Path
+import hashlib
+import json
+import shutil
+import sqlite3
+import subprocess
+import tarfile
+
+root = Path('/opt/silent-ridge-build/repro-case-v1')
+case = next((root/'cases').glob('*/WS17.aut')).parent
+destination = Path('/opt/silent-ridge-build/relocated-case-v1')
+destination.mkdir(exist_ok=True)
+copy = destination/case.name
+if not copy.exists():
+    shutil.copytree(case, copy)
+command = ['/opt/silent-ridge-build/autopsy-4.22.0/bin/autopsy', '--nogui', '--nosplash',
+           '-J-Djava.awt.headless=true', '-J-Djava.io.tmpdir=' + str(root/'tmp'),
+           '-J--module-path=/usr/share/openjfx/lib', '-J--add-modules=javafx.controls,javafx.swing',
+           '--userdir', str(root/'profile'), '--caseName', 'WS17',
+           '--caseBaseDir', str(destination), '--listAllDataSources']
+with (root/'relocation-check.log').open('w') as log:
+    subprocess.run(command, check=True, timeout=180, stdout=log, stderr=subprocess.STDOUT)
+with sqlite3.connect(f'file:{copy}/autopsy.db?mode=ro', uri=True) as db:
+    assert db.execute('pragma integrity_check').fetchall() == [('ok',)]
+    jobs = db.execute('select obj_id,status_id from ingest_jobs').fetchall()
+    assert len(jobs)==2 and all(status==2 for _,status in jobs), jobs
+    files = db.execute('select count(*) from tsk_files').fetchone()[0]
+    assert db.execute("select 1 from tsk_files where name='_OVECACH.TXT' and size=137").fetchone()
+assert list((copy/'ModuleOutput/keywordsearch').rglob('segments_*'))
+repo = Path('/mnt/c/Users/mj777/Documents/Codex/2026-09-14/i/work/Oct26-fixes')
+assets = repo/'assets/large/autopsy'
+assets.mkdir(parents=True,exist_ok=True)
+archive=assets/'WS17-prepared-case-v1.tar.gz'
+with tarfile.open(archive,'w:gz') as tar:
+    tar.add(copy,arcname='cases/'+copy.name)
+    tar.add('/evidence',arcname='evidence')
+    tar.add(root/'case-build.json',arcname='case-build.json')
+    tar.add(root/'relocation-check.log',arcname='relocation-check.log')
+manifest=dict(schema=1,artifact=archive.relative_to(repo).as_posix(),
+    sha256=hashlib.file_digest(archive.open('rb'),'sha256').hexdigest(),bytes=archive.stat().st_size,
+    autopsy='4.22.0',sleuthkit='4.13.0',case_path='cases/'+copy.name+'/WS17.aut',
+    evidence_mount='/evidence',data_sources=2,case_file_records=files,
+    database_integrity='ok',ingest_complete=True,saved_keyword_index=True,relocated_case_reopened=True,
+    native_windows_memory_included=False,event_ready=False,
+    evidence_files=[dict(path=p.relative_to('/evidence').as_posix(),bytes=p.stat().st_size,
+        sha256=hashlib.file_digest(p.open('rb'),'sha256').hexdigest()) for p in sorted(Path('/evidence').rglob('*')) if p.is_file()])
+(repo/'assets/autopsy-case-v1.json').write_text(json.dumps(manifest,indent=2)+'\n')
+print(json.dumps({k:v for k,v in manifest.items() if k!='evidence_files'},indent=2))
