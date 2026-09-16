@@ -4,6 +4,8 @@ General-purpose teams investigate suspected disclosure of fictional patrol LANTE
 
 **This implementation is not event-ready.** The transactional core and generated fixtures have been exercised locally. Application adapters, Linux desktops, native Windows/memory evidence and ready-to-open Autopsy cases still require integration/preparation work and Linux validation. Read the [acceptance record](docs/expanded-validation.md).
 
+Learning design: [learning objectives and NICE Framework mapping](docs/learning-objectives.md) states what participants should be able to do and the exercise mechanism behind each objective.
+
 ## Workflow
 
 Teams claim one available IRIS ticket at a time. Each ticket has at most one owner. Only that owner's unanswered questions are answerable. A correct answer earns one point, queues its authored finding for IRIS, and persists globally. The last answer closes the ticket for everyone and unlocks authored follow-ups. There is no report, manual closure, facilitator approval, grading, first-blood bonus or hint penalty.
