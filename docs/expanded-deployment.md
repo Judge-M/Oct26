@@ -112,8 +112,10 @@ Cutter 2.5.0 analysed the training binary (`assets/desktop-v1.json`).
 Supply `/etc/silent-ridge/vnc-password` in TigerVNC password-file format. Restrict
 VM port 5901 to guacd at the firewall. Mount only released evidence at `/evidence`
 read-only. Give each team separate writable Cases, Workspace and Scratch folders.
-Copy a closed prepared case into each team's Cases directory. Never share an
-ordinary writable Autopsy case database. KAPE and Volatility are not installed.
+Copy the closed prepared case from `/opt/silent-ridge/prepared-case/WS17` into each
+team's `~/Cases/WS17`, and never share an ordinary writable Autopsy case database.
+Original sources remain read-only under `/evidence` and `/originals`. KAPE and
+Volatility are not installed.
 
 This script configures an existing guest; it does not create a bootable VM image.
 Export the validated guest using the selected hypervisor to the artifact store.
