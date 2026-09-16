@@ -1,4 +1,4 @@
-name: silent-ridge-integration
+name: ${RIDGE_PROJECT:?Set event-scoped Compose project name}-integration
 services:
   integration:
     image: ${RIDGE_IMAGE:?Set validated locally loaded integration image digest}
@@ -11,6 +11,7 @@ services:
       - ${RIDGE_STATE_DIR:?Set private state directory}:/state
       - ${RIDGE_RELEASE_VAULT:?Set private authored release directory}:/release-vault:ro
       - ${RIDGE_EVIDENCE_PUBLIC:?Set published evidence directory}:/evidence-public
+      - ${WAZUH_CA_FILE:?Set local Wazuh CA bundle}:/etc/ssl/certs/silent-ridge-ca.pem:ro
     environment:
       RIDGE_STATE: /state/state.sqlite
       RIDGE_IRIS_FILE: /run/secrets/ridge_iris
@@ -22,8 +23,12 @@ services:
       WAZUH_INDEX_CREDENTIAL_FILE: /run/secrets/wazuh_index
       WAZUH_INDEXER_URL: ${WAZUH_INDEXER_URL:?Set reachable local Wazuh indexer HTTPS URL}
       WAZUH_INDEX: ${WAZUH_INDEX:?Set dedicated silent-ridge-* index}
+      SSL_CERT_FILE: /etc/ssl/certs/silent-ridge-ca.pem
     secrets: [ridge_iris, ridge_ctfd, wazuh_index]
     networks: [central]
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
     healthcheck:
       test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8091/health')"]
       interval: 10s

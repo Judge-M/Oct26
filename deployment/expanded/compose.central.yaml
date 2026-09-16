@@ -1,4 +1,7 @@
-name: silent-ridge-central
+name: ${RIDGE_PROJECT:?Set event-scoped Compose project name}-central
+x-logging: &logging
+  driver: json-file
+  options: {max-size: "10m", max-file: "3"}
 services:
   iris:
     image: ${IRIS_IMAGE:?Set validated extended IRIS image digest}
@@ -19,7 +22,16 @@ services:
     volumes: [iris-downloads:/home/iris/downloads, iris-templates:/home/iris/user_templates, iris-data:/home/iris/server_data]
     secrets: [ridge_iris]
     networks: [central, iris-backend, frontend]
-    depends_on: [iris-db, rabbitmq]
+    depends_on:
+      iris-db: {condition: service_healthy}
+      rabbitmq: {condition: service_healthy}
+    healthcheck:
+      test: [CMD-SHELL, "curl -fsS http://127.0.0.1:8000/ >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    logging: *logging
     restart: unless-stopped
   iris-worker:
     image: ${IRIS_IMAGE:?Set validated extended IRIS image digest}
@@ -30,7 +42,9 @@ services:
       POSTGRES_SERVER: iris-db
     volumes: [iris-downloads:/home/iris/downloads, iris-templates:/home/iris/user_templates, iris-data:/home/iris/server_data]
     networks: [iris-backend]
-    depends_on: [iris]
+    depends_on:
+      iris: {condition: service_healthy}
+    logging: *logging
     restart: unless-stopped
   iris-db:
     image: ghcr.io/dfir-iris/iriswebapp_db:v2.4.20
@@ -38,11 +52,23 @@ services:
     env_file: ${IRIS_ENV_FILE:?Set private complete IRIS environment file}
     volumes: [iris-db:/var/lib/postgresql/data]
     networks: [iris-backend]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -q"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    logging: *logging
     restart: unless-stopped
   rabbitmq:
     image: ${RABBITMQ_IMAGE:?Set pinned locally loaded RabbitMQ image digest}
     pull_policy: never
     networks: [iris-backend]
+    healthcheck:
+      test: [CMD-SHELL, "rabbitmq-diagnostics -q ping"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    logging: *logging
     restart: unless-stopped
   ctfd:
     image: ${CTFD_IMAGE:?Set validated extended CTFd image digest}
@@ -60,7 +86,16 @@ services:
     secrets: [ridge_ctfd]
     volumes: [ctfd-uploads:/var/uploads, ctfd-logs:/var/log/CTFd]
     networks: [central, ctfd-backend, frontend]
-    depends_on: [ctfd-db, ctfd-cache]
+    depends_on:
+      ctfd-db: {condition: service_healthy}
+      ctfd-cache: {condition: service_healthy}
+    healthcheck:
+      test: [CMD-SHELL, "curl -fsS http://127.0.0.1:8000/ >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    logging: *logging
     restart: unless-stopped
   ctfd-db:
     image: ${MARIADB_IMAGE:?Set pinned locally loaded MariaDB image digest}
@@ -69,11 +104,23 @@ services:
     command: [mysqld, --character-set-server=utf8mb4, --collation-server=utf8mb4_unicode_ci]
     volumes: [ctfd-db:/var/lib/mysql]
     networks: [ctfd-backend]
+    healthcheck:
+      test: [CMD-SHELL, "mysqladmin ping -h 127.0.0.1 --silent || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    logging: *logging
     restart: unless-stopped
   ctfd-cache:
     image: ${REDIS_IMAGE:?Set pinned locally loaded Redis image digest}
     pull_policy: never
     networks: [ctfd-backend]
+    healthcheck:
+      test: [CMD-SHELL, "redis-cli ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    logging: *logging
     restart: unless-stopped
 secrets:
   ridge_iris:
@@ -81,19 +128,22 @@ secrets:
   ridge_ctfd:
     file: ${RIDGE_CTFD_SECRET_FILE:?Set private CTFd bridge secret file}
 volumes:
-  iris-downloads:
-  iris-templates:
-  iris-data:
-  iris-db:
-  ctfd-db:
-  ctfd-uploads:
-  ctfd-logs:
+  iris-downloads: {name: "${RIDGE_PROJECT:?Set run-scoped project}-iris-downloads"}
+  iris-templates: {name: "${RIDGE_PROJECT:?Set run-scoped project}-iris-templates"}
+  iris-data: {name: "${RIDGE_PROJECT:?Set run-scoped project}-iris-data"}
+  iris-db: {name: "${RIDGE_PROJECT:?Set run-scoped project}-iris-db"}
+  ctfd-db: {name: "${RIDGE_PROJECT:?Set run-scoped project}-ctfd-db"}
+  ctfd-uploads: {name: "${RIDGE_PROJECT:?Set run-scoped project}-ctfd-uploads"}
+  ctfd-logs: {name: "${RIDGE_PROJECT:?Set run-scoped project}-ctfd-logs"}
 networks:
   central:
     external: true
     name: ${RIDGE_CENTRAL_NETWORK:?Set isolated shared service network}
   iris-backend:
     internal: true
+    name: ${RIDGE_PROJECT:?Set run-scoped project}-iris-backend
   ctfd-backend:
     internal: true
+    name: ${RIDGE_PROJECT:?Set run-scoped project}-ctfd-backend
   frontend:
+    name: ${RIDGE_PROJECT:?Set run-scoped project}-frontend
