@@ -94,6 +94,11 @@ team. Unique CTFd participant accounts can belong to the same team.
 
 ## Linux template
 
+Use the [prepared desktop image](desktop-image.md) for the supplied content and
+tools. It includes the native capture and prepared case, with per-team runtime
+credentials supplied separately. The following installation outline is for
+rebuilding a template; it is not required to assemble the published disk.
+
 Prepare Ubuntu 24.04/Xfce and an offline dependency closure for Firefox, Thunar,
 TigerVNC, dbus and Wireshark. Copy the verified Autopsy Linux installation and
 Cutter AppImage to the paths expected by `desktop/install.sh`. The installer

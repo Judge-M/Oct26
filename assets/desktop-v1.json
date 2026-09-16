@@ -1,0 +1,87 @@
+{
+  "schema": 1,
+  "format": "qcow2",
+  "version": "desktop-v1",
+  "bytes": 5228265472,
+  "sha256": "3cbe1ec570d3ea0c6ac5e68b9508233c5e037e2ab8b7e5489c48e28682530830",
+  "virtual_bytes": 32213303808,
+  "parts": [
+    {
+      "path": "assets/large/desktop/silent-ridge-desktop-v1.qcow2.part001",
+      "bytes": 943718400,
+      "sha256": "842e2e14723558fcfea557b7a0ca187fe14c0f21509685c964340b118e13b976"
+    },
+    {
+      "path": "assets/large/desktop/silent-ridge-desktop-v1.qcow2.part002",
+      "bytes": 943718400,
+      "sha256": "9e046a839897c71c09d2aae2b13ea92e56f9386d8d63cbaec35cf1326b8650f6"
+    },
+    {
+      "path": "assets/large/desktop/silent-ridge-desktop-v1.qcow2.part003",
+      "bytes": 943718400,
+      "sha256": "42fa0943353a09ad12f11ce421d74be9572814cf3bd2135777d53315de55cd0f"
+    },
+    {
+      "path": "assets/large/desktop/silent-ridge-desktop-v1.qcow2.part004",
+      "bytes": 943718400,
+      "sha256": "4cb56a1509f542364e88c4431ba36fc1a6a9a7422fa3163aef113cce9cacb220"
+    },
+    {
+      "path": "assets/large/desktop/silent-ridge-desktop-v1.qcow2.part005",
+      "bytes": 943718400,
+      "sha256": "f01f8ac5dd6a8e6eaf4b96929d7a7b866a0ba4fec80a4b556a875c7dc81b9153"
+    },
+    {
+      "path": "assets/large/desktop/silent-ridge-desktop-v1.qcow2.part006",
+      "bytes": 509673472,
+      "sha256": "d66e7d7d512c5a0e593c4f113519e526ab9e7663c12abbcc9c363dc6e9968684"
+    }
+  ],
+  "event_ready": false,
+  "aws_import_validated": false,
+  "hyperv_boot_validated": false,
+  "tested_resources": {
+    "vcpus": 4,
+    "memory_mib": 8192
+  },
+  "base_image": {
+    "url": "https://cloud-images.ubuntu.com/noble/20260911/noble-server-cloudimg-amd64-azure.vhd.tar.gz",
+    "sha256": "bcf5f2e60e55b3eb0eb57201fd57c0e34ced8b2dd1cdf4718084f41854786195",
+    "bytes": 604335173
+  },
+  "tools": {
+    "autopsy": "4.22.0",
+    "sleuthkit": "4.13.0",
+    "cutter": {
+      "version": "2.5.0",
+      "sha256": "b8ad215d7a9e2af9e1f463511229f16e1f4745a0fb541413e5f4787f949ac0cf",
+      "url": "https://github.com/rizinorg/cutter/releases/download/v2.5.0/Cutter-v2.5.0-Linux-x86_64.AppImage"
+    },
+    "firefox": {
+      "version": "140.16.0esr",
+      "sha256": "a90174f8fecfb1767371015a625a2f7ffc1edafd9110717348e797a46a066edf",
+      "url": "https://archive.mozilla.org/pub/firefox/releases/140.16.0esr/linux-x86_64/en-US/firefox-140.16.0esr.tar.xz"
+    }
+  },
+  "prepared_case": "assets/autopsy-case-v2.json",
+  "native_capture": "assets/native-windows-v1/archive.json",
+  "boot_validation": {
+    "boot_passed": true,
+    "network": "QEMU user networking restrict=on; no outbound access",
+    "immutable_base": true,
+    "generic_kernel": "6.8.0-139-generic",
+    "evidence_read_only": true,
+    "originals_read_only": true,
+    "desktop_waits_for_runtime_credentials": true
+  },
+  "unused_filesystem_blocks_zeroed": true,
+  "gui_validation": {
+    "autopsy_case_opened": true,
+    "keyword_documents": 90,
+    "briefsync_matches": 6,
+    "cutter_functions": 11,
+    "cutter_strings": 16,
+    "firefox_launched": true,
+    "wireshark_launched": true
+  }
+}
