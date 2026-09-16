@@ -10,6 +10,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+      - run: git lfs pull --include="assets/large/binary/**" --exclude=""
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -27,17 +28,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - run: git lfs pull --include="assets/large/binary/**" --exclude=""
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - run: python expanded/prepare.py work/evidence
       - name: Build harmless static training surrogate
         run: |
-          mkdir -p work/evidence/initial/binary
-          cc -O0 -g -fno-inline -o work/evidence/initial/binary/brief-viewer-training expanded/binary/brief-viewer-training.c
+          mkdir -p work/rebuilt-binary
+          cc -O0 -g -fno-inline -o work/rebuilt-binary/brief-viewer-training expanded/binary/brief-viewer-training.c
           cc --version > work/compiler-version.txt
-          sha256sum work/evidence/initial/binary/brief-viewer-training > work/binary-sha256.txt
-          file work/evidence/initial/binary/brief-viewer-training
+          sha256sum work/rebuilt-binary/brief-viewer-training > work/binary-sha256.txt
+          file work/rebuilt-binary/brief-viewer-training
       - uses: actions/upload-artifact@v4
         with:
           name: preparation-fixtures-not-a-complete-offline-bundle
@@ -45,4 +47,5 @@ jobs:
             work/evidence
             work/compiler-version.txt
             work/binary-sha256.txt
+            work/rebuilt-binary
           retention-days: 14
