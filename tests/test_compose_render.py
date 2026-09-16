@@ -7,7 +7,10 @@ private-port, CA-trust, log-rotation and readiness invariants.
 import unittest
 from pathlib import Path
 
-import yaml
+try:
+    import yaml
+except ImportError:  # pragma: no cover - CI installs PyYAML; local dev may not
+    yaml = None
 
 from ridge.compose_render import ComposeError, RunProfile, audit, names, render_env, slug
 
@@ -22,6 +25,7 @@ def profile(event='ridge-oct26'):
                       evidence_public='/private/evidence', ca_file='/private/certs/root-ca.pem')
 
 
+@unittest.skipUnless(yaml is not None, 'PyYAML not installed')
 class ComposeAuditTests(unittest.TestCase):
     def test_all_compose_files_pass_audit(self):
         for name in FILES:
