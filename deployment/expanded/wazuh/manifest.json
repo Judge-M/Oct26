@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "status": "PENDING upstream vendoring and digest resolution",
+  "source": {
+    "url": "https://github.com/wazuh/wazuh-docker",
+    "commit": "PENDING-PIN-BEFORE-EVENT",
+    "release": "v4.9.2",
+    "note": "Vendor the official single-node stack at the pinned commit. This workspace has no network access, so the upstream tree is not present and no digest is invented."
+  },
+  "images": [
+    {"name": "wazuh/wazuh-manager", "version": "4.9.2", "digest": null},
+    {"name": "wazuh/wazuh-indexer", "version": "4.9.2", "digest": null},
+    {"name": "wazuh/wazuh-dashboard", "version": "4.9.2", "digest": null}
+  ],
+  "index": "silent-ridge-oct26",
+  "note": "validate_manifest(..., require_digests=True) fails closed until every digest is a real immutable identity."
+}

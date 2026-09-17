@@ -1,48 +1,54 @@
-# Operation Silent Ridge — expanded implementation
+# Operation Silent Ridge
 
-General-purpose teams investigate suspected disclosure of fictional patrol LANTERN's movement information. IRIS is the task queue; CTFd presents coached questions and equal-value points. Autopsy, Wireshark, Cutter and Wazuh provide the analysis interfaces. Linux desktops are accessed through Apache Guacamole.
+A cooperative incident-response CTF for **ten teams / thirty participants**.
+Teams claim IRIS tickets, investigate with Autopsy, Wireshark, Cutter and Wazuh,
+and answer coached CTFd questions. Accepted findings and equal-value points
+persist globally across ownership changes.
 
-**This implementation is not event-ready.** The transactional core and generated fixtures have been exercised locally. Application adapters, Linux desktops, native Windows/memory evidence and ready-to-open Autopsy cases still require integration/preparation work and Linux validation. Read the [acceptance record](docs/expanded-validation.md).
+**Not event-ready.** Published native evidence, the prepared Autopsy case and VM
+desktop exist. The transactional core has tests and an actual CTFd adapter smoke.
+The consolidated deployment source still needs the live two-team integration,
+full local lifecycle, recovery, AWS, offline-release and ten-team acceptance gates.
+A passing unit test is not proof that an image has been built or a service started.
 
-Learning design: [learning objectives and NICE Framework mapping](docs/learning-objectives.md) states what participants should be able to do and the exercise mechanism behind each objective.
+## Start here
 
-## Workflow
+- [Agent instructions](AGENTS.md)
+- [Build first, then run](docs/handoff/BUILD-FIRST.md)
+- [Next bounded implementation tasks](docs/handoff/NEXT.md)
+- [Copyable starter prompt](docs/handoff/STARTER-PROMPT.md)
+- [Disposition of old PRs 14–20](docs/handoff/CONSOLIDATION.md)
 
-Teams claim one available IRIS ticket at a time. Each ticket has at most one owner. Only that owner's unanswered questions are answerable. A correct answer earns one point, queues its authored finding for IRIS, and persists globally. The last answer closes the ticket for everyone and unlocks authored follow-ups. There is no report, manual closure, facilitator approval, grading, first-blood bonus or hint penalty.
-
-Relinquishing retains answers and findings. The replacement owner completes the remaining questions. Points remain with the original solving team. Ownership history and answer-to-finding/point/closure links are retained. Durable delivery uses atomic application-side receipts to avoid duplicate awards, tasks and comments. Synchronization pending is visible.
-
-## Source validation and fixture generation
-
-Python 3.12 or later is sufficient for the core and fixture tests:
+## Build and check
 
 ```text
-python -m unittest discover -s tests -v
-python expanded/author.py
-python expanded/prepare.py work/artifacts/new-release
-python -m ridge.cli init --config expanded/config.json --content expanded/tickets.json
-python -m ridge.cli status
+python -m ridge.deploy doctor
+python -m ridge.deploy build
+python -m ridge.deploy verify-build
+python -m unittest discover -s tests
 ```
 
-Replace sample application IDs and VM addresses with provisioned identities. Add each team's expected `iris_login` and `ctfd_name` to `expanded/config.json`; preflight compares names as well as numeric IDs. Initialization starts paused with delivery disabled and does not create application accounts. Run `python -m ridge.cli provision --operator EXCON-A` in the configured deployment environment to validate identities, evidence, storage and the historical index before enabling delivery. `mode running` repeats preflight. Core tests use a simulated remote sink, not live IRIS or CTFd.
+Read the build guide first for Git LFS, case preparation and Docker prerequisites.
+Builds download dependencies during preparation. Event-day offline setup and AWS
+switching are still acceptance targets, not working commands. The current CLI
+fails closed for unimplemented event lifecycle operations.
 
-Existing deployments must stop old workers and apply the [schema migration and operating procedure](docs/resilience.md). Deploy core and both adapters together: ownership forms now carry a generation number. Do not mix protocol versions.
+## Content and deployment
 
-The 20 ticket outlines contain 80 questions with navigation, free hints, explicit walkthroughs and question-specific findings. Their 1,300 team-minute workload is **an unmeasured estimate** (260 minutes for five teams). Content targeting missing Autopsy cases is not yet runnable. Verify dates and navigation against installed packages and representative beginners.
+All fictional content and answers are public. Large event artifacts live in Git
+LFS with manifests under `assets/`; credentials, real rosters and live backups stay
+private. A fresh computer does not need the original workstation's event files.
 
-## Deployment and operation
+The published Ubuntu VM remains available. An additional container desktop build
+uses the same prepared case and evidence paths. Central services and desktops
+must be built, configured and tested together before either path is event-ready.
 
-- [Continue on another computer: handoff, task cards and build recipes](docs/handoff/CONTINUE-ELSEWHERE.md)
-- [Versioned GitHub packages, release downloads and asset policy](docs/github-distribution.md)
-- [Central services, Linux template and Guacamole](docs/expanded-deployment.md)
-- [Evidence preparation and Autopsy acceptance](docs/expanded-evidence.md)
-- [Controller operations, export and reset](docs/expanded-operations.md)
-- [Executed checks and outstanding acceptance](docs/expanded-validation.md)
+- [Published desktop](docs/desktop-image.md)
+- [Distribution and asset policy](docs/github-distribution.md)
+- [Acceptance record](docs/expanded-validation.md)
+- [Learning objectives](docs/learning-objectives.md)
+- [Original task cards and acceptance contract](docs/handoff/EXECUTION.md)
 
-Transfer all application images, dependencies, symbols/data, templates, evidence and guides before offline use. GitHub distributes source, curated Git LFS assets, container packages and release bundles. Secrets, live state and team exports stay outside Git. Final hardware remains configurable. The artifact verifier fails complete-bundle checks until every required category and verified compatibility are present.
-
-## Retired baseline
-
-The old portal under app/, admin/ and the original controller scripts remain only as baseline test fixtures. Participant and facilitator guides now describe the IRIS/CTFd workflow; obsolete board imports have been removed. They are **not the expanded workflow**. Default Compose no longer launches the old portal. The expanded generator preserves established incident facts while replacing old participant prompts and source IDs. The retained SQL helper and legacy image packer received regression fixes. The [old README](https://github.com/Judge-M/Oct26/blob/b4def5d4b65395aa0f441e785f225e053eec10d9/README.md) is historical.
-
-All identities, addresses and activity are fictional. Public solutions make this coached material; a private assessment variant is not required.
+Twenty tickets contain eighty questions. The 1,300 team-minute estimate is
+unmeasured and does not establish four hours of learning for every team.
+The old `app/` and `admin/` portal is retained only as a baseline test fixture.

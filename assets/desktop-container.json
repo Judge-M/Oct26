@@ -1,0 +1,99 @@
+{
+  "schema": 1,
+  "artifact": "silent-ridge-desktop:dev",
+  "version": "desktop-container-v1",
+  "format": "docker",
+  "dockerfile": "deployment/expanded/desktop/Dockerfile",
+  "build_command": "docker build -f deployment/expanded/desktop/Dockerfile -t silent-ridge-desktop:dev .",
+  "base_image": {
+    "reference": "ubuntu:24.04",
+    "vm_base_image": {
+      "url": "https://cloud-images.ubuntu.com/noble/20260911/noble-server-cloudimg-amd64-azure.vhd.tar.gz",
+      "sha256": "bcf5f2e60e55b3eb0eb57201fd57c0e34ced8b2dd1cdf4718084f41854786195",
+      "bytes": 604335173,
+      "note": "QCOW2 VM base image from assets/desktop-v1.json; the container uses the ubuntu:24.04 image tag instead."
+    }
+  },
+  "tools": {
+    "autopsy": "4.22.0",
+    "sleuthkit": "4.13.0",
+    "cutter": "2.5.0",
+    "firefox": "140.16.0esr",
+    "java": "openjdk-17-jre",
+    "vnc": "tigervnc-standalone-server",
+    "desktop": "xfce4"
+  },
+  "build_inputs": [
+    {
+      "name": "cutter",
+      "version": "2.5.0",
+      "url": "https://github.com/rizinorg/cutter/releases/download/v2.5.0/Cutter-v2.5.0-Linux-x86_64.AppImage",
+      "sha256": "b8ad215d7a9e2af9e1f463511229f16e1f4745a0fb541413e5f4787f949ac0cf",
+      "verified_during_build": true
+    },
+    {
+      "name": "firefox",
+      "version": "140.16.0esr",
+      "url": "https://archive.mozilla.org/pub/firefox/releases/140.16.0esr/linux-x86_64/en-US/firefox-140.16.0esr.tar.xz",
+      "sha256": "a90174f8fecfb1767371015a625a2f7ffc1edafd9110717348e797a46a066edf",
+      "verified_during_build": true
+    },
+    {
+      "name": "autopsy",
+      "version": "4.22.0",
+      "url": "https://github.com/sleuthkit/autopsy/releases/download/autopsy-4.22.0/autopsy-4.22.0.zip",
+      "sha256": "3f9aded0b8b094fabe557b4b8718e9bbbdbfbea5bf17bab335846f132d1fc97a",
+      "verified_during_build": false,
+      "note": "Official release archive; recorded SHA-256 is enforced by the build."
+    },
+    {
+      "name": "sleuthkit",
+      "version": "4.13.0",
+      "url": "https://github.com/sleuthkit/sleuthkit/releases/download/sleuthkit-4.13.0/sleuthkit-4.13.0.tar.gz",
+      "sha256": "f1490de8487df8708a4287c0d03bf0cb2153a799db98c584ab60def5c55c68f2",
+      "verified_during_build": false,
+      "note": "Source archive SHA-256 is enforced; Java targets build sequentially."
+    }
+  ],
+  "runtime_contract": {
+    "vnc_port": 5901,
+    "vnc_published_to_host": false,
+    "vnc_network": "desktop",
+    "vnc_security_types": "VncAuth",
+    "vnc_always_shared": true,
+    "mounts": [
+      {
+        "path": "/evidence",
+        "mode": "ro"
+      },
+      {
+        "path": "/originals",
+        "mode": "ro"
+      },
+      {
+        "path": "/home/participant/Cases",
+        "mode": "rw"
+      },
+      {
+        "path": "/home/participant/Workspace",
+        "mode": "rw"
+      },
+      {
+        "path": "/home/participant/Scratch",
+        "mode": "rw"
+      }
+    ],
+    "env": [
+      "VNC_PASSWORD_FILE",
+      "IRIS_URL",
+      "CTFD_URL",
+      "WAZUH_URL"
+    ],
+    "secrets": [
+      "vnc_password"
+    ]
+  },
+  "event_ready": false,
+  "image_built": false,
+  "build_validated": false
+}

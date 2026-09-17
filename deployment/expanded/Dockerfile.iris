@@ -1,4 +1,5 @@
 FROM ghcr.io/dfir-iris/iriswebapp_app:v2.4.20
 COPY ridge /iriswebapp/ridge
 COPY integrations/iris_silent_ridge.py /iriswebapp/iris_silent_ridge.py
-RUN python -c "from pathlib import Path; p=Path('/iriswebapp/app/__init__.py'); p.write_text(p.read_text()+'\nfrom iris_silent_ridge import install as install_silent_ridge\ninstall_silent_ridge(app)\n')"
+COPY integrations/iris_bootstrap.py /iriswebapp/iris_bootstrap.py
+RUN python -c "from pathlib import Path; p=Path('/iriswebapp/app/__init__.py'); p.write_text(p.read_text()+'\nfrom iris_silent_ridge import install as install_silent_ridge\ninstall_silent_ridge(app)\nfrom iris_bootstrap import register as register_silent_ridge_bootstrap\nregister_silent_ridge_bootstrap(app)\n')"

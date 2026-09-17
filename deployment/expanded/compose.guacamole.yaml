@@ -1,10 +1,13 @@
-name: silent-ridge-desktop-access
+name: ${RIDGE_PROJECT:?Set event-scoped Compose project name}-desktop-access
 services:
   guacd:
     image: guacamole/guacd:1.5.5
     pull_policy: never
     restart: unless-stopped
     networks: [desktop, internal]
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
   database:
     image: postgres:16.8-alpine
     pull_policy: never
@@ -18,6 +21,14 @@ services:
       - database:/var/lib/postgresql/data
       - ${GUAC_INIT_SQL:?Set directory with official schema and private provisioning SQL}:/docker-entrypoint-initdb.d:ro
     networks: [internal]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -q"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
   guacamole:
     image: guacamole/guacamole:1.5.5
     pull_policy: never
@@ -31,16 +42,23 @@ services:
     ports:
       - ${BIND_IP:-127.0.0.1}:${GUAC_PORT:-8082}:8080
     networks: [internal, frontend]
-    depends_on: [database, guacd]
+    depends_on:
+      database: {condition: service_healthy}
+      guacd: {condition: service_started}
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
 secrets:
   database_password:
     file: ${GUAC_DATABASE_PASSWORD_FILE:?Set private password file matching runtime value}
 volumes:
-  database:
+  database: {name: "${RIDGE_PROJECT:?Set run-scoped project}-guacamole-database"}
 networks:
   internal:
     internal: true
+    name: ${RIDGE_PROJECT:?Set run-scoped project}-guacamole-internal
   frontend:
+    name: ${RIDGE_PROJECT:?Set run-scoped project}-guacamole-frontend
   desktop:
     external: true
     name: ${RIDGE_DESKTOP_NETWORK:?Set network routed only to team desktop VNC ports}

@@ -1,0 +1,57 @@
+name: ${RIDGE_PROJECT:-silent-ridge}-wazuh
+services:
+  wazuh-indexer:
+    image: ${WAZUH_INDEXER_IMAGE:?Set pinned immutable Wazuh indexer image}
+    pull_policy: never
+    restart: unless-stopped
+    environment:
+      OPENSEARCH_JAVA_OPTS: -Xms1g -Xmx1g
+    volumes:
+      - wazuh-indexer-data:/var/lib/wazuh-indexer
+      - ${WAZUH_CERTS_DIR:?Set generated local certificate directory}:/usr/share/wazuh-indexer/certs:ro
+      - ${WAZUH_CONFIG_DIR:?Set vendored Wazuh config directory}:/usr/share/wazuh-indexer/config:ro
+    networks: [wazuh-backend]
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+    healthcheck:
+      test: [CMD-SHELL, "curl --cacert /usr/share/wazuh-indexer/certs/root-ca.pem -s https://localhost:9200 >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+  wazuh-manager:
+    image: ${WAZUH_MANAGER_IMAGE:?Set pinned immutable Wazuh manager image}
+    pull_policy: never
+    restart: unless-stopped
+    volumes:
+      - wazuh-manager-data:/var/ossec/data
+      - ${WAZUH_CERTS_DIR:?Set generated local certificate directory}:/etc/ssl/certs:ro
+      - ${WAZUH_CONFIG_DIR:?Set vendored Wazuh config directory}:/wazuh-config-mount:ro
+    networks: [wazuh-backend]
+    depends_on: [wazuh-indexer]
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+  wazuh-dashboard:
+    image: ${WAZUH_DASHBOARD_IMAGE:?Set pinned immutable Wazuh dashboard image}
+    pull_policy: never
+    restart: unless-stopped
+    environment:
+      WAZUH_API_URL: https://wazuh-manager
+    volumes:
+      - ${WAZUH_CERTS_DIR:?Set generated local certificate directory}:/usr/share/wazuh-dashboard/certs:ro
+      - ${WAZUH_CONFIG_DIR:?Set vendored Wazuh config directory}:/usr/share/wazuh-dashboard/config:ro
+    ports:
+      - ${BIND_IP:-127.0.0.1}:${WAZUH_DASHBOARD_PORT:-8443}:5601
+    networks: [wazuh-backend, frontend]
+    depends_on: [wazuh-indexer]
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+volumes:
+  wazuh-indexer-data:
+  wazuh-manager-data:
+networks:
+  wazuh-backend:
+    internal: true
+  frontend:

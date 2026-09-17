@@ -23,6 +23,8 @@ class RidgeCredit(db.Model):
 def load(app):
     with app.app_context():
         db.create_all()
+    from .provision import register as register_provision
+    register_provision(app)
 
     def identity():
         user=get_current_user()

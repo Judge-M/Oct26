@@ -1,0 +1,16 @@
+{
+  "index_patterns": ["silent-ridge-*"],
+  "priority": 500,
+  "template": {
+    "settings": {"index": {"number_of_shards": 1, "number_of_replicas": 0}},
+    "mappings": {
+      "properties": {
+        "timestamp": {"type": "date"},
+        "timeless": {"type": "boolean"},
+        "observation": {"type": "keyword"},
+        "record_id": {"type": "keyword"},
+        "data": {"type": "object", "enabled": true}
+      }
+    }
+  }
+}

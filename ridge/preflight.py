@@ -1,4 +1,16 @@
-"""Read-only deployment reconciliation before provisioning or going live."""
+"""Read-only deployment reconciliation before provisioning or going live.
+
+The controller's :func:`check` verifies the read-only released source inventory under
+``RIDGE_EVIDENCE_PUBLIC``. It never requires the writable Autopsy case database: an
+Autopsy question references a released source under ``/evidence`` and names its
+desktop case entrypoint separately (``ridge.scenario.AUTOPSY_CASE_ENTRYPOINT``).
+Each desktop verifies its own writable case with :func:`check_desktop`.
+
+Backward compatibility: tickets generated before this contract referenced
+``/evidence/autopsy/WS17/WS17.aut``, which never existed on the evidence mount.
+:func:`check` now rejects those paths with an explicit message. Regenerate tickets
+with ``python expanded/author.py``.
+"""
 import json
 import os
 from pathlib import Path
@@ -6,6 +18,7 @@ from ridge.transport import post, secret
 from ridge.evidence_release import validate_release
 from ridge.storage import require_space
 from ridge.artifacts import safe
+from ridge.scenario import AUTOPSY_CASE_ENTRYPOINT
 
 
 def check(state, config):
@@ -47,8 +60,13 @@ def check(state, config):
         if not evidence.startswith('/evidence/'):
             raise ValueError('Question lacks an explicit evidence path')
         name=evidence.removeprefix('/evidence/')
+        # The Autopsy .aut case is a writable desktop entrypoint, never released evidence.
+        if name.startswith('autopsy/') or name.endswith('.aut'):
+            raise ValueError('Autopsy case paths are desktop entrypoints, not released evidence; regenerate tickets')
         if name not in delayed and not safe(target,name).is_file():
             raise ValueError('Required initial evidence is missing: '+name)
+        if question.get('tool')=='Autopsy' and question.get('case_entrypoint')!=AUTOPSY_CASE_ENTRYPOINT:
+            raise ValueError('Autopsy question must name the desktop case entrypoint: '+AUTOPSY_CASE_ENTRYPOINT)
     # Verify the local TLS trust chain, credential, and historical index without writing.
     import base64
     import re
@@ -63,3 +81,29 @@ def check(state, config):
         if index_name not in json.load(response):
             raise ValueError('Historical index is not available')
     return {'ready':True,'teams':len(teams),'tickets':len(tickets)}
+
+
+def check_desktop(questions, home, template=None):
+    """Desktop readiness: each declared writable case must exist on this desktop.
+
+    Deliberately separate from :func:`check`. The controller verifies the read-only
+    released sources; the desktop verifies its own writable prepared case, so no
+    writable case database is ever required on the shared evidence mount.
+    """
+    home=Path(home)
+    cases=set()
+    for question in questions:
+        entry=question.get('case_entrypoint')
+        if not entry:
+            continue
+        if not entry.startswith('~/'):
+            raise ValueError('Desktop case entrypoint must be home-relative: '+str(entry))
+        cases.add(home/entry.removeprefix('~/'))
+    if not cases:
+        raise ValueError('No prepared-case entrypoint is declared')
+    for path in sorted(cases):
+        if not path.is_file() or path.stat().st_size==0:
+            raise ValueError('Desktop prepared case is missing: '+str(path))
+    if template is not None and not Path(template).exists():
+        raise ValueError('Prepared case template is missing: '+str(template))
+    return {'ready':True,'cases':len(cases)}

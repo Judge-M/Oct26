@@ -69,6 +69,24 @@ The case was reopened in the desktop GUI; its 90-document keyword index returned
 six matches for `BriefSync`. The source archives and validation inventory are
 listed in `assets/autopsy-case-v2.json`.
 
+### Case path contract
+
+An Autopsy question separates its evidence reference from the tool entrypoint:
+
+- `evidence` is a released source under `/evidence` (for example
+  `disk/WS17-fat16.img` or `prepared/windows-process.json`). Controller preflight
+  (`ridge.preflight.check`) verifies it against the published release.
+- `case_entrypoint` is `~/Cases/WS17/WS17.aut`, the writable case copy on each team
+  desktop; the read-only template is `/opt/silent-ridge/prepared-case/WS17`.
+  Desktop readiness (`ridge.preflight.check_desktop`) verifies that entrypoint.
+- Originals stay under `/originals`; neither `/evidence` nor `/originals` is writable.
+
+The old `/evidence/autopsy/WS17/WS17.aut` path never existed on the evidence mount
+and is no longer emitted. Tickets generated before this contract must be regenerated
+with `python expanded/author.py`. `ridge.preflight.check` rejects any `.aut` or
+`autopsy/` evidence path explicitly instead of reporting it as a missing source, and
+it does not require a writable case on the controller.
+
 ## Harmless Cutter exercise
 
 Build `expanded/binary/brief-viewer-training.c` on the pinned Linux preparation
