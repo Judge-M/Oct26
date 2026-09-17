@@ -71,7 +71,8 @@ ARG FIREFOX_SHA256=a90174f8fecfb1767371015a625a2f7ffc1edafd9110717348e797a46a066
 RUN echo "wireshark-common wireshark-common/install-setuid boolean false" | debconf-set-selections \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
-      xfce4 xfce4-terminal tigervnc-standalone-server dbus-x11 thunar wireshark \
+      xfce4 xfce4-terminal tigervnc-standalone-server tigervnc-tools dbus-x11 thunar wireshark \
+      xfonts-base x11-xserver-utils libgl1-mesa-dri \
       zenity openjdk-17-jre libopenjfx-java fonts-dejavu fonts-noto-color-emoji \
       adwaita-icon-theme tini ca-certificates curl xz-utils python3 \
       testdisk libafflib0t64 libewf2 libvhdi1 libvmdk1 libpq5 libgstreamer1.0-0 libgstreamer-plugins-base1.0-0 \
@@ -93,7 +94,8 @@ RUN set -eux; \
     ln -sfn /opt/firefox/firefox /usr/local/bin/firefox; \
     ldconfig
 
-RUN useradd --create-home --uid 1000 --shell /bin/bash participant \
+RUN if id ubuntu >/dev/null 2>&1; then userdel ubuntu; fi \
+    && useradd --create-home --uid 1000 --shell /bin/bash participant \
     && install -d -o participant -g participant \
          /home/participant/Desktop /home/participant/Cases \
          /home/participant/Workspace /home/participant/Scratch \
