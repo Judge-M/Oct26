@@ -34,7 +34,6 @@ RUN set -eux; \
     mkdir -p /opt/src; \
     tar -xzf /tmp/sleuthkit.tar.gz -C /opt/src; \
     cd "/opt/src/sleuthkit-$SLEUTHKIT_VERSION"; \
-    ./bootstrap; \
     ./configure --prefix=/usr/local --enable-java; \
     make -j1; \
     make install; \
