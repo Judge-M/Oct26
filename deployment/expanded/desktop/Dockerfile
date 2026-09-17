@@ -22,7 +22,7 @@ ARG AUTOPSY_SHA256=3f9aded0b8b094fabe557b4b8718e9bbbdbfbea5bf17bab335846f132d1fc
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates curl xz-utils unzip \
-      build-essential autoconf automake libtool pkg-config ant testdisk \
+      build-essential autoconf automake libtool pkg-config ant ant-optional junit4 testdisk \
       openjdk-17-jdk-headless \
       libsqlite3-dev libpq-dev libssl-dev zlib1g-dev \
       libafflib-dev libewf-dev libvhdi-dev libvmdk-dev \

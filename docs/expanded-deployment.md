@@ -1,9 +1,9 @@
 # Offline deployment candidate
 
-This Windows host has no Docker, installed WSL distribution, Java toolchain or
-Autopsy. Candidate versions are in `deployment/expanded/versions.json`; resolve
-all tags to immutable digests in the final artifact manifest. These are not yet
-validated compatible applications.
+Check the current host using [Build first](handoff/BUILD-FIRST.md). Old reports
+about a missing Docker/WSL/Java environment describe a previous preparation lane,
+not a requirement or a diagnosis of this computer. Candidate versions are in
+`deployment/expanded/versions.json`; pin final runtime images to immutable digests.
 
 ## Prepare and transfer
 

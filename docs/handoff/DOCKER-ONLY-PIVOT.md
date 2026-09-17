@@ -1,3 +1,6 @@
+> Historical proposal/inventory from PRs 14/18. Current instructions: [BUILD-FIRST.md](BUILD-FIRST.md).
+> Do not treat old host capability claims, missing hashes or design decisions below as current acceptance.
+
 # Docker-only desktop pivot: findings and requirements
 
 **Status:** proposal for review — nothing implemented, nothing merged.

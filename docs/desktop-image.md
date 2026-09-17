@@ -1,9 +1,7 @@
 # Prepared team desktop
 
-> **Fallback notice.** The container-desktop path in
-> [docker-desktop.md](docker-desktop.md) is now the proposed primary desktop
-> design. This VM/QCOW2 document is retained as the fallback; its content is
-> unchanged.
+The published VM remains available. The additional
+[container desktop](docker-desktop.md) must pass live acceptance before replacing it.
 
 The Ubuntu 24.04 amd64 desktop contains Autopsy 4.22.0, SleuthKit 4.13.0,
 Cutter 2.5.0, Firefox 140.16.0esr, Wireshark, XFCE and TigerVNC. It includes

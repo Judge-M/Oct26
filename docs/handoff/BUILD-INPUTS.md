@@ -1,3 +1,6 @@
+> Historical proposal/inventory from PRs 14/18. Current instructions: [BUILD-FIRST.md](BUILD-FIRST.md).
+> Do not treat old host capability claims, missing hashes or design decisions below as current acceptance.
+
 # Desktop image build inputs — verification record
 
 Checked **2026-09-16** from this workstation with PowerShell
