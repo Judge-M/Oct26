@@ -2,7 +2,7 @@
 
 Record observations here during a beginner rehearsal. Estimated columns come from `docs/workload.md` and are arithmetic; the measured columns are the evidence.
 
-Duration target: 240 minutes. Estimated makespan: 195 minutes. Estimated team-minutes: 1300 (130.0/team).
+Duration target: 270 minutes. Estimated makespan: 195 minutes. Estimated team-minutes: 1300 (130.0/team).
 
 ## Per-team summary
 

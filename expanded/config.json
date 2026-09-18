@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "exercise_date": "2026-10-15",
-  "activity_minutes": 260,
+  "activity_minutes": 270,
   "artifact_store": {"provider": "filesystem", "root": "/srv/silent-ridge/artifacts", "release": "silent-ridge-expanded-1"},
   "teams": [
     {"id": "team-01", "name": "Team 01", "iris": "101", "ctfd": 1, "desktop": "desktop-01"},
@@ -17,5 +17,5 @@
     {"id": "desktop-04", "address": "192.0.2.14", "shared": true, "max_connections": 4},
     {"id": "desktop-05", "address": "192.0.2.15", "shared": true, "max_connections": 4}
   ],
-  "note": "Example mappings and documentation-only IPs. Replace with actual application IDs and allocated VM addresses. Team count, VM count and sharing are independent configuration choices. Hardware sizing is not yet measured."
+  "note": "Example mappings and documentation-only IPs. Replace with actual application IDs and allocated VM addresses. Team count, VM count and sharing are independent configuration choices; this example defines five teams while the event design targets ten. Hardware sizing is not yet measured. activity_minutes is the planning midpoint of the event-owner-confirmed 4-5 hour (240-300 minute) activity target, decided 2026-09-17 for the late-October event. exercise_date is the fixed fictional scenario date used by all generated evidence and question steps; it is independent of the real event day (the event-day assumption shifts calendar dates together)."
 }

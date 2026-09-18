@@ -7,7 +7,7 @@ replace those estimates with observed active/idle time, help use and tool failur
 
 Run from the repository root::
 
-    python expanded/workload.py --teams 10 --target-minutes 240 \
+    python expanded/workload.py --teams 10 --target-minutes 270 \
         --output docs/workload.md --worksheet docs/rehearsal-worksheet.md
 """
 import argparse
@@ -19,7 +19,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from expanded.author import build
 
 DEFAULT_TEAMS = 10
-DEFAULT_TARGET_MINUTES = 240
+# Event decision 2026-09-17: the activity should last 4-5 hours (240-300 minutes);
+# 270 is the planning midpoint for the late-October event.
+DEFAULT_TARGET_MINUTES = 270
 YES_NO = {'yes', 'no'}
 
 
@@ -191,8 +193,13 @@ def render_inventory(tickets, teams=DEFAULT_TEAMS, target_minutes=DEFAULT_TARGET
         'The ten-team average of {average_team_minutes} minutes/team is a quotient, not a '
         'plan. The dependency chain and the limited number of initially available tickets '
         'push the simulated makespan to {makespan_minutes} minutes, and free walkthroughs '
-        'reduce the unaided work below the estimate. Neither number demonstrates four hours '
-        'of meaningful activity per team; only a beginner rehearsal can.'.format(**data),
+        'reduce the unaided work below the estimate. Event decision (2026-09-17): the '
+        'late-October event targets 4-5 hours (240-300 minutes) of activity per team. '
+        'Current authored content ({estimated_team_minutes} estimated team-minutes) covers '
+        'roughly half of that. Closing the gap means roughly doubling authored content or '
+        'structuring the event with facilitated segments (orientation, inject briefings, '
+        'after-action review) around the investigations; do not duplicate scoreable tickets '
+        'per team to mask the gap. Only a beginner rehearsal can confirm true duration.'.format(**data),
         '',
         '## Per-team participation (simulated)',
         '',
