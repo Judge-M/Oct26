@@ -33,6 +33,16 @@ docker exec "$name" bash -ec '
   ! grep "not found" /tmp/tsk-libraries
 '
 docker restart "$name"
-sleep 5
-docker exec "$name" test -f /home/participant/Cases/WS17/smoke-marker
+# Docker exec right after restart races the container start on loaded hosts,
+# so poll; fail fast with logs if the container stopped instead of coming back.
+# The marker test goes through bash -c: a bare `test -f /home/...` argument is
+# rewritten to a Windows path by MSYS/Git Bash and always fails there.
+for attempt in $(seq 1 60); do
+  if [ "$(docker inspect -f '{{.State.Running}}' "$name")" != true ]; then
+    docker logs "$name" 2>&1; echo 'desktop container stopped after restart'; exit 1
+  fi
+  if docker exec "$name" bash -c 'test -f /home/participant/Cases/WS17/smoke-marker' 2>/dev/null; then break; fi
+  if [ "$attempt" = 60 ]; then docker logs "$name"; exit 1; fi
+  sleep 2
+done
 echo 'Built desktop starts offline, seeds the real case and preserves work on restart. Full GUI and Guacamole acceptance remains required.'

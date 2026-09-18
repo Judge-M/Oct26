@@ -8,8 +8,12 @@ Do not commit this file's output or its credential input.
 entity, user or permission rows and never silently rotates an existing login.
 The upstream default administrator account is disabled.
 
-LIVE ACCEPTANCE BLOCKED: no Docker/Linux host is available, so the SQL has not
-been applied to a real Guacamole database; session isolation needs a live test.
+LIVE ACCEPTANCE (2026-09-18, N2 run): applied to a real Guacamole 1.5.5 +
+PostgreSQL 16.8 stack. Verified: schema + provisioning idempotent (row counts
+unchanged on re-apply), guacadmin disabled, team users see only their own
+desktop, direct tunnel to another team's desktop is refused, 4 concurrent
+sessions allowed and a 5th refused at max_connections=4, and held sessions
+correspond to established VNC connections on the target desktop only.
 """
 import argparse
 import hashlib
