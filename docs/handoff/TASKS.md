@@ -1,6 +1,7 @@
 # Bounded task queue
 
-All tasks start as **not started**. Dependencies mean accepted evidence, not merely a merged stub.
+Original planning baseline: tasks started as **not started**. Current progress and
+execution order are in [NEXT.md](NEXT.md) and [CONSOLIDATION.md](CONSOLIDATION.md). Dependencies mean accepted evidence, not merely a merged stub.
 
 | ID | Task | Requires | Review |
 |---|---|---|---|
@@ -34,4 +35,4 @@ All tasks start as **not started**. Dependencies mean accepted evidence, not mer
 | [F05](tasks/F05.md) | Publish the complete versioned offline release | E02, E04, D03, C04, F04 | focused release review |
 | [F06](tasks/F06.md) | Execute the event dress rehearsal and recovery drill | D01, F02, F03, F04, F05 | mandatory final acceptance review |
 | [G01](tasks/G01.md) | Finalize operator handoff and freeze the event release | A01, F06 | standard |
-| [H01](tasks/H01.md) | Consolidate preserved recipes into a portable build pipeline | — | focused block-device/deletion review |
+| [H01](tasks/H01.md) | Consolidate preserved recipes into a portable build pipeline | â€” | focused block-device/deletion review |

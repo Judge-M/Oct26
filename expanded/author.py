@@ -1,14 +1,15 @@
 """Authored coached questions. Generated JSON stays controller-side.
 
 Run from the repository root: python expanded/author.py. The estimates are not
-rehearsal results; content targeting missing forensic artifacts is explicitly gated
-by the release acceptance record.
+rehearsal results. Autopsy questions reference a released source under /evidence and
+separately name the writable prepared case on the desktop; see
+``ridge.scenario.AUTOPSY_CASE_ENTRYPOINT``.
 """
 import json
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from ridge.scenario import RELEASE_FILES, incident_day
+from ridge.scenario import AUTOPSY_CASE_ENTRYPOINT, RELEASE_FILES, incident_day
 from expanded.native import question_overrides
 
 # title, subject/tool, evidence, selection, dependencies, question/answer pairs.
@@ -19,13 +20,13 @@ SPECS = [
 ('Resolve names and compare conversations','Wireshark','network/dns.pcap','dns',[],[
 ('Which name resolved to the external destination?','relay.archive.example'),('What address did it resolve to?','198.51.100.77'),
 ('Which client made that lookup?','10.26.10.17'),('What TTL was returned, in seconds?','60')]),
-('Reconstruct the viewer download','Autopsy','autopsy/WS17/WS17.aut','browser/downloads.csv',[],[
+('Reconstruct the viewer download','Autopsy','browser/downloads.csv','browser/downloads.csv',[],[
 ('At what normalized UTC time was the viewer downloaded?','08:57:00'),('What was the downloaded filename?','brief-viewer.exe'),
 ('What host served the download URL?','briefs.helpdesk.example'),('What was the recorded target directory?','C:/Downloads')]),
-('Investigate persistence','Autopsy','autopsy/WS17/WS17.aut','endpoint/events.csv',[],[
+('Investigate persistence','Autopsy','endpoint/events.csv','endpoint/events.csv',[],[
 ('What task name was registered?','BriefSync'),('Which process registered the task?','brief-viewer.exe'),
 ('What trigger was recorded?','user logon'),('What is the corrected task registration time?','09:08:00')]),
-('Recover and compare cached content','Autopsy','autopsy/WS17/WS17.aut','Deleted Files; inspect the entry ending OVECACH.TXT',[],[
+('Recover and compare cached content','Autopsy','disk/WS17-fat16.img','Deleted Files; inspect the entry ending OVECACH.TXT',[],[
 ('What patrol name appears in the recovered cache?','LANTERN'),('What version appears in the cached brief?','3'),
 ('What sector is named?','AMBER'),('What check-in word is present?','CEDAR')]),
 ('Separate password and session authentication','Wazuh','wazuh/telemetry.jsonl','data.session:S-41',[],[
@@ -34,7 +35,7 @@ SPECS = [
 ('Test the effect of the password reset','Wazuh','wazuh/telemetry.jsonl','data.action:session_refresh',['T06'],[
 ('When did the password reset occur?','09:20:00'),('What is the late successful session refresh time?','09:26:00'),
 ('Which session persisted?','S-41'),('Which separate policy action invalidates issued sessions?','session revocation')]),
-('Audit document and roster access','Autopsy','autopsy/WS17/WS17.aut','server/access.csv',[],[
+('Audit document and roster access','Autopsy','server/access.csv','server/access.csv',[],[
 ('Which object was successfully downloaded in req-71?','plan-v3'),('What status did the roster request return?','403'),
 ('How many roster body bytes were returned?','0'),('Which request identifies the denied roster access?','req-75')]),
 ('Compare superseding movement information','Linux file manager','server/version-comparison.csv','Open the CSV in the text viewer',['T08'],[
@@ -49,16 +50,16 @@ SPECS = [
 ('Map collection coverage','Wazuh','wazuh/telemetry.jsonl','data.type:coverage',[],[
 ('Which workstation has no network collection?','WS-31'),('When does the DOCS-1 collection gap start?','09:14:00'),
 ('When does that gap end?','09:18:00'),('How many seconds fast is the WS-17 device clock?','120')]),
-('Inspect prepared process-log records','Autopsy','autopsy/WS17/WS17.aut','prepared/windows-process.json',[],[
+('Inspect prepared process-log records','Autopsy','prepared/windows-process.json','prepared/windows-process.json',[],[
 ('Which process ID belongs to the viewer?','4240'),('What is its parent executable?','browser.exe'),
 ('Which workstation generated the record?','WS-17'),('What is the corrected process start time?','08:58:00')]),
-('Inspect prepared task-log records','Autopsy','autopsy/WS17/WS17.aut','prepared/windows-task.json',[],[
+('Inspect prepared task-log records','Autopsy','prepared/windows-task.json','prepared/windows-task.json',[],[
 ('What task name was registered?','BriefSync'),('What executable does the task target?','brief-viewer.exe'),
 ('What device time is shown for registration?','09:10:00'),('Should the already normalized SIEM time be corrected again?','no')]),
-('Inspect the prepared memory process tree','Autopsy','autopsy/WS17/WS17.aut','prepared/memory-processes.json',[],[
+('Inspect the prepared memory process tree','Autopsy','prepared/memory-processes.json','prepared/memory-processes.json',[],[
 ('What viewer PID is present in the prepared capture?','4240'),('What parent PID is recorded?','3100'),
 ('What executable belongs to the parent?','browser.exe'),('What path is supplied to the viewer as its cache argument?','C:/Temp/move-cache.txt')]),
-('Correlate prepared memory connections','Autopsy','autopsy/WS17/WS17.aut','prepared/memory-connections.json',[],[
+('Correlate prepared memory connections','Autopsy','prepared/windows-connections.json','prepared/windows-connections.json',[],[
 ('Which PID owns the external connection?','4240'),('What remote address is recorded?','198.51.100.77'),
 ('What remote port is recorded?','443'),('Does a connection entry prove a human read the payload?','no')]),
 ('Inspect the harmless training binary configuration','Cutter','binary/brief-viewer-training','Windows > Strings',[],[
@@ -120,10 +121,10 @@ def build(config=None):
                           'It does not replace the historical incident timeline. Consult the record provenance and original hash.')
         tid=f'T{n:02}'
         if tool=='Autopsy':
-            opening=['Copy the prepared case template to ~/Cases/WS17; keep /evidence mounted read-only.',
-                'Open Autopsy > Open Existing Case > ~/Cases/WS17/WS17.aut.',
+            opening=['Copy the prepared case template to ~/Cases/WS17; keep /evidence and /originals mounted read-only.',
+                'Open Autopsy > Open Existing Case > '+AUTOPSY_CASE_ENTRYPOINT+'.',
                 'In Data Sources, expand the prepared evidence source and locate '+selection+'.',
-                'Select the record; use the Text tab and its source reference. Compare the cited original artifact.']
+                'Select the record; use the Text tab and its source reference. Compare the cited source under /evidence with the original under /originals.']
         elif tool=='Wazuh':
             opening=['Open the Wazuh shortcut and sign in with the supplied read-only account.',
                 'Open Discover and choose the silent-ridge-* data view.',
@@ -146,14 +147,18 @@ def build(config=None):
         questions=[]
         for i,(prompt,answer) in enumerate(pairs,1):
             qid=f'{tid}-Q{i}'
-            questions.append(dict(id=qid,prompt=prompt,answer=answer,tool=tool,evidence='/evidence/'+evidence,
+            question=dict(id=qid,prompt=prompt,answer=answer,tool=tool,evidence='/evidence/'+evidence,
+                selection=selection,source_record=evidence,
                 purpose='Use '+title.lower()+' to answer this specific question and identify the limits of the evidence.',
                 steps=opening,format='Enter only the requested value; times use HH:MM:SS UTC. Case and outer whitespace are ignored.',
                 recovery='If no results appear, clear filters, check the evidence release and absolute UTC range, and reopen your writable case. Never re-ingest a large image during the activity.',
                 hints=['Start with '+selection+' and read the fields named in the question.',
                        'Compare the selected record with adjacent events; apply clock correction only to device_time.',
                        'Walkthrough: '+prompt+' The supplied record/comparison yields '+answer+'. Enter '+answer+'. '+limitation],
-                finding=dict(text=findings[i-1],evidence=[evidence+' ('+selection+')'],limitation=limitation)))
+                finding=dict(text=findings[i-1],evidence=[evidence+' ('+selection+')'],limitation=limitation))
+            if tool=='Autopsy':
+                question['case_entrypoint']=AUTOPSY_CASE_ENTRYPOINT
+            questions.append(question)
         tickets.append(dict(id=tid,title=title,subject=tool,requires=requires,release_files=RELEASE_FILES.get(tid, []),estimate_minutes=65,
             estimate_basis='Unmeasured planning allowance: opening/orientation 10, four guided investigations 40, cross-check and recovery 15. Must be replaced by beginner rehearsal measurements.',questions=questions))
     return tickets

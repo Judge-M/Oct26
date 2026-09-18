@@ -12,6 +12,11 @@ tests, without double-counting an imported test class. Python compilation and
 `git diff --check` passed. The initial sandbox execution failed on temporary-file
 permissions; the recorded passing tests ran with normal process permissions.
 
+Rechecked 2026-09-16 on branch `lane/wave0` (Windows, Python 3.12.4): the current
+suite `python -m unittest discover -s tests` passes **73 tests in 61.6 seconds**
+(`OK`). This supersedes the 42-test figure above for the current tree; the earlier
+count is retained as the historical baseline.
+
 Both participant Jinja templates were rendered locally with Jinja2 3.1.6; their
 generated JavaScript passed Node syntax checks. PyYAML 6.0.2 parsed the root and
 candidate Compose/workflow files. These are syntax/render checks, not browser
@@ -65,7 +70,7 @@ not assumed from local tests.
 | Findings and global closure | Implemented; local core tests passed; live IRIS posting/closure not tested |
 | Shared history and no report/approval gate | Implemented in replacement workflow |
 | Offline central stack and desktop template | Candidate configurations/scripts supplied; no deployment executed locally |
-| Autopsy disk/log/memory workflows | Native FAT fixture generated; native EVTX/memory sources and prepared Autopsy cases missing |
+| Autopsy disk/log/memory workflows | Native FAT fixture generated; native Windows reconstruction present and checksummed (`assets/native-windows-v1/manifest.json`); prepared Autopsy case present (`assets/autopsy-case-v2.json`, reopened with 90 indexed documents); per-question navigation on the installed tools unverified |
 | Harmless binary/Cutter | Source supplied; Linux build delegated to CI; Cutter UI unverified |
 | Wazuh historical correlation | Replay/indexing/release code supplied; actual index/view/permissions unverified |
 | Protected future material | Separate source tree and release code; generated initial visibility tested; deployed permissions unverified |
@@ -93,10 +98,12 @@ not assumed from local tests.
 ## Remaining work and smallest environment need
 
 Do not declare the exercise complete. A Linux preparation/rehearsal host is needed
-to run the actual IRIS/Wazuh/Guacamole stack, build/export the desktop VM, prepare
-native Windows-log and memory sources, create/reopen Autopsy cases, and validate
-offline restore and resource usage. This machine has no Docker, no installed WSL
-distribution, and no Java/Autopsy tools. GitHub CI can cover some container/build
-checks but cannot substitute for the desktop and beginner rehearsal. The artifact
-store provider and final hardware remain open configuration choices, not invented
-commitments.
+to run the actual IRIS/Wazuh/Guacamole stack, boot and validate the desktop VM,
+open the published prepared Autopsy case on the installed tools, and validate
+offline restore and resource usage. The native Windows-log and memory
+reconstruction and the prepared case are already published and checksummed; what
+remains is validation on the installed tools, not artifact creation. This machine
+has no Docker, no installed WSL distribution, and no Java/Autopsy tools. GitHub CI
+can cover some container/build checks but cannot substitute for the desktop and
+beginner rehearsal. The artifact store provider and final hardware remain open
+configuration choices, not invented commitments.

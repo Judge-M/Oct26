@@ -10,6 +10,13 @@ RELEASE_FILES = {
 DEVICE_OFFSETS = {'WS-17': 120}
 TIMELESS_SOURCES = {'hunting/coverage.csv', 'server/catalog.csv', 'server/version-comparison.csv'}
 
+# An Autopsy question's evidence reference is a released source under /evidence; its
+# case entrypoint is the writable prepared case on the team desktop. The two must not
+# be conflated: /evidence is read-only and never holds the .aut case database.
+AUTOPSY_CASE_ENTRYPOINT = '~/Cases/WS17/WS17.aut'
+AUTOPSY_CASE_TEMPLATE = '/opt/silent-ridge/prepared-case/WS17'
+ORIGINALS_MOUNT = '/originals'
+
 
 def incident_day(value):
     return date.fromisoformat(value).isoformat()

@@ -37,10 +37,12 @@ the teaching load in the expanded implementation:
    and persists globally; the last answer closes the ticket and unlocks authored
    follow-ups (for example `T07` requires `T06`; `T20` requires `T07`, `T09`, `T11`
    and `T19`).
-4. **Exactly-once shared findings.** Accepted answers post native IRIS findings and
-   CTFd awards through atomic application-side receipts, so other teams inherit
-   findings without duplicate awards. Relinquishing a ticket retains answers and
-   findings; the replacement owner completes the remainder.
+4. **Durable shared findings with transactional receipts.** Accepted answers queue
+   native IRIS findings and CTFd awards through durable outbox retries and
+   application-side receipts. The intended effect is one award/finding/task per event
+   key, but that depends on tested adapter behavior: live IRIS and cross-system outage
+   acceptance remain gates (see `docs/expanded-validation.md`). Relinquishing a ticket
+   retains answers and findings; the replacement owner completes the remainder.
 5. **Explicit evidence limits.** Every finding carries a `limitation`, and questions
    repeatedly ask what the evidence does *not* establish ("does a connection entry
    prove a human read the payload?", "is roster disclosure established by the denied
@@ -61,12 +63,14 @@ conventions, recording every correction and never editing the source.
 | Digital Forensics `PD-WRL-002` | T0173 Perform timeline analysis; T0168 Perform data comparison against established database |
 | Defensive Cybersecurity `PD-WRL-001` | T1084 Identify anomalous network activity; T1386 Analyze network traffic anomalies |
 
-**Mechanism.** Tickets `T01`/`T02` (Wireshark), `T03`/`T04` (Autopsy), `T12`
-(coverage) and `T13`/`T14` (prepared device logs) require corrected times. WS-17
-device times are 120 seconds fast; Wazuh/SIEM times are already normalized.
-`expanded/guides.md` instructs participants to correct only when a source gives an
-offset and never to re-correct normalized records; the authored findings record the
-correction.
+**Mechanism.** Tickets `T01`/`T02` (Wireshark), `T03`/`T04` (Autopsy) and `T12`
+(coverage) apply the documented 120-second WS-17 device correction; Wazuh/SIEM times
+are already normalized. `T13`/`T14` instead read the separate native Windows
+reconstruction, whose `assets/native-windows-v1/manifest.json` records **actual
+acquisition UTC**; the historical 120-second offset must not be applied to those
+acquisition timestamps. `expanded/guides.md` instructs participants to correct only
+when a source gives an offset and never to re-correct normalized or acquisition
+records; the authored findings record the correction or its absence.
 
 **Achievement evidence.** Corrected times that reconcile across at least two tools
 (for example the corrected viewer start and task registration), with the offset
@@ -106,7 +110,9 @@ prepared artifacts.
 searching a surviving suffix. `expanded/guides.md` states that imaging, live
 containment, agent installation and large ingest jobs are out of scope. The artifact
 manifest and verifier enforce integrity, and `T17`/`T18` inspect a harmless training
-binary statically in Cutter without executing it.
+binary statically in Cutter without executing it. Reading the supplied read-only
+originals is coached practice; it does not itself demonstrate acquiring a forensic
+duplicate, and no scored item claims that skill.
 
 **Achievement evidence.** Correct use of the writable case copy and read-only
 evidence, deleted-file recovery, and findings that trace back to a source reference
@@ -186,7 +192,8 @@ evidence and limits are explicit, without a manual report.
 times use HH:MM:SS UTC") and is graded against a normalized answer. A correct answer
 queues an authored IRIS finding that includes `text`, `evidence` and `limitation`.
 The queue's one-ticket-at-a-time gating and the dependency chain pace the work; the
-exactly-once outbox keeps accepted findings durable across outages.
+durable outbox and application-side receipts keep accepted findings from duplicating
+across outages, subject to the tested adapter behavior described above.
 
 **Achievement evidence.** Exact answers whose findings carry a source reference and a
 limitation, and continued progress after a relinquish or a service interruption.
@@ -221,7 +228,7 @@ tool is the analysis mechanism.
 | `T01`, `T02` | Wireshark — packet and DNS correlation | Defensive Cybersecurity `PD-WRL-001` | Digital Forensics `PD-WRL-002` |
 | `T03`, `T04`, `T05`, `T08` | Autopsy — disk, browser, persistence, access | Digital Forensics `PD-WRL-002` | Defensive Cybersecurity `PD-WRL-001` |
 | `T13`, `T14` | Autopsy — prepared process/task logs | Digital Forensics `PD-WRL-002` | Incident Response `PD-WRL-003` |
-| `T15`, `T16` | Autopsy — prepared memory tree/connections | Digital Forensics `PD-WRL-002` | Incident Response `PD-WRL-003` |
+| `T15`, `T16` | Autopsy — memory-derived process tree (`T15`); acquired live connection snapshot (`T16`, not a validated memory connection) | Digital Forensics `PD-WRL-002` | Incident Response `PD-WRL-003` |
 | `T06`, `T07` | Wazuh — session and credential actions | Incident Response `PD-WRL-003` | Insider Threat Analysis `PD-WRL-005`; Defensive Cybersecurity `PD-WRL-001` |
 | `T09`, `T19` | File manager — version and payload comparison | Defensive Cybersecurity `PD-WRL-001` | Vulnerability Analysis `PD-WRL-007` |
 | `T10`, `T11`, `T12`, `T20` | Wazuh — hunting, coverage and synthesis | Threat Analysis `PD-WRL-006` | Defensive Cybersecurity `PD-WRL-001`; Insider Threat Analysis `PD-WRL-005` |
@@ -246,15 +253,26 @@ The exercise is defensive and synthetic. It does not teach or assess offensive
 access, malware reverse engineering, or live imaging; the Cutter binary is a harmless
 training surrogate that performs no network or persistence behaviour.
 
-Two limits matter for formal training credit:
+Three limits matter for formal training credit:
 
-- **Some tickets are not yet runnable.** Per `docs/expanded-evidence.md` and
-  `docs/expanded-validation.md`, native Windows EVTX and memory sources and
-  ready-to-open Autopsy cases are still required. Tickets targeting prepared
-  process, task and memory records (`T13`–`T16`) and Autopsy disk/log workflows
-  cannot be completed until those artifacts exist.
+- **Artifacts exist; whole-event acceptance does not.** The native Windows
+  reconstruction (`assets/native-windows-v1/manifest.json`), the prepared Autopsy
+  case (`assets/autopsy-case-v2.json`) and the offline desktop image
+  (`assets/desktop-v1.json`) are published and checksummed, so tickets `T13`–`T16`
+  have prepared artifacts to reference. That is not a validated deployment: per
+  `docs/expanded-validation.md`, every question has not yet been navigated and
+  answered on the exact installed tools, and Hyper-V/AWS boot, Guacamole sessions
+  and live IRIS/CTFd behavior remain unverified.
+- **Practice is not assessment.** The free hints and walkthroughs and the supplied
+  read-only originals support coached practice; reading a supplied original does not
+  by itself demonstrate acquiring a forensic duplicate or unaided mastery, and no
+  scored item treats it as such.
 - **The workload is an estimate.** The 1,300 team-minute figure is arithmetic, not a
-  measurement; beginner rehearsal is required before relying on it.
+  measurement. Ten teams sharing one global ticket owner divide it into about 130
+  estimated minutes per team before dependencies, idle time and AAR — below the
+  four-hour goal — so beginner rehearsal is required before relying on it. The NICE
+  Work Role and Task IDs above are pinned to Components version 2.2.0; re-verify
+  them against that pinned official release before claiming a formal mapping.
 
 ## Maintenance
 

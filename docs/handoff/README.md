@@ -2,6 +2,12 @@
 
 Reviewed 2026-09-16 against merged main **305c257** (PR #12 merged). The original review was read-only. This follow-up publishes the handoff, preserves previously local build recipes, and adds portable native-evidence extraction. No event resources are launched or work scheduled by these files.
 
+## Current integration entry point
+
+Read [Consolidation](CONSOLIDATION.md), [Build first](BUILD-FIRST.md), and
+[Next bounded work](NEXT.md). Give a new agent [this starter prompt](STARTER-PROMPT.md).
+The dated assessment below is historical; source additions do not complete live gates.
+
 ## Start here
 
 Moving computers? Read [Continue elsewhere](CONTINUE-ELSEWHERE.md) first. The handoff and preserved build recipes are in this repository; no previous chat or original workstation is required.

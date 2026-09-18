@@ -1,9 +1,9 @@
 # Offline deployment candidate
 
-This Windows host has no Docker, installed WSL distribution, Java toolchain or
-Autopsy. Candidate versions are in `deployment/expanded/versions.json`; resolve
-all tags to immutable digests in the final artifact manifest. These are not yet
-validated compatible applications.
+Check the current host using [Build first](handoff/BUILD-FIRST.md). Old reports
+about a missing Docker/WSL/Java environment describe a previous preparation lane,
+not a requirement or a diagnosis of this computer. Candidate versions are in
+`deployment/expanded/versions.json`; pin final runtime images to immutable digests.
 
 ## Prepare and transfer
 
@@ -114,6 +114,17 @@ ordinary writable Autopsy case database. KAPE and Volatility are not installed.
 This script configures an existing guest; it does not create a bootable VM image.
 Export the validated guest using the selected hypervisor to the artifact store.
 Final hypervisor, vCPU, memory and storage allocations require measurements.
+
+## Container desktop (alternative to the Linux template)
+
+The Docker-only alternative replaces the per-team VM with a container that
+exposes VNC on the external `desktop` network, which `guacd` already reaches at
+`hostname:5901`. See [container team desktop](docker-desktop.md) for the image
+contract, `compose.desktops.yaml` usage, capacity guidance and offline packaging.
+It removes QCOW2/`qemu-img`/Hyper-V/VirtualBox/cloud-init/AWS-AMI from the
+critical path. The Linux template above and the
+[prepared desktop image](desktop-image.md) remain the fallback. Nothing on this
+path has been built or run.
 
 ## End-to-end acceptance
 
