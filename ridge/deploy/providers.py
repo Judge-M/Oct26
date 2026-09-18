@@ -5,6 +5,7 @@ orchestrator only marks a step verified after :func:`probe` confirms the resourc
 exists. Real providers (Hyper-V, AWS, remote KVM) implement this contract in later
 waves; :class:`FakeProvider` exists only for deterministic tests.
 """
+from __future__ import annotations
 import time
 from typing import Protocol
 

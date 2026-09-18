@@ -4,6 +4,7 @@ Only trusted application adapters call this module. Never accept a team ID from
 participant JSON: derive it from the authenticated IRIS/CTFd application identity.
 SQLite is local to the integration host, not an NFS/shared case database.
 """
+from __future__ import annotations
 import hashlib
 import hmac
 import json
