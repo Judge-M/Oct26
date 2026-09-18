@@ -10,6 +10,7 @@ All identity material is supplied by the private caller. Passwords are never
 logged and never included in the returned inventory. Numeric status IDs are
 discovered from the live application; none are guessed here.
 """
+from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 

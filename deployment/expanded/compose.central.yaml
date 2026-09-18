@@ -107,7 +107,9 @@ services:
       ctfd-db: {condition: service_healthy}
       ctfd-cache: {condition: service_healthy}
     healthcheck:
-      test: [CMD-SHELL, "curl -fsS http://127.0.0.1:8000/ >/dev/null || exit 1"]
+      # The CTFd image has no curl; urlopen raises on >=400. /login is stable:
+      # / 404s once setup completes.
+      test: [CMD, python, "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/login')"]
       interval: 15s
       timeout: 5s
       retries: 10

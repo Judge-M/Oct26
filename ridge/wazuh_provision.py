@@ -4,11 +4,12 @@ Cross-lane note (B03): the private deployment profile (A03/A04) is owned by a
 parallel lane and is not imported here. The bootstrap takes explicit arguments
 and vendored payloads so it can be unit tested without a live stack.
 
-LIVE VALIDATION BLOCKED: the Wazuh images/configuration cannot be vendored from
-upstream and the stack cannot be started on this Windows host (no Docker/Linux).
-``deployment/expanded/wazuh/manifest.json`` records image identities and fails
-closed until real digests are supplied. Never disable TLS verification.
+LIVE VALIDATED 2026-09-18 (N1): exercised against a real Wazuh 4.9.2 single-node
+stack (upstream wazuh-docker commit 574c7b05) with a local CA. Writer-role writes
+require 'indices:data/write/bulk*' (see WRITER_ACTIONS). Never disable TLS
+verification.
 """
+from __future__ import annotations
 import base64
 import json
 import re
@@ -25,6 +26,10 @@ TIMELESS_VIEW = 'silent-ridge-timeless'
 
 WRITER_ACTIONS = (
     'create_index', 'indices:data/write/index', 'indices:data/write/bulk',
+    # Live 4.9.2 finding: single-doc and bulk writes are also checked against the
+    # shard-level action 'indices:data/write/bulk[s]'; the plain bulk grant does not
+    # cover it, so the wildcard is required for any write to succeed.
+    'indices:data/write/bulk*',
     'indices:admin/mappings/put', 'indices:admin/template/put',
     'indices:data/read/search', 'indices:data/read/get',
 )

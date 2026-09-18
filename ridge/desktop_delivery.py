@@ -10,6 +10,7 @@ on this Windows host, so end-to-end delivery, reconnect and readiness are not
 accepted here. Follow-ups that need Wazuh/file-manager (not Autopsy) are chosen
 by ``AUTOPSY_IMMUTABLE`` consumers, not by automatic ingest.
 """
+from __future__ import annotations
 import os
 import stat
 from dataclasses import dataclass

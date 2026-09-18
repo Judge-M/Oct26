@@ -85,6 +85,9 @@ def register(app):
     @click.option('--spec', 'spec_path', required=True, type=click.Path(exists=True, path_type=Path))
     @click.option('--inventory', required=True, type=click.Path(path_type=Path))
     def silent_ridge_provision(spec_path, inventory):
+        # Older click ignores path_type and may hand back bytes.
+        spec_path = Path(spec_path if isinstance(spec_path, (str, Path)) else __import__('os').fsdecode(spec_path))
+        inventory = Path(inventory if isinstance(inventory, (str, Path)) else __import__('os').fsdecode(inventory))
         spec = _spec_from_json(json.loads(spec_path.read_text(encoding='utf-8')))
         admin = OrmAdmin()
         from CTFd.models import db

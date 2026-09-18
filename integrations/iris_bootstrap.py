@@ -4,9 +4,10 @@ Loaded inside the extended IRIS image only (see deployment/expanded/Dockerfile.i
 It performs the case/service-user/team-user bootstrap in a single explicit
 transaction and discovers live task status IDs. Numeric IDs are never assumed.
 
-LIVE VALIDATION BLOCKED: no Docker/Linux host is available in the wave-1/2 lane,
-so this adapter has not been exercised against a real IRIS 2.4.20 database. The
-pure planner/verifier in ridge.iris_bootstrap is covered by deterministic tests.
+LIVE VALIDATED 2026-09-18 (N1): bootstrap and preflight ran successfully against
+a real IRIS 2.4.20 database (case/status/user IDs discovered live; repeat run
+idempotent). Requires Python 3.9-compatible ridge modules (the IRIS image is
+Python 3.9).
 """
 import click
 import json

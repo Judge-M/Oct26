@@ -9,6 +9,7 @@ One shared IRIS login maps to one CTFd *team*; each participant is an individual
 CTFd membership inside that team. Provisioning never deletes awards, never
 rotates an existing password and is safe to repeat.
 """
+from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 

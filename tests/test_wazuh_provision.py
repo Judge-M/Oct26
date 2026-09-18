@@ -1,8 +1,10 @@
 """Deterministic tests for the Wazuh historical-stack bootstrap (B03).
 
-No live Wazuh stack is available (BLOCKED: no Docker/Linux host). These tests
-cover the vendored config, role/view payloads, idempotent apply, stable record
-IDs and TLS trust behavior.
+Live-validated 2026-09-18 (N1): the committed manifest carries real pinned
+digests, so the fail-closed digest gate is exercised against a synthetic
+digest-less manifest while the committed manifest must pass require_digests.
+These tests cover the vendored config, role/view payloads, idempotent apply,
+stable record IDs and TLS trust behavior.
 """
 import json
 import tempfile
@@ -45,8 +47,14 @@ class VendoredConfigTests(unittest.TestCase):
     def test_manifest_fails_closed_without_digests(self):
         manifest = json.loads((WAZUH / 'manifest.json').read_text(encoding='utf-8'))
         self.assertEqual(validate_manifest(manifest, require_digests=False), 3)
+        # The committed manifest is pinned (N1 live run): it must pass the strict gate.
+        self.assertEqual(validate_manifest(manifest, require_digests=True), 3)
+        # The fail-closed property itself is exercised against a digest-less copy.
+        unpinned = json.loads(json.dumps(manifest))
+        for image in unpinned['images']:
+            image['digest'] = None
         with self.assertRaisesRegex(WazuhError, 'immutable digest'):
-            validate_manifest(manifest)
+            validate_manifest(unpinned)
         with self.assertRaisesRegex(WazuhError, 'source'):
             validate_manifest({'schema': 1, 'images': manifest['images']}, require_digests=False)
 
