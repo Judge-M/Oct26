@@ -2,13 +2,15 @@
 
 ## Evidence boundary
 
-Reviewed current main `305c257`, repository code/configuration/workflows, artifact manifests, and GitHub PR patches/API state. Prior completed validation: 71 tests, Windows/Linux CI, actual CTFd adapter smoke, prepared-case GUI/search, Cutter analysis, desktop offline boot, and published LFS availability. This review did not rerun multi-gigabyte builds or the full test suite. No full deployed event or ten-team rehearsal is claimed. GitHub returned **no Releases** at review time. Package existence/access was not independently established; the tag publishing workflow has not been demonstrated as a complete event release.
+Reviewed current main `305c257`, repository code/configuration/workflows, artifact manifests, and GitHub PR patches/API state. Prior completed validation: 71 tests (at assessment time; the suite has since grown — 221 tests pass at `f4ad28b`), Windows/Linux CI, actual CTFd adapter smoke, prepared-case GUI/search, Cutter analysis, desktop offline boot, and published LFS availability. This review did not rerun multi-gigabyte builds or the full test suite. No full deployed event or ten-team rehearsal is claimed. GitHub returned **no Releases** at review time. Package existence/access was not independently established; the tag publishing workflow has not been demonstrated as a complete event release.
 
 The untracked `deployment/expanded/New-BuildVMs.ps1` in this local workspace is an abandoned build experiment, not part of merged main. Do not silently include it in future work.
 
 ## Open PRs
 
-### #6 — Document NICE Framework learning objectives and facilitation mechanisms
+### #6 — Document NICE Framework learning objectives and facilitation mechanisms (RESOLVED — closed; corrections landed)
+
+> Status update (2026-09-17): PR #6 is closed and its required corrections are present on main — `docs/learning-objectives.md` already records T13/T14 acquisition UTC (no 120-second correction) and the corrected T15/T16 crosswalk (T16 as live snapshot, not validated memory evidence). This section is retained as the historical review record; no further action is needed on #6 itself.
 
 [PR](https://github.com/Judge-M/Oct26/pull/6), reviewed head `9dfa3c7e3c43037a276035b2bcfd9a46d8df4f50`. Two files: README link and `docs/learning-objectives.md`.
 
@@ -25,7 +27,9 @@ Required updates before merge:
 
 The PR body contains obsolete baseline language; rewrite it around the final updated document. GitHub's mergeability was `unknown` during this read; no clean-merge claim is made.
 
-### #7 — Document President's Cup augmentation options and tradeoffs
+### #7 — Document President's Cup augmentation options and tradeoffs (RESOLVED — closed; deferred backlog)
+
+> Status update (2026-09-17): PR #7 is closed. The recommendation below (defer until rehearsal identifies a specific learning gap) still stands; treat the proposal as a nonbinding backlog document only.
 
 [PR](https://github.com/Judge-M/Oct26/pull/7), reviewed head `8583102b44679642e12fd2b9d1cd4709dfad7255`. One new proposal document; no imported challenge content.
 
@@ -76,7 +80,7 @@ Before eventual merge/import: align its description of Wazuh with the pinned dep
 
 ### P2 — completion and usability
 
-- README, `docs/expanded-validation.md`, deployment introduction and `expanded/manifest.example.json` still describe missing artifacts or no WSL/toolchain. `versions.json` still names Cutter 2.3.4. Replace historical assertions with dated generated acceptance records.
+- README, `docs/expanded-validation.md`, deployment introduction and `expanded/manifest.example.json` still describe missing artifacts or no WSL/toolchain. Replace historical assertions with dated generated acceptance records. (`versions.json` has been corrected to the delivered Cutter 2.5.0 since this assessment; no version action remains.)
 - Consolidate the legacy `desktop/install.sh` and actual `configure-image.sh` path; ensure users cannot accidentally replace the tested service with an older template.
 - Prefer focused lifecycle modules with typed configuration and readable error messages; do not spend the readiness budget on wholesale Python style rewrites. Existing bounded transport timeouts, per-ticket retries and exception boundaries are useful foundations.
 - An HTTP `/health` response or running process is not enough. Report readiness by application, desktop, evidence delivery and backup state; distinguish degraded synchronization from total service death.

@@ -48,8 +48,10 @@ Source contracts inspected: [IRIS tasks](https://github.com/dfir-iris/iris-web/b
 6. Index the initial JSONL with `ridge.evidence_release.index`. Create the
    `silent-ridge-*` data view using `timestamp`. Use the scenario's absolute UTC
    range. Participant agent installation is not part of the exercise.
-7. Edit `expanded/config.json` with the actual identity mapping. Initialize the
-   core database on local storage. UID 10001 needs write access. Keep the database
+7. Edit `expanded/config.json` with the actual identity mapping. Regenerate the
+   authored content with `python expanded/author.py`; `expanded/tickets.json` is
+   generated, not committed, and `ridge.cli init`/`migrate` require it. Initialize
+   the core database on local storage. UID 10001 needs write access. Keep the database
    off NFS and participant shares.
 8. Supply distinct IRIS and CTFd bridge secret files to their corresponding apps
    and the integration stack. Configure private release vault, published evidence

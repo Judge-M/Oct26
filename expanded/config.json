@@ -17,5 +17,5 @@
     {"id": "desktop-04", "address": "192.0.2.14", "shared": true, "max_connections": 4},
     {"id": "desktop-05", "address": "192.0.2.15", "shared": true, "max_connections": 4}
   ],
-  "note": "Example mappings and documentation-only IPs. Replace with actual application IDs and allocated VM addresses. Team count, VM count and sharing are independent configuration choices. Hardware sizing is not yet measured."
+  "note": "Example mappings and documentation-only IPs. Replace with actual application IDs and allocated VM addresses. Team count, VM count and sharing are independent configuration choices; this example defines five teams while the event design targets ten. Hardware sizing is not yet measured. exercise_date is the fixed fictional scenario date used by all generated evidence and question steps; it is independent of the real event day (the event-day assumption shifts calendar dates together)."
 }
