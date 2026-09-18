@@ -84,7 +84,6 @@ def run(state, config, client, sink, operator, ticket, question, answer, start=F
             pass
         else:
             raise SliceError('paused: participant mutation was accepted')
-    before = client.effects()
     state.mode(operator, 'running')
     report.record('start')
 
@@ -95,6 +94,11 @@ def run(state, config, client, sink, operator, ticket, question, answer, start=F
     generation = next(t['generation'] for t in state.snapshot()['tickets'] if t['id'] == ticket)
     state.claim(first, ticket, generation)
     report.record('claim')
+    # The claim itself delivers an ownership comment; measure answer effects
+    # against the settled post-claim baseline so exactly one finding and one
+    # point must come from the accepted answer.
+    drain(state, sink)
+    before = client.effects()
     result = state.answer(first, question, answer)
     if not result.get('correct'):
         raise SliceError('answer: expected answer was not accepted')
@@ -113,6 +117,7 @@ def run(state, config, client, sink, operator, ticket, question, answer, start=F
     state.claim(second, ticket, generation)
     drain(state, sink)
     report.record('takeover')
+    settled = client.effects()
     state.mode(operator, 'paused')
     restarted = State(state.path)
     before_restart, after_restart = state.snapshot(), restarted.snapshot()
@@ -120,7 +125,7 @@ def run(state, config, client, sink, operator, ticket, question, answer, start=F
     after_restart.pop('server_time')
     if after_restart != before_restart:
         raise SliceError('restart: persistent state changed')
-    if client.effects() != after:
+    if client.effects() != settled:
         raise SliceError('restart: native finding or point counts changed')
     report.record('restart')
     return report

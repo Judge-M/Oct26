@@ -8,6 +8,7 @@
         ],
         "allowed_actions": [
           "create_index",
+          "indices:admin/get",
           "indices:data/write/index",
           "indices:data/write/bulk",
           "indices:data/write/bulk*",

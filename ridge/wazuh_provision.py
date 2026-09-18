@@ -25,7 +25,12 @@ TIMED_VIEW = 'silent-ridge-timed'
 TIMELESS_VIEW = 'silent-ridge-timeless'
 
 WRITER_ACTIONS = (
-    'create_index', 'indices:data/write/index', 'indices:data/write/bulk',
+    'create_index',
+    # Live N3 finding: the controller preflight reads index metadata with
+    # GET /<index>; OpenSearch 2.x checks that as 'indices:admin/get', which
+    # neither the data-read grants nor indices:monitor/settings/get satisfy.
+    'indices:admin/get',
+    'indices:data/write/index', 'indices:data/write/bulk',
     # Live 4.9.2 finding: single-doc and bulk writes are also checked against the
     # shard-level action 'indices:data/write/bulk[s]'; the plain bulk grant does not
     # cover it, so the wildcard is required for any write to succeed.

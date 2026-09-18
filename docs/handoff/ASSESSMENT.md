@@ -55,6 +55,8 @@ Before eventual merge/import: align its description of Wazuh with the pinned dep
 
 ### P0 — blockers to the promised event experience
 
+> Status update (2026-09-18, after the N1–N3 live milestones): items **1–5 are addressed** against the two-team acceptance. `ridge.deploy` now builds/verifies all four images with content fingerprints (1); runnable team mappings are generated from real provisioned identities (2); Autopsy questions reference real released source files with the case as a local entrypoint — the stale `/evidence/autopsy/WS17/WS17.aut` rows in `docs/acceptance/question-matrix.md` were corrected to the authored paths (3); follow-up evidence delivery is implemented in `ridge/evidence_release.py` and was verified live to the desktop `/evidence` mount and the Wazuh indexer (T07/T09/T11) (4); central provisioning is automated and the full vertical slice (preflight → provision → start → claim → answer → finding → point → takeover → restart) passed live (5). See `docs/handoff/N3-RECEIPT.md`. Item **6 (ten-team capacity) remains open**; no ten-team claim is made. The readiness matrix and P1/P2 items below are retained as the historical review record.
+
 **1. There is no deployment orchestrator.** `ridge/cli.py` manages core state; it does not create application accounts, hosts, networks, certificates, desktops or AWS resources. `ridge/distribution.py` downloads files; `ridge/desktop_image.py` joins a disk. None is a one-command setup.
 
 **2. The default configuration is not runnable.** `expanded/config.json` contains five teams, placeholder IRIS/CTFd IDs and documentation IPs. It omits `iris_login` and `ctfd_name`, which `ridge/preflight.py` requires. Generate actual mappings after account provisioning; do not teach users to hand-edit IDs.
