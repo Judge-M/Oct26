@@ -25,7 +25,7 @@ services:
       WAZUH_INDEX: ${WAZUH_INDEX:?Set dedicated silent-ridge-* index}
       SSL_CERT_FILE: /etc/ssl/certs/silent-ridge-ca.pem
     secrets: [ridge_iris, ridge_ctfd, wazuh_index]
-    networks: [central]
+    networks: [central, wazuh-backend]
     logging:
       driver: json-file
       options: {max-size: "10m", max-file: "3"}
@@ -45,3 +45,8 @@ networks:
   central:
     external: true
     name: ${RIDGE_CENTRAL_NETWORK:?Set isolated shared service network}
+  # Ticket releases publish CSV telemetry to the Wazuh indexer; without this
+  # network the controller cannot reach it and release deliveries would fail.
+  wazuh-backend:
+    external: true
+    name: ${RIDGE_WAZUH_NETWORK:?Set Wazuh backend network with the indexer}
