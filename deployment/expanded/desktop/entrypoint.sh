@@ -52,6 +52,10 @@ cleanup() {
 }
 trap cleanup EXIT TERM INT
 
+# A container restart reuses the writable layer; stale X locks from the
+# previous run make Xtigervnc refuse display :1 and crash-loop the desktop.
+rm -f /tmp/.X1-lock /tmp/.X11-unix/X1
+
 runuser -u participant -- env HOME=/home/participant DISPLAY="$VNC_DISPLAY" XDG_RUNTIME_DIR=/run/user/1000 \
   Xtigervnc :1 -geometry 1440x900 -depth 24 -SecurityTypes VncAuth \
     -PasswordFile "$VNC_PASSWORD_FILE" -AlwaysShared -localhost no &
