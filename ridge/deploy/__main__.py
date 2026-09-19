@@ -74,9 +74,14 @@ def verify_build(component, work):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('action', choices=('doctor', 'build', 'verify-build', 'status',
-                                         'up', 'start', 'backup', 'restore', 'switch', 'down'))
+                                         'up', 'start', 'pause', 'backup', 'restore', 'switch', 'down'))
     parser.add_argument('--component', choices=(*IMAGES, 'all'), default='all')
     parser.add_argument('--work', type=Path, default=ROOT / 'work/build-receipts')
+    parser.add_argument('--profile', type=Path,
+                        help='validated deployment profile JSON (required for lifecycle actions)')
+    parser.add_argument('--runtime', type=Path, default=ROOT / 'work/deploy-runtime',
+                        help='private runtime directory (journal, secrets, env, state)')
+    parser.add_argument('--operator', default='deploy', help='recorded actor for mutations')
     args = parser.parse_args()
     try:
         if args.action == 'doctor':
@@ -84,19 +89,59 @@ def main():
             print(docker('compose', 'version', capture=True))
             docker('info', capture=True)
             return
-        if args.action == 'status':
-            print(json.dumps({'event_ready': False, 'next_gate': 'live two-team acceptance',
+        lifecycle = ('up', 'start', 'pause', 'status', 'down', 'backup', 'restore', 'switch')
+        if args.action == 'status' and args.profile is None:
+            print(json.dumps({'event_ready': False, 'next_gate': 'profile-scoped deployment',
                               'instructions': 'docs/handoff/BUILD-FIRST.md'}))
             return
-        if args.action not in ('build', 'verify-build'):
-            raise ValueError('Event lifecycle is not accepted yet. Follow docs/handoff/NEXT.md; '
-                             'no event or resources were changed.')
+        if args.action in lifecycle:
+            if args.profile is None:
+                raise ValueError('--profile is required for %s; no event or resources were '
+                                 'changed' % args.action)
+            from ridge.deploy.local import LocalStack
+            from ridge.docker_provider import SubprocessRunner
+            profile = json.loads(args.profile.read_text(encoding='utf-8'))
+            stack = LocalStack(profile, args.runtime, SubprocessRunner(),
+                               operator=args.operator, receipts=args.work)
+            if args.action == 'up':
+                print(json.dumps(stack.up(_release_fingerprint(args.work)), indent=2))
+            elif args.action == 'start':
+                print(json.dumps(stack.start(_release_fingerprint(args.work)), indent=2))
+            elif args.action == 'pause':
+                print(json.dumps(stack.pause(), indent=2))
+            elif args.action == 'status':
+                print(json.dumps(stack.status(), indent=2))
+            elif args.action == 'down':
+                print(json.dumps(stack.down(), indent=2))
+            elif args.action == 'backup':
+                print(json.dumps(stack.backup(), indent=2))
+            elif args.action == 'restore':
+                stack.restore()
+            elif args.action == 'switch':
+                stack.switch()
+            return
         operation = build if args.action == 'build' else verify_build
         components = IMAGES if args.component == 'all' else (args.component,)
         for component in components:
             print(json.dumps(operation(component, args.work)))
-    except (OSError, ValueError, subprocess.SubprocessError) as exc:
+    except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as exc:
         parser.exit(2, str(exc) + '\n')
+
+
+def _release_fingerprint(work):
+    """The shared source fingerprint recorded by the image builds; all four must agree."""
+    from ridge.deploy.local import IMAGE_COMPONENTS
+    sources = set()
+    for component in IMAGE_COMPONENTS:
+        receipt = Path(work) / (component + '.json')
+        if not receipt.is_file():
+            raise ValueError('no build receipt for %s: run `python -m ridge.deploy build` first'
+                             % component)
+        sources.add(json.loads(receipt.read_text(encoding='utf-8'))['source'])
+    if len(sources) != 1:
+        raise ValueError('build receipts disagree on the source fingerprint; rebuild all '
+                         'components so every image matches the same source')
+    return sources.pop()
 
 
 if __name__ == '__main__':
