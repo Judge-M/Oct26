@@ -194,6 +194,16 @@ class Journal:
                         (provider_id, _now(), name))
             self._event(con, 'system', 'complete_step', {'step': name, 'resource_id': provider_id})
 
+    def reopen_step(self, name):
+        """Re-open a verified step for re-apply after an intentional STOPPED down."""
+        with self.transaction() as con:
+            row = con.execute('SELECT state FROM steps WHERE name=?', (name,)).fetchone()
+            if row is None or row['state'] != 'verified':
+                raise JournalError('only a verified step can be reopened: ' + name)
+            con.execute("UPDATE steps SET state='started', attempt=attempt+1, updated_at=? "
+                        "WHERE name=?", (_now(), name))
+            self._event(con, 'system', 'reopen_step', {'step': name})
+
     def fail_step(self, name, error):
         with self.transaction() as con:
             con.execute("UPDATE steps SET state='failed', detail=?, updated_at=? WHERE name=?",
