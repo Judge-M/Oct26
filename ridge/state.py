@@ -157,6 +157,52 @@ class State:
     def mutable(con):
         if con.execute('SELECT export_token FROM control').fetchone()[0]:
             raise Conflict('Export in progress; mutations are frozen')
+        row = con.execute('SELECT fenced, site_generation FROM control').fetchone()
+        if row['fenced']:
+            raise Conflict('This site is fenced (generation %s); it was superseded by an '
+                           'activated destination and must not accept writes'
+                           % row['site_generation'])
+
+    def site_info(self):
+        with self.transaction(write=False) as con:
+            row = con.execute('SELECT fenced, site_generation FROM control').fetchone()
+            return {'fenced': bool(row['fenced']), 'generation': row['site_generation']}
+
+    def fence(self, actor):
+        """Permanently disable writes on this site before a destination activates."""
+        with self.transaction() as con:
+            if con.execute('SELECT fenced FROM control').fetchone()[0]:
+                raise Conflict('Site is already fenced')
+            if con.execute('SELECT mode FROM run').fetchone()[0] != 'paused':
+                raise Conflict('Pause before fencing')
+            if con.execute('SELECT 1 FROM outbox WHERE done=0').fetchone():
+                raise Conflict('Drain the outbox before fencing')
+            con.execute('UPDATE control SET fenced=1')
+            self.record(con, actor, 'fence', {})
+
+    def unfence(self, actor):
+        """Rollback aid only: permitted while no destination has activated a newer
+        generation. The switch flow records the activation generation in the
+        recovery set; unfence beyond that is a deliberate operator action."""
+        with self.transaction() as con:
+            if not con.execute('SELECT fenced FROM control').fetchone()[0]:
+                raise Conflict('Site is not fenced')
+            con.execute('UPDATE control SET fenced=0')
+            self.record(con, actor, 'unfence', {})
+
+    def activate_generation(self, actor, generation):
+        """Destination activation: adopt the next generation; refuses to move
+        backwards or to re-activate an already-active generation."""
+        with self.transaction() as con:
+            row = con.execute('SELECT fenced, site_generation FROM control').fetchone()
+            if row['fenced']:
+                raise Conflict('A fenced site cannot activate; unfence is an explicit '
+                               'operator rollback, never automatic')
+            if generation <= row['site_generation']:
+                raise Conflict('Activation generation %s must exceed current %s'
+                               % (generation, row['site_generation']))
+            con.execute('UPDATE control SET site_generation=?', (generation,))
+            self.record(con, actor, 'activate_generation', {'generation': generation})
 
     def provision(self, actor):
         """Explicitly permit initial delivery while participant mutations stay paused."""
