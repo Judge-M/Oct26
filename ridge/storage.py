@@ -41,6 +41,25 @@ def verified_export(folder):
     return manifest
 
 
+def verified_recovery_set(folder):
+    """D04: a recovery set is prunable only when complete and every hash verifies.
+    A corrupt or incomplete set is preserved, never removed."""
+    from ridge.deploy.recovery import verify_set
+    folder=Path(folder)
+    if any(p.is_symlink() for p in folder.rglob('*')):
+        raise ValueError('Linked recovery set cannot be pruned')
+    verify_set(folder)
+    return json.loads(safe(folder,'SHA256SUMS.json').read_text(encoding='utf-8'))
+
+
+def verified_set(folder):
+    """Accept either a completed three-system export or a completed recovery set."""
+    folder=Path(folder)
+    if (folder/'RECOVERY-COMPLETE.json').exists():
+        return verified_recovery_set(folder)
+    return verified_export(folder)
+
+
 def prune(root, backup, days, apply=False):
     root,backup=Path(root).resolve(),Path(backup).resolve()
     if days < 1 or root==backup or root.is_relative_to(backup) or backup.is_relative_to(root):
@@ -52,9 +71,9 @@ def prune(root, backup, days, apply=False):
         marker=candidate/'SHA256SUMS.json'
         if not marker.exists() or marker.stat().st_mtime >= time.time()-days*86400:
             continue
-        original=verified_export(candidate)
+        original=verified_set(candidate)
         mirror=safe(backup,candidate.name)
-        if original != verified_export(mirror):
+        if original != verified_set(mirror):
             raise ValueError('Backup differs from export')
         selected.append(candidate.name)
         if apply:

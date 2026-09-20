@@ -33,10 +33,14 @@ def _transport(credential):
     context = ca_context(str(CERTS / 'root-ca.pem'))
     authorization = 'Basic ' + base64.b64encode(credential.encode()).decode()
 
-    def call(method, path, body=None):
-        data = json.dumps(body).encode() if body is not None else None
+    def call(method, path, body=None, raw=None):
+        if raw is not None:
+            data, content_type = raw.encode(), 'application/x-ndjson'
+        else:
+            data, content_type = (json.dumps(body).encode() if body is not None else None,
+                                  'application/json')
         request = Request(BASE + path, data=data, method=method,
-                          headers={'Content-Type': 'application/json',
+                          headers={'Content-Type': content_type,
                                    'Authorization': authorization})
         try:
             with urlopen(request, timeout=15, context=context) as response:
@@ -92,6 +96,61 @@ def _probe(index_name):
     return {'status': status, 'count': payload.get('count', 0)}
 
 
+def _dump(index_name):
+    """Dump every document (with stable IDs) to /evidence-writer-readable NDJSON file
+    at /backup/index.ndjson for coherent, restorable index snapshots."""
+    admin = (SECRETS / 'wazuh_admin').read_text(encoding='utf-8').strip()
+    call = _transport(admin)
+    status, payload = call('GET', '/%s/_search?size=1000&scroll=2m' % index_name)
+    if status != 200:
+        raise SystemExit('index dump failed at first page: HTTP %s: %s'
+                         % (status, str(payload)[:200]))
+    out = Path('/backup/index.ndjson')
+    out.unlink(missing_ok=True)
+    total = payload['hits']['total']['value']
+    written = 0
+    while True:
+        hits = payload['hits']['hits']
+        if not hits:
+            break
+        with out.open('a', encoding='utf-8') as fh:
+            for hit in hits:
+                fh.write(json.dumps({'_id': hit['_id'], '_source': hit['_source']},
+                                    sort_keys=True) + '\n')
+                written += 1
+        status, payload = call('POST', '/_search/scroll',
+                               {'scroll': '2m', 'scroll_id': payload['_scroll_id']})
+        if status != 200:
+            raise SystemExit('index dump scroll failed: HTTP %s' % status)
+    if written != total:
+        out.unlink(missing_ok=True)
+        raise SystemExit('index dump incomplete: %d of %d documents; discarded' % (written, total))
+    return {'ok': True, 'documents': written}
+
+
+def _load(index_name):
+    """Bulk-load /backup/index.ndjson with original stable IDs; retries do not
+    duplicate documents."""
+    admin = (SECRETS / 'wazuh_admin').read_text(encoding='utf-8').strip()
+    call = _transport(admin)
+    source = Path('/backup/index.ndjson')
+    lines = []
+    for raw_line in source.read_text(encoding='utf-8').splitlines():
+        if not raw_line.strip():
+            continue
+        doc = json.loads(raw_line)
+        lines.append(json.dumps({'index': {'_id': doc['_id']}}))
+        lines.append(json.dumps(doc['_source'], sort_keys=True))
+    count = len(lines) // 2
+    for offset in range(0, len(lines), 2000):
+        batch = '\n'.join(lines[offset:offset + 2000]) + '\n'
+        status, payload = call('POST', '/%s/_bulk?refresh=true' % index_name, raw=batch)
+        if status != 200 or payload.get('errors'):
+            raise SystemExit('index load bulk failed: HTTP %s: %s'
+                             % (status, str(payload)[:300]))
+    return {'ok': True, 'loaded': count}
+
+
 def main(argv=None):
     argv = argv or sys.argv
     action, index_name = argv[1], argv[2]
@@ -101,6 +160,10 @@ def main(argv=None):
         result = _apply(index_name)
     elif action == 'probe':
         result = _probe(index_name)
+    elif action == 'dump':
+        result = _dump(index_name)
+    elif action == 'load':
+        result = _load(index_name)
     else:
         raise SystemExit('unknown indexer job action %r' % action)
     print(json.dumps(result))

@@ -86,6 +86,8 @@ class FakeRunner:
         argv = [str(a) for a in argv]
         self.calls.append(argv)
         joined = ' '.join(argv)
+        if argv[:2] == ['docker', 'ps']:
+            return '\n'.join(getattr(self, 'ps_names', []))
         if argv[:2] == ['docker', 'image']:
             image = argv[-1]
             component = image.split(':')[0].replace('silent-ridge-', '')
@@ -95,23 +97,52 @@ class FakeRunner:
             return self._compose(argv, joined, check)
         if argv[:2] == ['docker', 'inspect']:
             return '/fake-container\n'
+        if argv[:2] == ['docker', 'volume']:
+            return ''
         if argv[:2] == ['docker', 'cp']:
             if argv[2].split(':')[0] in ('iris', 'ctfd', 'fake-container'):  # container -> host
-                inventory = {'inventory': {'case': {'id': 2, 'name': 'case'},
-                                           'service_user': {'id': 2, 'login': 'svc'},
-                                           'statuses': {'open': 1, 'closed': 4},
-                                           'identities': {'team-01': {'id': 3, 'login': 't1'},
-                                                          'team-02': {'id': 4, 'login': 't2'}},
-                                           'teams': {'team-01': {'id': 1, 'name': 'team-01'},
-                                                     'team-02': {'id': 2, 'name': 'team-02'}}},
-                             'preflight': {'ready': True}}
                 Path(argv[3]).parent.mkdir(parents=True, exist_ok=True)
-                Path(argv[3]).write_text(json.dumps(inventory), encoding='utf-8')
+                if '/tmp/silent-ridge-inventory' in argv[2]:
+                    inventory = {'inventory': {'case': {'id': 2, 'name': 'case'},
+                                               'service_user': {'id': 2, 'login': 'svc'},
+                                               'statuses': {'open': 1, 'closed': 4},
+                                               'identities': {'team-01': {'id': 3, 'login': 't1'},
+                                                              'team-02': {'id': 4, 'login': 't2'}},
+                                               'teams': {'team-01': {'id': 1, 'name': 'team-01'},
+                                                         'team-02': {'id': 2, 'name': 'team-02'}}},
+                                 'preflight': {'ready': True}}
+                    Path(argv[3]).write_text(json.dumps(inventory), encoding='utf-8')
+                else:  # native database dump
+                    Path(argv[3]).write_bytes(b'fake-native-dump')
             return ''
         if argv[:2] == ['docker', 'run'] and 'indexer_job' in joined:
+            mount = next((a for a in argv if a.endswith(':/backup')), None)
+            if 'dump' in argv and mount:
+                backup_dir = Path(mount.rsplit(':/', 1)[0])
+                backup_dir.mkdir(parents=True, exist_ok=True)
+                (backup_dir / 'index.ndjson').write_text(
+                    json.dumps({'_id': 'a', '_source': {'data': {'session': 'S-41'}}}) + '\n'
+                    + json.dumps({'_id': 'b', '_source': {'data': {'host': 'WS-31'}}}) + '\n')
+                return json.dumps({'ok': True, 'documents': 2})
             if 'probe' in argv:
                 return json.dumps({'status': 200, 'count': 2})
+            if 'load' in argv:
+                return json.dumps({'ok': True, 'loaded': 2})
             return json.dumps({'ok': True, 'indexed': 2})
+        if argv[:2] == ['docker', 'run'] and 'tarfile' in joined:
+            mount = next((a for a in argv if ':/backup' in a), None)
+            if mount:
+                host_dir = Path(mount.rsplit(':/', 1)[0])
+                host_dir.mkdir(parents=True, exist_ok=True)
+                target = next(a for a in argv if a.startswith('/backup/'))
+                name = target.split('/backup/')[1]
+                import tarfile, io
+                with tarfile.open(host_dir / name, 'w:gz') as tar:
+                    info = tarfile.TarInfo('marker.txt')
+                    data = b'volume-content'
+                    info.size = len(data)
+                    tar.addfile(info, io.BytesIO(data))
+            return ''
         if argv[:2] == ['docker', 'run'] and 'initdb.sh' in joined:
             return 'CREATE TABLE guacamole_connection ();'
         if argv[0] == 'bash':
@@ -207,6 +238,23 @@ def make_profile():
     }
 
 
+class FakeCipher:
+    """Stand-in for the openssl cipher: copies bytes; never used to claim security."""
+    key_env = 'RIDGE_BACKUP_KEY'
+
+    def encrypt(self, source, destination):
+        destination.write_bytes(Path(source).read_bytes())
+
+    def decrypt(self, source, destination):
+        Path(destination).write_bytes(Path(source).read_bytes())
+
+
+def fake_export_job(destination):
+    destination.mkdir(parents=True, exist_ok=False)
+    for name in ('iris.json', 'ctfd.json', 'integration.json'):
+        (destination / name).write_text(json.dumps({'watermark': name}), encoding='utf-8')
+
+
 class LifecycleTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -215,6 +263,8 @@ class LifecycleTests(unittest.TestCase):
         self.host = FakeHost(self.runtime)
         self.stack = LocalStack(make_profile(), self.runtime, self.runner,
                                 host=self.host, receipts=self.receipts)
+        self.stack.cipher = FakeCipher()
+        self.stack.export_job = fake_export_job
 
     def tearDown(self):
         self.tmp.cleanup()
@@ -353,19 +403,23 @@ class LifecycleTests(unittest.TestCase):
         con.commit()
         con.close()
         result = self.stack.backup()
-        target = Path(result['backup'])
+        target = Path(result['recovery_set'])
+        self.assertTrue((target / 'RECOVERY-COMPLETE.json').is_file())
         manifest = json.loads((target / 'SHA256SUMS.json').read_text())
-        self.assertIn('state.sqlite', manifest)
-        self.assertIn('deploy-journal.sqlite', manifest)
+        for component in ('state/state.sqlite', 'deploy-journal.sqlite', 'db/iris-db.dump',
+                          'db/ctfd-db.sql', 'db/guacamole-db.dump', 'wazuh/index.ndjson',
+                          'secrets.tar.gz.enc', 'manifest.json'):
+            self.assertIn(component, manifest)
+        self.assertIn('volumes/silent-ridge-test-desktops_team01-cases.tar.gz', manifest)
 
-    def test_restore_and_switch_refuse_with_n5_pointer(self):
+    def test_restore_and_switch_refuse_safely_without_destination(self):
         self.stack.up(self.source)
         with self.assertRaises(LifecycleError) as ctx:
             self.stack.restore()
-        self.assertIn('N5', str(ctx.exception))
+        self.assertIn('clean destination runtime', str(ctx.exception))
         with self.assertRaises(LifecycleError) as ctx:
             self.stack.switch()
-        self.assertIn('N5', str(ctx.exception))
+        self.assertIn('E04', str(ctx.exception))
 
 
 if __name__ == '__main__':

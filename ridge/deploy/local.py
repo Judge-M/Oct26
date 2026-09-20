@@ -746,22 +746,26 @@ class LocalStack:
             credential, body, headers=headers)
         return status, payload
 
-    def _indexer_job(self, action):
-        """Run apply/probe inside the integration image on the Wazuh backend network.
+    def _indexer_job(self, action, backup_dir=None):
+        """Run apply/probe/dump/load inside the integration image on the Wazuh
+        backend network.
 
         The indexer is on an `internal: true` network with no host-published port,
         so indexer traffic must come from a container, never from the host.
         """
         index_name = self._index_name()
         network = self.event + '-wazuh_wazuh-backend'
-        out = self._run(['docker', 'run', '--rm', '--network', network,
-                         '-e', 'WAZUH_INDEXER_URL=https://wazuh-indexer:9200',
-                         '-v', str(ROOT / 'ridge') + ':/opt/silent-ridge/ridge:ro',
-                         '-v', str(self.runtime / 'wazuh-certs') + ':/certs:ro',
-                         '-v', str(self.secrets_dir) + ':/secrets:ro',
-                         '-v', str(self.asset('evidence_public')) + ':/evidence:ro',
-                         '--entrypoint', 'python', 'silent-ridge-integration:dev',
-                         '-m', 'ridge.deploy.indexer_job', action, index_name])
+        argv = ['docker', 'run', '--rm', '--network', network,
+                '-e', 'WAZUH_INDEXER_URL=https://wazuh-indexer:9200',
+                '-v', str(ROOT / 'ridge') + ':/opt/silent-ridge/ridge:ro',
+                '-v', str(self.runtime / 'wazuh-certs') + ':/certs:ro',
+                '-v', str(self.secrets_dir) + ':/secrets:ro',
+                '-v', str(self.asset('evidence_public')) + ':/evidence:ro']
+        if backup_dir is not None:
+            argv += ['-v', str(Path(backup_dir).resolve()) + ':/backup']
+        argv += ['--entrypoint', 'python', 'silent-ridge-integration:dev',
+                 '-m', 'ridge.deploy.indexer_job', action, index_name]
+        out = self._run(argv)
         try:
             return json.loads(out.strip().splitlines()[-1])
         except (ValueError, IndexError):
@@ -913,6 +917,7 @@ class LocalStack:
     def up(self, release_fingerprint):
         """Bring the run to PROVISIONED_PAUSED. Repeating preserves state; a verified
         stage whose probe now fails is an actionable error, never a reset."""
+        self.release_fingerprint = release_fingerprint
         journal = self._journal(release_fingerprint)
         with journal.lock(self.operator):
             resumable = journal.state == 'STOPPED'
@@ -1038,68 +1043,89 @@ class LocalStack:
                                        and document['live'].get('exercise', {}).get('ok'))
         return document
 
-    def down(self):
-        """Stop every project, preserving volumes and state. This is the partial-run
-        cleanup contract; data destruction requires an explicit new runtime."""
+    def down(self, volumes=False):
+        """Stop every project, preserving volumes and state. With --volumes, also
+        remove event-owned volumes — destructive, and refused unless a completed,
+        verified recovery set exists under runtime/backups first."""
         journal = Journal.open(self.runtime / 'deploy-journal.sqlite')
         with journal.lock(self.operator):
             stopped = []
             for kind in ('integration', 'desktops', 'guacamole', 'central', 'wazuh'):
-                self._compose(kind, 'stop', check=False)
+                if volumes:
+                    # Remove containers and networks so volume removal is possible.
+                    self._compose(kind, 'down', check=False)
+                else:
+                    self._compose(kind, 'stop', check=False)
                 stopped.append(kind)
             journal.set_state('STOPPED')
-            return {'state': 'STOPPED', 'projects': stopped}
+            removed = []
+            if volumes:
+                from ridge.deploy import recovery
+                backups = self.runtime / 'backups'
+                sets = sorted(backups.iterdir()) if backups.is_dir() else []
+                verified = None
+                for candidate in reversed(sets):
+                    try:
+                        recovery.verify_set(candidate)
+                        verified = candidate
+                        break
+                    except recovery.RecoveryError:
+                        continue
+                if verified is None:
+                    raise LifecycleError('down --volumes refused: no completed, verified '
+                                         'recovery set under %s; run backup first. Nothing '
+                                         'was removed.' % backups)
+                names = recovery.data_volumes(self.event) + \
+                    recovery.team_volumes(self.event, self.teams) + [
+                        self.event + '-iris-db', self.event + '-ctfd-db',
+                        self.event + '-guacamole-database',
+                        self.event + '-wazuh_wazuh-indexer-data',
+                        self.event + '-wazuh_wazuh-manager-data']
+                for name in names:
+                    self._run(['docker', 'volume', 'rm', '-f', name], check=False)
+                    removed.append(name)
+            return {'state': 'STOPPED', 'projects': stopped, 'volumes_removed': removed}
 
     def backup(self):
-        """Logical backup: paused+drained state export, journal, config and inventories
-        with a SHA256 manifest. Native database volume backup is N5 scope."""
+        """D02 full recovery set: paused+drained, native DB dumps, Wazuh index
+        snapshot, app data and per-team volumes, evidence, vault, encrypted
+        secrets, resource mapping and receipt watermarks. Completion marker last."""
+        from ridge.deploy import recovery
+        journal = Journal.open(self.runtime / 'deploy-journal.sqlite')
+        with journal.lock(self.operator):
+            if getattr(self, 'release_fingerprint', None) is None:
+                self.release_fingerprint = journal.meta().get('release_fingerprint')
+            try:
+                return recovery.create(self, self.runtime / 'backups'
+                                       / _utcnow().strftime('%Y%m%dT%H%M%SZ'),
+                                       cipher=getattr(self, 'cipher', None),
+                                       export_job=getattr(self, 'export_job', None))
+            except recovery.RecoveryError as exc:
+                raise LifecycleError(str(exc))
+
+    def fence(self):
+        """F01: permanently disable writes on this site (paused + drained first),
+        then stop the mutation paths so stale workers cannot resume writes."""
         journal = Journal.open(self.runtime / 'deploy-journal.sqlite')
         with journal.lock(self.operator):
             state = self.host.state(self.state_path)
             from ridge.state import Conflict
             try:
-                with state.export_barrier():
-                    stamp = _utcnow().strftime('%Y%m%dT%H%M%SZ')
-                    target = self.runtime / 'backups' / stamp
-                    target.mkdir(parents=True, exist_ok=False)
-                    manifest = {}
-                    clone = target / 'state.sqlite'
-                    source = sqlite3.connect(self.state_path)
-                    try:
-                        destination = sqlite3.connect(clone)
-                        source.backup(destination)
-                        destination.close()
-                    finally:
-                        source.close()
-                    for name in ('deploy-journal.sqlite',):
-                        shutil.copy2(self.runtime / name, target / name)
-                    for name in ('discovered.json',):
-                        if (self.runtime / name).is_file():
-                            shutil.copy2(self.runtime / name, target / name)
-                    for sub in ('state/config.json',):
-                        if (self.runtime / sub).is_file():
-                            (target / 'state').mkdir(exist_ok=True)
-                            shutil.copy2(self.runtime / sub, target / 'config.json')
-                    inventories = self.runtime / 'inventories'
-                    if inventories.is_dir():
-                        shutil.copytree(inventories, target / 'inventories')
-                    for file in sorted(target.rglob('*')):
-                        if file.is_file():
-                            manifest[str(file.relative_to(target)).replace('\\', '/')] = (
-                                hashlib.sha256(file.read_bytes()).hexdigest())
-                    (target / 'SHA256SUMS.json').write_text(json.dumps(manifest, indent=2),
-                                                            encoding='utf-8')
+                state.fence(self.operator)
             except Conflict as exc:
-                raise LifecycleError('backup requires a paused, drained exercise (%s). Pause '
-                                     'with `python -m ridge.deploy pause` and let the worker '
-                                     'drain, then retry' % exc)
-            return {'backup': str(target), 'files': len(manifest)}
+                raise LifecycleError(str(exc))
+            for kind in ('integration', 'desktops'):
+                self._compose(kind, 'stop', check=False)
+            journal.set_state('FENCED')
+            return dict({'state': 'FENCED'}, **state.site_info())
 
     def restore(self):
-        raise LifecycleError('restore is deferred to N5 (cards D02–D04/E03–E05): it must '
-                             'include native databases and team workspaces, not just SQLite. '
+        raise LifecycleError('restore needs an explicit clean destination runtime: run '
+                             '`python -m ridge.deploy restore --profile <profile> '
+                             '--runtime <clean runtime> --from <recovery set>`. '
                              'No state was changed.')
 
     def switch(self):
-        raise LifecycleError('provider switch is deferred to N5: fencing must disable source '
-                             'writes before destination activation. No state was changed.')
+        raise LifecycleError('provider switch to AWS is blocked on E04 (no authorized AWS '
+                             'provider in this environment). Local fencing (fence action) and '
+                             'clean-destination restore are implemented; no state was changed.')

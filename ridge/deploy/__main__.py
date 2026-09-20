@@ -74,7 +74,8 @@ def verify_build(component, work):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('action', choices=('doctor', 'build', 'verify-build', 'status',
-                                         'up', 'start', 'pause', 'backup', 'restore', 'switch', 'down'))
+                                         'up', 'start', 'pause', 'backup', 'restore',
+                                         'switch', 'down', 'fence'))
     parser.add_argument('--component', choices=(*IMAGES, 'all'), default='all')
     parser.add_argument('--work', type=Path, default=ROOT / 'work/build-receipts')
     parser.add_argument('--profile', type=Path,
@@ -82,6 +83,17 @@ def main():
     parser.add_argument('--runtime', type=Path, default=ROOT / 'work/deploy-runtime',
                         help='private runtime directory (journal, secrets, env, state)')
     parser.add_argument('--operator', default='deploy', help='recorded actor for mutations')
+    parser.add_argument('--from', dest='from_set', type=Path, default=None,
+                        help='recovery set directory for restore')
+    parser.add_argument('--degraded-ok', action='store_true',
+                        help='restore only: explicitly accept skipping unreadable volume '
+                             'archives (documented data loss)')
+    parser.add_argument('--accept-release', default=None,
+                        help='restore only: accept a recovery set built from this exact '
+                             'release fingerprint and migrate its schema')
+    parser.add_argument('--volumes', action='store_true',
+                        help='with down: also remove event-owned volumes (destructive; '
+                             'requires a completed, verified recovery set first)')
     args = parser.parse_args()
     try:
         if args.action == 'doctor':
@@ -112,11 +124,22 @@ def main():
             elif args.action == 'status':
                 print(json.dumps(stack.status(), indent=2))
             elif args.action == 'down':
-                print(json.dumps(stack.down(), indent=2))
+                print(json.dumps(stack.down(volumes=args.volumes), indent=2))
             elif args.action == 'backup':
                 print(json.dumps(stack.backup(), indent=2))
+            elif args.action == 'fence':
+                print(json.dumps(stack.fence(), indent=2))
             elif args.action == 'restore':
-                stack.restore()
+                if getattr(args, 'from_set', None):
+                    from ridge.deploy import recovery
+                    print(json.dumps(recovery.restore(
+                        profile, args.runtime, args.from_set, SubprocessRunner(),
+                        operator=args.operator, receipts=args.work,
+                        release_fingerprint=_release_fingerprint(args.work),
+                        degraded_ok=args.degraded_ok,
+                        accept_release=args.accept_release), indent=2))
+                else:
+                    stack.restore()
             elif args.action == 'switch':
                 stack.switch()
             return

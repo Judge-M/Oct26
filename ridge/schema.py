@@ -1,13 +1,8 @@
 """Explicit, transactional upgrades. Stop old workers before migrating."""
-VERSION = 2
+VERSION = 3
 
 
-def migrate(con):
-    version = con.execute('PRAGMA user_version').fetchone()[0]
-    if version > VERSION:
-        raise ValueError('Database was created by a newer release')
-    if version == VERSION:
-        return
+def _v2(con):
     con.execute('ALTER TABLE tickets ADD COLUMN generation INTEGER NOT NULL DEFAULT 0')
     con.execute("ALTER TABLE tickets ADD COLUMN release_files TEXT NOT NULL DEFAULT '[]'")
     for definition in ('ticket TEXT', 'lease TEXT', 'lease_until REAL NOT NULL DEFAULT 0',
@@ -30,4 +25,22 @@ def migrate(con):
     con.execute('CREATE INDEX outbox_pending ON outbox(done,retry_at,lease_until)')
     con.execute('CREATE INDEX outbox_ticket ON outbox(ticket)')
     con.execute('CREATE INDEX audit_action ON audit(action,id)')
-    con.execute(f'PRAGMA user_version={VERSION}')
+    con.execute('PRAGMA user_version=2')
+
+
+def _v3(con):
+    # Active-site fencing (F01): fenced=1 permanently disables mutations on this
+    # site; site_generation orders activations across a local/AWS move.
+    con.execute('ALTER TABLE control ADD COLUMN fenced INTEGER NOT NULL DEFAULT 0')
+    con.execute('ALTER TABLE control ADD COLUMN site_generation INTEGER NOT NULL DEFAULT 1')
+    con.execute('PRAGMA user_version=3')
+
+
+def migrate(con):
+    version = con.execute('PRAGMA user_version').fetchone()[0]
+    if version > VERSION:
+        raise ValueError('Database was created by a newer release')
+    if version < 2:
+        _v2(con)
+    if version < 3:
+        _v3(con)
