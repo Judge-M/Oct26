@@ -30,6 +30,12 @@ cd "$BUILD_ROOT/autopsy-4.22.0"
 bash unix_setup.sh -j "$JAVA_HOME" -n autopsy
 # The upstream ZIP includes CRLF in the shell-sourced configuration.
 sed -i 's/\r$//' etc/autopsy.conf
+# Cap the JVM heap below the container/VM cgroup ceiling: upstream -J-Xmx4G
+# invites an OOM-kill under load. Measured with the WS17 case open: JVM RSS
+# 1.69 GB, so 2500m leaves ~50% headroom (override via AUTOPSY_XMX).
+AUTOPSY_XMX=${AUTOPSY_XMX:-2500m}
+sed -i "s/-J-Xmx4G/-J-Xmx${AUTOPSY_XMX}/" etc/autopsy.conf
+grep -q -- "-J-Xmx${AUTOPSY_XMX}" etc/autopsy.conf
 sha256sum "$AUTOPSY_ZIP" > "$BUILD_ROOT/autopsy-download.sha256"
 git -C "$BUILD_ROOT/sleuthkit" rev-parse HEAD > "$BUILD_ROOT/sleuthkit-commit.txt"
 dpkg-query -W > "$BUILD_ROOT/installed-packages.tsv"
