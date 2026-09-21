@@ -24,6 +24,33 @@ def command(*args):
     return subprocess.check_output(args,cwd=REPO,text=True).strip()
 
 
+def split_file(path, max_bytes):
+    """Split ``path`` into ``<name>.part-NNN`` pieces of at most ``max_bytes``.
+
+    Returns the ordered part paths and removes the original. The naming
+    contract matches ``ridge.offline_install.image_parts`` exactly, so an
+    installer reassembles precisely what was split here.
+    """
+    if max_bytes <= 0:
+        raise ValueError('max_bytes must be positive')
+    path = Path(path)
+    if path.stat().st_size <= max_bytes:
+        return [path]
+    parts = []
+    index = 0
+    with path.open('rb') as source:
+        while True:
+            index += 1
+            piece = source.read(max_bytes)
+            if not piece:
+                break
+            part = path.with_name('%s.part-%03d' % (path.name, index))
+            part.write_bytes(piece)
+            parts.append(part)
+    path.unlink()
+    return parts
+
+
 def image_sources(kind,image):
     expected={}
     paths=[]
@@ -48,14 +75,18 @@ print(json.dumps(out))
     return expected
 
 
-def pack(store,manifest,destination):
+def pack(store,manifest,destination,allow_incomplete=False,max_part_bytes=None):
     store=Path(store);destination=Path(destination)
     if destination.exists():raise ValueError('Use a new bundle destination')
     if command('git','status','--porcelain'):
         raise ValueError('Commit source changes and remove untracked release inputs before packaging')
     if manifest['source_commit']!=command('git','rev-parse','HEAD'):
         raise ValueError('Manifest is for a different source commit')
-    verify(store,manifest,complete=True)
+    if allow_incomplete and manifest.get('compatibility_verified'):
+        raise ValueError('--allow-incomplete is only for uncertified drill bundles')
+    if not allow_incomplete and not manifest.get('compatibility_verified'):
+        raise ValueError('Uncertified manifest; pass --allow-incomplete to build a drill bundle')
+    verify(store,manifest,complete=not allow_incomplete)
     if not REQUIRED_IMAGES<=set(manifest.get('images',{})):
         raise ValueError('Record every central application and dependency image identity')
     reserved={'source.zip','release-manifest.json','source-image-checks.json','SHA256SUMS.json','validated-images.tar'}
@@ -78,10 +109,16 @@ def pack(store,manifest,destination):
     subprocess.run(['docker','image','save','--output',str(destination/'validated-images.tar'),
                     *sorted(set(manifest['images'].values()))],check=True)
     manifest=dict(manifest,artifacts=[a for a in manifest['artifacts'] if a['kind']!='containers'])
+    if allow_incomplete:
+        manifest['certification']='drill-uncertified'
     image_archive=destination/'validated-images.tar'
-    manifest['artifacts'].append(dict(path='validated-images.tar',kind='containers',version=manifest['source_commit'],
-        release=manifest['release'],bytes=image_archive.stat().st_size,sha256=sha256(image_archive)))
-    verify(destination,manifest,complete=True)
+    saved=[image_archive]
+    if max_part_bytes:
+        saved=split_file(image_archive,max_part_bytes)
+    for archive_path in saved:
+        manifest['artifacts'].append(dict(path=archive_path.name,kind='containers',version=manifest['source_commit'],
+            release=manifest['release'],bytes=archive_path.stat().st_size,sha256=sha256(archive_path)))
+    verify(destination,manifest,complete=not allow_incomplete)
     (destination/'release-manifest.json').write_text(json.dumps(manifest,indent=2))
     (destination/'source-image-checks.json').write_text(json.dumps(sources,indent=2))
     checks={p.relative_to(destination).as_posix():sha256(p) for p in destination.rglob('*') if p.is_file()}
@@ -91,4 +128,9 @@ def pack(store,manifest,destination):
 
 if __name__=='__main__':
     p=argparse.ArgumentParser();p.add_argument('store',type=Path);p.add_argument('manifest',type=Path);p.add_argument('destination',type=Path)
-    a=p.parse_args();print(pack(a.store,json.loads(a.manifest.read_text(encoding='utf-8')),a.destination))
+    p.add_argument('--allow-incomplete',action='store_true',
+                   help='build an uncertified drill bundle (manifest must have compatibility_verified false)')
+    p.add_argument('--max-part-bytes',type=int,default=None,
+                   help='split validated-images.tar into bounded .part-NNN pieces')
+    a=p.parse_args();print(pack(a.store,json.loads(a.manifest.read_text(encoding='utf-8')),a.destination,
+                                allow_incomplete=a.allow_incomplete,max_part_bytes=a.max_part_bytes))
