@@ -279,8 +279,14 @@ class State:
             if con.execute('SELECT 1 FROM tickets WHERE owner=?', (team,)).fetchone():
                 raise Conflict('Relinquish your current ticket first')
             row = con.execute('SELECT * FROM tickets WHERE id=?', (ticket,)).fetchone()
-            if row is None or row['status'] != 'available' or row['iris_id'] is None:
+            if row is None or row['status'] != 'available':
                 raise Conflict('Ticket is not available in IRIS')
+            if row['iris_id'] is None:
+                # Unlocked, but the worker has not finished creating the IRIS
+                # task (ticket deliveries set iris_id on completion). This is
+                # a transient state; the participant UI hides the claim button
+                # until iris_id is set. API callers should retry shortly.
+                raise Conflict('Ticket is still being prepared in IRIS; retry shortly')
             if type(generation) is not int or generation != row['generation']:
                 raise Conflict('Ticket changed; reload before claiming')
             con.execute("UPDATE tickets SET owner=?,status='active',generation=generation+1 WHERE id=?", (team, ticket))
