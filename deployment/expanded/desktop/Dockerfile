@@ -19,6 +19,13 @@ ARG SLEUTHKIT_SHA256=f1490de8487df8708a4287c0d03bf0cb2153a799db98c584ab60def5c55
 ARG AUTOPSY_VERSION=4.22.0
 ARG AUTOPSY_URL=https://github.com/sleuthkit/autopsy/releases/download/autopsy-4.22.0/autopsy-4.22.0.zip
 ARG AUTOPSY_SHA256=3f9aded0b8b094fabe557b4b8718e9bbbdbfbea5bf17bab335846f132d1fc97a
+# Heap ceiling for the Autopsy JVM. Upstream ships -J-Xmx4G, which exceeds the
+# desktop container's cgroup limit and invites an OOM-kill under heavy keyword
+# or timeline use. Measured 2026-09-21 with the WS17 case open and its text
+# index loaded: JVM RSS 1.69 GB, whole desktop container 1.95 GiB, so 2500m
+# keeps ~50% heap headroom while leaving room for XFCE/VNC and Firefox inside
+# the default 4g container cap (caps reserve nothing; they only bound growth).
+ARG AUTOPSY_XMX=2500m
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates curl xz-utils unzip \
@@ -46,6 +53,8 @@ RUN set -eux; \
     mv "/opt/autopsy-$AUTOPSY_VERSION" /opt/autopsy; \
     cd /opt/autopsy; \
     sed -i 's/\r$//' etc/autopsy.conf; \
+    sed -i "s/-J-Xmx4G/-J-Xmx${AUTOPSY_XMX}/" etc/autopsy.conf; \
+    grep -q -- "-J-Xmx${AUTOPSY_XMX}" etc/autopsy.conf; \
     bash unix_setup.sh -j "$JAVA_HOME" -n autopsy
 
 # ---------------------------------------------------------------------------
