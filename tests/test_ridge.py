@@ -124,7 +124,11 @@ class WorkflowTests(unittest.TestCase):
     def test_no_claim_before_iris_creation(self):
         self.state.claim('0','A')
         self.state.answer('0','A0','answer');self.state.answer('0','A1','answer')
-        with self.assertRaises(Conflict):self.state.claim('0','C')
+        with self.assertRaises(Conflict) as ctx:
+            self.state.claim('0','C')
+        # The unlocked-but-undelivered window is transient; the message must
+        # tell API callers to retry rather than implying the ticket is gone.
+        self.assertIn('retry shortly', str(ctx.exception))
         self.drain();self.state.claim('0','C')
 
     def test_clock_advances_without_events_and_freezes_when_paused(self):
