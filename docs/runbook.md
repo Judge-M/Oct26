@@ -14,7 +14,8 @@ to participants). Windows operators may use `.\ridge.ps1 <action> -Profile P
 ## Event day, in order
 
 1. **Verify the host** — `python -m ridge.deploy doctor` (Docker present and
-   responding). Hardware floor for ten teams: 64 GB RAM, 16 cores, 500 GB NVMe.
+   responding). Hardware floor for ten teams, from live measurement: 32 GB RAM
+   minimum (64 GB comfortable), 16 cores recommended, 100 GB free NVMe.
 2. **Bring the stack up** — `python -m ridge.deploy up --profile P --runtime R`.
    Ends at `PROVISIONED_PAUSED`; participants see nothing yet. Safe to re-run:
    it re-probes, it never resets state.

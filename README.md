@@ -31,14 +31,23 @@ a facilitated after-action review.
 
 ## What you need to host it locally
 
-One machine runs the whole event. Measured on the live stack, plan for:
+One machine runs the whole event. Sized from live measurement of the real
+stack, not guesswork:
 
-- **64 GB RAM** (central services use ~6 GB; each team desktop up to 4 GB)
-- **16 CPU cores**, **500 GB NVMe SSD**, gigabit LAN for participant browsers
+- **32 GB RAM minimum; 64 GB is comfortable.** Measured on the running stack:
+  central services use ~6 GiB; each team desktop idles at ~150 MiB and peaks
+  at ~2 GiB with the Autopsy case open and its text index loaded. Ten loaded
+  desktops plus central services plus the host OS land near a 30 GiB working
+  set. Desktop containers carry a 4 GB memory *limit*, but a limit reserves
+  nothing — the host only commits what is actually touched.
+- **16 CPU cores recommended**, gigabit LAN for participant browsers
+- **100 GB free NVMe SSD** — measured: ~19 GB of container images, ~14 GB for
+  the offline bundle, plus build cache and runtime growth
 - **Docker** (Docker Desktop on Windows, or Docker Engine on Linux)
 - **Python 3.11+** and **Git with Git LFS** for the build host
 
-A smaller machine works for a two-team pilot (32 GB RAM is comfortable).
+A two-team pilot runs comfortably on 16 GB RAM (measured: ~8.4 GiB for the
+whole stack with two desktops, one under Autopsy load).
 
 ## Quick start
 
@@ -110,13 +119,18 @@ backup → wipe → restore → keep-playing cycle has been drill-tested live.
 The local event is working software: the full lifecycle (build → provision →
 run → pause → backup → wipe → restore) has been exercised against the real
 stack, and a scripted walkthrough solved all 80 questions end-to-end with
-findings and points landing in IRIS and CTFd. Before the late-October event,
-the remaining work is tracked in `docs/handoff/NEXT.md`:
+findings and points landing in IRIS and CTFd. An offline drill release,
+[`v0.9.0-drill`](https://github.com/Judge-M/Oct26/releases/tag/v0.9.0-drill),
+packages every image and asset and has been cold-install-tested from the
+release page alone (fresh download, hash-verified, all 13 images loaded). Its
+notes carry the install steps and the honest certification gaps. Before the
+late-October event, the remaining work is tracked in `docs/handoff/NEXT.md`:
 
 - AWS deployment option (AMI, cloud fencing, teardown) — not yet built
 - Ten-team capacity rehearsal on the actual event hardware
 - A beginner rehearsal to validate the 4–5 hour duration with real people
-- Final offline release bundle, operator freeze, and dress rehearsal
+- Desktop image rebuild with the measured Autopsy heap cap, then the final
+  event release, operator freeze, and dress rehearsal
 
 ## Repository map
 
