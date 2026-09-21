@@ -27,9 +27,10 @@ Narrative developments are currently published manually with `announce`; there
 is no automatic timed-announcement scheduler in the expanded implementation.
 Plan optional narrative updates around elapsed 60, 130 and 200 minutes without
 using delayed releases to inflate activity time. Teams can investigate independent
-tickets immediately. Suggested event plan: 20-minute orientation, 130 minutes of
-activity, 15-minute break, 130 minutes of activity, 30-minute AAR. Actual duration
-must be validated with beginners.
+tickets immediately. Use the event-day model in [schedule-model.md](schedule-model.md)
+for the agenda (orientation, investigation block, break and AAR accounted
+separately); it fits the agreed 240–300 minute window at authored pace with
+roughly 25 minutes of slack. Actual duration must be validated with beginners.
 
 ## Ownership recovery and outages
 
@@ -53,8 +54,10 @@ Delivery is ordered per ticket and across prerequisite closures. An unavailable
 destination delays its dependent deliveries while unrelated tickets can advance.
 Inspect private `outbox.error`/`attempts` and application logs. Fix connectivity,
 credentials or schema mismatch and let the worker retry. Do not manually edit
-receipts, award points again, or delete queued events. Schema/runtime behavior of
-the application extensions still needs live outage testing.
+receipts, award points again, or delete queued events. Lost-response delivery and
+worker restart were exercised live during the N3 acceptance; the full
+backup → wipe → restore cycle was drill-tested in N5 (see
+`handoff/N3-RECEIPT.md` and `handoff/N5-RECEIPT.md`).
 
 See [schema-v2 operation](resilience.md) for explicit provisioning, ownership generations,
 export barriers, preflight and backup-verified retention. Use the actual generation
