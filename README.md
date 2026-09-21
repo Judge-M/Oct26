@@ -85,9 +85,10 @@ python -m ridge.cli announce --operator EXCON --text "..."   # message all teams
 python -m ridge.cli recover T03 --generation 1 --operator EXCON --reason "..."
 ```
 
-Facilitator materials (runbook, solutions, coaching and AAR guides) live in
-`facilitator/`; participant worksheets in `participants/`. See
-`docs/expanded-operations.md` for the full operator guide.
+Facilitator materials (solutions, coaching and AAR guides) live in
+`facilitator/`; participant worksheets in `participants/`. The
+[operator runbook](docs/runbook.md) is the one-page event-day reference with
+recovery appendices; see `docs/expanded-operations.md` for the deeper guide.
 
 ## Backup, restore, teardown
 
