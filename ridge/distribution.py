@@ -59,7 +59,11 @@ def pack(root, destination, release, images):
     with tempfile.TemporaryDirectory(dir=destination.parent) as scratch:
         stage = Path(scratch)
         large = sorted(name for name in names if name.startswith('assets/large/'))
-        archive(root, [name for name in names if name not in large], stage / 'source.zip')
+        # Parked artifacts (the optional VM desktop QCOW2) are neither large
+        # distribution assets nor source: they stay out of every release.
+        parked = sorted(name for name in names if name.startswith('assets/vm-desktop/'))
+        archive(root, [name for name in names if name not in large and name not in parked],
+                stage / 'source.zip')
         assets = {}
         for index, name in enumerate(large):
             source = safe(root, name)
