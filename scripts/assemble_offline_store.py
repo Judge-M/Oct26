@@ -51,10 +51,11 @@ def main():
                           'bytes': dest.stat().st_size, 'sha256': sha256(dest)})
 
     # Large published artifacts (desktop template, native memory capture, case).
-    put(REPO / 'assets/large/desktop/silent-ridge-desktop-v1.qcow2.part001',
-        'desktop/silent-ridge-desktop-v1.qcow2.part001', 'desktop')
-    put(REPO / 'assets/large/desktop/silent-ridge-desktop-v1.qcow2.part002',
-        'desktop/silent-ridge-desktop-v1.qcow2.part002', 'desktop')
+    # The desktop is the full multi-part QCOW2 declared by assets/desktop-v1.json;
+    # taking only the first parts ships a truncated, unbootable disk.
+    desktop_manifest = json.loads((REPO / 'assets/desktop-v1.json').read_text(encoding='utf-8'))
+    for part in desktop_manifest['parts']:
+        put(REPO / part['path'], 'desktop/' + Path(part['path']).name, 'desktop')
     put(REPO / 'assets/large/native/WS17-native-v1.tar.gz',
         'memory/WS17-native-v1.tar.gz', 'memory')
     put(REPO / 'assets/large/autopsy/WS17-prepared-case-v2.tar.gz',
