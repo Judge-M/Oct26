@@ -7,32 +7,32 @@
   "virtual_bytes": 32213303808,
   "parts": [
     {
-      "path": "assets/large/desktop/silent-ridge-desktop-v1.qcow2.part001",
+      "path": "assets/vm-desktop/silent-ridge-desktop-v1.qcow2.part001",
       "bytes": 943718400,
       "sha256": "842e2e14723558fcfea557b7a0ca187fe14c0f21509685c964340b118e13b976"
     },
     {
-      "path": "assets/large/desktop/silent-ridge-desktop-v1.qcow2.part002",
+      "path": "assets/vm-desktop/silent-ridge-desktop-v1.qcow2.part002",
       "bytes": 943718400,
       "sha256": "9e046a839897c71c09d2aae2b13ea92e56f9386d8d63cbaec35cf1326b8650f6"
     },
     {
-      "path": "assets/large/desktop/silent-ridge-desktop-v1.qcow2.part003",
+      "path": "assets/vm-desktop/silent-ridge-desktop-v1.qcow2.part003",
       "bytes": 943718400,
       "sha256": "42fa0943353a09ad12f11ce421d74be9572814cf3bd2135777d53315de55cd0f"
     },
     {
-      "path": "assets/large/desktop/silent-ridge-desktop-v1.qcow2.part004",
+      "path": "assets/vm-desktop/silent-ridge-desktop-v1.qcow2.part004",
       "bytes": 943718400,
       "sha256": "4cb56a1509f542364e88c4431ba36fc1a6a9a7422fa3163aef113cce9cacb220"
     },
     {
-      "path": "assets/large/desktop/silent-ridge-desktop-v1.qcow2.part005",
+      "path": "assets/vm-desktop/silent-ridge-desktop-v1.qcow2.part005",
       "bytes": 943718400,
       "sha256": "f01f8ac5dd6a8e6eaf4b96929d7a7b866a0ba4fec80a4b556a875c7dc81b9153"
     },
     {
-      "path": "assets/large/desktop/silent-ridge-desktop-v1.qcow2.part006",
+      "path": "assets/vm-desktop/silent-ridge-desktop-v1.qcow2.part006",
       "bytes": 509673472,
       "sha256": "d66e7d7d512c5a0e593c4f113519e526ab9e7663c12abbcc9c363dc6e9968684"
     }
