@@ -22,6 +22,10 @@ capacity.
   forms, the answer write path, and CSRF enforcement.
 - `docs/f03-rehearsal.md` — event-host runbook: acceptance targets, config
   template, exact commands, manual desktop usability pass, known traps.
+- `ridge deploy up --teams N` (1–10) — start-time team-count switch with
+  neutral accounts, persisted in `runtime/overrides.json` so later
+  lifecycle commands see the same roster and journal fingerprint without
+  repeating the flag; profile capacity validation still applies.
 - Sanitized evidence: [2-team smoke on restored stack](evidence/f03/smoke-2team-restored-stack.md),
   [2-team dress rehearsal on fresh stack](evidence/f03/dress-2team-fresh-stack.md).
 

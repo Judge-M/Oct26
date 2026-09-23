@@ -193,8 +193,15 @@ class LocalStack:
     """Stage-by-stage local lifecycle over one runtime directory."""
 
     def __init__(self, profile, runtime, runner, host=None, operator='deploy', receipts=None):
-        self.profile = deploy_config.validate(profile)
         self.runtime = Path(runtime).resolve()
+        override = self.runtime / 'overrides.json'
+        if override.is_file():
+            # `up --teams N` persists the chosen roster here so every later
+            # lifecycle command sees the same effective profile (and the same
+            # journal fingerprint) without repeating the flag.
+            team_count = json.loads(override.read_text(encoding='utf-8'))['team_count']
+            profile = deploy_config.apply_team_override(profile, team_count)
+        self.profile = deploy_config.validate(profile)
         self.runner = runner
         self.host = host or HostOps()
         self.operator = operator

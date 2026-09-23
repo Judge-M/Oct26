@@ -71,6 +71,13 @@ python -m ridge.deploy status --profile path/to/profile.json --runtime path/to/r
 python -m ridge.deploy start  --profile path/to/profile.json --runtime path/to/runtime
 ```
 
+Team count is a start-time switch, not a profile rewrite:
+`up --teams N` (1–10) provisions N neutral teams (team-01…team-N, three
+seats each) on N desktops no matter what the profile roster says. The
+choice is recorded in the runtime and reused by every later command; use
+a fresh runtime directory to change it. The profile's declared host
+capacity is still checked against the requested count.
+
 `up` builds out the entire stack and stops at a verified, paused state —
 nothing is visible to participants until you explicitly `start`. The `runtime`
 directory is private: it holds the event's secrets, state, and the team

@@ -94,6 +94,10 @@ def main():
     parser.add_argument('--volumes', action='store_true',
                         help='with down: also remove event-owned volumes (destructive; '
                              'requires a completed, verified recovery set first)')
+    parser.add_argument('--teams', type=int, default=None,
+                        help='up only: provision N teams (1-10) with neutral accounts, '
+                             'regardless of the profile roster. Recorded in the runtime; '
+                             'later commands reuse it automatically')
     args = parser.parse_args()
     try:
         if args.action == 'doctor':
@@ -110,9 +114,28 @@ def main():
             if args.profile is None:
                 raise ValueError('--profile is required for %s; no event or resources were '
                                  'changed' % args.action)
+            if args.teams is not None and args.action != 'up':
+                raise ValueError('--teams is only valid with up; the chosen team count is '
+                                 'stored in the runtime and applied to later commands '
+                                 'automatically')
+            from ridge.deploy.config import MAX_DESKTOP_SERVICES
+            if args.teams is not None and not 1 <= args.teams <= MAX_DESKTOP_SERVICES:
+                raise ValueError('--teams must be between 1 and %d; nothing was changed'
+                                 % MAX_DESKTOP_SERVICES)
             from ridge.deploy.local import LocalStack
             from ridge.docker_provider import SubprocessRunner
             profile = json.loads(args.profile.read_text(encoding='utf-8'))
+            if args.teams is not None:
+                args.runtime.mkdir(parents=True, exist_ok=True)
+                override = args.runtime / 'overrides.json'
+                if override.is_file():
+                    existing = json.loads(override.read_text(encoding='utf-8'))['team_count']
+                    if existing != args.teams:
+                        raise ValueError('this runtime was provisioned for %d teams; use a '
+                                         'fresh --runtime directory to change the team count'
+                                         % existing)
+                override.write_text(json.dumps({'team_count': args.teams}) + '\n',
+                                    encoding='utf-8')
             stack = LocalStack(profile, args.runtime, SubprocessRunner(),
                                operator=args.operator, receipts=args.work)
             if args.action == 'up':

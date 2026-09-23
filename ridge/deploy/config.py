@@ -196,6 +196,31 @@ def neutral_roster(team_count=DEFAULT_TEAM_COUNT, desktop_names=None):
     return teams
 
 
+MAX_DESKTOP_SERVICES = 10  # compose.desktops.yaml defines desktop-team01..team10
+
+
+def apply_team_override(profile, team_count):
+    """Return a profile copy with a neutral N-team roster.
+
+    Backs the `up --teams N` switch: one team per desktop, neutral accounts.
+    Desktop entries beyond the profile's own are synthesized with nominal
+    private addresses (the local provider never dials them; AWS profiles must
+    list real desktop addresses explicitly instead).
+    """
+    if not isinstance(team_count, int) or isinstance(team_count, bool) \
+            or not 1 <= team_count <= MAX_DESKTOP_SERVICES:
+        _fail('teams', 'must be an integer between 1 and %d (the desktop compose file '
+              'defines %d services)' % (MAX_DESKTOP_SERVICES, MAX_DESKTOP_SERVICES))
+    result = deepcopy(profile)
+    desktops = result.setdefault('desktops', [])
+    for index in range(len(desktops), team_count):
+        desktops.append({'name': 'desktop-%02d' % (index + 1),
+                         'address': '172.18.0.%d' % (11 + index),
+                         'shared': True, 'max_connections': 4})
+    result['roster'] = {'team_count': team_count}
+    return result
+
+
 def _validate_roster(profile, desktops):
     desktop_names = [desktop['name'] for desktop in desktops]
     roster = profile.get('roster')
