@@ -37,6 +37,7 @@ from pathlib import Path
 
 from ridge.deploy import config as deploy_config
 from ridge.deploy.journal import Journal, JournalError
+from ridge.docker_provider import CommandError
 
 ROOT = Path(__file__).resolve().parents[2]
 COMPOSE_DIR = ROOT / 'deployment' / 'expanded'
@@ -586,10 +587,25 @@ class LocalStack:
         return {'images': len(IMAGE_COMPONENTS)}
 
     # S2 ------------------------------------------------------ infrastructure
+    def _ensure_networks(self):
+        """Create the external networks every compose file references.
+
+        central/desktop/wazuh-backend are declared `external: true` (they span
+        compose projects), so nothing creates them implicitly and a fresh
+        `up` fails without this step. Idempotent.
+        """
+        for suffix in ('-central', '-desktop', '-wazuh_wazuh-backend'):
+            name = self.event + suffix
+            try:
+                self._run(['docker', 'network', 'inspect', name])
+            except CommandError:
+                self._run(['docker', 'network', 'create', name])
+
     def _apply_infrastructure(self):
         self._ensure_secrets()
         self._render_specs()
         self._render_env()
+        self._ensure_networks()
         certs = self.runtime / 'wazuh-certs'
         if not (certs / 'root-ca.pem').is_file():
             self._run(['bash', str(WAZUH_DIR / 'generate-certs.sh'), str(certs)])
@@ -797,8 +813,13 @@ class LocalStack:
                                  'reconcile evidence' % (index_name, status))
         telemetry = self.asset('evidence_public') / 'wazuh' / 'telemetry.jsonl'
         if telemetry.is_file():
-            expected = len([l for l in telemetry.read_text(encoding='utf-8').splitlines()
-                            if l.strip()])
+            # ridge.evidence_release.index derives each document ID from a
+            # canonical hash of the record body, so duplicate lines collapse
+            # to one document by design; expect unique records, not raw lines.
+            bodies = {json.dumps(json.loads(line), sort_keys=True)
+                      for line in telemetry.read_text(encoding='utf-8').splitlines()
+                      if line.strip()}
+            expected = len(bodies)
             if payload.get('count', 0) < expected:
                 raise LifecycleError('historical index has %d documents; expected at least %d '
                                      'from %s' % (payload.get('count', 0), expected, telemetry))
