@@ -3,6 +3,16 @@
 Read AGENTS.md and BUILD-FIRST.md. This sequence supersedes assumptions about
 completion in PRs 14–20. Existing task cards provide the detailed requirements.
 
+## Current position (updated 2026-09-23)
+
+N1–N5 are done (receipts in this directory). **F03 is in progress**: load
+tooling merged (PR #43), event-host runbook + dress-rehearsal fixes in PR #44,
+interim evidence and remaining steps in [F03-PROGRESS.md](F03-PROGRESS.md).
+The only F03 action left is the certifying 10-team/30-session run on event
+hardware per `docs/f03-rehearsal.md`. F06 (full dress rehearsal) waits on F03.
+AWS track (E03–E05) remains deferred by the organizer until after the local
+release is proven.
+
 ## N1 — Built central services and automatic two-team identities
 
 Original cards: B01–B04. Inputs: `ridge/deploy/config.py`, `ridge/compose_render.py`,
