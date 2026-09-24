@@ -105,7 +105,8 @@ def main():
             print(docker('compose', 'version', capture=True))
             docker('info', capture=True)
             return
-        lifecycle = ('up', 'start', 'pause', 'status', 'down', 'backup', 'restore', 'switch')
+        lifecycle = ('up', 'start', 'pause', 'status', 'down', 'backup', 'restore', 'switch',
+                     'fence')
         if args.action == 'status' and args.profile is None:
             print(json.dumps({'event_ready': False, 'next_gate': 'profile-scoped deployment',
                               'instructions': 'docs/handoff/BUILD-FIRST.md'}))
