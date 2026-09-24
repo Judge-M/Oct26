@@ -34,6 +34,29 @@ builds as the developer path. Remaining honesty note: the bundle →
 extract → `up` flow itself has not yet been run cold on a second machine —
 that is part of the F06 dress rehearsal on event hardware.
 
+Bundle reassembly (2026-09-24, PR #51): rebuilt all four custom images on
+current source, assembled a new rehearsal bundle at
+`work/offline-bundle-v010` (13 GB; the parked QCOW2 is now excluded by
+default — `--include-vm` opts back in). The release vault is packed
+(`dependencies/release-vault.tar.gz`). Dry-run install passes: all hashes
+verified, source extracted, receipt written, all 13 manifest image IDs
+present in the daemon. **Found and fixed a fourth cold-host defect in the
+process**: `ridge.bundle` saved images by bare sha256 ID, which strips
+RepoTags — a truly cold `docker load` yields untagged `<none>` images and
+every compose file fails (`pull_policy: never`). The 2026-09-21 drill
+cold test masked it because that machine already had the tags.
+`ridge.bundle` now saves by manifest `image_tags` (verified to resolve to
+the pinned IDs) and `ridge.offline_install` verifies tags after load
+(`tags_verified` in the receipt); 5 new tests, 304/304 pass. The new
+bundle's image tar was opened and all 13 RepoTags confirmed present.
+`docker load` of the full 5.7 GiB tar exceeds this machine's 5-minute
+tool cap, so an end-to-end load was not re-run here — it is covered by
+the drill test's proven load path plus the new tag-content check, and the
+real load runs on event hardware in Phase 0 of
+`docs/dress-rehearsal-plan.md`. **Note: `v0.9.0-drill`'s image tar is
+tagless — treat it as superseded; the next published release must come
+from this branch's tooling.**
+
 ## N1 — Built central services and automatic two-team identities
 
 Original cards: B01–B04. Inputs: `ridge/deploy/config.py`, `ridge/compose_render.py`,
