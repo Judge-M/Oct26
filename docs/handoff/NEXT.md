@@ -25,6 +25,14 @@ Participant-facing material: event-day briefing deck at
 `docs/event-day-deck/` (13 slides — narrative + click-by-click setup,
 validated with `kimi-slides check` and full-page screenshots; PR #48).
 
+Rehearsal session plan: `docs/dress-rehearsal-plan.md` sequences the
+event-hardware day end-to-end — bundle reassembly (must include the
+release vault; `v0.9.0-drill` predates it), timed cold install, F03
+certifying run, F06 functional rehearsal + lost-host recovery drill, and
+the release freeze, with go/no-go gates per phase. Requires PR #49
+(teardown/fencing fixes) merged first — the drill exercises those
+semantics.
+
 ## N1 — Built central services and automatic two-team identities
 
 Original cards: B01–B04. Inputs: `ridge/deploy/config.py`, `ridge/compose_render.py`,
