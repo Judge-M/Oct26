@@ -1,0 +1,81 @@
+pageType: cover
+background:
+  type: solid
+  color: "$deep"
+elements:
+  - elementId: ring-outer
+    elementType: shape
+    bounds: [600, 90, 380, 380]
+    shapeName: donut
+    adjustments: [4000]
+    fill: {type: solid, color: "#3A524B66"}
+  - elementId: ring-mid
+    elementType: shape
+    bounds: [660, 150, 260, 260]
+    shapeName: donut
+    adjustments: [5000]
+    fill: {type: solid, color: "#3A524B88"}
+  - elementId: ring-inner
+    elementType: shape
+    bounds: [720, 210, 140, 140]
+    shapeName: donut
+    adjustments: [7000]
+    fill: {type: solid, color: "#3A524BAA"}
+  - elementId: patrol-dot
+    elementType: shape
+    bounds: [852, 168, 16, 16]
+    shapeName: ellipse
+    fill: {type: solid, color: "$amber"}
+  - elementId: patrol-label
+    elementType: text
+    bounds: [700, 400, 180, 22]
+    content:
+      fontSize: 13
+      color: "#C9CFC7"
+      letterSpacing: 2
+      align: [center, middle]
+      wrap: false
+      text: PATROL LANTERN
+  - elementId: kicker
+    elementType: text
+    bounds: [64, 120, 480, 24]
+    content:
+      style: "$tag"
+      wrap: false
+      text: DEFENSIVE CYBERSECURITY EXERCISE
+  - elementId: title
+    elementType: text
+    bounds: [64, 152, 560, 120]
+    content:
+      fontSize: 52
+      bold: true
+      color: "#F5F2EA"
+      lineHeight: 1.1
+      text: |
+        <p>Operation</p>
+        <p>Silent Ridge</p>
+  - elementId: rule
+    elementType: line
+    bounds: [64, 296, 120, 3]
+    viewBox: [120, 3]
+    points: "0,1.5 120,1.5"
+    curve: sharp
+    border: {style: solid, width: 3, color: "$amber"}
+  - elementId: subtitle
+    elementType: text
+    bounds: [64, 318, 500, 60]
+    content:
+      fontSize: 17
+      color: "#C9CFC7"
+      lineHeight: 1.5
+      text: |
+        <p>A patrol's movement details may have leaked.</p>
+        <p>Your team finds out what happened — and proves it.</p>
+  - elementId: footer
+    elementType: text
+    bounds: [64, 480, 700, 20]
+    content:
+      fontSize: 12
+      color: "#7E877F"
+      wrap: false
+      text: EVENT DAY BRIEFING · ALL CONTENT FICTIONAL · READ-ONLY INVESTIGATION

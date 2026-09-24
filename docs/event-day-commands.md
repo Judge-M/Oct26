@@ -77,6 +77,10 @@ Participant URLs (all in their own laptop browser):
 `http://<LAN-IP>:8082` desktops · `:8081` IRIS · `:8083` CTFd ·
 `https://<LAN-IP>:8443` Wazuh.
 
+Opening briefing: project the participant deck at `docs/event-day-deck/`
+(story + click-by-click setup, 13 slides). The `<event-address>` shown in
+the deck is the `<LAN-IP>` above.
+
 ## 5. During the event
 
 ```bash

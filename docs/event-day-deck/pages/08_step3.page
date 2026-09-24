@@ -1,0 +1,79 @@
+pageType: content
+background:
+  type: solid
+  color: "$paper"
+elements:
+  - elementId: tag
+    elementType: text
+    bounds: [64, 40, 400, 20]
+    content: {style: "$tag", wrap: false, text: PART 2 · YOUR SETUP — STEP 3 OF 4}
+  - elementId: stepnum
+    elementType: text
+    bounds: [64, 90, 110, 60]
+    content: {style: "$stepnum", wrap: false, text: "3"}
+  - elementId: title
+    elementType: text
+    bounds: [170, 96, 726, 44]
+    content: {style: "$title", fontSize: 27, wrap: false, text: Open your team's shared desktop}
+  - elementId: rule
+    elementType: line
+    bounds: [64, 160, 832, 2]
+    viewBox: [832, 2]
+    points: "0,1 832,1"
+    curve: sharp
+    border: {style: solid, width: 2, color: "$line"}
+  - elementId: do-title
+    elementType: text
+    bounds: [64, 182, 300, 22]
+    content: {style: "$tag", wrap: false, text: DO THIS NOW}
+  - elementId: steps
+    elementType: text
+    bounds: [64, 210, 500, 230]
+    content:
+      style: "$body"
+      fontSize: 15
+      text: |
+        <p><strong>1.</strong> Third tab:
+        <span style="background-color:$palegreen"> http://&lt;event-address&gt;:8082 </span></p>
+        <p style="margin-top:10px"><strong>2.</strong> Log in with the <strong>Guacamole</strong> username and
+        password from the handout, then click your team's desktop connection.</p>
+        <p style="margin-top:10px"><strong>3.</strong> If the desktop asks for a password, it is the
+        <strong>VNC password</strong> on the handout.</p>
+        <p style="margin-top:10px"><strong>4.</strong> You are now sharing one Linux desktop with your
+        whole team — take turns driving. Evidence lives under
+        <strong>/evidence</strong>; the prepared case lives in the home folder.</p>
+  - elementId: check-rule
+    elementType: line
+    bounds: [600, 210, 2, 230]
+    viewBox: [2, 230]
+    points: "1,0 1,230"
+    curve: sharp
+    border: {style: solid, width: 2, color: "$line"}
+  - elementId: check-title
+    elementType: text
+    bounds: [624, 182, 272, 22]
+    content: {style: "$tag", wrap: false, text: HOW TO CHECK}
+  - elementId: check-body
+    elementType: text
+    bounds: [624, 210, 272, 130]
+    content:
+      style: "$body"
+      fontSize: 14
+      text: |
+        <p>You see a Linux desktop with icons for <strong>Autopsy</strong>,
+        <strong>Wireshark</strong> and <strong>Cutter</strong>, and a file manager that opens
+        <strong>/evidence</strong>.</p>
+  - elementId: why-body
+    elementType: text
+    bounds: [624, 350, 272, 90]
+    content:
+      style: "$small"
+      text: "One desktop per team, several of you connected at once. Everything here is read-only exercise material — you cannot break the evidence."
+  - elementId: footer
+    elementType: text
+    bounds: [64, 505, 700, 18]
+    content: {style: "$small", wrap: false, text: OPERATION SILENT RIDGE — EXERCISE ONLY}
+  - elementId: pagenum
+    elementType: text
+    bounds: [880, 505, 40, 18]
+    content: {style: "$small", align: [right, top], wrap: false, text: "8"}

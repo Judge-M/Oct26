@@ -1,0 +1,72 @@
+pageType: content
+background:
+  type: solid
+  color: "$paper"
+elements:
+  - elementId: tag
+    elementType: text
+    bounds: [64, 40, 400, 20]
+    content: {style: "$tag", wrap: false, text: PART 2 · YOUR SETUP}
+  - elementId: title
+    elementType: text
+    bounds: [64, 66, 832, 40]
+    content: {style: "$title", wrap: false, text: "Your kit: four tabs in your own browser, one shared desktop"}
+  - elementId: rule
+    elementType: line
+    bounds: [64, 116, 832, 2]
+    viewBox: [832, 2]
+    points: "0,1 832,1"
+    curve: sharp
+    border: {style: solid, width: 2, color: "$line"}
+  - elementId: table
+    elementType: table
+    bounds: [64, 140, 832, 250]
+    columnWidths: [0.22, 0.18, 0.6]
+    rowHeights: [0.18, 0.205, 0.205, 0.205, 0.205]
+    style:
+      cellStyle:
+        fontSize: 14
+        color: "$ink"
+        align: [left, middle]
+        border: [null, null, {style: solid, width: 1, color: "$line"}, null]
+      firstRowStyle:
+        bold: true
+        color: "$slate"
+        border: [null, null, {style: solid, width: 2, color: "$slate"}, null]
+    rows:
+      - - text: TAB / APP
+        - text: ADDRESS
+        - text: WHAT IT'S FOR
+      - - text: IRIS — incident queue
+        - text: ":8081"
+        - text: Claim and relinquish tickets; read shared findings as they publish
+      - - text: CTFd — questions
+        - text: ":8083"
+        - text: See your ticket's questions, submit answers, watch the scoreboard
+      - - text: Wazuh — log search
+        - text: ":8443 (HTTPS)"
+        - text: Search the historical SIEM records for your ticket's time range
+      - - text: Team desktop
+        - text: ":8082"
+        - text: "The only thing that needs the remote desktop: Autopsy, Wireshark, Cutter, files"
+  - elementId: key-title
+    elementType: text
+    bounds: [64, 412, 300, 22]
+    content: {style: "$tag", wrap: false, text: THE ONE RULE THAT KEEPS THINGS FAST}
+  - elementId: key-body
+    elementType: text
+    bounds: [64, 438, 832, 50]
+    content:
+      style: "$body"
+      fontSize: 15
+      text: |
+        <p>Do all browsing in <strong>your own laptop browser</strong>. Inside the shared desktop, use only the
+        investigation tools — a browser opened in there slows the desktop down for your whole team.</p>
+  - elementId: footer
+    elementType: text
+    bounds: [64, 505, 700, 18]
+    content: {style: "$small", wrap: false, text: OPERATION SILENT RIDGE — EXERCISE ONLY}
+  - elementId: pagenum
+    elementType: text
+    bounds: [880, 505, 40, 18]
+    content: {style: "$small", align: [right, top], wrap: false, text: "5"}

@@ -3,17 +3,21 @@
 Read AGENTS.md and BUILD-FIRST.md. This sequence supersedes assumptions about
 completion in PRs 14–20. Existing task cards provide the detailed requirements.
 
-## Current position (updated 2026-09-23)
+## Current position (updated 2026-09-24)
 
 N1–N5 are done (receipts in this directory). **F03 is in progress**: load
 tooling merged (PR #43), runbook + dress-rehearsal fixes + `--teams N`
 switch merged (PRs #44/#45), capacity model retuned from measurements
-(PR #46), event-day command sheet at `docs/event-day-commands.md`;
-interim evidence and remaining steps in [F03-PROGRESS.md](F03-PROGRESS.md).
+(PR #46), event-day command sheet at `docs/event-day-commands.md`
+(PR #47); interim evidence and remaining steps in [F03-PROGRESS.md](F03-PROGRESS.md).
 The only F03 action left is the certifying 10-team/30-session run on event
 hardware per `docs/f03-rehearsal.md`. F06 (full dress rehearsal) waits on F03.
 AWS track (E03–E05) remains deferred by the organizer until after the local
 release is proven.
+
+Participant-facing material: event-day briefing deck at
+`docs/event-day-deck/` (13 slides — narrative + click-by-click setup,
+validated with `kimi-slides check` and full-page screenshots; PR pending).
 
 ## N1 — Built central services and automatic two-team identities
 

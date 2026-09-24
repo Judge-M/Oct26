@@ -1,0 +1,83 @@
+pageType: content
+background:
+  type: solid
+  color: "$paper"
+elements:
+  - elementId: tag
+    elementType: text
+    bounds: [64, 40, 400, 20]
+    content: {style: "$tag", wrap: false, text: BEFORE WE START}
+  - elementId: title
+    elementType: text
+    bounds: [64, 66, 830, 40]
+    content: {style: "$title", wrap: false, text: Two things to learn in the next ten minutes}
+  - elementId: rule
+    elementType: line
+    bounds: [64, 116, 832, 2]
+    viewBox: [832, 2]
+    points: "0,1 832,1"
+    curve: sharp
+    border: {style: solid, width: 2, color: "$line"}
+  - elementId: part1-num
+    elementType: text
+    bounds: [64, 150, 90, 52]
+    content: {style: "$stepnum", wrap: false, text: "01"}
+  - elementId: part1-title
+    elementType: text
+    bounds: [170, 152, 660, 30]
+    content:
+      fontSize: 22
+      bold: true
+      color: "$slate"
+      wrap: false
+      text: The story — what happened at 09:30 this morning
+  - elementId: part1-body
+    elementType: text
+    bounds: [170, 190, 660, 60]
+    content:
+      style: "$body"
+      text: |
+        <p>A fictional patrol is in the field and its movement details may have been
+        disclosed. You are the incoming SOC shift. Everything you investigate is
+        fictional, pre-collected, and safe to touch.</p>
+  - elementId: part2-num
+    elementType: text
+    bounds: [64, 280, 90, 52]
+    content: {style: "$stepnum", wrap: false, text: "02"}
+  - elementId: part2-title
+    elementType: text
+    bounds: [170, 282, 660, 30]
+    content:
+      fontSize: 22
+      bold: true
+      color: "$slate"
+      wrap: false
+      text: Your setup — four browser tabs and one desktop
+  - elementId: part2-body
+    elementType: text
+    bounds: [170, 320, 660, 60]
+    content:
+      style: "$body"
+      text: |
+        <p>We walk through every login, click by click, until your team has claimed
+        its first ticket and answered its first question. No prior knowledge assumed.</p>
+  - elementId: exit-label
+    elementType: text
+    bounds: [64, 420, 200, 22]
+    content: {style: "$tag", wrap: false, text: WHEN WE'RE DONE}
+  - elementId: exit-body
+    elementType: text
+    bounds: [64, 446, 832, 50]
+    content:
+      style: "$body"
+      text: |
+        <p>You will know the incident story, be logged into everything, and have
+        points on the board. Then the exercise clock starts for real.</p>
+  - elementId: footer
+    elementType: text
+    bounds: [64, 505, 700, 18]
+    content: {style: "$small", wrap: false, text: OPERATION SILENT RIDGE — EXERCISE ONLY}
+  - elementId: pagenum
+    elementType: text
+    bounds: [880, 505, 40, 18]
+    content: {style: "$small", align: [right, top], wrap: false, text: "2"}

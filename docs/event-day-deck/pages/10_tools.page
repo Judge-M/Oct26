@@ -1,0 +1,75 @@
+pageType: content
+background:
+  type: solid
+  color: "$paper"
+elements:
+  - elementId: tag
+    elementType: text
+    bounds: [64, 40, 400, 20]
+    content: {style: "$tag", wrap: false, text: PART 2 · YOUR SETUP}
+  - elementId: title
+    elementType: text
+    bounds: [64, 66, 832, 40]
+    content: {style: "$title", wrap: false, text: "Five tools, five jobs — the question always names its tool"}
+  - elementId: rule
+    elementType: line
+    bounds: [64, 116, 832, 2]
+    viewBox: [832, 2]
+    points: "0,1 832,1"
+    curve: sharp
+    border: {style: solid, width: 2, color: "$line"}
+  - elementId: table
+    elementType: table
+    bounds: [64, 138, 832, 280]
+    columnWidths: [0.2, 0.14, 0.66]
+    rowHeights: [0.16, 0.168, 0.168, 0.168, 0.168, 0.168]
+    style:
+      cellStyle:
+        fontSize: 13
+        color: "$ink"
+        align: [left, middle]
+        border: [null, null, {style: solid, width: 1, color: "$line"}, null]
+      firstRowStyle:
+        bold: true
+        color: "$slate"
+        border: [null, null, {style: solid, width: 2, color: "$slate"}, null]
+    rows:
+      - - text: TOOL
+        - text: QUESTIONS
+        - text: WHAT YOU DO WITH IT
+      - - text: Autopsy
+        - text: 32 of 80
+        - text: Open the prepared case on the desktop; browse files, search keywords, inspect the artifacts the question points at
+      - - text: Wazuh
+        - text: 24 of 80
+        - text: "In your own browser (:8443): Discover → historical data view → set the UTC range in the question, then filter one step at a time"
+      - - text: Wireshark
+        - text: 8 of 80
+        - text: Open the capture under /evidence/network; apply the display filter the question suggests (e.g. udp.port == 514)
+      - - text: Cutter
+        - text: 8 of 80
+        - text: Static analysis only — open the training binary, read strings and named functions; never debug or run it
+      - - text: File manager
+        - text: 8 of 80
+        - text: Walk the /evidence tree and read files directly — the simplest tool, try it first when unsure
+  - elementId: hint-title
+    elementType: text
+    bounds: [64, 436, 300, 22]
+    content: {style: "$tag", wrap: false, text: IF A TOOL FEELS FOREIGN}
+  - elementId: hint-body
+    elementType: text
+    bounds: [64, 460, 832, 40]
+    content:
+      style: "$body"
+      fontSize: 14
+      text: |
+        <p>Every question's free help levels include a beginner walkthrough for its tool —
+        which button, which view, which filter. You are never expected to know the tool already.</p>
+  - elementId: footer
+    elementType: text
+    bounds: [64, 505, 700, 18]
+    content: {style: "$small", wrap: false, text: OPERATION SILENT RIDGE — EXERCISE ONLY}
+  - elementId: pagenum
+    elementType: text
+    bounds: [880, 505, 40, 18]
+    content: {style: "$small", align: [right, top], wrap: false, text: "10"}
