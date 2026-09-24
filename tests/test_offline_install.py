@@ -185,6 +185,45 @@ class InstallTests(unittest.TestCase):
         needed = preflight_disk(self.bundle, self.dest, runner_free_bytes=10 ** 12)
         self.assertGreater(needed, 0)
 
+    def _add_image_tags(self):
+        manifest = json.loads((self.bundle / 'release-manifest.json').read_text())
+        manifest['image_tags'] = {'integration': 'silent-ridge-integration:dev',
+                                  'iris': 'silent-ridge-iris:dev'}
+        (self.bundle / 'release-manifest.json').write_text(json.dumps(manifest),
+                                                           encoding='utf-8')
+        sums = json.loads((self.bundle / 'SHA256SUMS.json').read_text())
+        sums['release-manifest.json'] = sha256(self.bundle / 'release-manifest.json')
+        (self.bundle / 'SHA256SUMS.json').write_text(json.dumps(sums), encoding='utf-8')
+
+    def _tag_runner(self, tag_map):
+        def runner(*args):
+            if args[:2] == ('docker', 'load'):
+                return ''
+            if args[:3] == ('docker', 'image', 'ls'):
+                return 'sha256:' + '1' * 64 + '\n' + 'sha256:' + '2' * 64 + '\n'
+            if args[:3] == ('docker', 'image', 'inspect'):
+                return tag_map[args[-1]] + '\n'
+            raise AssertionError(args)
+        return runner
+
+    def test_tags_verified_after_load(self):
+        """A load that restores only untagged <none> images passes the ID check but
+        breaks compose (pull_policy: never); tags must be verified too."""
+        self._add_image_tags()
+        runner = self._tag_runner({'silent-ridge-integration:dev': 'sha256:' + '1' * 64,
+                                   'silent-ridge-iris:dev': 'sha256:' + '2' * 64})
+        receipt = install(self.bundle, self.dest, runner=runner)
+        self.assertTrue(receipt['tags_verified'])
+
+    def test_wrong_tag_after_load_fails(self):
+        self._add_image_tags()
+        runner = self._tag_runner({'silent-ridge-integration:dev': 'sha256:' + '1' * 64,
+                                   'silent-ridge-iris:dev': 'sha256:' + '9' * 64})
+        with self.assertRaises(InstallError) as ctx:
+            install(self.bundle, self.dest, runner=runner)
+        self.assertIn('did not restore expected tags', str(ctx.exception))
+        self.assertFalse(self.dest.exists())
+
 
 if __name__ == '__main__':
     unittest.main()

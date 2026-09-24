@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from ridge.bundle import split_file
+from ridge.bundle import save_refs, split_file
 from ridge.offline_install import image_parts
 
 
@@ -47,6 +47,33 @@ class SplitFileTests(unittest.TestCase):
         target.write_bytes(b'x')
         with self.assertRaises(ValueError):
             split_file(target, 0)
+
+
+class SaveRefsTests(unittest.TestCase):
+    """docker image save must receive tags, never bare IDs — an ID-saved archive
+    loads as untagged <none> images and every compose file then fails on a cold
+    host (pull_policy: never)."""
+
+    IDS = {'integration': 'sha256:' + '1' * 64, 'iris': 'sha256:' + '2' * 64}
+    TAGS = {'integration': 'silent-ridge-integration:dev', 'iris': 'silent-ridge-iris:dev'}
+
+    def test_uses_manifest_tags(self):
+        manifest = {'images': dict(self.IDS), 'image_tags': dict(self.TAGS)}
+        inspect = lambda ref: self.IDS[{v: k for k, v in self.TAGS.items()}[ref]]
+        refs = save_refs(manifest, inspect=inspect)
+        self.assertEqual(sorted(refs), sorted(self.TAGS.values()))
+
+    def test_missing_image_tags_named(self):
+        manifest = {'images': dict(self.IDS)}
+        with self.assertRaises(ValueError) as ctx:
+            save_refs(manifest, inspect=lambda ref: '')
+        self.assertIn('image_tags', str(ctx.exception))
+
+    def test_tag_resolving_to_wrong_id_fails(self):
+        manifest = {'images': dict(self.IDS), 'image_tags': dict(self.TAGS)}
+        with self.assertRaises(ValueError) as ctx:
+            save_refs(manifest, inspect=lambda ref: 'sha256:' + '9' * 64)
+        self.assertIn('expected', str(ctx.exception))
 
 
 if __name__ == '__main__':

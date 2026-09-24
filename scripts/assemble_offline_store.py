@@ -126,7 +126,8 @@ def main():
     images = {name: by_tag[tag] for name, tag in tags.items()}
     manifest = {'schema': 1, 'release': 'silent-ridge-expanded-1',
                 'source_commit': commit, 'compatibility_verified': False,
-                'images': images, 'artifacts': artifacts,
+                'images': images, 'image_tags': dict(tags),
+                'artifacts': artifacts,
                 'missing': ['ten-team capacity gate (F03)', 'dress rehearsal (F06)',
                             'GHCR image publishing']}
     out = REPO / 'work' / 'offline-manifest.json'

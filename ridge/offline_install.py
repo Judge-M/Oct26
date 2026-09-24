@@ -144,6 +144,19 @@ def install(bundle, destination, runner=None, load=True, free_bytes=None):
             missing = [image for image in images if image not in listed]
             if missing:
                 raise InstallError('docker load did not produce image IDs: ' + ', '.join(missing))
+            # A load that restores only untagged <none> images passes the ID check
+            # but breaks every compose file (pull_policy: never). Verify the tags.
+            expected_tags = manifest.get('image_tags') or {}
+            if expected_tags:
+                mismatched = []
+                for kind, tag in sorted(expected_tags.items()):
+                    actual = runner('docker', 'image', 'inspect', '--format', '{{.Id}}',
+                                    tag).strip()
+                    if actual != manifest['images'].get(kind):
+                        mismatched.append('%s (%s)' % (kind, tag))
+                if mismatched:
+                    raise InstallError('docker load did not restore expected tags: '
+                                       + ', '.join(mismatched))
         receipt = {
             'schema': 1,
             'release': manifest['release'],
@@ -152,6 +165,7 @@ def install(bundle, destination, runner=None, load=True, free_bytes=None):
             'certification_gap': None if certified is True else certified,
             'images': sorted(set(manifest.get('images', {}).values())),
             'images_loaded': bool(load),
+            'tags_verified': bool(load and manifest.get('image_tags')),
             'source': 'source',
             'next': [
                 'cd source && python -m ridge.deploy doctor',

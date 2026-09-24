@@ -75,6 +75,31 @@ print(json.dumps(out))
     return expected
 
 
+def save_refs(manifest, inspect=None):
+    """Tags to pass to ``docker image save`` — never bare image IDs.
+
+    Saving by ID produces an archive with no RepoTags; ``docker load`` then
+    restores untagged <none> images and every compose file (pull_policy:
+    never) fails on a cold host. Tags come from the manifest's image_tags
+    (assembly time), falling back to the daemon's RepoTags for older
+    manifests. Each tag must resolve to the manifest's image ID."""
+    inspect = inspect or (lambda ref: subprocess.check_output(
+        ['docker', 'image', 'inspect', '--format', '{{.Id}}', ref], text=True).strip())
+    refs = []
+    tags = manifest.get('image_tags') or {}
+    for kind, image in sorted(manifest['images'].items()):
+        tag = tags.get(kind)
+        if tag is None:
+            raise ValueError('manifest has no image_tags.%s; re-assemble the store with a '
+                             'current scripts/assemble_offline_store.py so the bundle keeps '
+                             'image tags' % kind)
+        actual = inspect(tag)
+        if actual != image:
+            raise ValueError('tag %s resolves to %s, expected %s' % (tag, actual, image))
+        refs.append(tag)
+    return refs
+
+
 def pack(store,manifest,destination,allow_incomplete=False,max_part_bytes=None):
     store=Path(store);destination=Path(destination)
     if destination.exists():raise ValueError('Use a new bundle destination')
@@ -107,7 +132,7 @@ def pack(store,manifest,destination,allow_incomplete=False,max_part_bytes=None):
         if target.exists():raise ValueError('Artifact collides with bundle metadata')
         target.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(source,target)
     subprocess.run(['docker','image','save','--output',str(destination/'validated-images.tar'),
-                    *sorted(set(manifest['images'].values()))],check=True)
+                    *save_refs(manifest)],check=True)
     manifest=dict(manifest,artifacts=[a for a in manifest['artifacts'] if a['kind']!='containers'])
     if allow_incomplete:
         manifest['certification']='drill-uncertified'
