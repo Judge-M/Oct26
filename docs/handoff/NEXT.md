@@ -63,6 +63,20 @@ real load runs on event hardware in Phase 0 of
 tagless — treat it as superseded; the next published release must come
 from this branch's tooling.**
 
+Release publication (2026-09-24): tag `v0.10.0-rehearsal` on `e67ef27`
+pushed; all three tag workflows (validate, desktop build, publish) ran
+green. The prerelease carries the 7 workflow artifacts plus the full
+rehearsal bundle from `work/offline-bundle-v010` as 26 `bundle-*` /
+`*part-NNN` assets (800 MB parts; `bundle-source.zip.part-001..008`,
+`validated-images.tar.part-001..008`, vault, autopsy, memory, disk,
+evidence, guides, manifests). All 33 assets size-verified against the
+staged copies after upload. This is the first published release whose
+image tar carries RepoTags and whose bundle includes the release vault —
+**use `v0.10.0-rehearsal`, not `v0.9.x-drill`, for any cold install.**
+The local staging dir `work/release-assets-v0100` is an upload copy and
+can be deleted; `work/offline-bundle` (the old 17 GB v0.9.0-drill
+assembly) is superseded and can also be deleted to reclaim disk.
+
 Rehearsal session plan: `docs/dress-rehearsal-plan.md` sequences the
 event-hardware day end-to-end — bundle reassembly (must include the
 release vault; `v0.9.0-drill` predates it), timed cold install, F03
