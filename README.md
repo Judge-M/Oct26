@@ -92,8 +92,12 @@ unless you set `BIND_IP`):
 | Team desktops (Guacamole) | `http://<host>:8082` |
 | IRIS incident case | `http://<host>:8081` |
 | CTFd questions and score | `http://<host>:8083` |
+| Wazuh dashboard | `https://<host>:8443` |
 
 ## Running the event
+
+The [event-day command sheet](docs/event-day-commands.md) is the
+cold-machine → running-event → teardown checklist with exact commands.
 
 ```bash
 python -m ridge.deploy pause   --profile ... --runtime ...   # pause the clock

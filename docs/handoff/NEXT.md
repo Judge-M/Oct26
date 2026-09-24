@@ -6,7 +6,9 @@ completion in PRs 14–20. Existing task cards provide the detailed requirements
 ## Current position (updated 2026-09-23)
 
 N1–N5 are done (receipts in this directory). **F03 is in progress**: load
-tooling merged (PR #43), event-host runbook + dress-rehearsal fixes in PR #44,
+tooling merged (PR #43), runbook + dress-rehearsal fixes + `--teams N`
+switch merged (PRs #44/#45), capacity model retuned from measurements
+(PR #46), event-day command sheet at `docs/event-day-commands.md`;
 interim evidence and remaining steps in [F03-PROGRESS.md](F03-PROGRESS.md).
 The only F03 action left is the certifying 10-team/30-session run on event
 hardware per `docs/f03-rehearsal.md`. F06 (full dress rehearsal) waits on F03.
