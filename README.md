@@ -71,6 +71,13 @@ python -m ridge.deploy status --profile path/to/profile.json --runtime path/to/r
 python -m ridge.deploy start  --profile path/to/profile.json --runtime path/to/runtime
 ```
 
+Team count is a start-time switch, not a profile rewrite:
+`up --teams N` (1–10) provisions N neutral teams (team-01…team-N, three
+seats each) on N desktops no matter what the profile roster says. The
+choice is recorded in the runtime and reused by every later command; use
+a fresh runtime directory to change it. The profile's declared host
+capacity is still checked against the requested count.
+
 `up` builds out the entire stack and stops at a verified, paused state —
 nothing is visible to participants until you explicitly `start`. The `runtime`
 directory is private: it holds the event's secrets, state, and the team
@@ -123,7 +130,15 @@ findings and points landing in IRIS and CTFd. An offline drill release,
 [`v0.9.0-drill`](https://github.com/Judge-M/Oct26/releases/tag/v0.9.0-drill),
 packages every image and asset and has been cold-install-tested from the
 release page alone (fresh download, hash-verified, all 13 images loaded). Its
-notes carry the install steps and the honest certification gaps. Before the
+notes carry the install steps and the honest certification gaps.
+
+**Picking up development (human or agent): start at
+[`docs/handoff/NEXT.md`](docs/handoff/NEXT.md)** — its "Current position"
+section says what is done, what is in flight, and the single next action,
+with links to receipts and evidence. Task cards live alongside it in
+`docs/handoff/tasks/`.
+
+Before the
 late-October event, the remaining work is tracked in `docs/handoff/NEXT.md`:
 
 - AWS deployment option (AMI, cloud fencing, teardown) — not yet built
@@ -142,7 +157,7 @@ late-October event, the remaining work is tracked in `docs/handoff/NEXT.md`:
 | `ridge/` | The event platform: state core, deployment, CLI |
 | `deployment/` | Container builds, compose files, example profiles |
 | `docs/` | Architecture, operations, and planning documents |
-| `docs/handoff/` | Build records and task cards from the development effort |
+| `docs/handoff/` | **Start here when picking up work**: `NEXT.md` (current position), receipts, evidence, and task cards |
 | `tests/` | Automated test suite (`python -m unittest discover -s tests`) |
 | `app/`, `admin/`, root `Dockerfile` | Retired rehearsal portal, kept only as a test fixture — not part of the event |
 

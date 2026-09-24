@@ -274,12 +274,15 @@ def run(config, duration, output):
     samples, container_q, outbox_samples = [], queue.Queue(), []
     bots = []
     for team in sorted(creds['teams'])[: config['teams']]:
+        entry = creds['teams'][team]
+        accounts = entry.get('accounts', {})
         for seat in range(1, config['sessions_per_team'] + 1):
             user = f'{team}-p{seat:02d}'
-            password = creds['ctfd']['users'].get(user)
+            password = accounts.get(user)
             if password:
                 bots.append(CtfdBot(config['ctfd_url'], user, password, samples))
-        bots.append(IrisBot(config['iris_url'], team, creds['teams'][team]['password'], samples))
+        bots.append(IrisBot(config['iris_url'], entry['iris_login'],
+                            entry['iris_password'], samples))
     if not bots:
         raise LoadError('No credentials matched the requested team count')
     for bot in bots:

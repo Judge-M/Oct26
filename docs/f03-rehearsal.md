@@ -23,10 +23,14 @@ smoke run.
 
 ## Procedure
 
-1. Bring the event stack up (paused) with the ten-desktop profile:
+1. Bring the event stack up (paused). `--teams 10` provisions ten neutral
+   teams regardless of the profile roster; the declared host capacity is
+   still checked (the capacity model currently reserves 8 GiB and 4 vCPU
+   per desktop, so the profile must declare ≈44 vCPU / 88 GiB for ten
+   teams — see the note below before event day):
 
    ```bash
-   python -m ridge.deploy up --profile <profile.json> --runtime <runtime-dir>
+   python -m ridge.deploy up --teams 10 --profile <profile.json> --runtime <runtime-dir>
    ```
 
 2. Create `f03-config.json` (paths relative to the repo root; omit
@@ -71,6 +75,33 @@ smoke run.
 
 ## Notes and known traps
 
+Verified by a full dress rehearsal on the dev host (2 teams, 180 s,
+473/473 requests OK, outbox flat); still non-certifying by definition.
+
+- `up` is an idempotent reconcile: re-run it until every stage verifies.
+- **Capacity model vs measurements**: profile validation reserves
+  8 GiB + 4 vCPU per desktop (44 vCPU / 88 GiB declared for 10 teams),
+  but the measured desktop peak after the heap tuning is ~1.6 GiB and the
+  whole 2-team stack peaked at 6.4 GiB. If the event host declares less
+  than the model demands, `up --teams 10` fails validation. Revising the
+  model from F03 measurements is part of closing F03 — do not weaken it
+  before the certifying run produces real 10-team numbers.
+  First boot takes minutes — the guacd image's own healthcheck only runs
+  every 300 s, so the desktop-access stage cannot verify sooner.
+- `up` now creates the external networks (`<event>-central`,
+  `<event>-desktop`, `<event>-wazuh_wazuh-backend`) itself; older checkouts
+  fail fresh bring-ups with "declared as external, but could not be found".
+- The `wazuh_config` asset directory embeds the *hashed* Wazuh admin
+  password. A runtime's `secrets/wazuh_admin` must be the matching
+  cleartext pair — reusing a vendored config from an earlier run with a
+  freshly generated secret gives HTTP 401 from the indexer job. Keep
+  config and secrets from the same generation.
+- The indexer dedupes telemetry by content hash: if `telemetry.jsonl`
+  contains duplicate lines the document count is the *unique* count
+  (the probe was fixed to expect that; 505 docs from 508 lines is correct).
+- The credentials file shape is `teams.<team>.accounts` (CTFd seat
+  passwords) plus `iris_login`/`iris_password` per team; older restored
+  runtimes used a different shape and will fail bot login loudly.
 - The stock CTFd challenge API is deliberately closed to participants;
   the harness drives `/silent-ridge`, which is the real flow.
 - Never let other tools open the live `state.sqlite` from the host while
@@ -79,6 +110,7 @@ smoke run.
   `/silent-ridge`). The harness byte-copies before reading; keep it that
   way.
 - Answer POSTs use the wrong-on-purpose answer `load-test-probe`; a
-  rehearsal never earns points. If a run happens while questions are
-  already answered (e.g. a restored drill state), the answer path is
-  simply not exercised — say so in the evidence.
+  rehearsal never earns points. The answer form only renders for tickets
+  the team has claimed in IRIS, so a bare `start` + load run exercises
+  reads only — to cover the answer write path live, claim a ticket for
+  one team first (or accept unit-test coverage and say so in the evidence).

@@ -4,8 +4,8 @@ import unittest
 from copy import deepcopy
 from pathlib import Path
 
-from ridge.deploy.config import (ProfileError, desired_inventory, fingerprint,
-                                 neutral_roster, resolve_inventory, validate)
+from ridge.deploy.config import (ProfileError, apply_team_override, desired_inventory,
+                                 fingerprint, neutral_roster, resolve_inventory, validate)
 
 ROOT = Path(__file__).resolve().parents[1]
 TWO = json.loads((ROOT / 'deployment/profiles/example-two-team.json').read_text(encoding='utf-8'))
@@ -57,6 +57,31 @@ class DeployProfileTests(unittest.TestCase):
         with self.assertRaises(ProfileError) as caught:
             validate(profile)
         self.assertEqual(caught.exception.field, 'desktops[1].name')
+
+    def test_team_override_synthesizes_roster_and_desktops(self):
+        overridden = apply_team_override(TWO, 10)
+        # The capacity checker rightly insists the declared host can carry
+        # the requested roster; the example two-team profile cannot.
+        overridden['capacity']['host'] = {'vcpus': 48, 'memory_mib': 131072,
+                                          'disk_gib': 1000}
+        validated = validate(overridden)
+        self.assertEqual(len(validated['roster']['teams']), 10)
+        self.assertEqual(len(validated['desktops']), 10)
+        self.assertEqual(validated['roster']['teams'][9]['name'], 'team-10')
+        self.assertEqual(validated['roster']['teams'][9]['desktop'], 'desktop-10')
+        # The input profile is not mutated:
+        self.assertEqual(len(TWO['desktops']), 2)
+
+    def test_team_override_keeps_capacity_enforcement(self):
+        # Two-team example capacity (16 vCPU) cannot carry 10 teams:
+        with self.assertRaises(ProfileError) as caught:
+            validate(apply_team_override(TWO, 10))
+        self.assertIn('capacity.host', caught.exception.field)
+
+    def test_team_override_rejects_counts_beyond_compose(self):
+        for bad in (0, 11, '10', True):
+            with self.assertRaises(ProfileError):
+                apply_team_override(TWO, bad)
 
     def test_unmapped_desktop_rejected(self):
         profile = deepcopy(TWO)
