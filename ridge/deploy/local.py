@@ -189,6 +189,23 @@ def _utcnow():
     return datetime.now(timezone.utc)
 
 
+def _state_watermark(path):
+    """(audit high-water mark, fenced) for an exercise state DB, read without
+    modifying the file (immutable URI — recovery sets are hash-verified).
+    A missing file reads as (0, False); an unreadable schema refuses the wipe
+    by raising — silence here would defeat the staleness check."""
+    path = Path(path)
+    if not path.is_file():
+        return 0, False
+    con = sqlite3.connect('file:%s?mode=ro&immutable=1' % path.as_posix(), uri=True)
+    try:
+        mark = con.execute('SELECT COALESCE(MAX(id), 0) FROM audit').fetchone()[0]
+        fenced = bool(con.execute('SELECT fenced FROM control').fetchone()[0])
+        return mark, fenced
+    finally:
+        con.close()
+
+
 class LocalStack:
     """Stage-by-stage local lifecycle over one runtime directory."""
 
@@ -1074,9 +1091,38 @@ class LocalStack:
     def down(self, volumes=False):
         """Stop every project, preserving volumes and state. With --volumes, also
         remove event-owned volumes — destructive, and refused unless a completed,
-        verified recovery set exists under runtime/backups first."""
+        verified recovery set exists under runtime/backups that still matches the
+        live exercise state. Both checks run BEFORE anything is stopped: a refused
+        wipe must never take the event offline."""
         journal = Journal.open(self.runtime / 'deploy-journal.sqlite')
         with journal.lock(self.operator):
+            verified = None
+            if volumes:
+                from ridge.deploy import recovery
+                backups = self.runtime / 'backups'
+                sets = sorted(backups.iterdir()) if backups.is_dir() else []
+                for candidate in reversed(sets):
+                    try:
+                        recovery.verify_set(candidate)
+                        verified = candidate
+                        break
+                    except recovery.RecoveryError:
+                        continue
+                if verified is None:
+                    raise LifecycleError('down --volumes refused: no completed, verified '
+                                         'recovery set under %s; run backup first. Nothing '
+                                         'was stopped or removed.' % backups)
+                backup_mark, _ = _state_watermark(verified / 'state' / 'state.sqlite')
+                live_mark, live_fenced = _state_watermark(self.state_path)
+                if live_mark > backup_mark and not live_fenced:
+                    raise LifecycleError('down --volumes refused: the exercise progressed '
+                                         '(audit watermark %d) after the newest verified '
+                                         'recovery set was taken (%d); run backup again to '
+                                         'capture the newer scores and work. Nothing was '
+                                         'stopped or removed.' % (live_mark, backup_mark))
+                # A fenced site is exempt from the freshness check: fencing only
+                # appends control-plane audit rows, and backup deliberately refuses
+                # fenced sites — the pre-fence set is the final state by design.
             stopped = []
             for kind in ('integration', 'desktops', 'guacamole', 'central', 'wazuh'):
                 if volumes:
@@ -1088,21 +1134,6 @@ class LocalStack:
             journal.set_state('STOPPED')
             removed = []
             if volumes:
-                from ridge.deploy import recovery
-                backups = self.runtime / 'backups'
-                sets = sorted(backups.iterdir()) if backups.is_dir() else []
-                verified = None
-                for candidate in reversed(sets):
-                    try:
-                        recovery.verify_set(candidate)
-                        verified = candidate
-                        break
-                    except recovery.RecoveryError:
-                        continue
-                if verified is None:
-                    raise LifecycleError('down --volumes refused: no completed, verified '
-                                         'recovery set under %s; run backup first. Nothing '
-                                         'was removed.' % backups)
                 names = recovery.data_volumes(self.event) + \
                     recovery.team_volumes(self.event, self.teams) + [
                         self.event + '-iris-db', self.event + '-ctfd-db',

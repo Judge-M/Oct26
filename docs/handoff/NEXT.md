@@ -15,6 +15,12 @@ hardware per `docs/f03-rehearsal.md`. F06 (full dress rehearsal) waits on F03.
 AWS track (E03–E05) remains deferred by the organizer until after the local
 release is proven.
 
+External code review fixes: a review of `e3e6060` found three
+teardown/fencing defects (fence missing from CLI dispatch; `down
+--volumes` accepted stale backups; a refused wipe still stopped the
+event). All three fixed with five regression tests on PR #49 — merge
+before the dress rehearsal and before relying on event-day teardown.
+
 Participant-facing material: event-day briefing deck at
 `docs/event-day-deck/` (13 slides — narrative + click-by-click setup,
 validated with `kimi-slides check` and full-page screenshots; PR #48).

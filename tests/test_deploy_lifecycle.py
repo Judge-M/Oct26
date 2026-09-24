@@ -2,6 +2,8 @@
 re-probes, truthful pause status and start gating. Everything runs against a
 scripted fake runner and a temporary runtime; no Docker is touched.
 """
+import contextlib
+import io
 import json
 import sqlite3
 import sys
@@ -420,6 +422,82 @@ class LifecycleTests(unittest.TestCase):
         with self.assertRaises(LifecycleError) as ctx:
             self.stack.switch()
         self.assertIn('E04', str(ctx.exception))
+
+    def _drain_outbox(self):
+        con = sqlite3.connect(self.stack.state_path)
+        con.execute('UPDATE outbox SET done=1')
+        con.commit()
+        con.close()
+
+    def _audit_tick(self):
+        """Simulate event progress after a backup: one more audit row."""
+        con = sqlite3.connect(self.stack.state_path)
+        con.execute("INSERT INTO audit(timestamp, actor, action, detail) "
+                    "VALUES ('2026-09-24T00:00:00Z', 'test', 'progress', '{}')")
+        con.commit()
+        con.close()
+
+    def test_down_volumes_without_backup_stops_nothing(self):
+        self.stack.up(self.source)
+        with self.assertRaises(LifecycleError) as ctx:
+            self.stack.down(volumes=True)
+        self.assertIn('backup first', str(ctx.exception))
+        # The refusal happens before any stop: all projects still up, journal not STOPPED.
+        self.assertEqual(len(self.runner.up_projects), 5)
+        journal = Journal.open(self.runtime / 'deploy-journal.sqlite')
+        self.assertNotEqual(journal.state, 'STOPPED')
+
+    def test_down_volumes_refuses_stale_backup(self):
+        self.stack.up(self.source)
+        self._drain_outbox()
+        self.stack.backup()
+        self._audit_tick()  # event progressed after the newest verified set
+        with self.assertRaises(LifecycleError) as ctx:
+            self.stack.down(volumes=True)
+        self.assertIn('progressed', str(ctx.exception))
+        self.assertEqual(len(self.runner.up_projects), 5)
+        journal = Journal.open(self.runtime / 'deploy-journal.sqlite')
+        self.assertNotEqual(journal.state, 'STOPPED')
+
+    def test_down_volumes_accepts_current_backup(self):
+        self.stack.up(self.source)
+        self._drain_outbox()
+        self.stack.backup()
+        result = self.stack.down(volumes=True)
+        self.assertEqual(result['state'], 'STOPPED')
+        self.assertIn('silent-ridge-test-iris-db', result['volumes_removed'])
+        journal = Journal.open(self.runtime / 'deploy-journal.sqlite')
+        self.assertEqual(journal.state, 'STOPPED')
+
+    def test_down_volumes_after_fence_uses_pre_fence_backup(self):
+        self.stack.up(self.source)
+        self._drain_outbox()
+        self.stack.backup()
+        info = self.stack.fence()  # appends control-plane audit rows only
+        self.assertTrue(info['fenced'])
+        # backup() refuses fenced sites, so the pre-fence set must satisfy the wipe.
+        result = self.stack.down(volumes=True)
+        self.assertEqual(result['state'], 'STOPPED')
+        self.assertTrue(result['volumes_removed'])
+
+
+class FenceDispatchTests(unittest.TestCase):
+    """Regression: the fence action was accepted by the argument parser but omitted
+    from the lifecycle dispatch, silently falling through to image verification."""
+
+    def test_fence_reaches_lifecycle_dispatch(self):
+        from ridge.deploy import __main__ as deploy_main
+        argv = sys.argv
+        stderr = io.StringIO()
+        sys.argv = ['ridge.deploy', 'fence']
+        try:
+            with contextlib.redirect_stderr(stderr):
+                with self.assertRaises(SystemExit):
+                    deploy_main.main()
+        finally:
+            sys.argv = argv
+        # Lifecycle path demands --profile; the old fallthrough demanded a build.
+        self.assertIn('--profile is required for fence', stderr.getvalue())
 
 
 if __name__ == '__main__':
