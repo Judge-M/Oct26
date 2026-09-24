@@ -17,7 +17,7 @@ release is proven.
 
 Participant-facing material: event-day briefing deck at
 `docs/event-day-deck/` (13 slides — narrative + click-by-click setup,
-validated with `kimi-slides check` and full-page screenshots; PR pending).
+validated with `kimi-slides check` and full-page screenshots; PR #48).
 
 ## N1 — Built central services and automatic two-team identities
 
