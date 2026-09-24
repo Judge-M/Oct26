@@ -40,7 +40,14 @@ to participants). Windows operators may use `.\ridge.ps1 <action> -Profile P
    and **refuses unless a verified backup exists**.
 
 Participant URLs (default ports; set `BIND_IP` to the LAN address so participant
-laptops can reach them): Guacamole desktops `:8082`, IRIS case `:8081`, CTFd `:8083`.
+laptops can reach them): Guacamole desktops `:8082`, IRIS case `:8081`,
+CTFd `:8083`, Wazuh dashboard `:8443` (HTTPS; the shared read-only login is in
+the runtime at `secrets/wazuh_reader` — hand it out with the team accounts).
+All four open in the participant's own laptop browser — the
+remote desktop is only needed for the native tools (Autopsy, Wireshark,
+Cutter, file manager), so steer participants away from browsing inside it:
+an in-desktop Firefox costs the shared desktop roughly another gigabyte and
+adds VNC lag.
 
 ## Symptom → diagnostic → action
 

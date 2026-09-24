@@ -61,6 +61,25 @@ capacity.
 - Per-container peaks (fresh stack): iris-worker 2.5 GiB, wazuh-indexer
   1.9 GiB, desktops ~1.6 GiB, everything else ≤ 0.75 GiB.
 
+## Capacity model retune (2026-09-23)
+
+Validation now uses measured reservations instead of the original
+placeholder 8 GiB / 4 vCPU per desktop: central 6 GiB, desktop
+2 GiB / 1 vCPU / 15 GiB, plus a 20% memory headroom factor in
+`_check_capacity`. Consequence: a 32 GiB / 16-core host validates for
+`--teams 10`, matching the README's stated minimum. The AWS example
+profile's desktop VM was resized to 4 GiB (t3.medium class). These are
+measured *peaks with margin*, and the certifying run should confirm or
+adjust them — the check is not weakened, just realistic.
+
+Related participant-experience change: all web apps (IRIS :8081,
+CTFd :8083, Wazuh :8443, Guacamole :8082) are now documented as
+own-laptop-browser destinations; the remote desktop is for native tools
+only (Autopsy 32/80 questions, Wireshark 8, Cutter 8, file manager 8 —
+the 24 Wazuh questions no longer require an in-desktop Firefox). This
+keeps ~1 GiB of browser RAM per desktop out of the capacity budget.
+
+
 ## Known limitations / what remains for F03
 
 - Certifying run on the event host: 10 teams × 30 sessions, ≥ 30 min,

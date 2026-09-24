@@ -357,10 +357,17 @@ def _assert_no_fixed_ids(node, field=''):
 
 def _check_capacity(capacity, roster):
     teams = len(roster['teams'])
-    for key in ('vcpus', 'memory_mib', 'disk_gib'):
+    for key in ('vcpus', 'disk_gib'):
         needed = capacity['central'][key] + teams * capacity['desktop'][key]
         if capacity['host'][key] < needed:
             _fail('capacity.host.' + key, 'insufficient for %d teams: need %d' % (teams, needed))
+    # Memory carries a 20% headroom factor (F03 target: no OOM/swap collapse
+    # and at least 20% measured capacity reserve at peak). Reservations
+    # themselves are measured peaks, not limits, so the factor is the margin.
+    needed = (capacity['central']['memory_mib'] + teams * capacity['desktop']['memory_mib']) * 6 // 5
+    if capacity['host']['memory_mib'] < needed:
+        _fail('capacity.host.memory_mib',
+              'insufficient for %d teams with 20%% headroom: need %d' % (teams, needed))
 
 
 def validate(profile, kind=None):

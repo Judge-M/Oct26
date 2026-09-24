@@ -73,10 +73,19 @@ class DeployProfileTests(unittest.TestCase):
         self.assertEqual(len(TWO['desktops']), 2)
 
     def test_team_override_keeps_capacity_enforcement(self):
-        # Two-team example capacity (16 vCPU) cannot carry 10 teams:
+        # A 16 GiB host cannot carry 10 teams with 20% memory headroom
+        # (need (6144 + 10x2048) x 1.2 = 31948 MiB):
+        overridden = apply_team_override(TWO, 10)
+        overridden['capacity']['host']['memory_mib'] = 16384
         with self.assertRaises(ProfileError) as caught:
-            validate(apply_team_override(TWO, 10))
+            validate(overridden)
         self.assertIn('capacity.host', caught.exception.field)
+
+    def test_two_team_profile_carries_ten_teams_at_32gib(self):
+        # The measured-reservation model: a 32 GiB / 16-core host validates
+        # for the full ten-team event (README's stated minimum).
+        validated = validate(apply_team_override(TWO, 10))
+        self.assertEqual(len(validated['roster']['teams']), 10)
 
     def test_team_override_rejects_counts_beyond_compose(self):
         for bad in (0, 11, '10', True):

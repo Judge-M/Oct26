@@ -48,8 +48,11 @@ to the shared template.
 
 ## Wazuh
 
-Open Discover, select the exercise's historical data view, and set the absolute
-scenario-date UTC range shown in the question. Expand individual rows to inspect
+Open the Wazuh dashboard in your own laptop browser (the `:8443` address and
+shared reader login come from your facilitator) — not inside the shared
+desktop. Open Discover, select the exercise's historical data view, and set
+the absolute scenario-date UTC range shown in the question. Expand individual
+rows to inspect
 field names. Start broad, then add one filter at a time.
 
 Worked example: search `data.host:WS-22`. Examine ordinary activity and its source
