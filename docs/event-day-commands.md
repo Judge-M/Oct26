@@ -11,6 +11,10 @@ ready" — it is an idempotent reconcile, not a failure.
 
 ## 0. One-time host prep (before event week)
 
+**On a fresh machine, use the fully spelled-out copy-paste version of this
+section: `docs/event-machine-cold-start.md` (tailored to the
+`v0.10.0-rehearsal` release assets).** The summary below is the reference.
+
 - Docker Desktop / Docker Engine running, Python 3.11+, Git + Git LFS
 - 32 GB RAM / 16 cores minimum for 10 teams (validated by the capacity
   model with 20% memory headroom; 64 GB is comfortable)

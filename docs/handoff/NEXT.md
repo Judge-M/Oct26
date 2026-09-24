@@ -76,6 +76,11 @@ image tar carries RepoTags and whose bundle includes the release vault —
 The local staging dir `work/release-assets-v0100` is an upload copy and
 can be deleted; `work/offline-bundle` (the old 17 GB v0.9.0-drill
 assembly) is superseded and can also be deleted to reclaim disk.
+**`docs/event-machine-cold-start.md` is the single copy-paste sheet for
+the event hardware** — release download, byte-exact bundle reassembly
+(the installer expects the original 2 GiB parts, so the 800 MB release
+parts are concatenated and re-split), install, extraction, profile, up.
+It is Phase 0 of the rehearsal plan, end-to-end.
 
 Rehearsal session plan: `docs/dress-rehearsal-plan.md` sequences the
 event-hardware day end-to-end — bundle reassembly (must include the
