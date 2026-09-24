@@ -1,6 +1,6 @@
 # Operation Silent Ridge
 
-A cooperative, defensive incident-response exercise for **ten teams of three**.
+A cooperative, defensive incident-response exercise for **up to ten teams of three**.
 Participants investigate a fictional breach using real forensics and detection
 tools — Autopsy, Wireshark, Cutter and Wazuh — coordinated through a shared
 IRIS case, with questions and scoring in CTFd. Teams claim investigation
@@ -12,10 +12,48 @@ This repository contains the full event: the authored scenario and evidence,
 the tooling that builds and runs it, the participant materials, and the
 facilitator guides.
 
+## I want to run the event — where do I start?
+
+You do not need to know anything about how this project is built. You need
+one capable machine, Docker, and about half a day of preparation. Follow
+these steps in order; each one tells you when it is done.
+
+1. **Check your machine.** 32 GB RAM (64 GB comfortable), 16 CPU cores,
+   100 GB free SSD, Docker installed and running. Details and the
+   measurements behind these numbers:
+   [What you need to host it locally](#what-you-need-to-host-it-locally).
+2. **Get the software onto that machine.** Either download the offline
+   bundle from the
+   [latest release](https://github.com/Judge-M/Oct26/releases) (no internet
+   needed afterwards — the intended path for event day), or clone this repo
+   and build from source ([Quick start](#quick-start)).
+3. **Bring the event up.** Follow
+   **[docs/event-day-commands.md](docs/event-day-commands.md)** — it is the
+   complete cold-machine → running-event → teardown checklist with exact
+   commands, written to be followed literally. It covers install, the
+   pre-flight check (`doctor`), starting the stack with your team count
+   (`up --teams N`), verifying it is ready, and what to hand out.
+4. **Brief the participants.** Project the deck in
+   **[docs/event-day-deck/](docs/event-day-deck/)** — 13 slides that tell
+   the story and walk participants through every login, click by click,
+   assuming zero prior knowledge. Hand each team its account sheet (the
+   command sheet says where those files are).
+5. **Run the day.** The command sheet covers starting the clock, messaging
+   all teams, pausing, and recovering a stuck team. The
+   [operator runbook](docs/runbook.md) is the one-page symptom → action
+   reference while the event is live.
+6. **Afterwards.** One command makes a verified backup; one more tears
+   down. See [Backup, restore, teardown](#backup-restore-teardown).
+
+If something breaks, the command sheet links the troubleshooting table, and
+the participant deck has a "what to try before raising a hand" slide.
+
 ## What participants experience
 
-Each team shares one cloud-hosted-in-a-container Linux desktop (three people,
-one screen, via Guacamole in a browser — nothing to install). From there they:
+Each team shares one container-hosted Linux desktop (three people, one
+screen, via Guacamole in a browser — nothing to install on participant
+laptops). Everything else happens in the participants' own browser tabs.
+Teams:
 
 1. Claim an investigation ticket in IRIS (the shared incident case).
 2. Investigate with the desktop tools: disk images in Autopsy, network
@@ -50,6 +88,10 @@ A two-team pilot runs comfortably on 16 GB RAM (measured: ~8.4 GiB for the
 whole stack with two desktops, one under Autopsy load).
 
 ## Quick start
+
+The easiest install is the offline bundle from the
+[releases page](https://github.com/Judge-M/Oct26/releases) — its notes carry
+the install steps. To build from source instead:
 
 ```bash
 git clone https://github.com/Judge-M/Oct26.git
@@ -98,6 +140,9 @@ unless you set `BIND_IP`):
 
 The [event-day command sheet](docs/event-day-commands.md) is the
 cold-machine → running-event → teardown checklist with exact commands.
+The [participant briefing deck](docs/event-day-deck/) (13 slides) is what
+you project at the start: it explains the scenario and walks participants
+through setup click by click.
 
 ```bash
 python -m ridge.deploy pause   --profile ... --runtime ...   # pause the clock
@@ -134,7 +179,10 @@ findings and points landing in IRIS and CTFd. An offline drill release,
 [`v0.9.0-drill`](https://github.com/Judge-M/Oct26/releases/tag/v0.9.0-drill),
 packages every image and asset and has been cold-install-tested from the
 release page alone (fresh download, hash-verified, all 13 images loaded). Its
-notes carry the install steps and the honest certification gaps.
+notes carry the install steps and the honest certification gaps. Event-day
+materials are ready: the operator command sheet
+(`docs/event-day-commands.md`) and the participant briefing deck
+(`docs/event-day-deck/`).
 
 **Picking up development (human or agent): start at
 [`docs/handoff/NEXT.md`](docs/handoff/NEXT.md)** — its "Current position"
@@ -145,11 +193,12 @@ with links to receipts and evidence. Task cards live alongside it in
 Before the
 late-October event, the remaining work is tracked in `docs/handoff/NEXT.md`:
 
-- AWS deployment option (AMI, cloud fencing, teardown) — not yet built
 - Ten-team capacity rehearsal on the actual event hardware
-- A beginner rehearsal to validate the 4–5 hour duration with real people
 - Desktop image rebuild with the measured Autopsy heap cap, then the final
   event release, operator freeze, and dress rehearsal
+- A beginner rehearsal to validate the 4–5 hour duration with real people
+- AWS deployment option (AMI, cloud fencing, teardown) — deferred until the
+  local release is proven
 
 ## Repository map
 
@@ -161,6 +210,8 @@ late-October event, the remaining work is tracked in `docs/handoff/NEXT.md`:
 | `ridge/` | The event platform: state core, deployment, CLI |
 | `deployment/` | Container builds, compose files, example profiles |
 | `docs/` | Architecture, operations, and planning documents |
+| `docs/event-day-commands.md` | **Run the event**: cold-machine → teardown checklist |
+| `docs/event-day-deck/` | **Brief participants**: 13-slide setup + story deck |
 | `docs/handoff/` | **Start here when picking up work**: `NEXT.md` (current position), receipts, evidence, and task cards |
 | `tests/` | Automated test suite (`python -m unittest discover -s tests`) |
 | `app/`, `admin/`, root `Dockerfile` | Retired rehearsal portal, kept only as a test fixture — not part of the event |

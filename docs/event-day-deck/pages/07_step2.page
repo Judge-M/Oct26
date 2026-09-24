@@ -1,0 +1,78 @@
+pageType: content
+background:
+  type: solid
+  color: "$paper"
+elements:
+  - elementId: tag
+    elementType: text
+    bounds: [64, 40, 400, 20]
+    content: {style: "$tag", wrap: false, text: PART 2 · YOUR SETUP — STEP 2 OF 4}
+  - elementId: stepnum
+    elementType: text
+    bounds: [64, 90, 110, 60]
+    content: {style: "$stepnum", wrap: false, text: "2"}
+  - elementId: title
+    elementType: text
+    bounds: [170, 96, 726, 44]
+    content: {style: "$title", fontSize: 27, wrap: false, text: Open CTFd in a second tab and log in as yourself}
+  - elementId: rule
+    elementType: line
+    bounds: [64, 160, 832, 2]
+    viewBox: [832, 2]
+    points: "0,1 832,1"
+    curve: sharp
+    border: {style: solid, width: 2, color: "$line"}
+  - elementId: do-title
+    elementType: text
+    bounds: [64, 182, 300, 22]
+    content: {style: "$tag", wrap: false, text: DO THIS NOW}
+  - elementId: steps
+    elementType: text
+    bounds: [64, 210, 500, 220]
+    content:
+      style: "$body"
+      fontSize: 15
+      text: |
+        <p><strong>1.</strong> Open a second tab:
+        <span style="background-color:$palegreen"> http://&lt;event-address&gt;:8083 </span></p>
+        <p style="margin-top:10px"><strong>2.</strong> Log in with <strong>your personal seat</strong> login —
+        it looks like <strong>team-04-p02</strong> — and the seat password from the handout.
+        Each teammate uses their own seat.</p>
+        <p style="margin-top:10px"><strong>3.</strong> You land on the question queue.
+        It may be nearly empty — questions appear here only for tickets your team owns.</p>
+        <p style="margin-top:10px"><strong>4.</strong> Open the <strong>Scoreboard</strong> link.
+        All teams start at zero.</p>
+  - elementId: check-rule
+    elementType: line
+    bounds: [600, 210, 2, 220]
+    viewBox: [2, 220]
+    points: "1,0 1,220"
+    curve: sharp
+    border: {style: solid, width: 2, color: "$line"}
+  - elementId: check-title
+    elementType: text
+    bounds: [624, 182, 272, 22]
+    content: {style: "$tag", wrap: false, text: HOW TO CHECK}
+  - elementId: check-body
+    elementType: text
+    bounds: [624, 210, 272, 150]
+    content:
+      style: "$body"
+      fontSize: 14
+      text: |
+        <p>You can see the question queue and the scoreboard.</p>
+        <p style="margin-top:8px">A 403 or "no permission" page means you used the team IRIS login here — switch to your seat login.</p>
+  - elementId: why-body
+    elementType: text
+    bounds: [624, 370, 272, 60]
+    content:
+      style: "$small"
+      text: CTFd is where answers are checked and points are earned. Points belong to the team, no matter which seat submits.
+  - elementId: footer
+    elementType: text
+    bounds: [64, 505, 700, 18]
+    content: {style: "$small", wrap: false, text: OPERATION SILENT RIDGE — EXERCISE ONLY}
+  - elementId: pagenum
+    elementType: text
+    bounds: [880, 505, 40, 18]
+    content: {style: "$small", align: [right, top], wrap: false, text: "7"}

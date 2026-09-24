@@ -1,0 +1,78 @@
+pageType: content
+background:
+  type: solid
+  color: "$paper"
+elements:
+  - elementId: tag
+    elementType: text
+    bounds: [64, 40, 400, 20]
+    content: {style: "$tag", wrap: false, text: PART 2 · YOUR SETUP — STEP 1 OF 4}
+  - elementId: stepnum
+    elementType: text
+    bounds: [64, 90, 110, 60]
+    content: {style: "$stepnum", wrap: false, text: "1"}
+  - elementId: title
+    elementType: text
+    bounds: [170, 96, 726, 44]
+    content: {style: "$title", fontSize: 27, wrap: false, text: Open your handout and log into IRIS}
+  - elementId: rule
+    elementType: line
+    bounds: [64, 160, 832, 2]
+    viewBox: [832, 2]
+    points: "0,1 832,1"
+    curve: sharp
+    border: {style: solid, width: 2, color: "$line"}
+  - elementId: do-title
+    elementType: text
+    bounds: [64, 182, 300, 22]
+    content: {style: "$tag", wrap: false, text: DO THIS NOW}
+  - elementId: steps
+    elementType: text
+    bounds: [64, 210, 500, 220]
+    content:
+      style: "$body"
+      fontSize: 15
+      text: |
+        <p><strong>1.</strong> Find your team handout (paper or message from your facilitator).
+        It lists your team's logins and the event addresses.</p>
+        <p style="margin-top:10px"><strong>2.</strong> Open a browser tab and go to the IRIS address:
+        <span style="background-color:$palegreen"> http://&lt;event-address&gt;:8081 </span></p>
+        <p style="margin-top:10px"><strong>3.</strong> Log in with your <strong>team</strong> IRIS login
+        (looks like <strong>team-04</strong>) and the password from the handout.</p>
+        <p style="margin-top:10px"><strong>4.</strong> You should see the incident ticket queue.
+        If you do, this step is done.</p>
+  - elementId: check-rule
+    elementType: line
+    bounds: [600, 210, 2, 220]
+    viewBox: [2, 220]
+    points: "1,0 1,220"
+    curve: sharp
+    border: {style: solid, width: 2, color: "$line"}
+  - elementId: check-title
+    elementType: text
+    bounds: [624, 182, 272, 22]
+    content: {style: "$tag", wrap: false, text: HOW TO CHECK}
+  - elementId: check-body
+    elementType: text
+    bounds: [624, 210, 272, 130]
+    content:
+      style: "$body"
+      fontSize: 14
+      text: |
+        <p>You see a list of tickets with statuses like <strong>available</strong>.</p>
+        <p style="margin-top:8px">Login failed? Re-read the team name — it is the team login,
+        not your personal seat login.</p>
+  - elementId: why-body
+    elementType: text
+    bounds: [624, 350, 272, 80]
+    content:
+      style: "$small"
+      text: IRIS is where work is claimed. Nobody can answer questions for a ticket until some team owns it.
+  - elementId: footer
+    elementType: text
+    bounds: [64, 505, 700, 18]
+    content: {style: "$small", wrap: false, text: OPERATION SILENT RIDGE — EXERCISE ONLY}
+  - elementId: pagenum
+    elementType: text
+    bounds: [880, 505, 40, 18]
+    content: {style: "$small", align: [right, top], wrap: false, text: "6"}

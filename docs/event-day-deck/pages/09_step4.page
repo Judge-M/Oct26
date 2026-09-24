@@ -1,0 +1,78 @@
+pageType: content
+background:
+  type: solid
+  color: "$paper"
+elements:
+  - elementId: tag
+    elementType: text
+    bounds: [64, 40, 400, 20]
+    content: {style: "$tag", wrap: false, text: PART 2 · YOUR SETUP — STEP 4 OF 4}
+  - elementId: stepnum
+    elementType: text
+    bounds: [64, 90, 110, 60]
+    content: {style: "$stepnum", wrap: false, text: "4"}
+  - elementId: title
+    elementType: text
+    bounds: [170, 96, 726, 44]
+    content: {style: "$title", fontSize: 27, wrap: false, text: "Claim your first ticket, answer your first question"}
+  - elementId: rule
+    elementType: line
+    bounds: [64, 160, 832, 2]
+    viewBox: [832, 2]
+    points: "0,1 832,1"
+    curve: sharp
+    border: {style: solid, width: 2, color: "$line"}
+  - elementId: do-title
+    elementType: text
+    bounds: [64, 182, 300, 22]
+    content: {style: "$tag", wrap: false, text: DO THIS NOW — AS A TEAM}
+  - elementId: steps
+    elementType: text
+    bounds: [64, 210, 500, 240]
+    content:
+      style: "$body"
+      fontSize: 15
+      text: |
+        <p><strong>1.</strong> In the IRIS tab, find a ticket marked <strong>available</strong>
+        and press <strong>Claim ticket</strong>. Your team now owns it.</p>
+        <p style="margin-top:10px"><strong>2.</strong> Switch to the CTFd tab — the ticket's
+        questions are now visible. Open the first one and read the free help.</p>
+        <p style="margin-top:10px"><strong>3.</strong> Investigate with the tool the question names
+        (next page shows all five).</p>
+        <p style="margin-top:10px"><strong>4.</strong> Type the requested value in the answer box and
+        press <strong>Check answer</strong>. Correct: one point, and the finding publishes to IRIS
+        for everyone. Wrong: read the next free help level and try again.</p>
+  - elementId: check-rule
+    elementType: line
+    bounds: [600, 210, 2, 240]
+    viewBox: [2, 240]
+    points: "1,0 1,240"
+    curve: sharp
+    border: {style: solid, width: 2, color: "$line"}
+  - elementId: check-title
+    elementType: text
+    bounds: [624, 182, 272, 22]
+    content: {style: "$tag", wrap: false, text: HOW TO CHECK}
+  - elementId: check-body
+    elementType: text
+    bounds: [624, 210, 272, 130]
+    content:
+      style: "$body"
+      fontSize: 14
+      text: |
+        <p>The scoreboard shows your team above zero, and the finding appears in IRIS
+        within about ten seconds.</p>
+  - elementId: why-body
+    elementType: text
+    bounds: [624, 350, 272, 100]
+    content:
+      style: "$small"
+      text: "Finishing every question on a ticket closes it and unlocks follow-up tickets. That is the whole rhythm — repeat until the day ends."
+  - elementId: footer
+    elementType: text
+    bounds: [64, 505, 700, 18]
+    content: {style: "$small", wrap: false, text: OPERATION SILENT RIDGE — EXERCISE ONLY}
+  - elementId: pagenum
+    elementType: text
+    bounds: [880, 505, 40, 18]
+    content: {style: "$small", align: [right, top], wrap: false, text: "9"}

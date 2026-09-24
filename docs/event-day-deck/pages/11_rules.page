@@ -1,0 +1,78 @@
+pageType: content
+background:
+  type: solid
+  color: "$paper"
+elements:
+  - elementId: tag
+    elementType: text
+    bounds: [64, 40, 400, 20]
+    content: {style: "$tag", wrap: false, text: GROUND RULES}
+  - elementId: title
+    elementType: text
+    bounds: [64, 66, 832, 40]
+    content: {style: "$title", wrap: false, text: "Rules of engagement: four yes, four no"}
+  - elementId: rule
+    elementType: line
+    bounds: [64, 116, 832, 2]
+    viewBox: [832, 2]
+    points: "0,1 832,1"
+    curve: sharp
+    border: {style: solid, width: 2, color: "$line"}
+  - elementId: yes-head
+    elementType: text
+    bounds: [64, 140, 400, 26]
+    content: {fontSize: 17, bold: true, color: "$slate", wrap: false, text: YES — DO}
+  - elementId: yes-rule
+    elementType: line
+    bounds: [64, 168, 400, 2]
+    viewBox: [400, 2]
+    points: "0,1 400,1"
+    curve: sharp
+    border: {style: solid, width: 2, color: "$slate"}
+  - elementId: yes-body
+    elementType: text
+    bounds: [64, 180, 400, 260]
+    content:
+      style: "$body"
+      fontSize: 14
+      text: |
+        <p>· <strong>Use UTC</strong> for evidence times and elapsed minutes for exercise deadlines</p>
+        <p style="margin-top:8px">· <strong>Label every claim</strong> confirmed, assessed (with confidence), or unknown</p>
+        <p style="margin-top:8px">· <strong>Cite the evidence</strong> — file, host, timestamp — behind every answer</p>
+        <p style="margin-top:8px">· <strong>Share and ask</strong> — findings are shared by design; read other teams' completed findings to see the wider incident</p>
+  - elementId: no-head
+    elementType: text
+    bounds: [496, 140, 400, 26]
+    content: {fontSize: 17, bold: true, color: "$amber", wrap: false, text: NO — DON'T}
+  - elementId: no-rule
+    elementType: line
+    bounds: [496, 168, 400, 2]
+    viewBox: [400, 2]
+    points: "0,1 400,1"
+    curve: sharp
+    border: {style: solid, width: 2, color: "$amber"}
+  - elementId: no-body
+    elementType: text
+    bounds: [496, 180, 400, 260]
+    content:
+      style: "$body"
+      fontSize: 14
+      text: |
+        <p>· <strong>Never execute evidence</strong> — no running binaries, scripts or documents found in the material</p>
+        <p style="margin-top:8px">· <strong>Never scan or contact</strong> external systems, and never direct real personnel "in the field"</p>
+        <p style="margin-top:8px">· <strong>Don't invent harm</strong>, adversary names, or movements the evidence doesn't show</p>
+        <p style="margin-top:8px">· <strong>Don't browse inside the desktop</strong> — keep it fast for your team's tools</p>
+  - elementId: note-body
+    elementType: text
+    bounds: [64, 456, 832, 36]
+    content:
+      style: "$small"
+      text: Every address, identity and artifact in this exercise is fictional. The defensive habits above are the real takeaway — they are what makes an assessment defensible.
+  - elementId: footer
+    elementType: text
+    bounds: [64, 505, 700, 18]
+    content: {style: "$small", wrap: false, text: OPERATION SILENT RIDGE — EXERCISE ONLY}
+  - elementId: pagenum
+    elementType: text
+    bounds: [880, 505, 40, 18]
+    content: {style: "$small", align: [right, top], wrap: false, text: "11"}

@@ -1,0 +1,49 @@
+version: v2
+title: Operation Silent Ridge — Event Day Participant Deck
+size: [960, 540]
+theme:
+  colors:
+    paper: "#F5F2EA"
+    ink: "#1A1E24"
+    slate: "#27403B"
+    deep: "#16211E"
+    amber: "#C77D1F"
+    muted: "#6B6E6A"
+    line: "#D8D2C4"
+    palegreen: "#E4E9E2"
+  textStyles:
+    tag:
+      fontSize: 13
+      color: "$amber"
+      bold: true
+      letterSpacing: 3
+    title:
+      fontSize: 30
+      color: "$ink"
+      bold: true
+    body:
+      fontSize: 16
+      color: "$ink"
+      lineHeight: 1.5
+    small:
+      fontSize: 12
+      color: "$muted"
+      lineHeight: 1.4
+    stepnum:
+      fontSize: 44
+      color: "$amber"
+      bold: true
+pages:
+  - pages/01_cover.page
+  - pages/02_route.page
+  - pages/03_story.page
+  - pages/04_loop.page
+  - pages/05_kit.page
+  - pages/06_step1.page
+  - pages/07_step2.page
+  - pages/08_step3.page
+  - pages/09_step4.page
+  - pages/10_tools.page
+  - pages/11_rules.page
+  - pages/12_broken.page
+  - pages/13_close.page
