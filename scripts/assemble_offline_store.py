@@ -38,6 +38,13 @@ def tar_tree(out, sources):
 
 
 def main():
+    import argparse
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--include-vm', action='store_true',
+                        help='also pack the parked Hyper-V QCOW2 desktop when its parts '
+                             'are materialized. Excluded by default: container desktops '
+                             'are the event path and the VM is dropped from releases.')
+    args = parser.parse_args()
     if STORE.exists():
         shutil.rmtree(STORE)
     STORE.mkdir(parents=True)
@@ -50,16 +57,16 @@ def main():
         artifacts.append({'path': dest.relative_to(STORE).as_posix(), 'kind': kind,
                           'bytes': dest.stat().st_size, 'sha256': sha256(dest)})
 
-    # Large published artifacts (desktop template, native memory capture, case).
+    # Large published artifacts (native memory capture, prepared case).
     # The desktop QCOW2 is the parked Hyper-V path (assets/vm-desktop/, outside
-    # the shipped distribution): include it when its parts are materialized,
-    # skip it otherwise — container desktops are the event path.
+    # the shipped distribution): packed only with --include-vm. Dropped from
+    # releases by organizer decision — container desktops are the event path.
     desktop_manifest = json.loads((REPO / 'assets/desktop-v1.json').read_text(encoding='utf-8'))
-    if all((REPO / part['path']).is_file() for part in desktop_manifest['parts']):
+    if args.include_vm and all((REPO / part['path']).is_file() for part in desktop_manifest['parts']):
         for part in desktop_manifest['parts']:
             put(REPO / part['path'], 'desktop/' + Path(part['path']).name, 'desktop')
     else:
-        print('desktop QCOW2 parts not materialized; skipping parked VM desktop')
+        print('parked VM desktop excluded (pass --include-vm to pack it)')
     put(REPO / 'assets/large/native/WS17-native-v1.tar.gz',
         'memory/WS17-native-v1.tar.gz', 'memory')
     put(REPO / 'assets/large/autopsy/WS17-prepared-case-v2.tar.gz',
@@ -77,6 +84,14 @@ def main():
     artifacts.append({'path': 'dependencies/case-and-wazuh-config.tar.gz', 'kind': 'dependencies',
                       'bytes': (STORE / 'dependencies/case-and-wazuh-config.tar.gz').stat().st_size,
                       'sha256': sha256(STORE / 'dependencies/case-and-wazuh-config.tar.gz')})
+    # The release vault (follow-up evidence + manifest.json) is required by
+    # local.json's release_vault; without it the first follow-up ticket fails
+    # mid-event on a cold install.
+    tar_tree(STORE / 'dependencies/release-vault.tar.gz',
+             [(REPO / 'work/release/controller/releases', 'release-vault')])
+    artifacts.append({'path': 'dependencies/release-vault.tar.gz', 'kind': 'dependencies',
+                      'bytes': (STORE / 'dependencies/release-vault.tar.gz').stat().st_size,
+                      'sha256': sha256(STORE / 'dependencies/release-vault.tar.gz')})
     tar_tree(STORE / 'guides/guides.tar.gz',
              [(EVIDENCE / 'guides', 'getting-started'),
               (REPO / 'expanded/guides.md', 'beginner-guide.md'),
@@ -111,7 +126,8 @@ def main():
     images = {name: by_tag[tag] for name, tag in tags.items()}
     manifest = {'schema': 1, 'release': 'silent-ridge-expanded-1',
                 'source_commit': commit, 'compatibility_verified': False,
-                'images': images, 'artifacts': artifacts,
+                'images': images, 'image_tags': dict(tags),
+                'artifacts': artifacts,
                 'missing': ['ten-team capacity gate (F03)', 'dress rehearsal (F06)',
                             'GHCR image publishing']}
     out = REPO / 'work' / 'offline-manifest.json'

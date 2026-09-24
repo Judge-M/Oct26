@@ -22,22 +22,25 @@ these steps in order; each one tells you when it is done.
    100 GB free SSD, Docker installed and running. Details and the
    measurements behind these numbers:
    [What you need to host it locally](#what-you-need-to-host-it-locally).
-2. **Get the software onto that machine.** Either download the offline
-   bundle from the
-   [latest release](https://github.com/Judge-M/Oct26/releases) (no internet
-   needed afterwards — the intended path for event day), or clone this repo
-   and build from source ([Quick start](#quick-start)).
+2. **Get the software onto that machine.** Download the offline bundle
+   from the
+   [latest release](https://github.com/Judge-M/Oct26/releases) and install
+   it — no internet needed afterwards, and no build step. This is the
+   intended path for event day; the exact install commands are in the
+   [command sheet](docs/event-day-commands.md). (Building from source is a
+   developer path — see [Quick start](#quick-start).)
 3. **Bring the event up.** Follow
    **[docs/event-day-commands.md](docs/event-day-commands.md)** — it is the
    complete cold-machine → running-event → teardown checklist with exact
    commands, written to be followed literally. It covers install, the
    pre-flight check (`doctor`), starting the stack with your team count
    (`up --teams N`), verifying it is ready, and what to hand out.
-4. **Brief the participants.** Project the deck in
-   **[docs/event-day-deck/](docs/event-day-deck/)** — 13 slides that tell
-   the story and walk participants through every login, click by click,
-   assuming zero prior knowledge. Hand each team its account sheet (the
-   command sheet says where those files are).
+4. **Brief the participants.** Project
+   **[docs/event-day-deck/event-day-deck.pdf](docs/event-day-deck/event-day-deck.pdf)**
+   — 13 slides that tell the story and walk participants through every
+   login, click by click, assuming zero prior knowledge. It is a plain PDF,
+   so it projects anywhere with no software to install. Hand each team its
+   account sheet (the command sheet says where those files are).
 5. **Run the day.** The command sheet covers starting the clock, messaging
    all teams, pausing, and recovering a stuck team. The
    [operator runbook](docs/runbook.md) is the one-page symptom → action
@@ -89,9 +92,17 @@ whole stack with two desktops, one under Autopsy load).
 
 ## Quick start
 
-The easiest install is the offline bundle from the
-[releases page](https://github.com/Judge-M/Oct26/releases) — its notes carry
-the install steps. To build from source instead:
+**Hosting the event? Use the offline bundle** from the
+[releases page](https://github.com/Judge-M/Oct26/releases) and follow the
+[command sheet](docs/event-day-commands.md) — it covers install, content
+assets, and bring-up with exact commands.
+
+Building from source is the **developer path**. Note that
+`build --component all` produces only the container images — the content
+assets (evidence tree, Autopsy case template, Wazuh config, release vault)
+come from the release bundle or the content pipeline documented in
+[`docs/handoff/BUILD-FIRST.md`](docs/handoff/BUILD-FIRST.md). To build
+images:
 
 ```bash
 git clone https://github.com/Judge-M/Oct26.git
@@ -140,9 +151,9 @@ unless you set `BIND_IP`):
 
 The [event-day command sheet](docs/event-day-commands.md) is the
 cold-machine → running-event → teardown checklist with exact commands.
-The [participant briefing deck](docs/event-day-deck/) (13 slides) is what
-you project at the start: it explains the scenario and walks participants
-through setup click by click.
+The [participant briefing deck](docs/event-day-deck/event-day-deck.pdf)
+(13 slides, PDF) is what you project at the start: it explains the
+scenario and walks participants through setup click by click.
 
 ```bash
 python -m ridge.deploy pause   --profile ... --runtime ...   # pause the clock

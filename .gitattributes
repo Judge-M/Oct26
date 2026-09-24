@@ -7,3 +7,4 @@ Dockerfile* text eol=lf
 /assets/**/*.json text eol=lf
 /expanded/binary/*.c text eol=lf
 /deployment/expanded/build-history/*.txt -text
+*.pdf binary

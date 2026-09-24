@@ -23,7 +23,45 @@ before the dress rehearsal and before relying on event-day teardown.
 
 Participant-facing material: event-day briefing deck at
 `docs/event-day-deck/` (13 slides — narrative + click-by-click setup,
-validated with `kimi-slides check` and full-page screenshots; PR #48).
+validated with `kimi-slides check` and full-page screenshots; projectable
+`event-day-deck.pdf` committed alongside the `.pptd` source; PR #48).
+
+Cold-reader pass (2026-09-24, PR #48): found and fixed three host-path
+gaps — (1) the offline bundle never shipped the release vault
+(`work/release/controller/releases`), so a cold bundle install would pass
+preflight but fail the first follow-up ticket mid-event;
+`scripts/assemble_offline_store.py` now packs
+`dependencies/release-vault.tar.gz` (v0.9.0-drill predates it — the
+command sheet carries the workaround); (2) `docs/event-day-commands.md`
+step 0/2 now gives exact bundle extraction commands and `assets/…` paths
+for `local.json`, and states plainly that source builds produce images
+only; (3) the README reframes the bundle as the host path and source
+builds as the developer path. Remaining honesty note: the bundle →
+extract → `up` flow itself has not yet been run cold on a second machine —
+that is part of the F06 dress rehearsal on event hardware.
+
+Bundle reassembly (2026-09-24, PR #51): rebuilt all four custom images on
+current source, assembled a new rehearsal bundle at
+`work/offline-bundle-v010` (13 GB; the parked QCOW2 is now excluded by
+default — `--include-vm` opts back in). The release vault is packed
+(`dependencies/release-vault.tar.gz`). Dry-run install passes: all hashes
+verified, source extracted, receipt written, all 13 manifest image IDs
+present in the daemon. **Found and fixed a fourth cold-host defect in the
+process**: `ridge.bundle` saved images by bare sha256 ID, which strips
+RepoTags — a truly cold `docker load` yields untagged `<none>` images and
+every compose file fails (`pull_policy: never`). The 2026-09-21 drill
+cold test masked it because that machine already had the tags.
+`ridge.bundle` now saves by manifest `image_tags` (verified to resolve to
+the pinned IDs) and `ridge.offline_install` verifies tags after load
+(`tags_verified` in the receipt); 5 new tests, 304/304 pass. The new
+bundle's image tar was opened and all 13 RepoTags confirmed present.
+`docker load` of the full 5.7 GiB tar exceeds this machine's 5-minute
+tool cap, so an end-to-end load was not re-run here — it is covered by
+the drill test's proven load path plus the new tag-content check, and the
+real load runs on event hardware in Phase 0 of
+`docs/dress-rehearsal-plan.md`. **Note: `v0.9.0-drill`'s image tar is
+tagless — treat it as superseded; the next published release must come
+from this branch's tooling.**
 
 Rehearsal session plan: `docs/dress-rehearsal-plan.md` sequences the
 event-hardware day end-to-end — bundle reassembly (must include the
