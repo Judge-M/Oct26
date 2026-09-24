@@ -13,13 +13,35 @@
     "timezone": "America/New_York"
   },
   "desktops": [
-    {"name": "desktop-01", "address": "192.0.2.11", "shared": true, "max_connections": 4},
-    {"name": "desktop-02", "address": "192.0.2.12", "shared": true, "max_connections": 4}
+    {
+      "name": "desktop-01",
+      "address": "192.0.2.11",
+      "shared": true,
+      "max_connections": 4
+    },
+    {
+      "name": "desktop-02",
+      "address": "192.0.2.12",
+      "shared": true,
+      "max_connections": 4
+    }
   ],
   "capacity": {
-    "host": {"vcpus": 16, "memory_mib": 32768, "disk_gib": 512},
-    "central": {"vcpus": 4, "memory_mib": 8192, "disk_gib": 200},
-    "desktop": {"vcpus": 4, "memory_mib": 8192, "disk_gib": 40}
+    "host": {
+      "vcpus": 16,
+      "memory_mib": 32768,
+      "disk_gib": 512
+    },
+    "central": {
+      "vcpus": 4,
+      "memory_mib": 6144,
+      "disk_gib": 200
+    },
+    "desktop": {
+      "vcpus": 1,
+      "memory_mib": 2048,
+      "disk_gib": 15
+    }
   },
   "addresses": {
     "central_bind_ip": "192.0.2.10",
@@ -32,6 +54,14 @@
     "ctfd_bridge": "file:/etc/silent-ridge/secrets/ctfd-bridge",
     "guac_database": "file:/etc/silent-ridge/secrets/guac-database"
   },
-  "retention": {"backup_days": 30, "export_days": 30, "min_free_bytes": 1073741824},
-  "spending": {"ttl_hours": 72, "budget_usd": 0, "currency": "USD"}
+  "retention": {
+    "backup_days": 30,
+    "export_days": 30,
+    "min_free_bytes": 1073741824
+  },
+  "spending": {
+    "ttl_hours": 72,
+    "budget_usd": 0,
+    "currency": "USD"
+  }
 }

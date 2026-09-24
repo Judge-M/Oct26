@@ -1,5 +1,9 @@
 # Team workflow
 
+IRIS, CTFd and the Wazuh dashboard all open in your own laptop browser (see
+your team handout for addresses and logins). The shared team desktop is for
+the native investigation tools only.
+
 Teams are general-purpose investigation groups. Open the shared IRIS queue and
 claim an available ticket. Each team can own one active ticket; each ticket has
 one owner. Open CTFd to see the unanswered questions for your owned ticket.

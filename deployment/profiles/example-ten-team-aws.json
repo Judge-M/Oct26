@@ -13,21 +13,83 @@
     "timezone": "America/New_York"
   },
   "desktops": [
-    {"name": "desktop-01", "address": "192.0.2.11", "shared": true, "max_connections": 4},
-    {"name": "desktop-02", "address": "192.0.2.12", "shared": true, "max_connections": 4},
-    {"name": "desktop-03", "address": "192.0.2.13", "shared": true, "max_connections": 4},
-    {"name": "desktop-04", "address": "192.0.2.14", "shared": true, "max_connections": 4},
-    {"name": "desktop-05", "address": "192.0.2.15", "shared": true, "max_connections": 4},
-    {"name": "desktop-06", "address": "192.0.2.16", "shared": true, "max_connections": 4},
-    {"name": "desktop-07", "address": "192.0.2.17", "shared": true, "max_connections": 4},
-    {"name": "desktop-08", "address": "192.0.2.18", "shared": true, "max_connections": 4},
-    {"name": "desktop-09", "address": "192.0.2.19", "shared": true, "max_connections": 4},
-    {"name": "desktop-10", "address": "192.0.2.20", "shared": true, "max_connections": 4}
+    {
+      "name": "desktop-01",
+      "address": "192.0.2.11",
+      "shared": true,
+      "max_connections": 4
+    },
+    {
+      "name": "desktop-02",
+      "address": "192.0.2.12",
+      "shared": true,
+      "max_connections": 4
+    },
+    {
+      "name": "desktop-03",
+      "address": "192.0.2.13",
+      "shared": true,
+      "max_connections": 4
+    },
+    {
+      "name": "desktop-04",
+      "address": "192.0.2.14",
+      "shared": true,
+      "max_connections": 4
+    },
+    {
+      "name": "desktop-05",
+      "address": "192.0.2.15",
+      "shared": true,
+      "max_connections": 4
+    },
+    {
+      "name": "desktop-06",
+      "address": "192.0.2.16",
+      "shared": true,
+      "max_connections": 4
+    },
+    {
+      "name": "desktop-07",
+      "address": "192.0.2.17",
+      "shared": true,
+      "max_connections": 4
+    },
+    {
+      "name": "desktop-08",
+      "address": "192.0.2.18",
+      "shared": true,
+      "max_connections": 4
+    },
+    {
+      "name": "desktop-09",
+      "address": "192.0.2.19",
+      "shared": true,
+      "max_connections": 4
+    },
+    {
+      "name": "desktop-10",
+      "address": "192.0.2.20",
+      "shared": true,
+      "max_connections": 4
+    }
   ],
   "capacity": {
-    "host": {"vcpus": 64, "memory_mib": 131072, "disk_gib": 2048},
-    "central": {"vcpus": 4, "memory_mib": 8192, "disk_gib": 200},
-    "desktop": {"vcpus": 4, "memory_mib": 8192, "disk_gib": 40}
+    "host": {
+      "vcpus": 64,
+      "memory_mib": 131072,
+      "disk_gib": 2048
+    },
+    "central": {
+      "vcpus": 4,
+      "memory_mib": 8192,
+      "disk_gib": 200
+    },
+    "desktop": {
+      "vcpus": 2,
+      "memory_mib": 4096,
+      "disk_gib": 30
+    }
   },
   "addresses": {
     "central_bind_ip": "192.0.2.10",
@@ -40,6 +102,14 @@
     "ctfd_bridge": "file:/etc/silent-ridge/secrets/ctfd-bridge",
     "guac_database": "file:/etc/silent-ridge/secrets/guac-database"
   },
-  "retention": {"backup_days": 14, "export_days": 30, "min_free_bytes": 2147483648},
-  "spending": {"ttl_hours": 96, "budget_usd": 1500, "currency": "USD"}
+  "retention": {
+    "backup_days": 14,
+    "export_days": 30,
+    "min_free_bytes": 2147483648
+  },
+  "spending": {
+    "ttl_hours": 96,
+    "budget_usd": 1500,
+    "currency": "USD"
+  }
 }

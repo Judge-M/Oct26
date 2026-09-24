@@ -25,9 +25,10 @@ smoke run.
 
 1. Bring the event stack up (paused). `--teams 10` provisions ten neutral
    teams regardless of the profile roster; the declared host capacity is
-   still checked (the capacity model currently reserves 8 GiB and 4 vCPU
-   per desktop, so the profile must declare ≈44 vCPU / 88 GiB for ten
-   teams — see the note below before event day):
+   still checked. The capacity model was retuned from measurements
+   (2026-09-23): central 6 GiB, each desktop 2 GiB / 1 vCPU / 15 GiB, plus
+   a 20% memory headroom factor — a 32 GiB / 16-core host validates for
+   ten teams, matching the README's stated minimum:
 
    ```bash
    python -m ridge.deploy up --teams 10 --profile <profile.json> --runtime <runtime-dir>
@@ -79,13 +80,11 @@ Verified by a full dress rehearsal on the dev host (2 teams, 180 s,
 473/473 requests OK, outbox flat); still non-certifying by definition.
 
 - `up` is an idempotent reconcile: re-run it until every stage verifies.
-- **Capacity model vs measurements**: profile validation reserves
-  8 GiB + 4 vCPU per desktop (44 vCPU / 88 GiB declared for 10 teams),
-  but the measured desktop peak after the heap tuning is ~1.6 GiB and the
-  whole 2-team stack peaked at 6.4 GiB. If the event host declares less
-  than the model demands, `up --teams 10` fails validation. Revising the
-  model from F03 measurements is part of closing F03 — do not weaken it
-  before the certifying run produces real 10-team numbers.
+- **Capacity model**: retuned 2026-09-23 from measurements (central 6 GiB,
+  desktop 2 GiB / 1 vCPU / 15 GiB, 20% memory headroom in validation).
+  Reservations are measured *peaks*, not limits — the certifying run should
+  confirm or adjust them with real 10-team numbers; do not weaken the
+  check beforehand.
   First boot takes minutes — the guacd image's own healthcheck only runs
   every 300 s, so the desktop-access stage cannot verify sooner.
 - `up` now creates the external networks (`<event>-central`,
