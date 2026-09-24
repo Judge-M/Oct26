@@ -17,7 +17,22 @@ release is proven.
 
 Participant-facing material: event-day briefing deck at
 `docs/event-day-deck/` (13 slides — narrative + click-by-click setup,
-validated with `kimi-slides check` and full-page screenshots; PR #48).
+validated with `kimi-slides check` and full-page screenshots; projectable
+`event-day-deck.pdf` committed alongside the `.pptd` source; PR #48).
+
+Cold-reader pass (2026-09-24, PR #48): found and fixed three host-path
+gaps — (1) the offline bundle never shipped the release vault
+(`work/release/controller/releases`), so a cold bundle install would pass
+preflight but fail the first follow-up ticket mid-event;
+`scripts/assemble_offline_store.py` now packs
+`dependencies/release-vault.tar.gz` (v0.9.0-drill predates it — the
+command sheet carries the workaround); (2) `docs/event-day-commands.md`
+step 0/2 now gives exact bundle extraction commands and `assets/…` paths
+for `local.json`, and states plainly that source builds produce images
+only; (3) the README reframes the bundle as the host path and source
+builds as the developer path. Remaining honesty note: the bundle →
+extract → `up` flow itself has not yet been run cold on a second machine —
+that is part of the F06 dress rehearsal on event hardware.
 
 ## N1 — Built central services and automatic two-team identities
 

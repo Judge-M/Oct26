@@ -14,10 +14,36 @@ ready" — it is an idempotent reconcile, not a failure.
 - Docker Desktop / Docker Engine running, Python 3.11+, Git + Git LFS
 - 32 GB RAM / 16 cores minimum for 10 teams (validated by the capacity
   model with 20% memory headroom; 64 GB is comfortable)
-- Repo cloned, images present — either
-  `python -m ridge.deploy build --component all && python -m ridge.deploy verify-build`
-  or the offline release bundle's `docker load`
+- **Install from the offline release bundle** (the supported cold path):
+  download every asset of the latest release, assemble the bundle directory
+  exactly as its release notes show, then from a repo checkout run
+  `python -m ridge.offline_install <bundle-dir> <install-dir>` — it
+  hash-verifies everything, loads all images, and writes a receipt.
+- Then extract the content assets (once, next to the install):
+
+  ```bash
+  mkdir assets && cd assets
+  tar -xzf <bundle-dir>/evidence/evidence-public.tar.gz
+  tar -xzf <bundle-dir>/dependencies/case-and-wazuh-config.tar.gz
+  tar -xzf <bundle-dir>/dependencies/release-vault.tar.gz
+  mkdir originals && tar -xzf <bundle-dir>/memory/WS17-native-v1.tar.gz -C originals
+  cd ..
+  ```
+
+  This gives you `assets/evidence-public`, `assets/case-template`,
+  `assets/wazuh-config`, `assets/release-vault` and `assets/originals` —
+  the five directories `local.json` points at in step 2. (Windows 10+
+  ships `tar.exe`; any extractor works.)
+  Note: `v0.9.0-drill` predates `release-vault.tar.gz`; on that release copy
+  `work/release/controller/releases` from a build host into
+  `assets/release-vault`, or the first follow-up ticket fails mid-event.
 - Participant laptops on the same LAN; no internet required after this point
+
+(Building images from source instead — `python -m ridge.deploy build
+--component all && python -m ridge.deploy verify-build` — only makes the
+container images, not the content assets; the full content pipeline is a
+developer path documented in `docs/handoff/BUILD-FIRST.md`. Event hosts
+should use the bundle.)
 
 ## 1. Profile (once per host)
 
@@ -32,17 +58,16 @@ Do **not** edit the roster — team count is a start-time switch (`--teams`).
 
 ## 2. Runtime local.json (once per host)
 
-Create `R/local.json` pointing at the asset directories (from the repo
-checkout or the installed release bundle):
+Create `R/local.json` pointing at the asset directories extracted in step 0:
 
 ```json
 {
   "assets": {
-    "evidence_public": "<abs path>/work/evidence-public",
-    "release_vault": "<abs path>/work/release/controller/releases",
-    "case_template": "<abs path>/work/case-template",
-    "originals": "<abs path>/work/native-preparation",
-    "wazuh_config": "<abs path>/work/n1-run/wazuh-config"
+    "evidence_public": "<abs path>/assets/evidence-public",
+    "release_vault": "<abs path>/assets/release-vault",
+    "case_template": "<abs path>/assets/case-template",
+    "originals": "<abs path>/assets/originals",
+    "wazuh_config": "<abs path>/assets/wazuh-config"
   },
   "ports": {"iris": 8081, "ctfd": 8083, "guac": 8082,
             "wazuh_dashboard": 8443, "wazuh_indexer": 9200},
@@ -77,9 +102,10 @@ Participant URLs (all in their own laptop browser):
 `http://<LAN-IP>:8082` desktops · `:8081` IRIS · `:8083` CTFd ·
 `https://<LAN-IP>:8443` Wazuh.
 
-Opening briefing: project the participant deck at `docs/event-day-deck/`
-(story + click-by-click setup, 13 slides). The `<event-address>` shown in
-the deck is the `<LAN-IP>` above.
+Opening briefing: project **`docs/event-day-deck/event-day-deck.pdf`**
+(13 slides, story + click-by-click setup — plays anywhere, no software
+needed). The editable source is `event-day-deck.pptd` in the same folder.
+The `<event-address>` shown in the deck is the `<LAN-IP>` above.
 
 ## 5. During the event
 

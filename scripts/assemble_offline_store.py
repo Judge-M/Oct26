@@ -77,6 +77,14 @@ def main():
     artifacts.append({'path': 'dependencies/case-and-wazuh-config.tar.gz', 'kind': 'dependencies',
                       'bytes': (STORE / 'dependencies/case-and-wazuh-config.tar.gz').stat().st_size,
                       'sha256': sha256(STORE / 'dependencies/case-and-wazuh-config.tar.gz')})
+    # The release vault (follow-up evidence + manifest.json) is required by
+    # local.json's release_vault; without it the first follow-up ticket fails
+    # mid-event on a cold install.
+    tar_tree(STORE / 'dependencies/release-vault.tar.gz',
+             [(REPO / 'work/release/controller/releases', 'release-vault')])
+    artifacts.append({'path': 'dependencies/release-vault.tar.gz', 'kind': 'dependencies',
+                      'bytes': (STORE / 'dependencies/release-vault.tar.gz').stat().st_size,
+                      'sha256': sha256(STORE / 'dependencies/release-vault.tar.gz')})
     tar_tree(STORE / 'guides/guides.tar.gz',
              [(EVIDENCE / 'guides', 'getting-started'),
               (REPO / 'expanded/guides.md', 'beginner-guide.md'),
