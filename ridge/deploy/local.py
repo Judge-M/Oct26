@@ -104,6 +104,29 @@ def offline_wazuh_config(source):
     return rendered
 
 
+def render_indexer_admin(source, password_hash):
+    """Replace only the vendored admin hash in a private runtime copy."""
+    if not re.fullmatch(r'\$2[aby]\$12\$[./A-Za-z0-9]{53}', password_hash):
+        raise LifecycleError('indexer hash tool returned an invalid bcrypt hash')
+    lines = source.splitlines(keepends=True)
+    admin_line = next((i for i, line in enumerate(lines) if line.strip() == 'admin:'
+                       and line.startswith('admin:')), None)
+    if admin_line is None:
+        raise LifecycleError('vendored internal_users.yml has no admin user')
+    hashes = []
+    for i in range(admin_line + 1, len(lines)):
+        if lines[i].strip() and not lines[i][0].isspace():
+            break
+        if re.match(r'^[ \t]+hash:', lines[i]):
+            hashes.append(i)
+    if len(hashes) != 1:
+        raise LifecycleError('vendored admin entry must have exactly one hash')
+    old = lines[hashes[0]]
+    newline = '\r\n' if old.endswith('\r\n') else '\n'
+    lines[hashes[0]] = '  hash: "' + password_hash + '"' + newline
+    return ''.join(lines)
+
+
 def _derive_discovered(iris_inventory, ctfd_inventory):
     """Flatten the IRIS/CTFd bootstrap inventories into the discovered-ID record.
 
@@ -533,6 +556,7 @@ class LocalStack:
             'WAZUH_CERTS_DIR': self.runtime / 'wazuh-certs',
             'WAZUH_CONFIG_DIR': self.asset('wazuh_config'),
             'WAZUH_RUNTIME_CONFIG_DIR': self.runtime / 'wazuh-config',
+            'WAZUH_ADMIN_SECRET_FILE': self.secrets_dir / 'wazuh_admin',
             'WAZUH_API_PASSWORD': self._wazuh_api_password(),
             'BIND_IP': bind, 'WAZUH_DASHBOARD_PORT': str(ports['wazuh']),
         }
@@ -585,6 +609,25 @@ class LocalStack:
         target_dir.mkdir(parents=True, exist_ok=True)
         (target_dir / 'ossec.conf').write_text(
             offline_wazuh_config(source.read_text(encoding='utf-8')), encoding='utf-8')
+        users = target_dir / 'internal_users.yml'
+        if not users.is_file():
+            password = self._secret('wazuh_admin').split(':', 1)[1]
+            command = ('IFS= read -r password; '
+                       '/usr/share/wazuh-indexer/plugins/opensearch-security/tools/hash.sh '
+                       '-p "$password"')
+            result = self._pipe([
+                'docker', 'run', '-i', '--rm', '--network', 'none', '--pull', 'never',
+                '-e', 'OPENSEARCH_JAVA_HOME=/usr/share/wazuh-indexer/jdk',
+                '--entrypoint', 'bash', 'wazuh/wazuh-indexer:4.9.2', '-lc', command,
+            ], password + '\n')
+            hash_lines = [line.strip() for line in result.splitlines()
+                          if re.fullmatch(r'\$2[aby]\$12\$[./A-Za-z0-9]{53}', line.strip())]
+            if len(hash_lines) != 1:
+                raise LifecycleError('Wazuh indexer hash tool did not return one bcrypt hash')
+            source_users = (self.asset('wazuh_config') / 'wazuh_indexer'
+                            / 'internal_users.yml').read_text(encoding='utf-8')
+            users.write_text(render_indexer_admin(source_users, hash_lines[0]),
+                             encoding='utf-8')
 
     def _render_specs(self):
         """Create missing bootstrap/provisioning specs from the runtime credentials.
@@ -743,6 +786,10 @@ class LocalStack:
                                  % (self.secrets_dir,
                                     ', '.join(sorted(set(SECRET_FILES) - set(existing)))))
         self._wazuh_api_password()
+        private_users = self.runtime / 'wazuh-config' / 'internal_users.yml'
+        if not private_users.is_file():
+            raise LifecycleError('missing private Wazuh indexer users at %s; restore the '
+                                 'runtime or run up on a fresh deployment' % private_users)
         for kind, services in INFRA_SERVICES.items():
             self._require_services(kind, services,
                                    allow_exit0=INFRA_ONE_SHOT.get(kind, ()))
@@ -921,6 +968,12 @@ class LocalStack:
         if status != 200:
             raise LifecycleError('historical index %s unavailable (HTTP %s); run up to '
                                  'reconcile evidence' % (index_name, status))
+        try:
+            self._compose('wazuh', 'exec', '-T', 'wazuh-manager', 'filebeat',
+                          'test', 'output', '-c', '/etc/filebeat/filebeat.yml')
+        except Exception as exc:
+            raise LifecycleError('Filebeat cannot authenticate to the CA-verified Wazuh '
+                                 'indexer: %s' % str(exc)[:250])
         telemetry = self.asset('evidence_public') / 'wazuh' / 'telemetry.jsonl'
         if telemetry.is_file():
             # ridge.evidence_release.index derives each document ID from a

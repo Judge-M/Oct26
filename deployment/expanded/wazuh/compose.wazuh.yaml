@@ -14,7 +14,7 @@ services:
       - ${WAZUH_CERTS_DIR}/admin.pem:/usr/share/wazuh-indexer/certs/admin.pem:ro
       - ${WAZUH_CERTS_DIR}/admin-key.pem:/usr/share/wazuh-indexer/certs/admin-key.pem:ro
       - ${WAZUH_CONFIG_DIR:?Set vendored Wazuh config directory}/wazuh_indexer/wazuh.indexer.yml:/usr/share/wazuh-indexer/opensearch.yml:ro
-      - ${WAZUH_CONFIG_DIR}/wazuh_indexer/internal_users.yml:/usr/share/wazuh-indexer/opensearch-security/internal_users.yml:ro
+      - ${WAZUH_RUNTIME_CONFIG_DIR:?Set private rendered Wazuh config directory}/internal_users.yml:/usr/share/wazuh-indexer/opensearch-security/internal_users.yml:ro
     ports:
       # Loopback-only: controller provisioning/queries; participants use the dashboard.
       - ${BIND_IP:-127.0.0.1}:${WAZUH_INDEXER_PORT:-9200}:9200
@@ -44,6 +44,8 @@ services:
       - ${WAZUH_CERTS_DIR}/manager.pem:/wazuh-config-mount/api/configuration/ssl/server.crt:ro
       - ${WAZUH_CERTS_DIR}/manager-key.pem:/wazuh-config-mount/api/configuration/ssl/server.key:ro
       - ${WAZUH_CERTS_DIR}/root-ca.pem:/wazuh-config-mount/api/configuration/ssl/ca.crt:ro
+      - ./filebeat-init.sh:/etc/cont-init.d/1a-silent-ridge-filebeat:ro
+    secrets: [wazuh_indexer_credential]
     networks: [wazuh-backend]
     depends_on: [wazuh-indexer]
     logging:
@@ -80,6 +82,9 @@ services:
 volumes:
   wazuh-indexer-data:
   wazuh-manager-data:
+secrets:
+  wazuh_indexer_credential:
+    file: ${WAZUH_ADMIN_SECRET_FILE:?Set generated indexer admin credential file}
 networks:
   wazuh-backend:
     internal: true
