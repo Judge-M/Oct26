@@ -7,6 +7,10 @@ the native investigation tools only.
 Teams are general-purpose investigation groups. Open the shared IRIS queue and
 claim an available ticket. Each team can own one active ticket; each ticket has
 one owner. Open CTFd to see the unanswered questions for your owned ticket.
+Use the **Incident queue** shortcut or `/silent-ridge` in IRIS; the queue links
+to the correct native case for this installation. Do not guess a numeric case
+ID from another installation. Before claiming a ticket, CTFd may show no
+questions and the native IRIS tasks may show To do/Unassigned.
 
 Investigate the released evidence using the desktop file manager, Autopsy,
 Wireshark, Cutter and the configured Wazuh view as directed by the question.

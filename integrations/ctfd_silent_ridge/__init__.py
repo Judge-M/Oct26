@@ -41,6 +41,12 @@ def load(app):
     app.config['SESSION_COOKIE_SECURE'] = secure
     with app.app_context():
         db.create_all()
+        # Existing installed kits may already have identities and awards, so
+        # don't depend on a fresh provisioning pass to repair the stock
+        # scoreboard's missing visibility settings.
+        from CTFd.utils import set_config
+        set_config('score_visibility', 'private')
+        set_config('account_visibility', 'private')
     from .provision import register as register_provision
     register_provision(app)
 

@@ -110,6 +110,11 @@ def provision(admin: Admin, spec: ProvisionSpec) -> dict[str, Any]:
 
     admin.set_config('user_mode', spec.user_mode)
     admin.set_config('registration_visible', spec.registration_visible)
+    # CTFd's scoreboard visibility decorators return no response when these
+    # settings are unset. This dedicated event exposes scores to signed-in
+    # participants, while keeping the roster and scores off the public site.
+    admin.set_config('score_visibility', 'private')
+    admin.set_config('account_visibility', 'private')
     admin.set_config('setup', True)
 
     teams: dict[str, dict[str, Any]] = {}
@@ -133,6 +138,9 @@ def preflight(admin: Admin, spec: ProvisionSpec, inventory: dict[str, Any]) -> d
     _require(spec)
     if admin.get_config('user_mode') != 'teams':
         raise ProvisionError('user_mode: application is not in team mode')
+    for key in ('score_visibility', 'account_visibility'):
+        if admin.get_config(key) != 'private':
+            raise ProvisionError('%s: signed-in participant visibility is required' % key)
     for key, expected in inventory['teams'].items():
         row = admin.find_team(expected['name'])
         if row is None or int(row['id']) != int(expected['id']):

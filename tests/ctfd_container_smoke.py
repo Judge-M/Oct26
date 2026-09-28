@@ -12,8 +12,10 @@ Path('/tmp/ridge-ctfd-secret').write_text('c'*40)
 
 from CTFd import create_app
 from CTFd.models import db,Awards,Teams,Users
-from CTFd.utils import set_config
+from CTFd.utils import get_config,set_config
 from flask import session
+from ridge.ctfd_provision import ProvisionSpec,TeamSpec,UserSpec,provision
+from CTFd.plugins.ctfd_silent_ridge.provision import OrmAdmin
 
 app=create_app()
 assert app.config['SESSION_COOKIE_NAME']=='silent_ridge_ctfd_session'
@@ -23,12 +25,18 @@ def smoke_cookie():
     session['nonce']='smoke-nonce'
     return 'ok'
 with app.app_context():
+    assert get_config('score_visibility')=='private'
+    assert get_config('account_visibility')=='private'
     set_config('setup',True);set_config('user_mode','teams')
     team=Teams(name='Smoke team',password='disposable password')
     db.session.add(team);db.session.flush()
     user=Users(name='smoke-user',email='smoke@example.test',password='disposable password',type='user')
     user.team_id=team.id;db.session.add(user);db.session.commit()
     team_id=team.id;user_id=user.id
+    provision(OrmAdmin(),ProvisionSpec(
+        teams=(TeamSpec('smoke','Smoke team','disposable password'),),
+        users=(UserSpec('smoke-user','smoke@example.test','smoke','disposable password'),)))
+    db.session.commit()
 with app.test_client() as cookie_client:
     cookie_response=cookie_client.get('/ridge-smoke-cookie')
     assert cookie_response.status_code==200,cookie_response.status_code
@@ -67,6 +75,14 @@ with app.test_client() as client:
         invalidated.assert_called_once()
 with app.app_context():
     assert Awards.query.count()==2
+
+with app.test_client() as client:
+    assert client.get('/scoreboard').status_code in (301,302), 'guest scoreboard must require login'
+    with client.session_transaction() as session:
+        session.update(id=user_id,name='smoke-user',email='smoke@example.test',type='user',nonce='smoke-nonce')
+    scoreboard=client.get('/scoreboard')
+    assert scoreboard.status_code==200,(scoreboard.status_code,scoreboard.get_data(as_text=True)[:200])
+    assert 'Smoke team' in scoreboard.get_data(as_text=True)
 
 with app.test_client() as client:
     assert client.post('/silent-ridge/internal',json=body).status_code in (401,403)
