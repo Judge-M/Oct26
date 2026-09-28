@@ -115,7 +115,9 @@ Verified by a full dress rehearsal on the dev host (2 teams, 180 s,
   password. A runtime's `secrets/wazuh_admin` must be the matching
   cleartext pair — reusing a vendored config from an earlier run with a
   freshly generated secret gives HTTP 401 from the indexer job. Keep
-  config and secrets from the same generation.
+  config and secrets from the same generation. After first boot, a file
+  edit plus container restart does not update the live security index; see
+  [Wazuh admin rotation](wazuh-admin-rotation.md).
 - The indexer dedupes telemetry by content hash: if `telemetry.jsonl`
   contains duplicate lines the document count is the *unique* count
   (the probe was fixed to expect that; 505 docs from 508 lines is correct).
