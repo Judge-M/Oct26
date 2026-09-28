@@ -3,10 +3,12 @@ import json
 import os
 import threading
 import unittest
+from unittest import mock
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
-from expanded.load import (CtfdBot, IrisBot, LoadError, build_report, markdown, mib,
-                           outbox_depth, percentile)
+from expanded.load import (CtfdBot, IrisBot, LoadError, TimedClient, build_report,
+                           login_bots, markdown, mib, outbox_depth, percentile,
+                           retry_after_seconds)
 
 
 class PercentileTests(unittest.TestCase):
@@ -137,6 +139,69 @@ class CtfdBotTests(unittest.TestCase):
                 bot.login()
         finally:
             server.shutdown()
+
+
+class RateLimitTests(unittest.TestCase):
+    def test_retries_429_and_records_both_attempts(self):
+        class OnceLimited(FakeCtfd):
+            requests = 0
+
+            def do_GET(self):
+                type(self).requests += 1
+                if type(self).requests == 1:
+                    self.send_response(429)
+                    self.send_header('Retry-After', '0')
+                    self.end_headers()
+                else:
+                    self._send(b'ok')
+
+        server = HTTPServer(('127.0.0.1', 0), OnceLimited)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        try:
+            samples = []
+            with mock.patch('expanded.load.time.sleep') as sleeper:
+                payload = TimedClient(f'http://127.0.0.1:{server.server_port}', samples).request(
+                    'test:retry', '/login')
+            self.assertEqual(payload, b'ok')
+            self.assertEqual([s['ok'] for s in samples], [False, True])
+            self.assertEqual(samples[0]['detail'], 'http 429')
+            sleeper.assert_called_once_with(0.5)
+        finally:
+            server.shutdown()
+            server.server_close()
+
+    def test_persistent_429_stops_after_five_attempts(self):
+        class AlwaysLimited(FakeCtfd):
+            def do_GET(self):
+                self.send_response(429)
+                self.end_headers()
+
+        server = HTTPServer(('127.0.0.1', 0), AlwaysLimited)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        try:
+            samples = []
+            with mock.patch('expanded.load.time.sleep') as sleeper:
+                with self.assertRaisesRegex(LoadError, 'still rate-limited after 5 attempts'):
+                    TimedClient(f'http://127.0.0.1:{server.server_port}', samples).request(
+                        'test:retry', '/login')
+            self.assertEqual(len(samples), 5)
+            self.assertTrue(all(s['detail'] == 'http 429' for s in samples))
+            self.assertEqual(sleeper.call_count, 4)
+        finally:
+            server.shutdown()
+            server.server_close()
+
+    def test_retry_after_is_bounded_and_login_burst_is_paced(self):
+        self.assertEqual(retry_after_seconds('3', 0), 3.0)
+        self.assertEqual(retry_after_seconds('999', 0), 10.0)
+        self.assertEqual(retry_after_seconds('bad-header', 2), 2.0)
+        calls = []
+        class Bot:
+            def login(self):
+                calls.append('login')
+        with mock.patch('expanded.load.time.sleep', side_effect=lambda seconds: calls.append(seconds)):
+            login_bots([Bot(), Bot(), Bot()])
+        self.assertEqual(calls, ['login', 0.5, 'login', 0.5, 'login'])
 
 
 class OutboxTests(unittest.TestCase):

@@ -42,10 +42,15 @@ import time
 import urllib.error
 import urllib.request
 import urllib.parse
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from http.cookiejar import CookieJar
 from pathlib import Path
 
 NONCE = re.compile(r"""csrfNonce['"]?\s*[:=]\s*["']([0-9a-f]+)["']""")
+MAX_429_ATTEMPTS = 5
+MAX_429_WAIT_S = 10.0
+LOGIN_STAGGER_S = 0.5
 
 
 class LoadError(RuntimeError):
@@ -75,28 +80,64 @@ class TimedClient:
         body = urllib.parse.urlencode(data).encode() if isinstance(data, dict) else data
         req = urllib.request.Request(url, data=body, headers=headers or {}, method=method)
         start = time.monotonic()
-        try:
-            with self.opener.open(req, timeout=30) as response:
-                payload = response.read()
-                ok = response.status < 400
-                detail = None if ok else f'http {response.status}'
-        except urllib.error.HTTPError as exc:
-            self.samples.append({'endpoint': endpoint, 'seconds': time.monotonic() - start,
-                                 'ok': False, 'detail': f'http {exc.code}'})
-            raise
-        except Exception as exc:
-            self.samples.append({'endpoint': endpoint, 'seconds': time.monotonic() - start,
-                                 'ok': False, 'detail': type(exc).__name__})
-            raise
-        sample = {'endpoint': endpoint, 'seconds': time.monotonic() - start, 'ok': ok}
-        if detail:
-            sample['detail'] = detail
-        self.samples.append(sample)
-        return payload
+        for attempt in range(MAX_429_ATTEMPTS):
+            attempt_start = time.monotonic()
+            try:
+                with self.opener.open(req, timeout=30) as response:
+                    payload = response.read()
+                    ok = response.status < 400
+                    detail = None if ok else f'http {response.status}'
+            except urllib.error.HTTPError as exc:
+                self.samples.append({'endpoint': endpoint,
+                                     'seconds': time.monotonic() - attempt_start,
+                                     'ok': False, 'detail': f'http {exc.code}'})
+                if exc.code != 429:
+                    raise
+                if attempt == MAX_429_ATTEMPTS - 1:
+                    raise LoadError(f'{endpoint} still rate-limited after '
+                                    f'{MAX_429_ATTEMPTS} attempts') from exc
+                delay = retry_after_seconds(exc.headers.get('Retry-After'), attempt)
+                exc.close()
+                time.sleep(delay)
+                continue
+            except Exception as exc:
+                self.samples.append({'endpoint': endpoint, 'seconds': time.monotonic() - start,
+                                     'ok': False, 'detail': type(exc).__name__})
+                raise
+            sample = {'endpoint': endpoint, 'seconds': time.monotonic() - start, 'ok': ok}
+            if detail:
+                sample['detail'] = detail
+            self.samples.append(sample)
+            return payload
 
     def get_json(self, endpoint, path, headers=None):
         return json.loads(self.request(endpoint, path, headers=headers))
 
+
+def retry_after_seconds(value, attempt):
+    """Bound server-requested 429 wait; invalid headers use exponential backoff."""
+    fallback = min(MAX_429_WAIT_S, 0.5 * 2 ** attempt)
+    if not value:
+        return fallback
+    if value.strip().isdigit():
+        delay = float(value)
+    else:
+        try:
+            at = parsedate_to_datetime(value)
+            if at.tzinfo is None:
+                at = at.replace(tzinfo=timezone.utc)
+            delay = (at - datetime.now(timezone.utc)).total_seconds()
+        except (TypeError, ValueError, OverflowError):
+            return fallback
+    return min(MAX_429_WAIT_S, max(fallback, delay))
+
+
+def login_bots(bots, pause=LOGIN_STAGGER_S):
+    """Space preflight logins to avoid a burst before the timed run starts."""
+    for index, bot in enumerate(bots):
+        if index:
+            time.sleep(pause)
+        bot.login()
 
 PAGE_NONCE = re.compile(rb'name="nonce"\s+value="([^"]+)"')
 PAGE_QUESTION = re.compile(rb'name="question"\s+value="([^"]+)"')
@@ -285,8 +326,7 @@ def run(config, duration, output):
                             entry['iris_password'], samples))
     if not bots:
         raise LoadError('No credentials matched the requested team count')
-    for bot in bots:
-        bot.login()  # fail fast on auth problems before the clock starts
+    login_bots(bots)  # fail fast on auth problems before the clock starts
     stop = threading.Event()
     sampler = threading.Thread(target=sample_containers,
                                args=(config.get('containers', []), stop, container_q),
