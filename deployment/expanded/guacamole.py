@@ -6,7 +6,8 @@ Do not commit this file's output or its credential input.
 
 ``reconcile`` emits upserts so a repeated run creates no duplicate connection,
 entity, user or permission rows and never silently rotates an existing login.
-The upstream default administrator account is disabled.
+The upstream default administrator account is disabled and replaced with a
+generated facilitator administrator whose credential is kept in the runtime.
 
 LIVE ACCEPTANCE (2026-09-18, N2 run): applied to a real Guacamole 1.5.5 +
 PostgreSQL 16.8 stack. Verified: schema + provisioning idempotent (row counts
@@ -102,6 +103,27 @@ def reconcile(config,credentials):
                    " AND type='USER' ON CONFLICT (entity_id) DO NOTHING;")
         sql.append("INSERT INTO guacamole_connection_permission(entity_id,connection_id,permission) SELECT e.entity_id,c.connection_id,'READ' FROM guacamole_entity e,guacamole_connection c WHERE e.name="+
                    quote(name)+" AND e.type='USER' AND c.connection_name="+quote(team['desktop'])+" ON CONFLICT DO NOTHING;")
+    facilitator=credentials.get('facilitator')
+    if not facilitator or not facilitator.get('username') or len(facilitator.get('password',''))<20:
+        raise ValueError('Generated facilitator administrator credentials required')
+    admin_name=facilitator['username']
+    if admin_name in names or admin_name=='guacadmin':
+        raise ValueError('Facilitator username collides with a team or stock admin')
+    admin_hash=hashlib.sha256(facilitator['password'].encode()).hexdigest()
+    sql.append('INSERT INTO guacamole_entity(name,type) VALUES ('+quote(admin_name)+
+               ",'USER') ON CONFLICT (name,type) DO NOTHING;")
+    sql.append("INSERT INTO guacamole_user(entity_id,password_hash,password_salt,password_date) SELECT entity_id,decode("+
+               quote(admin_hash)+",'hex'),NULL,CURRENT_TIMESTAMP FROM guacamole_entity WHERE name="+
+               quote(admin_name)+" AND type='USER' ON CONFLICT (entity_id) DO NOTHING;")
+    sql.append("DO $$ BEGIN IF EXISTS (SELECT 1 FROM guacamole_user u JOIN guacamole_entity e "+
+               "ON e.entity_id=u.entity_id WHERE e.name="+quote(admin_name)+
+               " AND e.type='USER' AND (u.password_hash<>decode("+quote(admin_hash)+
+               ",'hex') OR u.password_salt IS NOT NULL OR u.disabled)) THEN "+
+               "RAISE EXCEPTION 'facilitator account differs; refusing credential rotation'; "+
+               "END IF; END $$;")
+    sql.append("INSERT INTO guacamole_system_permission(entity_id,permission) SELECT entity_id,'ADMINISTER' "+
+               "FROM guacamole_entity WHERE name="+quote(admin_name)+
+               " AND type='USER' ON CONFLICT DO NOTHING;")
     # Remove upstream default administrator access.
     sql.append("UPDATE guacamole_user SET disabled=TRUE WHERE entity_id IN "+
                "(SELECT entity_id FROM guacamole_entity WHERE name='guacadmin' AND type='USER');")

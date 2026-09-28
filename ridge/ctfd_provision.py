@@ -37,6 +37,10 @@ class Admin(Protocol):
 
     def count_awards(self) -> int: ...
 
+    def create_admin(self, name: str, email: str, password: str) -> dict[str, Any]: ...
+
+    def admin_login_valid(self, name: str, password: str) -> bool: ...
+
 
 @dataclass(frozen=True)
 class TeamSpec:
@@ -54,12 +58,20 @@ class UserSpec:
 
 
 @dataclass(frozen=True)
+class FacilitatorSpec:
+    name: str
+    email: str
+    password: str = field(repr=False)
+
+
+@dataclass(frozen=True)
 class ProvisionSpec:
     teams: tuple[TeamSpec, ...]
     users: tuple[UserSpec, ...]
     user_mode: str = 'teams'
     registration_visible: bool = False
     schema: str = 'ctfd-3.7.7'
+    facilitator: FacilitatorSpec | None = None
 
 
 def _require(spec: ProvisionSpec) -> None:
@@ -83,6 +95,12 @@ def _require(spec: ProvisionSpec) -> None:
         if user.team not in seen:
             raise ProvisionError('users: %s references unmapped team %s' % (user.name, user.team))
         names.add(user.name)
+    if spec.facilitator is not None:
+        if (not spec.facilitator.name or not spec.facilitator.email
+                or len(spec.facilitator.password) < 20):
+            raise ProvisionError('facilitator: name, email and strong password required')
+        if spec.facilitator.name in names:
+            raise ProvisionError('facilitator: name collides with a participant')
 
 
 def _find_or_create_team(admin: Admin, team: TeamSpec) -> dict[str, Any]:
@@ -127,10 +145,24 @@ def provision(admin: Admin, spec: ProvisionSpec) -> dict[str, Any]:
         row = _find_or_create_user(admin, user, teams[user.team]['id'])
         users[user.name] = {'id': int(row['id']), 'name': user.name, 'team': user.team}
 
+    facilitator = None
+    if spec.facilitator is not None:
+        record = admin.find_user(spec.facilitator.name)
+        if record is None:
+            record = admin.create_admin(spec.facilitator.name, spec.facilitator.email,
+                                        spec.facilitator.password)
+        if not admin.admin_login_valid(spec.facilitator.name, spec.facilitator.password):
+            raise ProvisionError('facilitator: existing account is not an authenticating admin; '
+                                 'refusing to overwrite its password or role')
+        facilitator = {'id': int(record['id']), 'name': spec.facilitator.name}
+
     if admin.count_awards() != awards_before:
         raise ProvisionError('awards: provisioning must not change existing awards')
-    return {'user_mode': spec.user_mode, 'registration_visible': spec.registration_visible,
-            'teams': teams, 'users': users}
+    result = {'user_mode': spec.user_mode, 'registration_visible': spec.registration_visible,
+              'teams': teams, 'users': users}
+    if facilitator is not None:
+        result['facilitator'] = facilitator
+    return result
 
 
 def preflight(admin: Admin, spec: ProvisionSpec, inventory: dict[str, Any]) -> dict[str, Any]:
@@ -138,6 +170,9 @@ def preflight(admin: Admin, spec: ProvisionSpec, inventory: dict[str, Any]) -> d
     _require(spec)
     if admin.get_config('user_mode') != 'teams':
         raise ProvisionError('user_mode: application is not in team mode')
+    if spec.facilitator is not None:
+        if not admin.admin_login_valid(spec.facilitator.name, spec.facilitator.password):
+            raise ProvisionError('facilitator: admin login is missing or invalid')
     for key in ('score_visibility', 'account_visibility'):
         if admin.get_config(key) != 'private':
             raise ProvisionError('%s: signed-in participant visibility is required' % key)

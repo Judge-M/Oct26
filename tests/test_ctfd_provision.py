@@ -7,7 +7,7 @@ import unittest
 from dataclasses import replace
 
 from ridge.ctfd_provision import (
-    ProvisionError, ProvisionSpec, TeamSpec, UserSpec, preflight, provision,
+    FacilitatorSpec, ProvisionError, ProvisionSpec, TeamSpec, UserSpec, preflight, provision,
 )
 
 
@@ -48,6 +48,16 @@ class FakeAdmin:
                             'password': password, 'team_id': None}
         return {'id': self._next, 'name': name}
 
+    def create_admin(self, name, email, password):
+        row = self.create_user(name, email, password)
+        self.users[name]['type'] = 'admin'
+        return row
+
+    def admin_login_valid(self, name, password):
+        row = self.users.get(name)
+        return bool(row and row.get('type') == 'admin' and row['team_id'] is None
+                    and row['password'] == password)
+
     def set_user_team(self, user_id, team_id):
         for row in self.users.values():
             if row['id'] == user_id:
@@ -73,6 +83,19 @@ def spec():
 
 
 class CtfdProvisionTests(unittest.TestCase):
+    def test_facilitator_admin_is_idempotent_and_authenticates(self):
+        admin = FakeAdmin()
+        desired = replace(spec(), facilitator=FacilitatorSpec(
+            'ridge-facilitator', 'facilitator@example.test', 'a' * 40))
+        first = provision(admin, desired)
+        self.assertTrue(preflight(admin, desired, first)['ready'])
+        self.assertEqual(first, provision(admin, desired))
+        self.assertEqual(admin.users['ridge-facilitator']['type'], 'admin')
+        self.assertIsNone(admin.users['ridge-facilitator']['team_id'])
+        with self.assertRaisesRegex(ProvisionError, 'authenticating admin'):
+            provision(admin, replace(desired, facilitator=FacilitatorSpec(
+                'ridge-facilitator', 'facilitator@example.test', 'b' * 40)))
+
     def test_provision_is_idempotent_and_returns_inventory(self):
         admin = FakeAdmin()
         first = provision(admin, spec())

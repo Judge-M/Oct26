@@ -76,6 +76,32 @@ with app.test_client() as client:
 with app.app_context():
     assert Awards.query.count()==2
 
+from CTFd.plugins.ctfd_silent_ridge.provision import OrmAdmin
+from ridge.ctfd_provision import FacilitatorSpec, ProvisionSpec, TeamSpec, provision, preflight
+admin_spec=ProvisionSpec(
+    teams=(TeamSpec('smoke-team','Smoke team','disposable password'),), users=(),
+    facilitator=FacilitatorSpec('ridge-facilitator','admin@example.test',
+                                 'generated-disposable-admin-password-000001'))
+with app.app_context():
+    first=provision(OrmAdmin(),admin_spec)
+    db.session.commit()
+    assert preflight(OrmAdmin(),admin_spec,first)['ready']
+    assert provision(OrmAdmin(),admin_spec)==first
+    db.session.commit()
+    facilitator=Users.query.filter_by(name='ridge-facilitator').one()
+    assert facilitator.type=='admin' and facilitator.team_id is None
+    assert Awards.query.count()==2
+with app.test_client() as admin_browser:
+    assert admin_browser.get('/login').status_code==200
+    with admin_browser.session_transaction() as browser_session:
+        nonce=browser_session['nonce']
+    login=admin_browser.post('/login',data={
+        'name':'ridge-facilitator','password':'generated-disposable-admin-password-000001',
+        'nonce':nonce})
+    assert login.status_code==302,login.status_code
+    dashboard=admin_browser.get('/admin',follow_redirects=True)
+    assert dashboard.status_code==200,dashboard.status_code
+
 with app.test_client() as client:
     assert client.get('/scoreboard').status_code in (301,302), 'guest scoreboard must require login'
     with client.session_transaction() as session:

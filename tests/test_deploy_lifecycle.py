@@ -334,6 +334,18 @@ class LifecycleTests(unittest.TestCase):
         for rendered in (ctfd_env, central_env):
             self.assertIn('CTFD_SESSION_COOKIE_NAME=silent_ridge_ctfd_session', rendered)
             self.assertIn('CTFD_SESSION_COOKIE_SECURE=true', rendered)
+        facilitator = json.loads((self.runtime / 'specs' / 'ctfd-provision-spec.json')
+                                 .read_text(encoding='utf-8'))['facilitator']
+        self.assertEqual(facilitator['name'], 'ridge-facilitator')
+        self.assertEqual(facilitator['password'],
+                         (self.runtime / 'secrets' / 'ctfd-facilitator-password')
+                         .read_text(encoding='utf-8').strip())
+        guac = json.loads((self.runtime / 'specs' / 'guac-credentials.json')
+                          .read_text(encoding='utf-8'))
+        self.assertEqual(guac['facilitator']['username'], 'ridge-facilitator')
+        self.assertIn('guacamole_system_permission',
+                      (self.runtime / 'guac-init' / '002-provision.sql')
+                      .read_text(encoding='utf-8'))
         private_users = (self.runtime / 'wazuh-config' / 'internal_users.yml')
         self.assertIn('$2y$12$' + 'a' * 53, private_users.read_text(encoding='utf-8'))
         journal = Journal.open(self.runtime / 'deploy-journal.sqlite')
