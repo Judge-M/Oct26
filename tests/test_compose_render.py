@@ -130,6 +130,12 @@ class ComposeAuditTests(unittest.TestCase):
         self.assertIn('participant.pem', ' '.join(proxy['volumes']))
         self.assertIn('central', guac['services']['guacamole']['networks'])
 
+    def test_tls_proxy_preserves_the_external_host_port(self):
+        proxy = (COMPOSE / 'participant-tls.conf').read_text(encoding='utf-8')
+        self.assertIn('proxy_set_header Host $http_host;', proxy)
+        self.assertIn('proxy_set_header X-Forwarded-Host $http_host;', proxy)
+        self.assertNotRegex(proxy, r'(?m)^\s*proxy_set_header X-Forwarded-Port ')
+
     def test_audit_flags_private_port_and_missing_logging(self):
         bad = {'name': '${RIDGE_PROJECT}-x', 'services': {
             'leaky': {'ports': ['0.0.0.0:8091:8091'], 'privileged': True}}}
