@@ -50,6 +50,9 @@ if [[ -f "$OUT/root-ca.pem" && "$FORCE" != "--force" ]]; then
     }
     issue participant "silent-ridge-participant" "DNS:localhost,IP:127.0.0.1,IP:$DASHBOARD_IP"
   fi
+  # The CA certificate is public trust material consumed by a non-root
+  # integration job; only its private key must remain owner-readable.
+  chmod 644 "$OUT/root-ca.pem"
   echo "Existing CA and Wazuh certificates preserved in $OUT."
   exit 0
 fi
@@ -57,6 +60,7 @@ fi
 openssl genrsa -out "$OUT/root-ca-key.pem" 4096
 openssl req -new -x509 -sha256 -key "$OUT/root-ca-key.pem" -out "$OUT/root-ca.pem" \
   -days "$DAYS" -subj "/C=XX/ST=Silent Ridge/L=Exercise/O=Silent Ridge/OU=CA/CN=silent-ridge-ca"
+chmod 644 "$OUT/root-ca.pem"
 
 issue indexer "wazuh-indexer" "DNS:wazuh-indexer,DNS:localhost,IP:127.0.0.1"
 issue dashboard "wazuh-dashboard" "DNS:wazuh-dashboard,DNS:localhost,IP:127.0.0.1,IP:$DASHBOARD_IP"

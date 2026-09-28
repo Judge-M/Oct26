@@ -67,6 +67,10 @@ private runtime secret, not in the vendored source or Filebeat config. This
 must be done before the indexer initializes its security index. Replacing the
 file after a security index exists is **not** a password rotation; the old
 security state must be handled through the tested recovery/rotation procedure.
+The first-run hash step removes Windows text-mode stdin's trailing carriage
+return before invoking the pinned hash tool; otherwise the stored bcrypt hash
+cannot match the generated credential. The public `root-ca.pem` is mode 0644
+so the non-root integration job can verify TLS; the CA private key stays 0600.
 The evidence probe runs `filebeat test output` against the CA-verified indexer
 so a healthy manager process alone does not claim an ingest-ready event.
 

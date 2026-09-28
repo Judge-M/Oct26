@@ -633,7 +633,11 @@ class LocalStack:
         users = target_dir / 'internal_users.yml'
         if not users.is_file():
             password = self._secret('wazuh_admin').split(':', 1)[1]
+            # Windows text-mode subprocess stdin sends CRLF. Bash read removes
+            # LF but keeps CR; hashing that extra byte makes the saved password
+            # unusable. The generated password is hex, so CR is never valid.
             command = ('IFS= read -r password; '
+                       "password=${password%$'\\r'}; "
                        '/usr/share/wazuh-indexer/plugins/opensearch-security/tools/hash.sh '
                        '-p "$password"')
             result = self._pipe([
@@ -867,8 +871,13 @@ class LocalStack:
         for kind, services in APP_SERVICES.items():
             self._require_services(kind, services)
         bind = self._dashboard_bind_ip()
+        # A fresh CTFd database serves /setup until silent-ridge-provision runs
+        # in the next stage. /login redirects there using its internal default
+        # port, so requiring /login here would make first boot impossible.
+        ctfd_path = ('/login' if (self.runtime / 'inventories' / 'ctfd-inventory.json').is_file()
+                     else '/setup')
         checks = (('https://%s:%d/login' % (bind, self.port('iris', 8081)), 'IRIS'),
-                  ('https://%s:%d/login' % (bind, self.port('ctfd', 8083)), 'CTFd'),
+                  ('https://%s:%d%s' % (bind, self.port('ctfd', 8083), ctfd_path), 'CTFd'),
                   ('https://%s:%d/guacamole/' % (bind, self.port('guac', 8082)), 'Guacamole'))
         ca_file = self.runtime / 'wazuh-certs' / 'root-ca.pem'
         for url, name in checks:
@@ -933,6 +942,12 @@ class LocalStack:
         if not self.discovered_path.is_file():
             raise LifecycleError('missing %s: discovered application IDs are not recorded; '
                                  'run up' % self.discovered_path)
+        bind = self._dashboard_bind_ip()
+        url = 'https://%s:%d/login' % (bind, self.port('ctfd', 8083))
+        status, _ = self.host.http_json('GET', url,
+                                        ca_file=self.runtime / 'wazuh-certs' / 'root-ca.pem')
+        if status != 200:
+            raise LifecycleError('provisioned CTFd login returned HTTP %s at %s' % (status, url))
         return {'inventories': 2}
 
     # S5 ----------------------------------------------------------- desktops
