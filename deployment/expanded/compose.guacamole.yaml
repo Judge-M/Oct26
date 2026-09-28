@@ -45,9 +45,8 @@ services:
       POSTGRES_DATABASE: guacamole
       POSTGRES_USER: guacamole
       POSTGRES_PASSWORD: ${GUAC_DATABASE_PASSWORD:?Set private runtime environment value}
-    ports:
-      - ${BIND_IP:-127.0.0.1}:${GUAC_PORT:-8082}:8080
-    networks: [internal, frontend]
+      REMOTE_IP_VALVE_ENABLED: "true"
+    networks: [internal, frontend, central]
     depends_on:
       database: {condition: service_healthy}
       guacd: {condition: service_healthy}
@@ -68,3 +67,6 @@ networks:
   desktop:
     external: true
     name: ${RIDGE_DESKTOP_NETWORK:?Set network routed only to team desktop VNC ports}
+  central:
+    external: true
+    name: ${RIDGE_CENTRAL_NETWORK:?Set shared network for the participant TLS proxy}

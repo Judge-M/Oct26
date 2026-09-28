@@ -1,8 +1,10 @@
 import hashlib
+import importlib.util
 import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from ridge.desktop_image import assemble
 
@@ -117,6 +119,26 @@ class DesktopContainerTests(unittest.TestCase):
         for token in ('SOLR_LOGS_DIR', 'SOLR_PID_DIR', '/opt/autopsy/bin/autopsy',
                       '-J--module-path=/usr/share/openjfx/lib'):
             self.assertIn(token, autopsy, token)
+
+    def test_service_shortcut_opens_queue_instead_of_guessing_case_id(self):
+        path = DESKTOP / 'helpers/open-service.py'
+        spec = importlib.util.spec_from_file_location('open_service', path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        with tempfile.TemporaryDirectory() as tmp:
+            module.CONFIG = Path(tmp) / 'endpoints.json'
+            module.CONFIG.write_text(json.dumps({
+                'iris': 'https://event.example:8444',
+                'ctfd': 'https://event.example:8445',
+                'wazuh': 'https://event.example:8443'}), encoding='utf-8')
+            for service, expected in (
+                ('iris', 'https://event.example:8444/silent-ridge'),
+                ('ctfd', 'https://event.example:8445/silent-ridge'),
+                ('wazuh', 'https://event.example:8443')):
+                with self.subTest(service=service), patch('sys.argv', ['open-service.py', service]), \
+                        patch.object(module.subprocess, 'run') as launch:
+                    module.main()
+                    launch.assert_called_once_with(['/usr/local/bin/firefox', expected], check=True)
 
     def test_manifest_matches_desktop_v1_pins(self):
         self.assertEqual(self.manifest['base_image']['reference'], 'ubuntu:24.04')

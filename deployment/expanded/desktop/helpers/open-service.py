@@ -15,9 +15,12 @@ def main():
         subprocess.run(['zenity', '--error',
                         '--text=The organizer has not configured service addresses yet.'])
         raise SystemExit(1)
-    url = json.loads(CONFIG.read_text(encoding='utf-8'))[sys.argv[1]]
+    service = sys.argv[1]
+    url = json.loads(CONFIG.read_text(encoding='utf-8'))[service]
     if not isinstance(url, str) or not url.startswith(('https://', 'http://')):
         raise SystemExit('Expected an HTTP or HTTPS service URL')
+    if service in ('iris', 'ctfd') and not url.rstrip('/').endswith('/silent-ridge'):
+        url = url.rstrip('/') + '/silent-ridge'
     subprocess.run(['/usr/local/bin/firefox', url], check=True)
 
 

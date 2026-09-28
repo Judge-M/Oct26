@@ -20,20 +20,31 @@ from a rebuilt air-gapped kit on the event host before this release is ready.
 - `roles.json` — writer restricted to `silent-ridge-*`; participant data read
   limited to that pattern, with read-only Dashboard saved-object and global
   tenant access. Never map a participant to the `kibana_server` service role.
-- `compose.wazuh.yaml` — pinned stack; indexer/manager stay on an internal
-  network, only the dashboard is exposed, log rotation and healthchecks set.
+- `compose.wazuh.yaml` — pinned stack; manager stays on an internal network,
+  while the indexer and dashboard use configured host bindings, with log
+  rotation and healthchecks.
 - `api.yaml` — CA-signed API TLS with privilege dropping retained. The image
   copies this and its certificate into a writable path at first boot.
-- `generate-certs.sh` — idempotent local CA/node certificate generation.
 - `filebeat-init.sh` — runs inside the pinned manager after it seeds its own
   Filebeat files. It configures the certificate-matching `wazuh-indexer` host,
   preserves the image's template, and loads the generated indexer credential
   from a Docker secret into Filebeat's keystore on every container creation.
+- `generate-certs.sh` — idempotent local CA/node certificate generation. Pass
+  the participant-facing IPv4 address as the second argument so the dashboard
+  certificate covers its LAN URL. The deployer runs this inside the pinned
+  manager image, avoiding Windows-to-Bash path conversion. It rejects an existing certificate
+  that does not cover `local.json`'s `bind_ip`; changing that address requires
+  a planned certificate rotation and client CA trust update.
+
+After first boot, `internal_users.yml` is not the live credential store. Do
+not try to rotate `admin` by editing its hash and restarting the indexer; see
+[Wazuh admin rotation](../../../docs/wazuh-admin-rotation.md) for the
+security-index step and the required credential checks.
 
 ## Bootstrap
 
 ```text
-./generate-certs.sh /private/silent-ridge/certs
+python -m ridge.deploy up --profile <profile.json> --runtime <runtime-dir>
 python -m ridge.wazuh_provision   # apply roles, views, index template and preflight
 ```
 

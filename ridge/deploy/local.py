@@ -28,6 +28,7 @@ The runtime directory is private and gitignored. Layout::
 from __future__ import annotations
 
 import hashlib
+import ipaddress
 import json
 import re
 import shutil
@@ -61,7 +62,7 @@ INFRA_SERVICES = {
 }
 INFRA_ONE_SHOT = {'central': ('iris-db-init',)}
 APP_SERVICES = {
-    'central': ['iris', 'iris-worker', 'ctfd'],
+    'central': ['iris', 'iris-worker', 'ctfd', 'participant-tls'],
     'wazuh': ['wazuh-dashboard'],
     'guacamole': ['guacamole'],
 }
@@ -159,14 +160,16 @@ class HostOps:
         import secrets
         return secrets.token_hex(count)
 
-    def http_json(self, method, url, headers=None, body=None, timeout=10):
+    def http_json(self, method, url, headers=None, body=None, timeout=10, ca_file=None):
         from urllib.request import Request, urlopen
         from urllib.error import HTTPError
+        import ssl
         data = json.dumps(body).encode() if body is not None else None
         request = Request(url, data=data, method=method,
                           headers={'Content-Type': 'application/json', **(headers or {})})
         try:
-            with urlopen(request, timeout=timeout) as response:
+            context = ssl.create_default_context(cafile=str(ca_file)) if ca_file else None
+            with urlopen(request, timeout=timeout, context=context) as response:
                 text = response.read()
                 try:
                     return response.status, json.loads(text or b'{}')
@@ -491,12 +494,12 @@ class LocalStack:
         """Deterministically render every Compose env file (idempotent)."""
         self.env_dir.mkdir(parents=True, exist_ok=True)
         discovered = self._discovered()
-        addresses = self.profile['addresses']
         ports = {'iris': self.port('iris', 8081), 'ctfd': self.port('ctfd', 8083),
                  'guac': self.port('guac', 8082), 'wazuh': self.port('wazuh_dashboard', 8443)}
         # Host-side publish address is a host property, not the profile's container-side
         # central_bind_ip; default loopback, override via local.json "bind_ip".
-        bind = str(self.local.get('bind_ip') or '127.0.0.1')
+        bind = self._dashboard_bind_ip()
+        public = {name: 'https://%s:%d' % (bind, port) for name, port in ports.items()}
         secrets = self.secrets_dir
         files = {}
 
@@ -517,8 +520,8 @@ class LocalStack:
             'REDIS_URL': 'redis://ctfd-cache:6379',
             'CTFD_NAME': 'Operation Silent Ridge',
             'CTFD_SESSION_COOKIE_NAME': 'silent_ridge_ctfd_session',
-            'CTFD_SESSION_COOKIE_SECURE': str(
-                self.profile['addresses']['ctfd_public_url'].startswith('https://')).lower(),
+            'CTFD_SESSION_COOKIE_SECURE': 'true',
+            'REVERSE_PROXY': 'true',
         }
         files['ctfd-db'] = {
             'MARIADB_ROOT_PASSWORD': self._secret('mariadb-root-password'),
@@ -535,13 +538,14 @@ class LocalStack:
             'CTFD_DB_ENV_FILE': self.env_dir / 'ctfd-db.env',
             'RIDGE_IRIS_SECRET_FILE': secrets / 'ridge-iris-bridge',
             'RIDGE_CTFD_SECRET_FILE': secrets / 'ridge-ctfd-bridge',
+            'PARTICIPANT_CERTS_DIR': self.runtime / 'wazuh-certs',
             'BIND_IP': bind,
             'IRIS_PORT': str(ports['iris']), 'CTFD_PORT': str(ports['ctfd']),
-            'IRIS_PUBLIC_URL': addresses['iris_public_url'],
-            'CTFD_PUBLIC_URL': addresses['ctfd_public_url'],
+            'GUAC_PORT': str(ports['guac']),
+            'IRIS_PUBLIC_URL': public['iris'],
+            'CTFD_PUBLIC_URL': public['ctfd'],
             'CTFD_SESSION_COOKIE_NAME': 'silent_ridge_ctfd_session',
-            'CTFD_SESSION_COOKIE_SECURE': str(
-                addresses['ctfd_public_url'].startswith('https://')).lower(),
+            'CTFD_SESSION_COOKIE_SECURE': 'true',
         }
         # Placeholder IDs on first boot: IRIS services start before identities exist and
         # are recreated with the discovered IDs at the end of the identities stage.
@@ -563,6 +567,7 @@ class LocalStack:
         files['guacamole'] = {
             'RIDGE_PROJECT': self.event,
             'RIDGE_DESKTOP_NETWORK': self.event + '-desktop',
+            'RIDGE_CENTRAL_NETWORK': self.event + '-central',
             'GUAC_INIT_SQL': self.runtime / 'guac-init',
             'GUAC_DATABASE_PASSWORD': self._secret('guac-db-password'),
             'GUAC_DATABASE_PASSWORD_FILE': secrets / 'guac-db-password',
@@ -575,10 +580,9 @@ class LocalStack:
             'RIDGE_CASE_DIR': self.asset('case_template'),
             'RIDGE_EVIDENCE_DIR': self.asset('evidence_public'),
             'RIDGE_ORIGINALS_DIR': self.asset('originals'),
-            'IRIS_PUBLIC_URL': addresses['iris_public_url'],
-            'CTFD_PUBLIC_URL': addresses['ctfd_public_url'],
-            'WAZUH_PUBLIC_URL': 'https://%s:%d' % (addresses['guacamole_public_url']
-                                                   .split('//', 1)[-1].split(':')[0], ports['wazuh']),
+            'IRIS_PUBLIC_URL': public['iris'],
+            'CTFD_PUBLIC_URL': public['ctfd'],
+            'WAZUH_PUBLIC_URL': public['wazuh'],
         }
         files['integration'] = {
             'RIDGE_PROJECT': self.event,
@@ -747,6 +751,32 @@ class LocalStack:
             except CommandError:
                 self._run(['docker', 'network', 'create', name])
 
+    def _dashboard_bind_ip(self):
+        bind = str(self.local.get('bind_ip') or '127.0.0.1')
+        try:
+            address = ipaddress.IPv4Address(bind)
+        except ipaddress.AddressValueError as exc:
+            raise LifecycleError('local.json bind_ip must be an IPv4 address: %s' % exc)
+        if (address.is_unspecified or address.is_multicast or address.is_link_local
+                or not (address.is_private or address.is_loopback)):
+            raise LifecycleError('local.json bind_ip must be a private or loopback IPv4 address')
+        return bind
+
+    def _verify_public_certificate(self, certs, bind, name):
+        certificate = certs / (name + '.pem')
+        if not certificate.is_file():
+            raise LifecycleError('missing %s certificate at %s' % (name, certificate))
+        match = self._run([
+            'docker', 'run', '--rm', '--network', 'none', '--pull', 'never',
+            '-v', str(certs) + ':/certs:ro', '--entrypoint', 'openssl',
+            'wazuh/wazuh-manager:4.9.2', 'x509', '-in', '/certs/' + name + '.pem',
+            '-noout', '-checkip', bind,
+        ], check=False)
+        if 'does match certificate' not in match:
+            raise LifecycleError('%s certificate does not cover local.json '
+                                 'bind_ip %s; preserve the current CA and certificates, '
+                                 'then plan a certificate rotation for this address' % (name, bind))
+
     def _apply_infrastructure(self):
         self._ensure_secrets()
         self._render_specs()
@@ -754,8 +784,16 @@ class LocalStack:
         self._render_env()
         self._ensure_networks()
         certs = self.runtime / 'wazuh-certs'
-        if not (certs / 'root-ca.pem').is_file():
-            self._run(['bash', str(WAZUH_DIR / 'generate-certs.sh'), str(certs)])
+        bind = self._dashboard_bind_ip()
+        certs.mkdir(parents=True, exist_ok=True)
+        self._run([
+            'docker', 'run', '--rm', '--network', 'none', '--pull', 'never',
+            '-v', str(WAZUH_DIR / 'generate-certs.sh') + ':/generate-certs.sh:ro',
+            '-v', str(certs) + ':/certs', '--entrypoint', 'bash',
+            'wazuh/wazuh-manager:4.9.2', '/generate-certs.sh', '/certs', bind,
+        ])
+        self._verify_public_certificate(certs, bind, 'dashboard')
+        self._verify_public_certificate(certs, bind, 'participant')
         guac_init = self.runtime / 'guac-init'
         guac_init.mkdir(parents=True, exist_ok=True)
         if not (guac_init / '001-initdb.sql').is_file():
@@ -790,6 +828,9 @@ class LocalStack:
         if not private_users.is_file():
             raise LifecycleError('missing private Wazuh indexer users at %s; restore the '
                                  'runtime or run up on a fresh deployment' % private_users)
+        for name in ('dashboard', 'participant'):
+            self._verify_public_certificate(self.runtime / 'wazuh-certs',
+                                            self._dashboard_bind_ip(), name)
         for kind, services in INFRA_SERVICES.items():
             self._require_services(kind, services,
                                    allow_exit0=INFRA_ONE_SHOT.get(kind, ()))
@@ -803,13 +844,15 @@ class LocalStack:
     def _probe_applications(self):
         for kind, services in APP_SERVICES.items():
             self._require_services(kind, services)
-        addresses = self.profile['addresses']
-        checks = ((addresses['iris_public_url'] + '/login', 'IRIS'),
-                  (addresses['ctfd_public_url'] + '/login', 'CTFd'))
+        bind = self._dashboard_bind_ip()
+        checks = (('https://%s:%d/login' % (bind, self.port('iris', 8081)), 'IRIS'),
+                  ('https://%s:%d/login' % (bind, self.port('ctfd', 8083)), 'CTFd'),
+                  ('https://%s:%d/guacamole/' % (bind, self.port('guac', 8082)), 'Guacamole'))
+        ca_file = self.runtime / 'wazuh-certs' / 'root-ca.pem'
         for url, name in checks:
-            status, _ = self.host.http_json('GET', url)
+            status, _ = self.host.http_json('GET', url, ca_file=ca_file)
             if status != 200:
-                raise LifecycleError('%s login page returned HTTP %s at %s; the application is '
+                raise LifecycleError('%s participant page returned HTTP %s at %s; the application is '
                                      'not ready' % (name, status, url))
         return {'services': sum(len(s) for s in APP_SERVICES.values())}
 

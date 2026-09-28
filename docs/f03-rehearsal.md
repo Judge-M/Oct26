@@ -16,7 +16,8 @@ smoke run.
 
 ## Host
 
-- Event-capable machine, ≥ 32 GiB RAM (the dev box does **not** certify)
+- Plan for ≥ 32 GiB RAM. This is the current deployment reservation model,
+  not proof that a smaller or larger host will pass the measured rehearsal.
 - Docker Desktop / Docker Engine running, images already built
   (`python -m ridge.deploy build --component all` +
   `python -m ridge.deploy verify-build`)
@@ -41,8 +42,9 @@ smoke run.
    {
      "teams": 10,
      "sessions_per_team": 3,
-     "ctfd_url": "http://127.0.0.1:8083",
-     "iris_url": "http://127.0.0.1:8081",
+     "ctfd_url": "auto",
+     "iris_url": "auto",
+     "ca_file": "<runtime-dir>/wazuh-certs/root-ca.pem",
      "credentials": "<runtime-dir>/secrets/team-credentials.json",
      "state_sqlite": "<runtime-dir>/state/state.sqlite",
      "host": {"ram_gib": 32},
@@ -50,7 +52,12 @@ smoke run.
    }
    ```
 
-   Set `host.ram_gib` to the machine's actual RAM.
+   `auto` reads `bind_ip` and `ports` from the `local.json` beside the
+   credentials runtime, so a LAN-bound stack is contacted through its LAN
+   address over HTTPS. The harness verifies the participant certificate
+   against the generated local CA; do not disable verification. Explicit URLs
+   remain supported for a remote harness. Set `host.ram_gib` to the machine's
+   actual RAM. Login preflight names the configured URL if unreachable.
 
 3. Start the exercise, then run the harness (1800 s = 30 minutes; runs
    under 30 s are refused; use a fresh output directory every time):
@@ -61,15 +68,17 @@ smoke run.
    ```
 
 4. While it runs, do the desktop usability pass by hand: open two or three
-   team desktops through Guacamole (`http://<host>:8082`), launch Autopsy,
+   team desktops through Guacamole (`https://<host>:8082`), launch Autopsy,
    open the prepared case, run a search — note any lag or freeze. The
    harness does not measure desktop interactivity.
 
-5. Read `work/f03/event-run/report.md`. Check:
-   - `CERTIFYING` label present
-   - zero or near-zero failures per endpoint; p95 within target
+5. Read `work/f03/event-run/report.md` and `report.json`. Check:
+   - JSON `certifying` is `true` (the word also appears in `NON-CERTIFYING`)
+   - zero failed requests; p95 within target
    - outbox depth min/max flat or draining, not climbing
-   - peak working set ≤ 80% of host RAM
+   - observed host RAM and minimum available RAM are present; at least 20%
+     remained available throughout the run. Container working-set peaks are
+     reported separately and omit Docker/WSL overhead.
 
 6. Publish the sanitized report (it contains no credentials — verify
    before publishing) as the F03 evidence.
@@ -84,11 +93,19 @@ Verified by a full dress rehearsal on the dev host (2 teams, 180 s,
   HTTP 429 up to five attempts, respecting `Retry-After` up to a 10 s wait.
   Each 429 remains a failed sample in the report. A persistently limited
   login stops preflight with an explicit error; it is not a capacity result.
+- Authenticated probes reject a final login-page redirect even if it returns
+  HTTP 200. IRIS dashboard probes require the authenticated `Logout` marker;
+  CTFd question probes require a question form. Missing page identity counts
+  as a failed sample, not a successful request.
 - **Capacity model**: retuned 2026-09-23 from measurements (central 6 GiB,
   desktop 2 GiB / 1 vCPU / 15 GiB, 20% memory headroom in validation).
-  Reservations are measured *peaks*, not limits — the certifying run should
-  confirm or adjust them with real 10-team numbers; do not weaken the
-  check beforehand.
+  These reservations are planning inputs. The F03 report now samples physical
+  host available RAM during the run; a typed `host.ram_gib` value or a sum of
+  container working sets cannot confer a certifying label. A 30-minute run
+  with all required authenticated probes, container samples, no failed
+  requests, and ≥ 20% observed host reserve is still only capacity evidence
+  for **that** host. It does not establish a general 16 GiB minimum, and the
+  separate desktop usability, outbox, and latency targets still need review.
   The original rehearsal used the image's 300 s guacd healthcheck. Current
   Compose overrides it with a 10 s probe; first boot still takes minutes.
 - `up` now creates the external networks (`<event>-central`,
@@ -98,7 +115,9 @@ Verified by a full dress rehearsal on the dev host (2 teams, 180 s,
   password. A runtime's `secrets/wazuh_admin` must be the matching
   cleartext pair — reusing a vendored config from an earlier run with a
   freshly generated secret gives HTTP 401 from the indexer job. Keep
-  config and secrets from the same generation.
+  config and secrets from the same generation. After first boot, a file
+  edit plus container restart does not update the live security index; see
+  [Wazuh admin rotation](wazuh-admin-rotation.md).
 - The indexer dedupes telemetry by content hash: if `telemetry.jsonl`
   contains duplicate lines the document count is the *unique* count
   (the probe was fixed to expect that; 505 docs from 508 lines is correct).

@@ -115,6 +115,7 @@ def main():
         'wazuh_indexer': 'wazuh/wazuh-indexer:4.9.2',
         'wazuh_dashboard': 'wazuh/wazuh-dashboard:4.9.2',
         'guacamole': 'guacamole/guacamole:1.5.5', 'guacd': 'guacamole/guacd:1.5.5',
+        'participant_tls': 'nginx:alpine',
     }
     listing = subprocess.check_output(
         ['docker', 'images', '--no-trunc', '--format', '{{.Repository}}:{{.Tag}} {{.ID}}'],
