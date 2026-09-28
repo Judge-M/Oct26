@@ -18,6 +18,30 @@ from ridge.deploy.local import LifecycleError, LocalStack
 from ridge.deploy.journal import Journal
 
 
+class WazuhOfflineConfigTests(unittest.TestCase):
+    def test_private_indexer_admin_hash_replaces_only_admin(self):
+        old = '$2y$12$' + 'b' * 53
+        new = '$2y$12$' + 'a' * 53
+        source = ('admin:\n  hash: "' + old + '"\n  reserved: true\n'
+                  'kibanaserver:\n  hash: "' + old + '"\n')
+        rendered = deploy_local.render_indexer_admin(source, new)
+        self.assertIn('admin:\n  hash: "' + new + '"', rendered)
+        self.assertIn('kibanaserver:\n  hash: "' + old + '"', rendered)
+        with self.assertRaisesRegex(LifecycleError, 'invalid bcrypt'):
+            deploy_local.render_indexer_admin(source, 'not-a-hash')
+
+    def test_disables_existing_update_check_without_changing_other_settings(self):
+        source = ('<ossec_config><global><jsonout_output>yes</jsonout_output>'
+                  '<update_check>yes</update_check></global></ossec_config>')
+        rendered = deploy_local.offline_wazuh_config(source)
+        self.assertIn('<update_check>no</update_check>', rendered)
+        self.assertIn('<jsonout_output>yes</jsonout_output>', rendered)
+
+    def test_rejects_invalid_vendored_config(self):
+        with self.assertRaisesRegex(LifecycleError, 'invalid XML'):
+            deploy_local.offline_wazuh_config('<ossec_config>')
+
+
 class FakeHost(deploy_local.HostOps):
     """Deterministic host ops: fixed secrets, canned HTTP, tiny ticket set."""
 
@@ -85,6 +109,8 @@ class FakeRunner:
 
     def run_stdin(self, argv, text, check=True):
         self.calls.append(list(argv))
+        if 'hash.sh' in ' '.join(argv):
+            return '$2y$12$' + 'a' * 53 + '\n'
         if 'psql' in argv:
             self.connections = 2
         return ''
@@ -210,9 +236,11 @@ def make_runtime(root):
     (assets / 'originals').mkdir()
     (assets / 'wazuh-config' / 'wazuh_indexer').mkdir(parents=True)
     (assets / 'wazuh-config' / 'wazuh_indexer' / 'wazuh.indexer.yml').write_text('y')
-    (assets / 'wazuh-config' / 'wazuh_indexer' / 'internal_users.yml').write_text('y')
+    (assets / 'wazuh-config' / 'wazuh_indexer' / 'internal_users.yml').write_text(
+        'admin:\n  hash: "$2y$12$' + 'b' * 53 + '"\n  reserved: true\n')
     (assets / 'wazuh-config' / 'wazuh_cluster').mkdir()
-    (assets / 'wazuh-config' / 'wazuh_cluster' / 'wazuh_manager.conf').write_text('y')
+    (assets / 'wazuh-config' / 'wazuh_cluster' / 'wazuh_manager.conf').write_text(
+        '<ossec_config><global><jsonout_output>yes</jsonout_output></global></ossec_config>')
     runtime = root / 'runtime'
     runtime.mkdir()
     (runtime / 'local.json').write_text(json.dumps({
@@ -294,12 +322,20 @@ class LifecycleTests(unittest.TestCase):
                     and 'up' in call and 'wazuh-manager' in call]
         self.assertEqual(len(wazuh_up), 1)
         self.assertIn('--wait', wazuh_up[0])
+        api_password = (self.runtime / 'secrets' / 'wazuh-api-password').read_text().strip()
+        self.assertNotEqual(api_password, self.stack._secret('wazuh_admin').split(':', 1)[1])
+        self.assertIn('<update_check>no</update_check>',
+                      (self.runtime / 'wazuh-config' / 'ossec.conf').read_text())
+        wazuh_env = (self.runtime / 'env' / 'wazuh.env').read_text()
+        self.assertIn('WAZUH_API_PASSWORD=' + api_password, wazuh_env)
         self.assertEqual(set(result['stages']), set(LocalStack.STAGES))
         ctfd_env = (self.runtime / 'env' / 'ctfd.env').read_text(encoding='utf-8')
         central_env = (self.runtime / 'env' / 'central.env').read_text(encoding='utf-8')
         for rendered in (ctfd_env, central_env):
             self.assertIn('CTFD_SESSION_COOKIE_NAME=silent_ridge_ctfd_session', rendered)
             self.assertIn('CTFD_SESSION_COOKIE_SECURE=true', rendered)
+        private_users = (self.runtime / 'wazuh-config' / 'internal_users.yml')
+        self.assertIn('$2y$12$' + 'a' * 53, private_users.read_text(encoding='utf-8'))
         journal = Journal.open(self.runtime / 'deploy-journal.sqlite')
         self.assertTrue(all(s['state'] == 'verified' for s in journal.steps()))
         # State initialized paused and provisioned.
@@ -398,6 +434,20 @@ class LifecycleTests(unittest.TestCase):
         self.assertTrue('missing secret' in message or 'incomplete secrets' in message)
         self.assertFalse((self.runtime / 'secrets' / 'wazuh_writer').is_file(),
                          'a partial secrets dir must never trigger regeneration')
+
+    def test_existing_runtime_gets_api_secret_once_and_detects_loss(self):
+        self.stack.up(self.source)
+        old_admin = self.stack._secret('wazuh_admin')
+        api = self.runtime / 'secrets' / 'wazuh-api-password'
+        marker = self.runtime / 'wazuh-api-secret.sha256'
+        api.unlink()
+        marker.unlink()  # Represents a runtime created before the API secret existed.
+        self.stack._ensure_secrets()
+        self.assertEqual(self.stack._secret('wazuh_admin'), old_admin)
+        self.assertTrue(api.is_file())
+        api.unlink()
+        with self.assertRaisesRegex(LifecycleError, 'Wazuh API secret is missing'):
+            self.stack._ensure_secrets()
 
     def test_start_refused_before_readiness(self):
         with self.assertRaises(LifecycleError) as ctx:

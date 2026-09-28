@@ -14,7 +14,7 @@ services:
       - ${WAZUH_CERTS_DIR}/admin.pem:/usr/share/wazuh-indexer/certs/admin.pem:ro
       - ${WAZUH_CERTS_DIR}/admin-key.pem:/usr/share/wazuh-indexer/certs/admin-key.pem:ro
       - ${WAZUH_CONFIG_DIR:?Set vendored Wazuh config directory}/wazuh_indexer/wazuh.indexer.yml:/usr/share/wazuh-indexer/opensearch.yml:ro
-      - ${WAZUH_CONFIG_DIR}/wazuh_indexer/internal_users.yml:/usr/share/wazuh-indexer/opensearch-security/internal_users.yml:ro
+      - ${WAZUH_RUNTIME_CONFIG_DIR:?Set private rendered Wazuh config directory}/internal_users.yml:/usr/share/wazuh-indexer/opensearch-security/internal_users.yml:ro
     ports:
       # Loopback-only: controller provisioning/queries; participants use the dashboard.
       - ${BIND_IP:-127.0.0.1}:${WAZUH_INDEXER_PORT:-9200}:9200
@@ -31,43 +31,60 @@ services:
     image: ${WAZUH_MANAGER_IMAGE:?Set pinned immutable Wazuh manager image}
     pull_policy: never
     restart: unless-stopped
+    environment:
+      API_USERNAME: wazuh-wui
+      API_PASSWORD: ${WAZUH_API_PASSWORD:?Set generated Wazuh API password}
     volumes:
       - wazuh-manager-data:/var/ossec/data
       - ${WAZUH_CERTS_DIR:?Set generated local certificate directory}/root-ca.pem:/etc/ssl/certs/silent-ridge-root-ca.pem:ro
       # The image seeds /var/ossec/etc on first boot, then copies this file in.
-      - ${WAZUH_CONFIG_DIR:?Set vendored Wazuh config directory}/wazuh_cluster/wazuh_manager.conf:/wazuh-config-mount/etc/ossec.conf:ro
+      - ${WAZUH_RUNTIME_CONFIG_DIR:?Set rendered Wazuh config directory}/ossec.conf:/wazuh-config-mount/etc/ossec.conf:ro
+      # Copy the CA-signed API certificate into the writable image path at boot.
+      - ./api.yaml:/wazuh-config-mount/api/configuration/api.yaml:ro
+      - ${WAZUH_CERTS_DIR}/manager.pem:/wazuh-config-mount/api/configuration/ssl/server.crt:ro
+      - ${WAZUH_CERTS_DIR}/manager-key.pem:/wazuh-config-mount/api/configuration/ssl/server.key:ro
+      - ${WAZUH_CERTS_DIR}/root-ca.pem:/wazuh-config-mount/api/configuration/ssl/ca.crt:ro
+      - ./filebeat-init.sh:/etc/cont-init.d/1a-silent-ridge-filebeat:ro
+    secrets: [wazuh_indexer_credential]
     networks: [wazuh-backend]
     depends_on: [wazuh-indexer]
     logging:
       driver: json-file
       options: {max-size: "10m", max-file: "3"}
     healthcheck:
-      test: [CMD-SHELL, "pidof wazuh-analysisd >/dev/null && pidof wazuh-remoted >/dev/null"]
+      test: [CMD-SHELL, "pidof wazuh-analysisd >/dev/null && pidof wazuh-remoted >/dev/null && curl --fail --silent --max-time 5 --cacert /var/ossec/api/configuration/ssl/ca.crt --user \"$$API_USERNAME:$$API_PASSWORD\" -X POST https://localhost:55000/security/user/authenticate -o /dev/null"]
       interval: 15s
       timeout: 5s
       retries: 10
+      start_period: 60s
   wazuh-dashboard:
     image: ${WAZUH_DASHBOARD_IMAGE:?Set pinned immutable Wazuh dashboard image}
     pull_policy: never
     restart: unless-stopped
     environment:
       WAZUH_API_URL: https://wazuh-manager
+      API_USERNAME: wazuh-wui
+      API_PASSWORD: ${WAZUH_API_PASSWORD:?Set generated Wazuh API password}
     volumes:
       - ${WAZUH_CERTS_DIR:?Set generated local certificate directory}/root-ca.pem:/usr/share/wazuh-dashboard/certs/root-ca.pem:ro
       - ${WAZUH_CERTS_DIR}/dashboard.pem:/usr/share/wazuh-dashboard/certs/dashboard.pem:ro
       - ${WAZUH_CERTS_DIR}/dashboard-key.pem:/usr/share/wazuh-dashboard/certs/dashboard-key.pem:ro
       - ${WAZUH_CONFIG_DIR:?Set vendored Wazuh config directory}/wazuh_dashboard/opensearch_dashboards.yml:/usr/share/wazuh-dashboard/config/opensearch_dashboards.yml:ro
-      - ${WAZUH_CONFIG_DIR}/wazuh_dashboard/wazuh.yml:/usr/share/wazuh-dashboard/data/wazuh/config/wazuh.yml:ro
     ports:
       - ${BIND_IP:-127.0.0.1}:${WAZUH_DASHBOARD_PORT:-8443}:5601
     networks: [wazuh-backend, frontend]
-    depends_on: [wazuh-indexer]
+    depends_on:
+      wazuh-indexer: {condition: service_healthy}
+      wazuh-manager: {condition: service_healthy}
     logging:
       driver: json-file
       options: {max-size: "10m", max-file: "3"}
 volumes:
   wazuh-indexer-data:
   wazuh-manager-data:
+secrets:
+  wazuh_indexer_credential:
+    file: ${WAZUH_ADMIN_SECRET_FILE:?Set generated indexer admin credential file}
 networks:
   wazuh-backend:
     internal: true
