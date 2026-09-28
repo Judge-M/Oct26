@@ -44,9 +44,12 @@ config = Path('/etc/silent-ridge/endpoints.json')
 if not config.exists():
     subprocess.run(['zenity', '--error', '--text=The organizer has not configured service addresses yet.'])
     raise SystemExit(1)
-url = json.loads(config.read_text())[sys.argv[1]]
+service = sys.argv[1]
+url = json.loads(config.read_text())[service]
 if not isinstance(url, str) or not url.startswith(('https://', 'http://')):
     raise SystemExit('Expected an HTTP or HTTPS service URL')
+if service in ('iris', 'ctfd') and not url.rstrip('/').endswith('/silent-ridge'):
+    url = url.rstrip('/') + '/silent-ridge'
 subprocess.run(['/usr/local/bin/firefox', url], check=True)
 PY
 chmod 755 /opt/silent-ridge/{open-autopsy.sh,start-desktop.sh,open-service.py}

@@ -28,10 +28,13 @@ The runtime directory is private and gitignored. Layout::
 from __future__ import annotations
 
 import hashlib
+import ipaddress
 import json
+import re
 import shutil
 import sqlite3
 import subprocess
+import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -59,7 +62,7 @@ INFRA_SERVICES = {
 }
 INFRA_ONE_SHOT = {'central': ('iris-db-init',)}
 APP_SERVICES = {
-    'central': ['iris', 'iris-worker', 'ctfd'],
+    'central': ['iris', 'iris-worker', 'ctfd', 'participant-tls'],
     'wazuh': ['wazuh-dashboard'],
     'guacamole': ['guacamole'],
 }
@@ -70,6 +73,59 @@ SECRET_FILES = (
     'ridge-iris-bridge', 'ridge-ctfd-bridge',
     'wazuh_admin', 'wazuh_writer', 'wazuh_reader', 'guac-db-password',
 )
+WAZUH_API_SECRET = 'wazuh-api-password'
+
+
+def offline_wazuh_config(source):
+    """Keep the vendored manager config intact except for disabling update checks."""
+    try:
+        root = ET.fromstring('<ridge>' + source + '</ridge>')
+    except ET.ParseError as exc:
+        raise LifecycleError('vendored Wazuh manager config is invalid XML: %s' % exc)
+    globals_ = root.findall('.//global')
+    if not globals_:
+        raise LifecycleError('vendored Wazuh manager config has no <global> section')
+    updates = [entry for section in globals_ for entry in section.findall('update_check')]
+    if updates:
+        rendered, count = re.subn(r'(<update_check>\s*)([^<]*?)(\s*</update_check>)',
+                                  lambda match: match.group(1) + 'no' + match.group(3),
+                                  source, flags=re.IGNORECASE)
+        if count != len(updates):
+            raise LifecycleError('vendored Wazuh update_check entries are ambiguous')
+    else:
+        rendered, count = re.subn(r'(<global(?:\s[^>]*)?>)',
+                                  r'\1\n    <update_check>no</update_check>', source, count=1)
+        if count != 1:
+            raise LifecycleError('vendored Wazuh manager config has no usable <global> tag')
+    verified = ET.fromstring('<ridge>' + rendered + '</ridge>')
+    if any((entry.text or '').strip().lower() != 'no'
+           for section in verified.findall('.//global')
+           for entry in section.findall('update_check')):
+        raise LifecycleError('Wazuh update check must be disabled for the offline kit')
+    return rendered
+
+
+def render_indexer_admin(source, password_hash):
+    """Replace only the vendored admin hash in a private runtime copy."""
+    if not re.fullmatch(r'\$2[aby]\$12\$[./A-Za-z0-9]{53}', password_hash):
+        raise LifecycleError('indexer hash tool returned an invalid bcrypt hash')
+    lines = source.splitlines(keepends=True)
+    admin_line = next((i for i, line in enumerate(lines) if line.strip() == 'admin:'
+                       and line.startswith('admin:')), None)
+    if admin_line is None:
+        raise LifecycleError('vendored internal_users.yml has no admin user')
+    hashes = []
+    for i in range(admin_line + 1, len(lines)):
+        if lines[i].strip() and not lines[i][0].isspace():
+            break
+        if re.match(r'^[ \t]+hash:', lines[i]):
+            hashes.append(i)
+    if len(hashes) != 1:
+        raise LifecycleError('vendored admin entry must have exactly one hash')
+    old = lines[hashes[0]]
+    newline = '\r\n' if old.endswith('\r\n') else '\n'
+    lines[hashes[0]] = '  hash: "' + password_hash + '"' + newline
+    return ''.join(lines)
 
 
 def _derive_discovered(iris_inventory, ctfd_inventory):
@@ -104,14 +160,16 @@ class HostOps:
         import secrets
         return secrets.token_hex(count)
 
-    def http_json(self, method, url, headers=None, body=None, timeout=10):
+    def http_json(self, method, url, headers=None, body=None, timeout=10, ca_file=None):
         from urllib.request import Request, urlopen
         from urllib.error import HTTPError
+        import ssl
         data = json.dumps(body).encode() if body is not None else None
         request = Request(url, data=data, method=method,
                           headers={'Content-Type': 'application/json', **(headers or {})})
         try:
-            with urlopen(request, timeout=timeout) as response:
+            context = ssl.create_default_context(cafile=str(ca_file)) if ca_file else None
+            with urlopen(request, timeout=timeout, context=context) as response:
                 text = response.read()
                 try:
                     return response.status, json.loads(text or b'{}')
@@ -281,6 +339,34 @@ class LocalStack:
                                  'or remove the runtime directory and run up again' % path)
         return path.read_text(encoding='utf-8').strip()
 
+    def _wazuh_api_password(self):
+        password = self._secret(WAZUH_API_SECRET)
+        if (not 8 <= len(password) <= 64 or '\n' in password or '\r' in password
+                or not re.search(r'[A-Z]', password) or not re.search(r'[a-z]', password)
+                or not re.search(r'[0-9]', password) or not re.search(r'[^A-Za-z0-9]', password)):
+            raise LifecycleError('Wazuh API secret must be 8-64 characters with uppercase, '
+                                 'lowercase, digit and symbol; restore the generated secret')
+        marker = self.runtime / 'wazuh-api-secret.sha256'
+        if marker.is_file() and marker.read_text(encoding='utf-8').strip() != hashlib.sha256(
+                password.encode()).hexdigest():
+            raise LifecycleError('Wazuh API secret changed since initialization; restore '
+                                 'the original runtime secret')
+        return password
+
+    def _ensure_wazuh_api_secret(self):
+        """Add this new secret to older runtimes without rotating existing secrets."""
+        path = self.secrets_dir / WAZUH_API_SECRET
+        marker = self.runtime / 'wazuh-api-secret.sha256'
+        if marker.is_file() and not path.is_file():
+            raise LifecycleError('Wazuh API secret is missing from %s; restore the runtime'
+                                 % path)
+        if not path.is_file():
+            path.write_text('Aa1!' + self.host.randhex(20) + '\n', encoding='utf-8')
+        password = self._wazuh_api_password()
+        if not marker.is_file():
+            marker.write_text(hashlib.sha256(password.encode()).hexdigest() + '\n',
+                              encoding='utf-8')
+
     # ------------------------------------------------------------------ docker
 
     def _run(self, argv, check=True):
@@ -347,6 +433,7 @@ class LocalStack:
         vnc_ok = vnc_dir.is_dir() and all(
             (vnc_dir / ('team%02d' % (i + 1))).is_file() for i in range(len(self.teams)))
         if existing and team_creds.is_file() and vnc_ok:
+            self._ensure_wazuh_api_secret()
             self._ensure_facilitator_secrets()
             return False
         if existing and (not team_creds.is_file() or not vnc_ok):
@@ -382,6 +469,7 @@ class LocalStack:
             }
             credentials['desktops'][team['desktop']] = {'password': vnc}
         team_creds.write_text(json.dumps(credentials, indent=2), encoding='utf-8')
+        self._ensure_wazuh_api_secret()
         self._ensure_facilitator_secrets()
         return True
 
@@ -423,12 +511,12 @@ class LocalStack:
         """Deterministically render every Compose env file (idempotent)."""
         self.env_dir.mkdir(parents=True, exist_ok=True)
         discovered = self._discovered()
-        addresses = self.profile['addresses']
         ports = {'iris': self.port('iris', 8081), 'ctfd': self.port('ctfd', 8083),
                  'guac': self.port('guac', 8082), 'wazuh': self.port('wazuh_dashboard', 8443)}
         # Host-side publish address is a host property, not the profile's container-side
         # central_bind_ip; default loopback, override via local.json "bind_ip".
-        bind = str(self.local.get('bind_ip') or '127.0.0.1')
+        bind = self._dashboard_bind_ip()
+        public = {name: 'https://%s:%d' % (bind, port) for name, port in ports.items()}
         secrets = self.secrets_dir
         files = {}
 
@@ -449,8 +537,8 @@ class LocalStack:
             'REDIS_URL': 'redis://ctfd-cache:6379',
             'CTFD_NAME': 'Operation Silent Ridge',
             'CTFD_SESSION_COOKIE_NAME': 'silent_ridge_ctfd_session',
-            'CTFD_SESSION_COOKIE_SECURE': str(
-                self.profile['addresses']['ctfd_public_url'].startswith('https://')).lower(),
+            'CTFD_SESSION_COOKIE_SECURE': 'true',
+            'REVERSE_PROXY': 'true',
         }
         files['ctfd-db'] = {
             'MARIADB_ROOT_PASSWORD': self._secret('mariadb-root-password'),
@@ -467,13 +555,14 @@ class LocalStack:
             'CTFD_DB_ENV_FILE': self.env_dir / 'ctfd-db.env',
             'RIDGE_IRIS_SECRET_FILE': secrets / 'ridge-iris-bridge',
             'RIDGE_CTFD_SECRET_FILE': secrets / 'ridge-ctfd-bridge',
+            'PARTICIPANT_CERTS_DIR': self.runtime / 'wazuh-certs',
             'BIND_IP': bind,
             'IRIS_PORT': str(ports['iris']), 'CTFD_PORT': str(ports['ctfd']),
-            'IRIS_PUBLIC_URL': addresses['iris_public_url'],
-            'CTFD_PUBLIC_URL': addresses['ctfd_public_url'],
+            'GUAC_PORT': str(ports['guac']),
+            'IRIS_PUBLIC_URL': public['iris'],
+            'CTFD_PUBLIC_URL': public['ctfd'],
             'CTFD_SESSION_COOKIE_NAME': 'silent_ridge_ctfd_session',
-            'CTFD_SESSION_COOKIE_SECURE': str(
-                addresses['ctfd_public_url'].startswith('https://')).lower(),
+            'CTFD_SESSION_COOKIE_SECURE': 'true',
         }
         # Placeholder IDs on first boot: IRIS services start before identities exist and
         # are recreated with the discovered IDs at the end of the identities stage.
@@ -487,11 +576,15 @@ class LocalStack:
             'WAZUH_DASHBOARD_IMAGE': 'wazuh/wazuh-dashboard:4.9.2',
             'WAZUH_CERTS_DIR': self.runtime / 'wazuh-certs',
             'WAZUH_CONFIG_DIR': self.asset('wazuh_config'),
+            'WAZUH_RUNTIME_CONFIG_DIR': self.runtime / 'wazuh-config',
+            'WAZUH_ADMIN_SECRET_FILE': self.secrets_dir / 'wazuh_admin',
+            'WAZUH_API_PASSWORD': self._wazuh_api_password(),
             'BIND_IP': bind, 'WAZUH_DASHBOARD_PORT': str(ports['wazuh']),
         }
         files['guacamole'] = {
             'RIDGE_PROJECT': self.event,
             'RIDGE_DESKTOP_NETWORK': self.event + '-desktop',
+            'RIDGE_CENTRAL_NETWORK': self.event + '-central',
             'GUAC_INIT_SQL': self.runtime / 'guac-init',
             'GUAC_DATABASE_PASSWORD': self._secret('guac-db-password'),
             'GUAC_DATABASE_PASSWORD_FILE': secrets / 'guac-db-password',
@@ -504,10 +597,9 @@ class LocalStack:
             'RIDGE_CASE_DIR': self.asset('case_template'),
             'RIDGE_EVIDENCE_DIR': self.asset('evidence_public'),
             'RIDGE_ORIGINALS_DIR': self.asset('originals'),
-            'IRIS_PUBLIC_URL': addresses['iris_public_url'],
-            'CTFD_PUBLIC_URL': addresses['ctfd_public_url'],
-            'WAZUH_PUBLIC_URL': 'https://%s:%d' % (addresses['guacamole_public_url']
-                                                   .split('//', 1)[-1].split(':')[0], ports['wazuh']),
+            'IRIS_PUBLIC_URL': public['iris'],
+            'CTFD_PUBLIC_URL': public['ctfd'],
+            'WAZUH_PUBLIC_URL': public['wazuh'],
         }
         files['integration'] = {
             'RIDGE_PROJECT': self.event,
@@ -529,6 +621,34 @@ class LocalStack:
             text = '\n'.join('%s=%s' % (key, value) for key, value in values.items()) + '\n'
             (self.env_dir / (name + '.env')).write_text(text, encoding='utf-8')
         return files
+
+    def _render_wazuh_config(self):
+        source = self.asset('wazuh_config') / 'wazuh_cluster' / 'wazuh_manager.conf'
+        if not source.is_file():
+            raise LifecycleError('vendored Wazuh manager config missing at %s' % source)
+        target_dir = self.runtime / 'wazuh-config'
+        target_dir.mkdir(parents=True, exist_ok=True)
+        (target_dir / 'ossec.conf').write_text(
+            offline_wazuh_config(source.read_text(encoding='utf-8')), encoding='utf-8')
+        users = target_dir / 'internal_users.yml'
+        if not users.is_file():
+            password = self._secret('wazuh_admin').split(':', 1)[1]
+            command = ('IFS= read -r password; '
+                       '/usr/share/wazuh-indexer/plugins/opensearch-security/tools/hash.sh '
+                       '-p "$password"')
+            result = self._pipe([
+                'docker', 'run', '-i', '--rm', '--network', 'none', '--pull', 'never',
+                '-e', 'OPENSEARCH_JAVA_HOME=/usr/share/wazuh-indexer/jdk',
+                '--entrypoint', 'bash', 'wazuh/wazuh-indexer:4.9.2', '-lc', command,
+            ], password + '\n')
+            hash_lines = [line.strip() for line in result.splitlines()
+                          if re.fullmatch(r'\$2[aby]\$12\$[./A-Za-z0-9]{53}', line.strip())]
+            if len(hash_lines) != 1:
+                raise LifecycleError('Wazuh indexer hash tool did not return one bcrypt hash')
+            source_users = (self.asset('wazuh_config') / 'wazuh_indexer'
+                            / 'internal_users.yml').read_text(encoding='utf-8')
+            users.write_text(render_indexer_admin(source_users, hash_lines[0]),
+                             encoding='utf-8')
 
     def _render_specs(self):
         """Create missing bootstrap/provisioning specs from the runtime credentials.
@@ -653,14 +773,49 @@ class LocalStack:
             except CommandError:
                 self._run(['docker', 'network', 'create', name])
 
+    def _dashboard_bind_ip(self):
+        bind = str(self.local.get('bind_ip') or '127.0.0.1')
+        try:
+            address = ipaddress.IPv4Address(bind)
+        except ipaddress.AddressValueError as exc:
+            raise LifecycleError('local.json bind_ip must be an IPv4 address: %s' % exc)
+        if (address.is_unspecified or address.is_multicast or address.is_link_local
+                or not (address.is_private or address.is_loopback)):
+            raise LifecycleError('local.json bind_ip must be a private or loopback IPv4 address')
+        return bind
+
+    def _verify_public_certificate(self, certs, bind, name):
+        certificate = certs / (name + '.pem')
+        if not certificate.is_file():
+            raise LifecycleError('missing %s certificate at %s' % (name, certificate))
+        match = self._run([
+            'docker', 'run', '--rm', '--network', 'none', '--pull', 'never',
+            '-v', str(certs) + ':/certs:ro', '--entrypoint', 'openssl',
+            'wazuh/wazuh-manager:4.9.2', 'x509', '-in', '/certs/' + name + '.pem',
+            '-noout', '-checkip', bind,
+        ], check=False)
+        if 'does match certificate' not in match:
+            raise LifecycleError('%s certificate does not cover local.json '
+                                 'bind_ip %s; preserve the current CA and certificates, '
+                                 'then plan a certificate rotation for this address' % (name, bind))
+
     def _apply_infrastructure(self):
         self._ensure_secrets()
         self._render_specs()
+        self._render_wazuh_config()
         self._render_env()
         self._ensure_networks()
         certs = self.runtime / 'wazuh-certs'
-        if not (certs / 'root-ca.pem').is_file():
-            self._run(['bash', str(WAZUH_DIR / 'generate-certs.sh'), str(certs)])
+        bind = self._dashboard_bind_ip()
+        certs.mkdir(parents=True, exist_ok=True)
+        self._run([
+            'docker', 'run', '--rm', '--network', 'none', '--pull', 'never',
+            '-v', str(WAZUH_DIR / 'generate-certs.sh') + ':/generate-certs.sh:ro',
+            '-v', str(certs) + ':/certs', '--entrypoint', 'bash',
+            'wazuh/wazuh-manager:4.9.2', '/generate-certs.sh', '/certs', bind,
+        ])
+        self._verify_public_certificate(certs, bind, 'dashboard')
+        self._verify_public_certificate(certs, bind, 'participant')
         guac_init = self.runtime / 'guac-init'
         guac_init.mkdir(parents=True, exist_ok=True)
         if not (guac_init / '001-initdb.sql').is_file():
@@ -690,6 +845,14 @@ class LocalStack:
                                  'secrets are never regenerated beneath a verified deployment'
                                  % (self.secrets_dir,
                                     ', '.join(sorted(set(SECRET_FILES) - set(existing)))))
+        self._wazuh_api_password()
+        private_users = self.runtime / 'wazuh-config' / 'internal_users.yml'
+        if not private_users.is_file():
+            raise LifecycleError('missing private Wazuh indexer users at %s; restore the '
+                                 'runtime or run up on a fresh deployment' % private_users)
+        for name in ('dashboard', 'participant'):
+            self._verify_public_certificate(self.runtime / 'wazuh-certs',
+                                            self._dashboard_bind_ip(), name)
         for kind, services in INFRA_SERVICES.items():
             self._require_services(kind, services,
                                    allow_exit0=INFRA_ONE_SHOT.get(kind, ()))
@@ -703,13 +866,15 @@ class LocalStack:
     def _probe_applications(self):
         for kind, services in APP_SERVICES.items():
             self._require_services(kind, services)
-        addresses = self.profile['addresses']
-        checks = ((addresses['iris_public_url'] + '/login', 'IRIS'),
-                  (addresses['ctfd_public_url'] + '/login', 'CTFd'))
+        bind = self._dashboard_bind_ip()
+        checks = (('https://%s:%d/login' % (bind, self.port('iris', 8081)), 'IRIS'),
+                  ('https://%s:%d/login' % (bind, self.port('ctfd', 8083)), 'CTFd'),
+                  ('https://%s:%d/guacamole/' % (bind, self.port('guac', 8082)), 'Guacamole'))
+        ca_file = self.runtime / 'wazuh-certs' / 'root-ca.pem'
         for url, name in checks:
-            status, _ = self.host.http_json('GET', url)
+            status, _ = self.host.http_json('GET', url, ca_file=ca_file)
             if status != 200:
-                raise LifecycleError('%s login page returned HTTP %s at %s; the application is '
+                raise LifecycleError('%s participant page returned HTTP %s at %s; the application is '
                                      'not ready' % (name, status, url))
         return {'services': sum(len(s) for s in APP_SERVICES.values())}
 
@@ -868,6 +1033,12 @@ class LocalStack:
         if status != 200:
             raise LifecycleError('historical index %s unavailable (HTTP %s); run up to '
                                  'reconcile evidence' % (index_name, status))
+        try:
+            self._compose('wazuh', 'exec', '-T', 'wazuh-manager', 'filebeat',
+                          'test', 'output', '-c', '/etc/filebeat/filebeat.yml')
+        except Exception as exc:
+            raise LifecycleError('Filebeat cannot authenticate to the CA-verified Wazuh '
+                                 'indexer: %s' % str(exc)[:250])
         telemetry = self.asset('evidence_public') / 'wazuh' / 'telemetry.jsonl'
         if telemetry.is_file():
             # ridge.evidence_release.index derives each document ID from a

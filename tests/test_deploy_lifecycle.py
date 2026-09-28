@@ -18,18 +18,44 @@ from ridge.deploy.local import LifecycleError, LocalStack
 from ridge.deploy.journal import Journal
 
 
+class WazuhOfflineConfigTests(unittest.TestCase):
+    def test_private_indexer_admin_hash_replaces_only_admin(self):
+        old = '$2y$12$' + 'b' * 53
+        new = '$2y$12$' + 'a' * 53
+        source = ('admin:\n  hash: "' + old + '"\n  reserved: true\n'
+                  'kibanaserver:\n  hash: "' + old + '"\n')
+        rendered = deploy_local.render_indexer_admin(source, new)
+        self.assertIn('admin:\n  hash: "' + new + '"', rendered)
+        self.assertIn('kibanaserver:\n  hash: "' + old + '"', rendered)
+        with self.assertRaisesRegex(LifecycleError, 'invalid bcrypt'):
+            deploy_local.render_indexer_admin(source, 'not-a-hash')
+
+    def test_disables_existing_update_check_without_changing_other_settings(self):
+        source = ('<ossec_config><global><jsonout_output>yes</jsonout_output>'
+                  '<update_check>yes</update_check></global></ossec_config>')
+        rendered = deploy_local.offline_wazuh_config(source)
+        self.assertIn('<update_check>no</update_check>', rendered)
+        self.assertIn('<jsonout_output>yes</jsonout_output>', rendered)
+
+    def test_rejects_invalid_vendored_config(self):
+        with self.assertRaisesRegex(LifecycleError, 'invalid XML'):
+            deploy_local.offline_wazuh_config('<ossec_config>')
+
+
 class FakeHost(deploy_local.HostOps):
     """Deterministic host ops: fixed secrets, canned HTTP, tiny ticket set."""
 
     def __init__(self, runtime):
         self.runtime = Path(runtime)
         self.logins = {}
+        self.http_calls = []
         self.preflight_calls = 0
 
     def randhex(self, count=24):
         return 'x' * (count * 2)
 
-    def http_json(self, method, url, headers=None, body=None, timeout=10):
+    def http_json(self, method, url, headers=None, body=None, timeout=10, ca_file=None):
+        self.http_calls.append((url, ca_file))
         if self.logins.get('fail'):
             return 503, {}
         return 200, {}
@@ -62,7 +88,8 @@ class FakeRunner:
     """Replays Docker responses from runtime state; records every argv."""
 
     SERVICES = {
-        'central': ['iris', 'iris-worker', 'iris-db', 'ctfd', 'ctfd-db', 'ctfd-cache', 'rabbitmq'],
+        'central': ['iris', 'iris-worker', 'iris-db', 'ctfd', 'ctfd-db', 'ctfd-cache',
+                    'rabbitmq', 'participant-tls'],
         'wazuh': ['wazuh-indexer', 'wazuh-manager', 'wazuh-dashboard'],
         'guacamole': ['guacd', 'database', 'guacamole'],
         'desktops': ['desktop-team01', 'desktop-team02'],
@@ -76,11 +103,14 @@ class FakeRunner:
         self.calls = []
         self.healthy = True
         self.service_health = {}
+        self.certificate_matches = True
         self.connections = 0
         self.up_projects = set()
 
     def run_stdin(self, argv, text, check=True):
         self.calls.append(list(argv))
+        if 'hash.sh' in ' '.join(argv):
+            return '$2y$12$' + 'a' * 53 + '\n'
         if 'psql' in argv:
             self.connections = 2
         return ''
@@ -152,11 +182,16 @@ class FakeRunner:
             return ''
         if argv[:2] == ['docker', 'run'] and 'initdb.sh' in joined:
             return 'CREATE TABLE guacamole_connection ();'
-        if argv[0] == 'bash':
-            certs = Path(argv[-1])
+        if argv[:2] == ['docker', 'run'] and '/generate-certs.sh' in argv:
+            certs = Path(next(a for a in argv if a.endswith(':/certs')).rsplit(':/', 1)[0])
             certs.mkdir(parents=True, exist_ok=True)
             (certs / 'root-ca.pem').write_text('ca')
+            (certs / 'dashboard.pem').write_text('dashboard')
+            (certs / 'participant.pem').write_text('participant')
             return ''
+        if argv[:2] == ['docker', 'run'] and 'x509' in argv:
+            result = 'does match' if self.certificate_matches else 'does NOT match'
+            return 'IP %s %s certificate\n' % (argv[-1], result)
         return ''
 
     def _compose(self, argv, joined, check):
@@ -201,9 +236,11 @@ def make_runtime(root):
     (assets / 'originals').mkdir()
     (assets / 'wazuh-config' / 'wazuh_indexer').mkdir(parents=True)
     (assets / 'wazuh-config' / 'wazuh_indexer' / 'wazuh.indexer.yml').write_text('y')
-    (assets / 'wazuh-config' / 'wazuh_indexer' / 'internal_users.yml').write_text('y')
+    (assets / 'wazuh-config' / 'wazuh_indexer' / 'internal_users.yml').write_text(
+        'admin:\n  hash: "$2y$12$' + 'b' * 53 + '"\n  reserved: true\n')
     (assets / 'wazuh-config' / 'wazuh_cluster').mkdir()
-    (assets / 'wazuh-config' / 'wazuh_cluster' / 'wazuh_manager.conf').write_text('y')
+    (assets / 'wazuh-config' / 'wazuh_cluster' / 'wazuh_manager.conf').write_text(
+        '<ossec_config><global><jsonout_output>yes</jsonout_output></global></ossec_config>')
     runtime = root / 'runtime'
     runtime.mkdir()
     (runtime / 'local.json').write_text(json.dumps({
@@ -285,12 +322,18 @@ class LifecycleTests(unittest.TestCase):
                     and 'up' in call and 'wazuh-manager' in call]
         self.assertEqual(len(wazuh_up), 1)
         self.assertIn('--wait', wazuh_up[0])
+        api_password = (self.runtime / 'secrets' / 'wazuh-api-password').read_text().strip()
+        self.assertNotEqual(api_password, self.stack._secret('wazuh_admin').split(':', 1)[1])
+        self.assertIn('<update_check>no</update_check>',
+                      (self.runtime / 'wazuh-config' / 'ossec.conf').read_text())
+        wazuh_env = (self.runtime / 'env' / 'wazuh.env').read_text()
+        self.assertIn('WAZUH_API_PASSWORD=' + api_password, wazuh_env)
         self.assertEqual(set(result['stages']), set(LocalStack.STAGES))
         ctfd_env = (self.runtime / 'env' / 'ctfd.env').read_text(encoding='utf-8')
         central_env = (self.runtime / 'env' / 'central.env').read_text(encoding='utf-8')
         for rendered in (ctfd_env, central_env):
             self.assertIn('CTFD_SESSION_COOKIE_NAME=silent_ridge_ctfd_session', rendered)
-            self.assertIn('CTFD_SESSION_COOKIE_SECURE=false', rendered)
+            self.assertIn('CTFD_SESSION_COOKIE_SECURE=true', rendered)
         facilitator = json.loads((self.runtime / 'specs' / 'ctfd-provision-spec.json')
                                  .read_text(encoding='utf-8'))['facilitator']
         self.assertEqual(facilitator['name'], 'ridge-facilitator')
@@ -303,6 +346,8 @@ class LifecycleTests(unittest.TestCase):
         self.assertIn('guacamole_system_permission',
                       (self.runtime / 'guac-init' / '002-provision.sql')
                       .read_text(encoding='utf-8'))
+        private_users = (self.runtime / 'wazuh-config' / 'internal_users.yml')
+        self.assertIn('$2y$12$' + 'a' * 53, private_users.read_text(encoding='utf-8'))
         journal = Journal.open(self.runtime / 'deploy-journal.sqlite')
         self.assertTrue(all(s['state'] == 'verified' for s in journal.steps()))
         # State initialized paused and provisioned.
@@ -310,6 +355,35 @@ class LifecycleTests(unittest.TestCase):
         self.assertEqual(con.execute('SELECT mode FROM run').fetchone()[0], 'paused')
         self.assertEqual(con.execute('SELECT provisioned FROM control').fetchone()[0], 1)
         con.close()
+
+    def test_dashboard_certificate_covers_participant_bind_address(self):
+        self.stack.local['bind_ip'] = '192.168.1.200'
+        self.stack.up(self.source)
+        self.assertTrue(any(c[:2] == ['docker', 'run'] and '/generate-certs.sh' in c
+                            and c[-1] == '192.168.1.200'
+                            for c in self.runner.calls))
+        self.assertTrue(any(c[:2] == ['docker', 'run'] and 'x509' in c
+                            and c[-1] == '192.168.1.200'
+                            for c in self.runner.calls))
+        self.assertTrue(all(url.startswith('https://192.168.1.200:') and ca_file
+                            for url, ca_file in self.host.http_calls))
+        central_env = (self.runtime / 'env' / 'central.env').read_text()
+        self.assertIn('IRIS_PUBLIC_URL=https://192.168.1.200:8081', central_env)
+        self.assertIn('CTFD_PUBLIC_URL=https://192.168.1.200:8083', central_env)
+
+    def test_existing_dashboard_certificate_without_bind_address_fails_closed(self):
+        self.stack.local['bind_ip'] = '192.168.1.200'
+        self.runner.certificate_matches = False
+        with self.assertRaisesRegex(LifecycleError, 'certificate does not cover'):
+            self.stack.up(self.source)
+        self.assertFalse(any('up' in c and 'compose' in c for c in self.runner.calls))
+
+    def test_reconfigured_bind_checks_existing_certificate_on_retry(self):
+        self.stack.up(self.source)
+        self.stack.local['bind_ip'] = '192.168.1.200'
+        self.runner.certificate_matches = False
+        with self.assertRaisesRegex(LifecycleError, 'certificate does not cover'):
+            self.stack._probe_infrastructure()
 
     def test_repeated_up_preserves_state_and_skips_creation(self):
         self.stack.up(self.source)
@@ -372,6 +446,20 @@ class LifecycleTests(unittest.TestCase):
         self.assertTrue('missing secret' in message or 'incomplete secrets' in message)
         self.assertFalse((self.runtime / 'secrets' / 'wazuh_writer').is_file(),
                          'a partial secrets dir must never trigger regeneration')
+
+    def test_existing_runtime_gets_api_secret_once_and_detects_loss(self):
+        self.stack.up(self.source)
+        old_admin = self.stack._secret('wazuh_admin')
+        api = self.runtime / 'secrets' / 'wazuh-api-password'
+        marker = self.runtime / 'wazuh-api-secret.sha256'
+        api.unlink()
+        marker.unlink()  # Represents a runtime created before the API secret existed.
+        self.stack._ensure_secrets()
+        self.assertEqual(self.stack._secret('wazuh_admin'), old_admin)
+        self.assertTrue(api.is_file())
+        api.unlink()
+        with self.assertRaisesRegex(LifecycleError, 'Wazuh API secret is missing'):
+            self.stack._ensure_secrets()
 
     def test_start_refused_before_readiness(self):
         with self.assertRaises(LifecycleError) as ctx:

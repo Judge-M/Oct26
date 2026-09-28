@@ -36,7 +36,7 @@ elements:
         <p><strong>1.</strong> Find your team handout (paper or message from your facilitator).
         It lists your team's logins and the event addresses.</p>
         <p style="margin-top:10px"><strong>2.</strong> Open a browser tab and go to the IRIS address:
-        <span style="background-color:$palegreen"> http://&lt;event-address&gt;:8081 </span></p>
+        <span style="background-color:$palegreen"> https://&lt;event-address&gt;:8081 </span></p>
         <p style="margin-top:10px"><strong>3.</strong> Log in with your <strong>team</strong> IRIS login
         (looks like <strong>team-04</strong>) and the password from the handout.</p>
         <p style="margin-top:10px"><strong>4.</strong> You should see the incident ticket queue.

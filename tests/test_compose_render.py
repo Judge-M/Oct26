@@ -44,6 +44,15 @@ class ComposeAuditTests(unittest.TestCase):
         self.assertIn('WAZUH_CA_FILE', mounts)
         self.assertIn('silent-ridge-ca.pem', service['environment']['SSL_CERT_FILE'])
 
+    def test_wazuh_filebeat_uses_private_secret_and_persistent_image_files(self):
+        document = yaml.safe_load((COMPOSE / 'wazuh/compose.wazuh.yaml').read_text(encoding='utf-8'))
+        manager = document['services']['wazuh-manager']
+        mounts = ' '.join(manager['volumes'])
+        self.assertIn('filebeat-init.sh:/etc/cont-init.d/1a-silent-ridge-filebeat:ro', mounts)
+        self.assertNotIn(':/etc/filebeat/filebeat.yml', mounts)
+        self.assertIn('wazuh_indexer_credential', manager['secrets'])
+        self.assertIn('WAZUH_ADMIN_SECRET_FILE', document['secrets']['wazuh_indexer_credential']['file'])
+
     def test_database_readiness_gates_dependents(self):
         central = yaml.safe_load((COMPOSE / 'compose.central.yaml').read_text(encoding='utf-8'))
         self.assertEqual(central['services']['iris']['depends_on']['iris-db-init']['condition'], 'service_completed_successfully')
@@ -58,18 +67,42 @@ class ComposeAuditTests(unittest.TestCase):
         wazuh = yaml.safe_load((COMPOSE / 'wazuh/compose.wazuh.yaml').read_text(encoding='utf-8'))
         manager = wazuh['services']['wazuh-manager']
         config_mounts = [mount for mount in manager['volumes']
-                         if 'wazuh_manager.conf:' in mount]
+                         if '/ossec.conf:' in mount]
         self.assertEqual(len(config_mounts), 1)
         self.assertTrue(config_mounts[0].endswith(':/wazuh-config-mount/etc/ossec.conf:ro'))
         command = manager['healthcheck']['test']
         self.assertIn('wazuh-analysisd', command[1])
         self.assertIn('wazuh-remoted', command[1])
+        self.assertIn('/security/user/authenticate', command[1])
+        self.assertIn('--cacert', command[1])
+        self.assertNotIn('--insecure', command[1])
+        self.assertIn('API_PASSWORD', manager['environment'])
+        self.assertTrue(any('/wazuh-config-mount/api/configuration/api.yaml:ro' in mount
+                            for mount in manager['volumes']))
+        dashboard = wazuh['services']['wazuh-dashboard']
+        self.assertEqual(dashboard['environment']['API_PASSWORD'],
+                         manager['environment']['API_PASSWORD'])
+        self.assertFalse(any('/data/wazuh/config/wazuh.yml' in mount
+                             for mount in dashboard['volumes']))
+        self.assertEqual(dashboard['depends_on']['wazuh-manager']['condition'],
+                         'service_healthy')
 
     def test_ctfd_cookie_settings_are_scoped_to_ctfd_service(self):
         central = yaml.safe_load((COMPOSE / 'compose.central.yaml').read_text(encoding='utf-8'))
         self.assertEqual(central['services']['ctfd']['environment']['CTFD_SESSION_COOKIE_NAME'],
                          '${CTFD_SESSION_COOKIE_NAME:-silent_ridge_ctfd_session}')
         self.assertNotIn('CTFD_SESSION_COOKIE_NAME', central['services']['iris']['environment'])
+
+    def test_only_tls_proxy_publishes_participant_ports(self):
+        central = yaml.safe_load((COMPOSE / 'compose.central.yaml').read_text(encoding='utf-8'))
+        guac = yaml.safe_load((COMPOSE / 'compose.guacamole.yaml').read_text(encoding='utf-8'))
+        for service in ('iris', 'ctfd'):
+            self.assertNotIn('ports', central['services'][service])
+        self.assertNotIn('ports', guac['services']['guacamole'])
+        proxy = central['services']['participant-tls']
+        self.assertEqual(len(proxy['ports']), 3)
+        self.assertIn('participant.pem', ' '.join(proxy['volumes']))
+        self.assertIn('central', guac['services']['guacamole']['networks'])
 
     def test_audit_flags_private_port_and_missing_logging(self):
         bad = {'name': '${RIDGE_PROJECT}-x', 'services': {

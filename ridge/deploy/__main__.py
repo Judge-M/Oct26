@@ -23,7 +23,8 @@ IMAGES = {
 
 def fingerprint(root=ROOT):
     digest = hashlib.sha256()
-    for folder in ('ridge', 'integrations', 'deployment/expanded/desktop'):
+    for folder in ('ridge', 'integrations', 'deployment/expanded/desktop',
+                   'deployment/expanded/wazuh'):
         for path in sorted((root / folder).rglob('*')):
             if path.is_file() and '__pycache__' not in path.parts and path.suffix != '.pyc':
                 digest.update(path.relative_to(root).as_posix().encode())
