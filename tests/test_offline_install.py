@@ -91,6 +91,34 @@ class VerifyTests(unittest.TestCase):
             verify_bundle(self.bundle)
         self.assertIn('LFS pointer stub', str(ctx.exception))
 
+    def test_nested_lfs_stub_rejected_even_with_valid_outer_checksums(self):
+        with zipfile.ZipFile(self.bundle / 'source.zip', 'w') as archive:
+            archive.writestr('assets/large/native/capture.tar.gz',
+                             'version https://git-lfs.github.com/spec/v1\n'
+                             'oid sha256:' + 'a' * 64 + '\nsize 100\n')
+        sums = json.loads((self.bundle / 'SHA256SUMS.json').read_text())
+        sums['source.zip'] = sha256(self.bundle / 'source.zip')
+        (self.bundle / 'SHA256SUMS.json').write_text(json.dumps(sums))
+        with self.assertRaises(InstallError) as ctx:
+            verify_bundle(self.bundle)
+        self.assertIn('source.zip: assets/large/native/capture.tar.gz', str(ctx.exception))
+
+    def test_source_commit_must_match_checkout_and_distribution(self):
+        distribution = self.tmp / 'distribution.json'
+        distribution.write_text(json.dumps({'repository': 'Judge-M/Oct26',
+                                            'source_commit': 'different'}))
+        with self.assertRaises(InstallError) as ctx:
+            verify_bundle(self.bundle, distribution_manifest=distribution)
+        self.assertIn('distribution source commit', str(ctx.exception))
+        distribution.write_text(json.dumps({'repository': 'Judge-M/Oct26',
+                                            'source_commit': 'abc123'}))
+        with self.assertRaises(InstallError) as ctx:
+            verify_bundle(self.bundle, expected_source_commit='other',
+                          distribution_manifest=distribution)
+        self.assertIn('expected checkout', str(ctx.exception))
+        self.assertTrue(verify_bundle(self.bundle, expected_source_commit='abc123',
+                                      distribution_manifest=distribution)[1])
+
     def test_uncertified_bundle_still_installs_with_gap_recorded(self):
         manifest = json.loads((self.bundle / 'release-manifest.json').read_text())
         manifest['compatibility_verified'] = False
@@ -144,6 +172,7 @@ class InstallTests(unittest.TestCase):
         self.assertTrue((self.dest / 'install-receipt.json').is_file())
         self.assertTrue(receipt['certified_complete'])
         self.assertEqual(receipt['release'], 'r1')
+        self.assertEqual(receipt['source_archive_sha256'], sha256(self.bundle / 'source.zip'))
         self.assertEqual(receipt['next'][0],
                          'cd source && python -m ridge.deploy doctor')
 

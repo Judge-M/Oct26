@@ -2,8 +2,13 @@
 
 For the **event hardware** (or any second machine) starting from nothing.
 This is Phase 0 of `docs/dress-rehearsal-plan.md`, fully spelled out for
-release **`v0.10.0-rehearsal`**. It ends with the event **up and paused**,
+release **`<RELEASE_TAG>`**. It ends with the event **up and paused**,
 ready for the F03/F06 rehearsal phases or event day.
+
+The historical `v0.10.0-rehearsal` release paired a standalone distribution
+source at `e67ef27` with an older offline bundle at `9414fcc`. Do not treat
+that release as a coherent event build. Select a rebuilt release whose bundle,
+distribution and checked-out tag all name the same source commit.
 
 Works on Windows (Git Bash) or Linux. Requirements first:
 
@@ -13,13 +18,13 @@ Works on Windows (Git Bash) or Linux. Requirements first:
 - No internet needed after the download step
 
 Everything below runs in **Git Bash** (Windows) or any shell (Linux),
-from a working directory of your choice. Time budget: download 13 GB
-(connection-dependent), then ~20–40 minutes.
+from a working directory of your choice. Download size and install time depend
+on the selected release and connection.
 
 ## 1. Get the tooling source (2 min)
 
 ```bash
-git clone --depth 1 --branch v0.10.0-rehearsal https://github.com/Judge-M/Oct26.git oct26
+git clone --depth 1 --branch <RELEASE_TAG> https://github.com/Judge-M/Oct26.git oct26
 cd oct26
 ```
 
@@ -27,9 +32,9 @@ cd oct26
 
 ```bash
 mkdir -p work/dl
-gh release download v0.10.0-rehearsal --repo Judge-M/Oct26 \
-  --pattern "bundle-*" --pattern "validated-images.tar.part-*" --dir work/dl
-ls work/dl | wc -l   # expect 26
+gh release download <RELEASE_TAG> --repo Judge-M/Oct26 \
+  --pattern "bundle-*" --pattern "validated-images.tar.part-*" \
+  --pattern "distribution.json" --dir work/dl
 ```
 
 ## 3. Assemble the bundle directory
@@ -76,18 +81,22 @@ cp bundle-release-manifest.json                      ../bundle/release-manifest.
 cp bundle-SHA256SUMS.json                            ../bundle/SHA256SUMS.json
 cp bundle-source-image-checks.json                   ../bundle/source-image-checks.json
 cd ../..
-ls work/bundle work/bundle/* | wc -l   # expect 18 lines (12 files + 6 dir headers)
+ls work/bundle work/bundle/*
 ```
 
 ## 4. Install (hash-verify + docker load, 15–30 min)
 
 ```bash
-time python -m ridge.offline_install work/bundle work/install
+time python -m ridge.offline_install work/bundle work/install \
+  --expected-source-commit "$(git rev-parse HEAD)" \
+  --distribution-manifest work/dl/distribution.json
 ```
 
-This verifies every hash, loads all 13 images into Docker, extracts the
+This verifies every hash, loads the manifest's images into Docker, extracts the
 source to `work/install`, and prints a receipt. Any corruption fails here,
 before anything is half-installed — re-running is always safe.
+The receipt records the verified source archive SHA-256. Use the installed
+`work/install/source` tree; do not replace it with a loose working copy.
 
 ## 5. Extract the content assets (2 min)
 

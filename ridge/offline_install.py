@@ -15,8 +15,8 @@ Consumes a bundle produced by ``ridge.bundle.pack`` (a directory with
    never leaves a half-installed destination; rerunning is always safe.
 4. Load — image archives are reassembled if split and handed to
    ``docker load``; every manifest image ID must be present afterwards.
-5. Receipt — an install receipt records the release, source commit and
-   image IDs, plus the exact next commands.
+5. Receipt — an install receipt records the release, source commit, verified
+   source archive SHA-256 and image IDs, plus the exact next commands.
 
 This module never publishes anything and never touches a live runtime.
 """
@@ -25,7 +25,7 @@ import json
 import os
 import shutil
 import zipfile
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from ridge.artifacts import safe, sha256, verify
 
@@ -45,10 +45,49 @@ def _read_manifest(bundle):
            json.loads((bundle / 'SHA256SUMS.json').read_text(encoding='utf-8'))
 
 
-def verify_bundle(bundle):
+def _verify_source_archive(source):
+    """Reject pointer stubs and unsafe names inside the source actually installed."""
+    try:
+        with zipfile.ZipFile(source) as archive:
+            seen = set()
+            for entry in archive.infolist():
+                name = entry.filename
+                parts = PurePosixPath(name).parts
+                if (not parts or name.startswith('/') or '\\' in name or '..' in parts
+                        or ':' in parts[0]
+                        or name in seen):
+                    raise InstallError('unsafe or duplicate source.zip entry: ' + name)
+                seen.add(name)
+                if entry.is_dir():
+                    continue
+                with archive.open(entry) as stream:
+                    if stream.read(128).splitlines()[:1] == [
+                            b'version https://git-lfs.github.com/spec/v1']:
+                        raise InstallError('Git LFS pointer stub in source.zip: ' + name)
+    except (OSError, zipfile.BadZipFile, RuntimeError) as exc:
+        if isinstance(exc, InstallError):
+            raise
+        raise InstallError('invalid source.zip: ' + str(exc)) from exc
+
+
+def verify_bundle(bundle, expected_source_commit=None, distribution_manifest=None):
     """Hash every bundle file against SHA256SUMS.json; verify the manifest."""
     bundle = Path(bundle)
     manifest, sums = _read_manifest(bundle)
+    source_commit = manifest.get('source_commit')
+    if expected_source_commit is not None and source_commit != expected_source_commit:
+        raise InstallError('bundle source commit %s differs from expected checkout %s'
+                           % (source_commit, expected_source_commit))
+    if distribution_manifest is not None:
+        try:
+            distribution = json.loads(Path(distribution_manifest).read_text(encoding='utf-8'))
+        except (OSError, ValueError) as exc:
+            raise InstallError('cannot read distribution manifest: ' + str(exc)) from exc
+        if distribution.get('repository') != 'Judge-M/Oct26':
+            raise InstallError('distribution repository is not Judge-M/Oct26')
+        if distribution.get('source_commit') != source_commit:
+            raise InstallError('distribution source commit %s differs from bundle %s'
+                               % (distribution.get('source_commit'), source_commit))
     on_disk = {p.relative_to(bundle).as_posix() for p in bundle.rglob('*') if p.is_file()}
     # SHA256SUMS.json cannot list its own digest; it is verified implicitly by
     # every other file matching its recorded hash.
@@ -71,6 +110,7 @@ def verify_bundle(bundle):
             with path.open('rb') as stream:
                 if stream.read(128).splitlines()[:1] == [b'version https://git-lfs.github.com/spec/v1']:
                     raise InstallError('Git LFS pointer stub instead of content: ' + name)
+    _verify_source_archive(safe(bundle, 'source.zip'))
     # The manifest itself is integrity-checked, but a bundle assembled before
     # the capacity/restore gates is not a certified offline release; inspect
     # with the same fail-closed rules and report (not waive) incompleteness.
@@ -117,11 +157,15 @@ def _assemble(parts, target):
     return target
 
 
-def install(bundle, destination, runner=None, load=True, free_bytes=None):
+def install(bundle, destination, runner=None, load=True, free_bytes=None,
+            expected_source_commit=None, distribution_manifest=None):
     """Verify, then atomically install source + images. Returns a receipt."""
     bundle = Path(bundle).resolve()
     destination = Path(destination).resolve()
-    manifest, certified = verify_bundle(bundle)
+    manifest, certified = verify_bundle(
+        bundle, expected_source_commit=expected_source_commit,
+        distribution_manifest=distribution_manifest)
+    _, verified_sums = _read_manifest(bundle)
     parts = image_parts(bundle)
     preflight_disk(bundle, destination, free_bytes)
     if destination.exists():
@@ -161,6 +205,8 @@ def install(bundle, destination, runner=None, load=True, free_bytes=None):
             'schema': 1,
             'release': manifest['release'],
             'source_commit': manifest['source_commit'],
+            'source_archive_sha256': verified_sums['source.zip'],
+            'source_image_checks_sha256': verified_sums.get('source-image-checks.json'),
             'certified_complete': certified is True,
             'certification_gap': None if certified is True else certified,
             'images': sorted(set(manifest.get('images', {}).values())),
@@ -186,8 +232,14 @@ def main():
     parser.add_argument('destination', type=Path)
     parser.add_argument('--no-load', action='store_true',
                         help='verify and unpack only; skip docker load')
+    parser.add_argument('--expected-source-commit',
+                        help='refuse a bundle built from a different checkout commit')
+    parser.add_argument('--distribution-manifest', type=Path,
+                        help='refuse a bundle whose source commit differs from distribution.json')
     args = parser.parse_args()
-    receipt = install(args.bundle, args.destination, load=not args.no_load)
+    receipt = install(args.bundle, args.destination, load=not args.no_load,
+                      expected_source_commit=args.expected_source_commit,
+                      distribution_manifest=args.distribution_manifest)
     print(json.dumps(receipt, indent=2))
 
 
