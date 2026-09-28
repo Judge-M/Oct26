@@ -115,13 +115,15 @@ Edit `event-profile.json` — **only** these fields:
 
 - `event.event_start`, `event.duration_minutes`
 - `addresses.central_bind_ip` → the LAN IP
-- the three `*_public_url` values → `http://<LAN-IP>:8081`, `:8083`, `:8082`
+- the three `*_public_url` values → `https://<LAN-IP>:8081`, `:8083`, `:8082`
 
-Create `work/runtime/local.json` (replace `<ABS>` with the absolute path to
+Create `work/runtime/local.json` (replace `<LAN-IP>` with the event host's
+LAN address and `<ABS>` with the absolute path to
 `work/install`, e.g. `C:/Users/you/oct26/work/install`):
 
 ```json
 {
+  "bind_ip": "<LAN-IP>",
   "assets": {
     "evidence_public": "<ABS>/assets/evidence-public",
     "release_vault": "<ABS>/assets/release-vault",

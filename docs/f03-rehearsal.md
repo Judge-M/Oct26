@@ -41,8 +41,9 @@ smoke run.
    {
      "teams": 10,
      "sessions_per_team": 3,
-     "ctfd_url": "http://127.0.0.1:8083",
-     "iris_url": "http://127.0.0.1:8081",
+     "ctfd_url": "https://<LAN-IP>:8083",
+     "iris_url": "https://<LAN-IP>:8081",
+     "ca_file": "<runtime-dir>/wazuh-certs/root-ca.pem",
      "credentials": "<runtime-dir>/secrets/team-credentials.json",
      "state_sqlite": "<runtime-dir>/state/state.sqlite",
      "host": {"ram_gib": 32},
@@ -50,7 +51,9 @@ smoke run.
    }
    ```
 
-   Set `host.ram_gib` to the machine's actual RAM.
+   Replace `<LAN-IP>` with `local.json`'s `bind_ip` and set `host.ram_gib`
+   to the machine's actual RAM. The harness verifies the participant TLS
+   certificate against the generated local CA; do not disable verification.
 
 3. Start the exercise, then run the harness (1800 s = 30 minutes; runs
    under 30 s are refused; use a fresh output directory every time):
@@ -61,7 +64,7 @@ smoke run.
    ```
 
 4. While it runs, do the desktop usability pass by hand: open two or three
-   team desktops through Guacamole (`http://<host>:8082`), launch Autopsy,
+   team desktops through Guacamole (`https://<host>:8082`), launch Autopsy,
    open the prepared case, run a search — note any lag or freeze. The
    harness does not measure desktop interactivity.
 

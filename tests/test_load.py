@@ -5,11 +5,15 @@ import threading
 import unittest
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
-from expanded.load import (CtfdBot, IrisBot, LoadError, build_report, markdown, mib,
+from expanded.load import (CtfdBot, IrisBot, LoadError, TimedClient, build_report, markdown, mib,
                            outbox_depth, percentile)
 
 
 class PercentileTests(unittest.TestCase):
+    def test_https_harness_requires_explicit_ca(self):
+        with self.assertRaisesRegex(LoadError, 'trusted ca_file'):
+            TimedClient('https://127.0.0.1:8081', [])
+
     def test_nearest_rank(self):
         self.assertEqual(percentile([0.1, 0.5, 0.2, 9.0], 50), 0.2)
         self.assertEqual(percentile([0.1, 0.5, 0.2, 9.0], 95), 9.0)

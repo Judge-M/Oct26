@@ -24,12 +24,14 @@ class FakeHost(deploy_local.HostOps):
     def __init__(self, runtime):
         self.runtime = Path(runtime)
         self.logins = {}
+        self.http_calls = []
         self.preflight_calls = 0
 
     def randhex(self, count=24):
         return 'x' * (count * 2)
 
-    def http_json(self, method, url, headers=None, body=None, timeout=10):
+    def http_json(self, method, url, headers=None, body=None, timeout=10, ca_file=None):
+        self.http_calls.append((url, ca_file))
         if self.logins.get('fail'):
             return 503, {}
         return 200, {}
@@ -62,7 +64,8 @@ class FakeRunner:
     """Replays Docker responses from runtime state; records every argv."""
 
     SERVICES = {
-        'central': ['iris', 'iris-worker', 'iris-db', 'ctfd', 'ctfd-db', 'ctfd-cache', 'rabbitmq'],
+        'central': ['iris', 'iris-worker', 'iris-db', 'ctfd', 'ctfd-db', 'ctfd-cache',
+                    'rabbitmq', 'participant-tls'],
         'wazuh': ['wazuh-indexer', 'wazuh-manager', 'wazuh-dashboard'],
         'guacamole': ['guacd', 'database', 'guacamole'],
         'desktops': ['desktop-team01', 'desktop-team02'],
@@ -153,6 +156,7 @@ class FakeRunner:
             certs.mkdir(parents=True, exist_ok=True)
             (certs / 'root-ca.pem').write_text('ca')
             (certs / 'dashboard.pem').write_text('dashboard')
+            (certs / 'participant.pem').write_text('participant')
             return ''
         if argv[:2] == ['docker', 'run'] and 'x509' in argv:
             result = 'does match' if self.certificate_matches else 'does NOT match'
@@ -297,6 +301,11 @@ class LifecycleTests(unittest.TestCase):
         self.assertTrue(any(c[:2] == ['docker', 'run'] and 'x509' in c
                             and c[-1] == '192.168.1.200'
                             for c in self.runner.calls))
+        self.assertTrue(all(url.startswith('https://192.168.1.200:') and ca_file
+                            for url, ca_file in self.host.http_calls))
+        central_env = (self.runtime / 'env' / 'central.env').read_text()
+        self.assertIn('IRIS_PUBLIC_URL=https://192.168.1.200:8081', central_env)
+        self.assertIn('CTFD_PUBLIC_URL=https://192.168.1.200:8083', central_env)
 
     def test_existing_dashboard_certificate_without_bind_address_fails_closed(self):
         self.stack.local['bind_ip'] = '192.168.1.200'
