@@ -21,12 +21,17 @@ fails closed until every digest is a real immutable identity.
 - `roles.json` — writer restricted to `silent-ridge-*`; participant read-only.
 - `compose.wazuh.yaml` — pinned stack; indexer/manager stay on an internal
   network, only the dashboard is exposed, log rotation and healthchecks set.
-- `generate-certs.sh` — idempotent local CA/node certificate generation.
+- `generate-certs.sh` — idempotent local CA/node certificate generation. Pass
+  the participant-facing IPv4 address as the second argument so the dashboard
+  certificate covers its LAN URL. The deployer runs this inside the pinned
+  manager image, avoiding Windows-to-Bash path conversion. It rejects an existing certificate
+  that does not cover `local.json`'s `bind_ip`; changing that address requires
+  a planned certificate rotation and client CA trust update.
 
 ## Bootstrap
 
 ```text
-./generate-certs.sh /private/silent-ridge/certs
+python -m ridge.deploy up --profile <profile.json> --runtime <runtime-dir>
 python -m ridge.wazuh_provision   # apply roles, views, index template and preflight
 ```
 

@@ -56,7 +56,7 @@ Copy `deployment/profiles/example-two-team.json` to `event-profile.json` and edi
 
 - `event.event_start` / `duration_minutes`
 - `addresses`: set `central_bind_ip` to `<LAN-IP>` and the three
-  `*_public_url` values to `http://<LAN-IP>:8081`, `:8083`, `:8082`
+  `*_public_url` values to `https://<LAN-IP>:8081`, `:8083`, `:8082`
 
 Do **not** edit the roster — team count is a start-time switch (`--teams`).
 
@@ -66,6 +66,7 @@ Create `R/local.json` pointing at the asset directories extracted in step 0:
 
 ```json
 {
+  "bind_ip": "<LAN-IP>",
   "assets": {
     "evidence_public": "<abs path>/assets/evidence-public",
     "release_vault": "<abs path>/assets/release-vault",
@@ -99,6 +100,14 @@ value. Do not put it in `local.json`, the repository or the recovery set.
 Hand out team accounts from `R/secrets/team-credentials.json` and the shared
 Wazuh reader login from `R/secrets/wazuh_reader`.
 
+Before any participant login, distribute `R/wazuh-certs/root-ca.pem` over a
+trusted offline channel. Give each team the SHA-256 fingerprint recorded on
+the organizer host and have the client administrator verify it before adding
+the CA to that client's trusted roots. Check that all four HTTPS URLs open
+without a certificate warning. Do not ask participants to click through TLS
+warnings. Client policies that require revocation data need a separately
+tested offline revocation plan before the event.
+
 ## 4. Start the event
 
 ```bash
@@ -106,7 +115,7 @@ python -m ridge.deploy start --profile event-profile.json --runtime R
 ```
 
 Participant URLs (all in their own laptop browser):
-`http://<LAN-IP>:8082` desktops · `:8081` IRIS · `:8083` CTFd ·
+`https://<LAN-IP>:8082` desktops · `:8081` IRIS · `:8083` CTFd ·
 `https://<LAN-IP>:8443` Wazuh.
 
 Opening briefing: project **`docs/event-day-deck/event-day-deck.pdf`**
