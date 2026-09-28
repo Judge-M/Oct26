@@ -52,6 +52,12 @@ class ComposeAuditTests(unittest.TestCase):
         guac = yaml.safe_load((COMPOSE / 'compose.guacamole.yaml').read_text(encoding='utf-8'))
         self.assertEqual(guac['services']['guacamole']['depends_on']['database']['condition'], 'service_healthy')
 
+    def test_ctfd_cookie_settings_are_scoped_to_ctfd_service(self):
+        central = yaml.safe_load((COMPOSE / 'compose.central.yaml').read_text(encoding='utf-8'))
+        self.assertEqual(central['services']['ctfd']['environment']['CTFD_SESSION_COOKIE_NAME'],
+                         '${CTFD_SESSION_COOKIE_NAME:-silent_ridge_ctfd_session}')
+        self.assertNotIn('CTFD_SESSION_COOKIE_NAME', central['services']['iris']['environment'])
+
     def test_audit_flags_private_port_and_missing_logging(self):
         bad = {'name': '${RIDGE_PROJECT}-x', 'services': {
             'leaky': {'ports': ['0.0.0.0:8091:8091'], 'privileged': True}}}
