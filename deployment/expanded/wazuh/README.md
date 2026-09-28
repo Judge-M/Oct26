@@ -23,6 +23,10 @@ from a rebuilt air-gapped kit on the event host before this release is ready.
 - `api.yaml` — CA-signed API TLS with privilege dropping retained. The image
   copies this and its certificate into a writable path at first boot.
 - `generate-certs.sh` — idempotent local CA/node certificate generation.
+- `filebeat-init.sh` — runs inside the pinned manager after it seeds its own
+  Filebeat files. It configures the certificate-matching `wazuh-indexer` host,
+  preserves the image's template, and loads the generated indexer credential
+  from a Docker secret into Filebeat's keystore on every container creation.
 
 ## Bootstrap
 
@@ -43,3 +47,12 @@ readiness; restore that runtime instead of resetting its credentials. The
 manager healthcheck authenticates to the API using the local CA before the
 infrastructure stage verifies. Do not mount the stock `wazuh.yml` read-only:
 the pinned dashboard image needs to write its API entry at startup.
+
+The deployment also renders a private copy of `internal_users.yml` with a hash
+of the generated indexer admin password. The plaintext remains only in the
+private runtime secret, not in the vendored source or Filebeat config. This
+must be done before the indexer initializes its security index. Replacing the
+file after a security index exists is **not** a password rotation; the old
+security state must be handled through the tested recovery/rotation procedure.
+The evidence probe runs `filebeat test output` against the CA-verified indexer
+so a healthy manager process alone does not claim an ingest-ready event.

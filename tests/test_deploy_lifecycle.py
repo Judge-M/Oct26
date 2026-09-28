@@ -19,6 +19,17 @@ from ridge.deploy.journal import Journal
 
 
 class WazuhOfflineConfigTests(unittest.TestCase):
+    def test_private_indexer_admin_hash_replaces_only_admin(self):
+        old = '$2y$12$' + 'b' * 53
+        new = '$2y$12$' + 'a' * 53
+        source = ('admin:\n  hash: "' + old + '"\n  reserved: true\n'
+                  'kibanaserver:\n  hash: "' + old + '"\n')
+        rendered = deploy_local.render_indexer_admin(source, new)
+        self.assertIn('admin:\n  hash: "' + new + '"', rendered)
+        self.assertIn('kibanaserver:\n  hash: "' + old + '"', rendered)
+        with self.assertRaisesRegex(LifecycleError, 'invalid bcrypt'):
+            deploy_local.render_indexer_admin(source, 'not-a-hash')
+
     def test_disables_existing_update_check_without_changing_other_settings(self):
         source = ('<ossec_config><global><jsonout_output>yes</jsonout_output>'
                   '<update_check>yes</update_check></global></ossec_config>')
@@ -94,6 +105,8 @@ class FakeRunner:
 
     def run_stdin(self, argv, text, check=True):
         self.calls.append(list(argv))
+        if 'hash.sh' in ' '.join(argv):
+            return '$2y$12$' + 'a' * 53 + '\n'
         if 'psql' in argv:
             self.connections = 2
         return ''
@@ -210,7 +223,8 @@ def make_runtime(root):
     (assets / 'originals').mkdir()
     (assets / 'wazuh-config' / 'wazuh_indexer').mkdir(parents=True)
     (assets / 'wazuh-config' / 'wazuh_indexer' / 'wazuh.indexer.yml').write_text('y')
-    (assets / 'wazuh-config' / 'wazuh_indexer' / 'internal_users.yml').write_text('y')
+    (assets / 'wazuh-config' / 'wazuh_indexer' / 'internal_users.yml').write_text(
+        'admin:\n  hash: "$2y$12$' + 'b' * 53 + '"\n  reserved: true\n')
     (assets / 'wazuh-config' / 'wazuh_cluster').mkdir()
     (assets / 'wazuh-config' / 'wazuh_cluster' / 'wazuh_manager.conf').write_text(
         '<ossec_config><global><jsonout_output>yes</jsonout_output></global></ossec_config>')
@@ -302,6 +316,8 @@ class LifecycleTests(unittest.TestCase):
         wazuh_env = (self.runtime / 'env' / 'wazuh.env').read_text()
         self.assertIn('WAZUH_API_PASSWORD=' + api_password, wazuh_env)
         self.assertEqual(set(result['stages']), set(LocalStack.STAGES))
+        private_users = (self.runtime / 'wazuh-config' / 'internal_users.yml')
+        self.assertIn('$2y$12$' + 'a' * 53, private_users.read_text(encoding='utf-8'))
         journal = Journal.open(self.runtime / 'deploy-journal.sqlite')
         self.assertTrue(all(s['state'] == 'verified' for s in journal.steps()))
         # State initialized paused and provisioned.

@@ -44,6 +44,15 @@ class ComposeAuditTests(unittest.TestCase):
         self.assertIn('WAZUH_CA_FILE', mounts)
         self.assertIn('silent-ridge-ca.pem', service['environment']['SSL_CERT_FILE'])
 
+    def test_wazuh_filebeat_uses_private_secret_and_persistent_image_files(self):
+        document = yaml.safe_load((COMPOSE / 'wazuh/compose.wazuh.yaml').read_text(encoding='utf-8'))
+        manager = document['services']['wazuh-manager']
+        mounts = ' '.join(manager['volumes'])
+        self.assertIn('filebeat-init.sh:/etc/cont-init.d/1a-silent-ridge-filebeat:ro', mounts)
+        self.assertNotIn(':/etc/filebeat/filebeat.yml', mounts)
+        self.assertIn('wazuh_indexer_credential', manager['secrets'])
+        self.assertIn('WAZUH_ADMIN_SECRET_FILE', document['secrets']['wazuh_indexer_credential']['file'])
+
     def test_database_readiness_gates_dependents(self):
         central = yaml.safe_load((COMPOSE / 'compose.central.yaml').read_text(encoding='utf-8'))
         self.assertEqual(central['services']['iris']['depends_on']['iris-db-init']['condition'], 'service_completed_successfully')
