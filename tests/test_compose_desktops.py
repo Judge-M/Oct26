@@ -99,7 +99,9 @@ class GuacamoleContainerAddressTests(unittest.TestCase):
         config = dict(desktops=[dict(id='desktop-01', container=True, shared=True, max_connections=4)],
                       teams=[dict(id='team-01', desktop='desktop-01')])
         credentials = dict(desktops={'desktop-01': {'password': 'vnc-pass'}},
-                           teams={'team-01': {'username': 'team-01', 'password': 'a-long-generated-password'}})
+                           teams={'team-01': {'username': 'team-01', 'password': 'a-long-generated-password'}},
+                           facilitator={'username': 'ridge-facilitator',
+                                        'password': 'admin-long-generated-password'})
         sql = module.generate(config, credentials)
         self.assertIn("'desktop-team01'", sql)
         self.assertIn("'5901'", sql)

@@ -4,15 +4,15 @@ Loaded only inside the extended CTFd image. It applies settings, creates or
 finds teams/users, assigns memberships and commits once. Existing awards and
 passwords are never modified.
 
-LIVE VALIDATION BLOCKED: no Docker/Linux host is available in the wave-1/2 lane,
-so this adapter has not been exercised against a real CTFd 3.7.7 database. The
-pure planner/verifier in ridge.ctfd_provision is covered by deterministic tests.
+The pinned CTFd image smoke tests this adapter against a disposable SQLite
+database, including the facilitator's real login and administrator page.
 """
 import click
 import json
 from pathlib import Path
 
-from ridge.ctfd_provision import ProvisionSpec, TeamSpec, UserSpec, preflight, provision
+from ridge.ctfd_provision import (FacilitatorSpec, ProvisionSpec, TeamSpec, UserSpec,
+                                  preflight, provision)
 
 SCHEMA = 'ctfd-3.7.7'
 
@@ -52,6 +52,20 @@ class OrmAdmin:
         db.session.flush()
         return {'id': int(row.id), 'name': row.name}
 
+    def create_admin(self, name, email, password):
+        from CTFd.models import Users, db
+        row = Users(name=name, email=email, password=password, type='admin')
+        db.session.add(row)
+        db.session.flush()
+        return {'id': int(row.id), 'name': row.name}
+
+    def admin_login_valid(self, name, password):
+        from CTFd.models import Users
+        from CTFd.utils.crypto import verify_password
+        row = Users.query.filter_by(name=name).first()
+        return bool(row is not None and row.type == 'admin' and row.team_id is None
+                    and verify_password(password, row.password))
+
     def set_user_team(self, user_id, team_id):
         from CTFd.models import Users, db
         row = db.session.get(Users, user_id)
@@ -77,7 +91,9 @@ def _spec_from_json(document):
         teams=tuple(TeamSpec(team=t['team'], name=t['name'], password=t['password'])
                     for t in document['teams']),
         users=tuple(UserSpec(name=u['name'], email=u['email'], team=u['team'], password=u['password'])
-                    for u in document['users']))
+                    for u in document['users']),
+        facilitator=FacilitatorSpec(**document['facilitator'])
+        if document.get('facilitator') else None)
 
 
 def register(app):

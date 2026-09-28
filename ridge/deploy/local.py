@@ -347,6 +347,7 @@ class LocalStack:
         vnc_ok = vnc_dir.is_dir() and all(
             (vnc_dir / ('team%02d' % (i + 1))).is_file() for i in range(len(self.teams)))
         if existing and team_creds.is_file() and vnc_ok:
+            self._ensure_facilitator_secrets()
             return False
         if existing and (not team_creds.is_file() or not vnc_ok):
             raise LifecycleError('incomplete secrets in %s: team credentials or VNC passwords '
@@ -381,7 +382,23 @@ class LocalStack:
             }
             credentials['desktops'][team['desktop']] = {'password': vnc}
         team_creds.write_text(json.dumps(credentials, indent=2), encoding='utf-8')
+        self._ensure_facilitator_secrets()
         return True
+
+    def _ensure_facilitator_secrets(self):
+        """Create admin passwords once; never rotate a lost one."""
+        marker = self.secrets_dir / 'facilitator-secrets.ready'
+        names = ('ctfd-facilitator-password', 'guac-facilitator-password')
+        missing = [name for name in names if not (self.secrets_dir / name).is_file()]
+        if marker.is_file() and missing:
+            raise LifecycleError('facilitator secret missing (%s); restore the runtime, do not '
+                                 'rotate an existing admin password' % ', '.join(missing))
+        if missing and len(missing) != len(names):
+            raise LifecycleError('partial facilitator secrets; restore the runtime before '
+                                 'continuing')
+        for name in missing:
+            (self.secrets_dir / name).write_text(self.host.randhex(24) + '\n', encoding='utf-8')
+        marker.write_text('ready\n', encoding='utf-8')
 
     def _team_credentials(self):
         path = self.secrets_dir / 'team-credentials.json'
@@ -544,6 +561,9 @@ class LocalStack:
                            'password': credentials['teams'][team['name']]['accounts'][account]}
                           for team in self.teams for account in team['accounts']],
                 'user_mode': 'teams', 'registration_visible': False, 'schema': 'ctfd-3.7.7',
+                'facilitator': {'name': 'ridge-facilitator',
+                                'email': 'facilitator@silent-ridge.invalid',
+                                'password': self._secret('ctfd-facilitator-password')},
             }
             ctfd_path.write_text(json.dumps(ctfd_spec, indent=2), encoding='utf-8')
         guac_config_path = self.specs_dir / 'guac-config.json'
@@ -566,6 +586,8 @@ class LocalStack:
                           for tag, team in zip((t['id'] for t in guac_config['teams']), self.teams)},
                 'desktops': {name: {'password': credentials['desktops'][name]['password']}
                              for name in credentials['desktops']},
+                'facilitator': {'username': 'ridge-facilitator',
+                                'password': self._secret('guac-facilitator-password')},
             }, indent=2), encoding='utf-8')
 
     # ----------------------------------------------------------------- stages

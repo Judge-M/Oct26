@@ -1,7 +1,8 @@
 """Deterministic tests for idempotent Guacamole provisioning (C02).
 
-No Guacamole/PostgreSQL is available (LIVE ACCEPTANCE BLOCKED). These tests
-inspect the generated SQL for reconciliation and isolation properties.
+These tests inspect generated SQL for reconciliation and isolation properties.
+The facilitator SQL is also exercised against disposable pinned PostgreSQL and
+Guacamole images during operator acceptance.
 """
 import importlib.util
 import re
@@ -25,7 +26,8 @@ def credentials():
     return dict(
         desktops={'desk-a': {'password': 'vnc-a'}, 'desk-b': {'password': 'vnc-b'}},
         teams={'team-a': {'username': 'team-a-user', 'password': 'a-long-generated-password'},
-               'team-b': {'username': 'team-b-user', 'password': 'b-long-generated-password'}})
+               'team-b': {'username': 'team-b-user', 'password': 'b-long-generated-password'}},
+        facilitator={'username': 'ridge-facilitator', 'password': 'admin-long-generated-password'})
 
 
 class GuacamoleReconcileTests(unittest.TestCase):
@@ -36,6 +38,9 @@ class GuacamoleReconcileTests(unittest.TestCase):
         self.assertIn('ON CONFLICT (entity_id) DO NOTHING', sql)
         self.assertIn("name='guacadmin'", sql)
         self.assertIn('disabled=TRUE', sql)
+        self.assertIn("'ridge-facilitator'", sql)
+        self.assertIn('guacamole_system_permission', sql)
+        self.assertIn("'ADMINISTER'", sql)
 
     def test_each_team_only_reaches_its_own_desktop(self):
         sql = guac.reconcile(config(), credentials())
@@ -67,6 +72,14 @@ class GuacamoleReconcileTests(unittest.TestCase):
         bad['desktops']['desk-a']['password'] = ''
         with self.assertRaisesRegex(ValueError, 'VNC password'):
             guac.reconcile(config(), bad)
+
+    def test_facilitator_admin_is_required_and_not_credential_leaking(self):
+        adminless = credentials()
+        del adminless['facilitator']
+        with self.assertRaisesRegex(ValueError, 'facilitator administrator'):
+            guac.reconcile(config(), adminless)
+        sql = guac.reconcile(config(), credentials())
+        self.assertNotIn('admin-long-generated-password', sql)
 
     def test_unmapped_desktop_and_weak_login_rejected(self):
         bad = config()

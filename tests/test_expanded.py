@@ -74,7 +74,10 @@ class EvidenceTests(unittest.TestCase):
         spec=importlib.util.spec_from_file_location('guac',path);module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
         config=dict(desktops=[dict(id='desk',address='192.0.2.10',shared=False,max_connections=9)],
                     teams=[dict(id='team',desktop='desk')])
-        credentials=dict(desktops={'desk':{'password':'vnc-pass'}},teams={'team':{'username':'team','password':'a-long-generated-password'}})
+        credentials=dict(desktops={'desk':{'password':'vnc-pass'}},
+                         teams={'team':{'username':'team','password':'a-long-generated-password'}},
+                         facilitator={'username':'ridge-facilitator',
+                                      'password':'admin-long-generated-password'})
         sql=module.generate(config,credentials)
         self.assertIn("'vnc',1,1",sql)
         self.assertNotIn('a-long-generated-password',sql)

@@ -26,6 +26,11 @@ to participants). Windows operators may use `.\ridge.ps1 <action> -Profile P
    You want `event_ready: true`, all stages verified.
 4. **Distribute team logins** — from `R/inventories/` (private). Each team gets
    its IRIS/CTFd account and its Guacamole desktop connection.
+   The operator's separate CTFd and Guacamole administrator passwords are in
+   `R/secrets/ctfd-facilitator-password` and
+   `R/secrets/guac-facilitator-password`; the username is `ridge-facilitator`.
+   Keep these private and never give them to participants. The stock Guacamole
+   `guacadmin` login remains disabled.
 5. **Start the exercise** — `python -m ridge.deploy start --profile P --runtime R`
    → `RUNNING`.
 6. **During play** — announcements:
