@@ -88,7 +88,8 @@ class TimedClient:
                 context=context))
         self.opener = urllib.request.build_opener(*handlers)
 
-    def request(self, endpoint, path, data=None, headers=None, method=None):
+    def request(self, endpoint, path, data=None, headers=None, method=None,
+                require_authenticated=False, required_marker=None):
         url = self.base + path
         body = urllib.parse.urlencode(data).encode() if isinstance(data, dict) else data
         req = urllib.request.Request(url, data=body, headers=headers or {}, method=method)
@@ -98,6 +99,11 @@ class TimedClient:
             try:
                 with self.opener.open(req, timeout=30) as response:
                     payload = response.read()
+                    final_path = urllib.parse.urlsplit(response.geturl()).path.rstrip('/')
+                    if require_authenticated and final_path == '/login':
+                        raise LoadError(f'{endpoint} ended on the login page after redirects')
+                    if required_marker and required_marker.lower() not in payload.lower():
+                        raise LoadError(f'{endpoint} did not contain the expected authenticated page')
                     ok = response.status < 400
                     detail = None if ok else f'http {response.status}'
             except urllib.error.HTTPError as exc:
@@ -115,7 +121,8 @@ class TimedClient:
                 continue
             except Exception as exc:
                 self.samples.append({'endpoint': endpoint, 'seconds': time.monotonic() - start,
-                                     'ok': False, 'detail': type(exc).__name__})
+                                     'ok': False, 'detail': (str(exc)[:160] if isinstance(exc, LoadError)
+                                                           else type(exc).__name__)})
                 raise
             sample = {'endpoint': endpoint, 'seconds': time.monotonic() - start, 'ok': ok}
             if detail:
@@ -215,10 +222,13 @@ class CtfdBot:
         self.nonce = match.group(1)
         self.client.request('ctfd:login', '/login',
                             data={'name': self.name, 'password': self.password,
-                                  '_submit': 'Submit', 'nonce': self.nonce})
+                                  '_submit': 'Submit', 'nonce': self.nonce},
+                            require_authenticated=True)
 
     def act(self, rng):
-        page = self.client.request('ctfd:questions', '/silent-ridge')
+        page = self.client.request('ctfd:questions', '/silent-ridge',
+                                   require_authenticated=True,
+                                   required_marker=b'name="question"')
         nonces = PAGE_NONCE.findall(page)
         questions = PAGE_QUESTION.findall(page)
         roll = rng.random()
@@ -249,12 +259,14 @@ class IrisBot:
         data = {'username': self.login_name, 'password': self.password}
         if csrf:
             data['csrf_token'] = csrf.group(1).decode()
-        self.client.request('iris:login', '/login', data=data)
+        self.client.request('iris:login', '/login', data=data,
+                            require_authenticated=True, required_marker=b'Logout')
 
     def act(self, rng):
-        self.client.request('iris:dashboard', '/dashboard')
+        self.client.request('iris:dashboard', '/dashboard',
+                            require_authenticated=True, required_marker=b'Logout')
         if rng.random() < 0.5:
-            self.client.request('iris:case', '/case')
+            self.client.request('iris:case', '/case', require_authenticated=True)
 
 
 def outbox_depth(state_sqlite):

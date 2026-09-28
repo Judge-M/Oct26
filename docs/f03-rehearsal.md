@@ -90,6 +90,10 @@ Verified by a full dress rehearsal on the dev host (2 teams, 180 s,
   HTTP 429 up to five attempts, respecting `Retry-After` up to a 10 s wait.
   Each 429 remains a failed sample in the report. A persistently limited
   login stops preflight with an explicit error; it is not a capacity result.
+- Authenticated probes reject a final login-page redirect even if it returns
+  HTTP 200. IRIS dashboard probes require the authenticated `Logout` marker;
+  CTFd question probes require a question form. Missing page identity counts
+  as a failed sample, not a successful request.
 - **Capacity model**: retuned 2026-09-23 from measurements (central 6 GiB,
   desktop 2 GiB / 1 vCPU / 15 GiB, 20% memory headroom in validation).
   Reservations are measured *peaks*, not limits — the certifying run should
