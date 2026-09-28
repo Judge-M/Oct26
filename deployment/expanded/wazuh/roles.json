@@ -21,7 +21,9 @@
     ]
   },
   "silent-ridge-participant": {
-    "cluster_permissions": [],
+    "cluster_permissions": [
+      "cluster_composite_ops_ro"
+    ],
     "index_permissions": [
       {
         "index_patterns": [
@@ -32,6 +34,24 @@
           "indices:data/read/get",
           "indices:data/read/field_caps",
           "indices:admin/mappings/get"
+        ]
+      },
+      {
+        "index_patterns": [
+          ".kibana*"
+        ],
+        "allowed_actions": [
+          "read"
+        ]
+      }
+    ],
+    "tenant_permissions": [
+      {
+        "tenant_patterns": [
+          "global_tenant"
+        ],
+        "allowed_actions": [
+          "kibana_all_read"
         ]
       }
     ]

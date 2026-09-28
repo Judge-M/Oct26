@@ -79,7 +79,16 @@ def writer_role(pattern: str = INDEX_PATTERN) -> dict[str, Any]:
 
 
 def reader_role(pattern: str = INDEX_PATTERN) -> dict[str, Any]:
-    return _role(READER_ACTIONS, pattern)
+    role = _role(READER_ACTIONS, pattern)
+    # Dashboard sign-in needs cluster read operations and access to its saved
+    # objects. Keep the latter read-only even when multi-tenancy is disabled:
+    # kibana_server grants writes and is reserved for the dashboard service.
+    role['cluster_permissions'] = ['cluster_composite_ops_ro']
+    role['index_permissions'].append({
+        'index_patterns': ['.kibana*'], 'allowed_actions': ['read']})
+    role['tenant_permissions'] = [{
+        'tenant_patterns': ['global_tenant'], 'allowed_actions': ['kibana_all_read']}]
+    return role
 
 
 def discover_fields(field_caps: dict[str, Any] | None = None) -> str:

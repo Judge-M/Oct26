@@ -18,7 +18,9 @@ fails closed until every digest is a real immutable identity.
 - `saved-objects.json` — a timestamped view and a timeless view. Coverage and
   catalog facts carry no timestamp, so the timeless view deliberately has no
   time field; a date filter must not hide them.
-- `roles.json` — writer restricted to `silent-ridge-*`; participant read-only.
+- `roles.json` — writer restricted to `silent-ridge-*`; participant data read
+  limited to that pattern, with read-only Dashboard saved-object and global
+  tenant access. Never map a participant to the `kibana_server` service role.
 - `compose.wazuh.yaml` — pinned stack; indexer/manager stay on an internal
   network, only the dashboard is exposed, log rotation and healthchecks set.
 - `generate-certs.sh` — idempotent local CA/node certificate generation.

@@ -39,6 +39,13 @@ class VendoredConfigTests(unittest.TestCase):
         self.assertNotIn('*', writer['index_permissions'][0]['index_patterns'])
         self.assertNotIn('indices:data/write/bulk', reader['index_permissions'][0]['allowed_actions'])
         self.assertIn('indices:data/read/field_caps', reader['index_permissions'][0]['allowed_actions'])
+        self.assertEqual(reader['cluster_permissions'], ['cluster_composite_ops_ro'])
+        self.assertEqual(reader['index_permissions'][1], {
+            'index_patterns': ['.kibana*'], 'allowed_actions': ['read']})
+        self.assertEqual(reader['tenant_permissions'], [{
+            'tenant_patterns': ['global_tenant'], 'allowed_actions': ['kibana_all_read']}])
+        self.assertNotIn('kibana_server', json.dumps(reader))
+        self.assertNotIn('indices_all', json.dumps(reader))
 
     def test_timed_and_timeless_views_differ_only_by_time_field(self):
         views = {view['id']: view for view in saved_objects()}
