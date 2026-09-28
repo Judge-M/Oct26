@@ -50,15 +50,24 @@ to the shared template.
 
 Open the Wazuh dashboard in your own laptop browser (the `:8443` address and
 shared reader login come from your facilitator) — not inside the shared
-desktop. Open Discover, select the exercise's historical data view, and set
-the absolute scenario-date UTC range shown in the question. Expand individual
-rows to inspect
-field names. Start broad, then add one filter at a time.
+desktop. **Go to Discover, not Reports or the stock Wazuh Overview.** Reports
+has no definitions for this exercise. For timed events (including T06), select
+`silent-ridge-timed` and set the absolute range **2026-10-15 08:00–09:30 UTC**;
+the default last-24-hours range hides the historical replay. T10's approved-program
+inventory comparator is also dated and belongs in the timed view. For undated
+coverage/catalog records, select `silent-ridge-timeless` so the time picker
+does not hide them.
+Expand individual rows to inspect field names and source. Start broad, then add
+one filter at a time.
 
-Worked example: search `data.host:WS-22`. Examine ordinary activity and its source
-field before narrowing to a task or document event. If a query returns nothing,
-clear the query and confirm the date range and selected data view. A host name in
-one source may be an IP address in another; compare the provided inventory.
+Worked example: search `data.host:"WS-22"`, then add
+`and data.source:"hunting/approved-inventory.csv"` in DQL to locate the T10
+comparator in the timed view. For T06, use `data.session:"S-41"` in the timed
+view. Do not add `data.process:*` to the WS-22 comparator search: that inventory
+row has `artifact`, `publisher`, and `path`, not `process`. If a query returns
+nothing, clear it and confirm the time range, data view, and DQL mode. A host
+name in one source may be an IP address in another; compare the inventory.
+These are synthetic historical records, not a live endpoint feed.
 
 ## Cutter
 

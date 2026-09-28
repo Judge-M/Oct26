@@ -13,6 +13,12 @@ Wireshark, Cutter and the configured Wazuh view as directed by the question.
 Use the beginner guide and free hints whenever needed. Do not execute evidence
 files or connect to addresses found in evidence.
 
+In Wazuh, start in **Discover**. Use `silent-ridge-timed` with the absolute
+2026-10-15 08:00–09:30 UTC window for event questions such as T06 and the dated
+T10 approved-program inventory comparator. Use `silent-ridge-timeless` for
+undated coverage and catalog records. The stock Overview and empty Reports screen are not the
+exercise evidence view. See the [Wazuh guide](../expanded/guides.md#wazuh).
+
 Submit answers in CTFd. Each globally accepted correct answer earns one point
 and publishes its predefined evidence-backed finding to IRIS. Completion closes
 the ticket and makes eligible follow-up work available. Read shared completed

@@ -2,11 +2,19 @@
   {
     "type": "index-pattern",
     "id": "silent-ridge-timed",
-    "attributes": {"title": "silent-ridge-*", "timeFieldName": "timestamp"}
+    "attributes": {
+      "title": "silent-ridge-*",
+      "timeFieldName": "timestamp",
+      "fields": "[{\"aggregatable\":true,\"esTypes\":[\"_index\"],\"name\":\"_index\",\"readFromDocValues\":false,\"searchable\":true,\"type\":\"string\"},{\"aggregatable\":false,\"esTypes\":[\"_source\"],\"name\":\"_source\",\"readFromDocValues\":false,\"searchable\":false,\"type\":\"_source\"},{\"aggregatable\":true,\"esTypes\":[\"date\"],\"name\":\"timestamp\",\"readFromDocValues\":true,\"searchable\":true,\"type\":\"date\"}]"
+    }
   },
   {
     "type": "index-pattern",
     "id": "silent-ridge-timeless",
-    "attributes": {"title": "silent-ridge-*", "timeFieldName": null}
+    "attributes": {
+      "title": "silent-ridge-*",
+      "timeFieldName": null,
+      "fields": "[{\"aggregatable\":true,\"esTypes\":[\"_index\"],\"name\":\"_index\",\"readFromDocValues\":false,\"searchable\":true,\"type\":\"string\"},{\"aggregatable\":false,\"esTypes\":[\"_source\"],\"name\":\"_source\",\"readFromDocValues\":false,\"searchable\":false,\"type\":\"_source\"},{\"aggregatable\":true,\"esTypes\":[\"date\"],\"name\":\"timestamp\",\"readFromDocValues\":true,\"searchable\":true,\"type\":\"date\"}]"
+    }
   }
 ]

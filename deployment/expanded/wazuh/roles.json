@@ -30,6 +30,7 @@
         "allowed_actions": [
           "indices:data/read/search",
           "indices:data/read/get",
+          "indices:data/read/field_caps",
           "indices:admin/mappings/get"
         ]
       }

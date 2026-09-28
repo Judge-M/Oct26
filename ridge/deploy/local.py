@@ -826,10 +826,10 @@ class LocalStack:
     def _apply_evidence(self):
         from ridge.wazuh_provision import saved_objects
         index_name = self._index_name()
-        self._indexer_job('apply')
+        applied = self._indexer_job('apply')
         dashboard = 'https://127.0.0.1:%d' % self.port('wazuh_dashboard', 8443)
         admin = self._secret('wazuh_admin')
-        for view in saved_objects():
+        for view in saved_objects(applied['field_caps']):
             status, payload = self._wazuh(
                 'POST', dashboard,
                 '/api/saved_objects/index-pattern/%s?overwrite=true' % view['id'],
