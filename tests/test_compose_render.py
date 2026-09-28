@@ -71,6 +71,17 @@ class ComposeAuditTests(unittest.TestCase):
                          '${CTFD_SESSION_COOKIE_NAME:-silent_ridge_ctfd_session}')
         self.assertNotIn('CTFD_SESSION_COOKIE_NAME', central['services']['iris']['environment'])
 
+    def test_only_tls_proxy_publishes_participant_ports(self):
+        central = yaml.safe_load((COMPOSE / 'compose.central.yaml').read_text(encoding='utf-8'))
+        guac = yaml.safe_load((COMPOSE / 'compose.guacamole.yaml').read_text(encoding='utf-8'))
+        for service in ('iris', 'ctfd'):
+            self.assertNotIn('ports', central['services'][service])
+        self.assertNotIn('ports', guac['services']['guacamole'])
+        proxy = central['services']['participant-tls']
+        self.assertEqual(len(proxy['ports']), 3)
+        self.assertIn('participant.pem', ' '.join(proxy['volumes']))
+        self.assertIn('central', guac['services']['guacamole']['networks'])
+
     def test_audit_flags_private_port_and_missing_logging(self):
         bad = {'name': '${RIDGE_PROJECT}-x', 'services': {
             'leaky': {'ports': ['0.0.0.0:8091:8091'], 'privileged': True}}}

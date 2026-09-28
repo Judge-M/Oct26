@@ -34,7 +34,7 @@ elements:
       fontSize: 15
       text: |
         <p><strong>1.</strong> Open a second tab:
-        <span style="background-color:$palegreen"> http://&lt;event-address&gt;:8083 </span></p>
+        <span style="background-color:$palegreen"> https://&lt;event-address&gt;:8083 </span></p>
         <p style="margin-top:10px"><strong>2.</strong> Log in with <strong>your personal seat</strong> login —
         it looks like <strong>team-04-p02</strong> — and the seat password from the handout.
         Each teammate uses their own seat.</p>

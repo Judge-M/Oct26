@@ -18,7 +18,9 @@ Usage:
 Config JSON (secrets stay in the runtime directory; never commit them):
     {
       "teams": 10, "sessions_per_team": 3,
-      "ctfd_url": "http://127.0.0.1:8083", "iris_url": "http://127.0.0.1:8081",
+      "ctfd_url": "auto",
+      "iris_url": "auto",
+      "ca_file": "<runtime>/wazuh-certs/root-ca.pem",
       "credentials": "<runtime>/secrets/team-credentials.json",
       "state_sqlite": "<runtime>/state/state.sqlite",
       "containers": ["silent-ridge-n1-central-ctfd-1", "..."],
@@ -27,12 +29,14 @@ Config JSON (secrets stay in the runtime directory; never commit them):
     }
 """
 import argparse
+import ipaddress
 import json
 import os
 import queue
 import random
 import re
 import shutil
+import ssl
 import sqlite3
 import statistics
 import subprocess
@@ -69,13 +73,23 @@ def percentile(values, q):
 class TimedClient:
     """urllib opener that records (endpoint, seconds, ok) samples."""
 
-    def __init__(self, base, samples):
+    def __init__(self, base, samples, ca_file=None):
         self.base = base.rstrip('/')
         self.samples = samples
-        self.opener = urllib.request.build_opener(
-            urllib.request.HTTPCookieProcessor(CookieJar()))
+        handlers = [urllib.request.HTTPCookieProcessor(CookieJar())]
+        if self.base.startswith('https://'):
+            if not ca_file:
+                raise LoadError('HTTPS target requires a trusted ca_file')
+            try:
+                context = ssl.create_default_context(cafile=str(ca_file))
+            except OSError as exc:
+                raise LoadError(f'Cannot load trusted CA from {ca_file}') from exc
+            handlers.append(urllib.request.HTTPSHandler(
+                context=context))
+        self.opener = urllib.request.build_opener(*handlers)
 
-    def request(self, endpoint, path, data=None, headers=None, method=None):
+    def request(self, endpoint, path, data=None, headers=None, method=None,
+                require_authenticated=False, required_marker=None):
         url = self.base + path
         body = urllib.parse.urlencode(data).encode() if isinstance(data, dict) else data
         req = urllib.request.Request(url, data=body, headers=headers or {}, method=method)
@@ -85,6 +99,11 @@ class TimedClient:
             try:
                 with self.opener.open(req, timeout=30) as response:
                     payload = response.read()
+                    final_path = urllib.parse.urlsplit(response.geturl()).path.rstrip('/')
+                    if require_authenticated and final_path == '/login':
+                        raise LoadError(f'{endpoint} ended on the login page after redirects')
+                    if required_marker and required_marker.lower() not in payload.lower():
+                        raise LoadError(f'{endpoint} did not contain the expected authenticated page')
                     ok = response.status < 400
                     detail = None if ok else f'http {response.status}'
             except urllib.error.HTTPError as exc:
@@ -102,7 +121,8 @@ class TimedClient:
                 continue
             except Exception as exc:
                 self.samples.append({'endpoint': endpoint, 'seconds': time.monotonic() - start,
-                                     'ok': False, 'detail': type(exc).__name__})
+                                     'ok': False, 'detail': (str(exc)[:160] if isinstance(exc, LoadError)
+                                                           else type(exc).__name__)})
                 raise
             sample = {'endpoint': endpoint, 'seconds': time.monotonic() - start, 'ok': ok}
             if detail:
@@ -137,7 +157,45 @@ def login_bots(bots, pause=LOGIN_STAGGER_S):
     for index, bot in enumerate(bots):
         if index:
             time.sleep(pause)
-        bot.login()
+        try:
+            bot.login()
+        except urllib.error.HTTPError:
+            raise
+        except urllib.error.URLError as exc:
+            raise LoadError(f'{bot.client.base} login preflight failed; check the URL '
+                            'against runtime/local.json bind_ip and published port') from exc
+
+
+def resolve_target_urls(config):
+    """Resolve `auto` URLs from the same runtime that supplied participant logins."""
+    result = dict(config)
+    requested = [service for service in ('ctfd', 'iris')
+                 if result[service + '_url'] == 'auto']
+    if not requested:
+        return result
+    local_path = Path(config['credentials']).parent.parent / 'local.json'
+    try:
+        local = json.loads(local_path.read_text(encoding='utf-8'))
+    except (OSError, ValueError) as exc:
+        raise LoadError(f'Cannot derive participant URLs from {local_path}') from exc
+    bind = local.get('bind_ip') or '127.0.0.1'
+    try:
+        address = ipaddress.IPv4Address(bind)
+    except (ipaddress.AddressValueError, TypeError) as exc:
+        raise LoadError(f'{local_path} bind_ip must be an IPv4 address') from exc
+    if address.is_unspecified:
+        raise LoadError(f'{local_path} bind_ip is a wildcard, not a participant URL')
+    ports = local.get('ports') or {}
+    if not isinstance(ports, dict):
+        raise LoadError(f'{local_path} ports must be an object')
+    for service, default_port in (('ctfd', 8083), ('iris', 8081)):
+        if service not in requested:
+            continue
+        port = ports.get(service, default_port)
+        if not isinstance(port, int) or isinstance(port, bool) or not 1 <= port <= 65535:
+            raise LoadError(f'{local_path} ports.{service} must be a TCP port')
+        result[service + '_url'] = f'https://{bind}:{port}'
+    return result
 
 PAGE_NONCE = re.compile(rb'name="nonce"\s+value="([^"]+)"')
 PAGE_QUESTION = re.compile(rb'name="question"\s+value="([^"]+)"')
@@ -152,8 +210,8 @@ class CtfdBot:
     /api/v1/scoreboard, and POST /silent-ridge answers.
     """
 
-    def __init__(self, base, name, password, samples):
-        self.client = TimedClient(base, samples)
+    def __init__(self, base, name, password, samples, ca_file=None):
+        self.client = TimedClient(base, samples, ca_file)
         self.name, self.password = name, password
 
     def login(self):
@@ -164,10 +222,13 @@ class CtfdBot:
         self.nonce = match.group(1)
         self.client.request('ctfd:login', '/login',
                             data={'name': self.name, 'password': self.password,
-                                  '_submit': 'Submit', 'nonce': self.nonce})
+                                  '_submit': 'Submit', 'nonce': self.nonce},
+                            require_authenticated=True)
 
     def act(self, rng):
-        page = self.client.request('ctfd:questions', '/silent-ridge')
+        page = self.client.request('ctfd:questions', '/silent-ridge',
+                                   require_authenticated=True,
+                                   required_marker=b'name="question"')
         nonces = PAGE_NONCE.findall(page)
         questions = PAGE_QUESTION.findall(page)
         roll = rng.random()
@@ -188,8 +249,8 @@ class CtfdBot:
 class IrisBot:
     """One IRIS case participant: login and poll case/activity views."""
 
-    def __init__(self, base, login_name, password, samples):
-        self.client = TimedClient(base, samples)
+    def __init__(self, base, login_name, password, samples, ca_file=None):
+        self.client = TimedClient(base, samples, ca_file)
         self.login_name, self.password = login_name, password
 
     def login(self):
@@ -198,12 +259,14 @@ class IrisBot:
         data = {'username': self.login_name, 'password': self.password}
         if csrf:
             data['csrf_token'] = csrf.group(1).decode()
-        self.client.request('iris:login', '/login', data=data)
+        self.client.request('iris:login', '/login', data=data,
+                            require_authenticated=True, required_marker=b'Logout')
 
     def act(self, rng):
-        self.client.request('iris:dashboard', '/dashboard')
+        self.client.request('iris:dashboard', '/dashboard',
+                            require_authenticated=True, required_marker=b'Logout')
         if rng.random() < 0.5:
-            self.client.request('iris:case', '/case')
+            self.client.request('iris:case', '/case', require_authenticated=True)
 
 
 def outbox_depth(state_sqlite):
@@ -311,6 +374,8 @@ def run(config, duration, output):
     output = Path(output)
     if output.exists():
         raise LoadError('Choose a new output directory; runs are never overwritten')
+    config = resolve_target_urls(config)
+    ca_file = config.get('ca_file')
     creds = json.loads(Path(config['credentials']).read_text(encoding='utf-8'))
     samples, container_q, outbox_samples = [], queue.Queue(), []
     bots = []
@@ -321,9 +386,9 @@ def run(config, duration, output):
             user = f'{team}-p{seat:02d}'
             password = accounts.get(user)
             if password:
-                bots.append(CtfdBot(config['ctfd_url'], user, password, samples))
+                bots.append(CtfdBot(config['ctfd_url'], user, password, samples, ca_file))
         bots.append(IrisBot(config['iris_url'], entry['iris_login'],
-                            entry['iris_password'], samples))
+                            entry['iris_password'], samples, ca_file))
     if not bots:
         raise LoadError('No credentials matched the requested team count')
     login_bots(bots)  # fail fast on auth problems before the clock starts

@@ -34,7 +34,7 @@ elements:
       fontSize: 15
       text: |
         <p><strong>1.</strong> Third tab:
-        <span style="background-color:$palegreen"> http://&lt;event-address&gt;:8082 </span></p>
+        <span style="background-color:$palegreen"> https://&lt;event-address&gt;:8082 </span></p>
         <p style="margin-top:10px"><strong>2.</strong> Log in with the <strong>Guacamole</strong> username and
         password from the handout, then click your team's desktop connection.</p>
         <p style="margin-top:10px"><strong>3.</strong> If the desktop asks for a password, it is the

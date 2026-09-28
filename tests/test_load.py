@@ -1,17 +1,23 @@
 """Tests for expanded.load (F03 tooling); no live services required."""
 import json
 import os
+import tempfile
 import threading
 import unittest
+import urllib.error
 from unittest import mock
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 from expanded.load import (CtfdBot, IrisBot, LoadError, TimedClient, build_report,
                            login_bots, markdown, mib, outbox_depth, percentile,
-                           retry_after_seconds)
+                           resolve_target_urls, retry_after_seconds)
 
 
 class PercentileTests(unittest.TestCase):
+    def test_https_harness_requires_explicit_ca(self):
+        with self.assertRaisesRegex(LoadError, 'trusted ca_file'):
+            TimedClient('https://127.0.0.1:8081', [])
+
     def test_nearest_rank(self):
         self.assertEqual(percentile([0.1, 0.5, 0.2, 9.0], 50), 0.2)
         self.assertEqual(percentile([0.1, 0.5, 0.2, 9.0], 95), 9.0)
@@ -91,7 +97,9 @@ class FakeCtfd(BaseHTTPRequestHandler):
         length = int(self.headers.get('Content-Length', 0))
         body = self.rfile.read(length)
         if self.path == '/login':
-            self._send(b'ok')
+            self.send_response(302)
+            self.send_header('Location', '/silent-ridge')
+            self.end_headers()
         elif self.path == '/silent-ridge':
             if b'nonce=eeeeffff' not in body:
                 self._send(b'forbidden', 403)
@@ -202,6 +210,113 @@ class RateLimitTests(unittest.TestCase):
         with mock.patch('expanded.load.time.sleep', side_effect=lambda seconds: calls.append(seconds)):
             login_bots([Bot(), Bot(), Bot()])
         self.assertEqual(calls, ['login', 0.5, 'login', 0.5, 'login'])
+
+
+class TargetUrlTests(unittest.TestCase):
+    def test_auto_urls_follow_runtime_bind_and_ports(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runtime = os.path.join(tmp, 'runtime')
+            os.mkdir(runtime)
+            os.mkdir(os.path.join(runtime, 'secrets'))
+            with open(os.path.join(runtime, 'local.json'), 'w', encoding='utf-8') as stream:
+                json.dump({'bind_ip': '192.168.1.200',
+                           'ports': {'ctfd': 18083, 'iris': 18081}}, stream)
+            config = {'credentials': os.path.join(runtime, 'secrets', 'team-credentials.json'),
+                      'ctfd_url': 'auto', 'iris_url': 'auto'}
+            resolved = resolve_target_urls(config)
+            self.assertEqual(resolved['ctfd_url'], 'https://192.168.1.200:18083')
+            self.assertEqual(resolved['iris_url'], 'https://192.168.1.200:18081')
+            self.assertEqual(config['ctfd_url'], 'auto')
+
+    def test_unreachable_login_names_configured_target(self):
+        class OfflineBot:
+            client = type('Client', (), {'base': 'http://192.168.1.200:8083'})()
+
+            def login(self):
+                raise urllib.error.URLError('connection refused')
+
+        with self.assertRaisesRegex(LoadError, '192.168.1.200:8083'):
+            login_bots([OfflineBot()])
+
+
+class AuthPageTests(unittest.TestCase):
+    def test_missing_authenticated_page_marker_is_a_failed_sample(self):
+        class LoginHtml(BaseHTTPRequestHandler):
+            def log_message(self, *args):
+                pass
+
+            def do_GET(self):
+                body = b'<form><input name="password"></form>'
+                self.send_response(200)
+                self.send_header('Content-Length', str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+        server = HTTPServer(('127.0.0.1', 0), LoginHtml)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        try:
+            samples = []
+            with self.assertRaisesRegex(LoadError, 'expected authenticated page'):
+                TimedClient(f'http://127.0.0.1:{server.server_port}', samples).request(
+                    'iris:dashboard', '/dashboard', require_authenticated=True,
+                    required_marker=b'Logout')
+            self.assertFalse(samples[-1]['ok'])
+        finally:
+            server.shutdown()
+            server.server_close()
+
+    def test_ctfd_login_redirect_back_to_login_is_failure(self):
+        class Bounce(FakeCtfd):
+            def do_POST(self):
+                self.send_response(302)
+                self.send_header('Location', '/login')
+                self.end_headers()
+
+        server = HTTPServer(('127.0.0.1', 0), Bounce)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        try:
+            samples = []
+            with self.assertRaisesRegex(LoadError, 'ended on the login page'):
+                CtfdBot(f'http://127.0.0.1:{server.server_port}', 'team-01-p01', 'pw', samples).login()
+            self.assertFalse(samples[-1]['ok'])
+            self.assertEqual(samples[-1]['endpoint'], 'ctfd:login')
+        finally:
+            server.shutdown()
+            server.server_close()
+
+    def test_iris_dashboard_bounce_is_failure_even_when_final_status_is_200(self):
+        class Bounce(BaseHTTPRequestHandler):
+            def log_message(self, *args):
+                pass
+
+            def do_GET(self):
+                if self.path.startswith('/login'):
+                    body = b'<form><input name="password"></form>'
+                    self.send_response(200)
+                    self.send_header('Content-Length', str(len(body)))
+                    self.end_headers()
+                    self.wfile.write(body)
+                else:
+                    self.send_response(302)
+                    self.send_header('Location', '/login?next=/dashboard')
+                    self.end_headers()
+
+            def do_POST(self):
+                self.send_response(302)
+                self.send_header('Location', '/dashboard')
+                self.end_headers()
+
+        server = HTTPServer(('127.0.0.1', 0), Bounce)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        try:
+            samples = []
+            with self.assertRaisesRegex(LoadError, 'ended on the login page'):
+                IrisBot(f'http://127.0.0.1:{server.server_port}', 'team-01', 'pw', samples).login()
+            self.assertFalse(samples[-1]['ok'])
+            self.assertEqual(samples[-1]['endpoint'], 'iris:login')
+        finally:
+            server.shutdown()
+            server.server_close()
 
 
 class OutboxTests(unittest.TestCase):

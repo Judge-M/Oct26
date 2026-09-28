@@ -41,8 +41,9 @@ smoke run.
    {
      "teams": 10,
      "sessions_per_team": 3,
-     "ctfd_url": "http://127.0.0.1:8083",
-     "iris_url": "http://127.0.0.1:8081",
+     "ctfd_url": "auto",
+     "iris_url": "auto",
+     "ca_file": "<runtime-dir>/wazuh-certs/root-ca.pem",
      "credentials": "<runtime-dir>/secrets/team-credentials.json",
      "state_sqlite": "<runtime-dir>/state/state.sqlite",
      "host": {"ram_gib": 32},
@@ -50,7 +51,12 @@ smoke run.
    }
    ```
 
-   Set `host.ram_gib` to the machine's actual RAM.
+   `auto` reads `bind_ip` and `ports` from the `local.json` beside the
+   credentials runtime, so a LAN-bound stack is contacted through its LAN
+   address over HTTPS. The harness verifies the participant certificate
+   against the generated local CA; do not disable verification. Explicit URLs
+   remain supported for a remote harness. Set `host.ram_gib` to the machine's
+   actual RAM. Login preflight names the configured URL if unreachable.
 
 3. Start the exercise, then run the harness (1800 s = 30 minutes; runs
    under 30 s are refused; use a fresh output directory every time):
@@ -61,7 +67,7 @@ smoke run.
    ```
 
 4. While it runs, do the desktop usability pass by hand: open two or three
-   team desktops through Guacamole (`http://<host>:8082`), launch Autopsy,
+   team desktops through Guacamole (`https://<host>:8082`), launch Autopsy,
    open the prepared case, run a search — note any lag or freeze. The
    harness does not measure desktop interactivity.
 
@@ -84,6 +90,10 @@ Verified by a full dress rehearsal on the dev host (2 teams, 180 s,
   HTTP 429 up to five attempts, respecting `Retry-After` up to a 10 s wait.
   Each 429 remains a failed sample in the report. A persistently limited
   login stops preflight with an explicit error; it is not a capacity result.
+- Authenticated probes reject a final login-page redirect even if it returns
+  HTTP 200. IRIS dashboard probes require the authenticated `Logout` marker;
+  CTFd question probes require a question form. Missing page identity counts
+  as a failed sample, not a successful request.
 - **Capacity model**: retuned 2026-09-23 from measurements (central 6 GiB,
   desktop 2 GiB / 1 vCPU / 15 GiB, 20% memory headroom in validation).
   Reservations are measured *peaks*, not limits — the certifying run should
