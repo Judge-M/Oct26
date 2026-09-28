@@ -18,7 +18,9 @@ Usage:
 Config JSON (secrets stay in the runtime directory; never commit them):
     {
       "teams": 10, "sessions_per_team": 3,
-      "ctfd_url": "http://127.0.0.1:8083", "iris_url": "http://127.0.0.1:8081",
+      "ctfd_url": "https://192.168.1.200:8083",
+      "iris_url": "https://192.168.1.200:8081",
+      "ca_file": "<runtime>/wazuh-certs/root-ca.pem",
       "credentials": "<runtime>/secrets/team-credentials.json",
       "state_sqlite": "<runtime>/state/state.sqlite",
       "containers": ["silent-ridge-n1-central-ctfd-1", "..."],
@@ -33,6 +35,7 @@ import queue
 import random
 import re
 import shutil
+import ssl
 import sqlite3
 import statistics
 import subprocess
@@ -64,11 +67,20 @@ def percentile(values, q):
 class TimedClient:
     """urllib opener that records (endpoint, seconds, ok) samples."""
 
-    def __init__(self, base, samples):
+    def __init__(self, base, samples, ca_file=None):
         self.base = base.rstrip('/')
         self.samples = samples
-        self.opener = urllib.request.build_opener(
-            urllib.request.HTTPCookieProcessor(CookieJar()))
+        handlers = [urllib.request.HTTPCookieProcessor(CookieJar())]
+        if self.base.startswith('https://'):
+            if not ca_file:
+                raise LoadError('HTTPS target requires a trusted ca_file')
+            try:
+                context = ssl.create_default_context(cafile=str(ca_file))
+            except OSError as exc:
+                raise LoadError(f'Cannot load trusted CA from {ca_file}') from exc
+            handlers.append(urllib.request.HTTPSHandler(
+                context=context))
+        self.opener = urllib.request.build_opener(*handlers)
 
     def request(self, endpoint, path, data=None, headers=None, method=None):
         url = self.base + path
@@ -111,8 +123,8 @@ class CtfdBot:
     /api/v1/scoreboard, and POST /silent-ridge answers.
     """
 
-    def __init__(self, base, name, password, samples):
-        self.client = TimedClient(base, samples)
+    def __init__(self, base, name, password, samples, ca_file=None):
+        self.client = TimedClient(base, samples, ca_file)
         self.name, self.password = name, password
 
     def login(self):
@@ -147,8 +159,8 @@ class CtfdBot:
 class IrisBot:
     """One IRIS case participant: login and poll case/activity views."""
 
-    def __init__(self, base, login_name, password, samples):
-        self.client = TimedClient(base, samples)
+    def __init__(self, base, login_name, password, samples, ca_file=None):
+        self.client = TimedClient(base, samples, ca_file)
         self.login_name, self.password = login_name, password
 
     def login(self):
@@ -270,6 +282,7 @@ def run(config, duration, output):
     output = Path(output)
     if output.exists():
         raise LoadError('Choose a new output directory; runs are never overwritten')
+    ca_file = config.get('ca_file')
     creds = json.loads(Path(config['credentials']).read_text(encoding='utf-8'))
     samples, container_q, outbox_samples = [], queue.Queue(), []
     bots = []
@@ -280,9 +293,9 @@ def run(config, duration, output):
             user = f'{team}-p{seat:02d}'
             password = accounts.get(user)
             if password:
-                bots.append(CtfdBot(config['ctfd_url'], user, password, samples))
+                bots.append(CtfdBot(config['ctfd_url'], user, password, samples, ca_file))
         bots.append(IrisBot(config['iris_url'], entry['iris_login'],
-                            entry['iris_password'], samples))
+                            entry['iris_password'], samples, ca_file))
     if not bots:
         raise LoadError('No credentials matched the requested team count')
     for bot in bots:

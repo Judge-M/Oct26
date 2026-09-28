@@ -18,7 +18,6 @@ services:
       RIDGE_IRIS_OPEN_STATUS: ${RIDGE_IRIS_OPEN_STATUS:?Set verified open status ID}
       RIDGE_IRIS_CLOSED_STATUS: ${RIDGE_IRIS_CLOSED_STATUS:?Set verified closed status ID}
       POSTGRES_SERVER: iris-db
-    ports: ["${BIND_IP:-127.0.0.1}:${IRIS_PORT:-8081}:8000"]
     volumes: [iris-downloads:/home/iris/downloads, iris-templates:/home/iris/user_templates, iris-data:/home/iris/server_data]
     secrets: [ridge_iris]
     networks: [central, iris-backend, frontend]
@@ -99,7 +98,6 @@ services:
       UPLOAD_FOLDER: /var/uploads
       LOG_FOLDER: /var/log/CTFd
       WORKERS: 1
-    ports: ["${BIND_IP:-127.0.0.1}:${CTFD_PORT:-8083}:8000"]
     secrets: [ridge_ctfd]
     volumes: [ctfd-uploads:/var/uploads, ctfd-logs:/var/log/CTFd]
     networks: [central, ctfd-backend, frontend]
@@ -139,6 +137,25 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+    logging: *logging
+    restart: unless-stopped
+  participant-tls:
+    image: nginx:alpine
+    pull_policy: never
+    volumes:
+      - ./participant-tls.conf:/etc/nginx/nginx.conf:ro
+      - ${PARTICIPANT_CERTS_DIR:?Set generated participant certificate directory}/participant.pem:/etc/silent-ridge/participant.pem:ro
+      - ${PARTICIPANT_CERTS_DIR}/participant-key.pem:/etc/silent-ridge/participant-key.pem:ro
+    ports:
+      - ${BIND_IP:-127.0.0.1}:${IRIS_PORT:-8081}:8081
+      - ${BIND_IP:-127.0.0.1}:${GUAC_PORT:-8082}:8082
+      - ${BIND_IP:-127.0.0.1}:${CTFD_PORT:-8083}:8083
+    networks: [central]
+    healthcheck:
+      test: [CMD, nginx, -t]
+      interval: 15s
+      timeout: 5s
+      retries: 5
     logging: *logging
     restart: unless-stopped
 secrets:
