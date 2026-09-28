@@ -38,7 +38,8 @@ WRITER_ACTIONS = (
     'indices:admin/mappings/put', 'indices:admin/template/put',
     'indices:data/read/search', 'indices:data/read/get',
 )
-READER_ACTIONS = ('indices:data/read/search', 'indices:data/read/get', 'indices:admin/mappings/get')
+READER_ACTIONS = ('indices:data/read/search', 'indices:data/read/get',
+                  'indices:data/read/field_caps', 'indices:admin/mappings/get')
 
 
 class WazuhError(ValueError):
@@ -81,17 +82,54 @@ def reader_role(pattern: str = INDEX_PATTERN) -> dict[str, Any]:
     return _role(READER_ACTIONS, pattern)
 
 
-def saved_objects() -> list[dict[str, Any]]:
+def discover_fields(field_caps: dict[str, Any] | None = None) -> str:
+    """Serialize the field list that Discover expects in an index-pattern object.
+
+    The default is the minimum reviewed fixture. During deployment the indexer's
+    actual field capabilities populate all indexed evidence fields.
+    """
+    caps = (field_caps or {}).get('fields', {})
+    if field_caps is not None and 'date' not in caps.get('timestamp', {}):
+        raise WazuhError('Discover: timestamp must have a date mapping')
+    fields = [
+        {'name': '_index', 'type': 'string', 'esTypes': ['_index'],
+         'searchable': True, 'aggregatable': True, 'readFromDocValues': False},
+        {'name': '_source', 'type': '_source', 'esTypes': ['_source'],
+         'searchable': False, 'aggregatable': False, 'readFromDocValues': False},
+    ]
+    if field_caps is None:
+        caps = {'timestamp': {'date': {'searchable': True, 'aggregatable': True}}}
+    types = {'keyword': 'string', 'text': 'string', 'date': 'date',
+             'long': 'number', 'integer': 'number', 'float': 'number',
+             'double': 'number', 'boolean': 'boolean', 'object': 'object'}
+    for name, variants in sorted(caps.items()):
+        if name.startswith('_') or not isinstance(variants, dict):
+            continue
+        es_type, capability = next(iter(variants.items()))
+        if es_type not in types:
+            continue
+        fields.append({'name': name, 'type': types[es_type], 'esTypes': [es_type],
+                       'searchable': bool(capability.get('searchable')),
+                       'aggregatable': bool(capability.get('aggregatable')),
+                       'readFromDocValues': es_type not in ('text', 'object')
+                       and bool(capability.get('aggregatable'))})
+    return json.dumps(fields, separators=(',', ':'), sort_keys=True)
+
+
+def saved_objects(field_caps: dict[str, Any] | None = None) -> list[dict[str, Any]]:
     """A timestamped view and a timeless view over the same historical index.
 
     Coverage/catalog facts carry no timestamp; the timeless view must not apply a
     date filter or those facts would disappear.
     """
+    fields = discover_fields(field_caps)
     return [
         {'type': 'index-pattern', 'id': TIMED_VIEW,
-         'attributes': {'title': INDEX_PATTERN, 'timeFieldName': 'timestamp'}},
+         'attributes': {'title': INDEX_PATTERN, 'timeFieldName': 'timestamp',
+                        'fields': fields}},
         {'type': 'index-pattern', 'id': TIMELESS_VIEW,
-         'attributes': {'title': INDEX_PATTERN, 'timeFieldName': None}},
+         'attributes': {'title': INDEX_PATTERN, 'timeFieldName': None,
+                        'fields': fields}},
     ]
 
 

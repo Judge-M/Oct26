@@ -15,7 +15,7 @@ from ridge.scenario import telemetry_record
 from ridge.wazuh_provision import (
     INDEX_PATTERN, READER_ROLE, TIMED_VIEW, TIMELESS_VIEW, WRITER_ROLE, Request, UserSpec,
     WazuhError, apply_plan, build_plan, ca_context, index_template, load_vendored, preflight_facts,
-    reader_role, record_id, saved_objects, validate_manifest, writer_role,
+    discover_fields, reader_role, record_id, saved_objects, validate_manifest, writer_role,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -38,11 +38,47 @@ class VendoredConfigTests(unittest.TestCase):
         self.assertEqual(reader['index_permissions'][0]['index_patterns'], [INDEX_PATTERN])
         self.assertNotIn('*', writer['index_permissions'][0]['index_patterns'])
         self.assertNotIn('indices:data/write/bulk', reader['index_permissions'][0]['allowed_actions'])
+        self.assertIn('indices:data/read/field_caps', reader['index_permissions'][0]['allowed_actions'])
 
     def test_timed_and_timeless_views_differ_only_by_time_field(self):
         views = {view['id']: view for view in saved_objects()}
         self.assertEqual(views[TIMED_VIEW]['attributes']['timeFieldName'], 'timestamp')
         self.assertIsNone(views[TIMELESS_VIEW]['attributes']['timeFieldName'])
+        fields = {field['name'] for field in json.loads(views[TIMED_VIEW]['attributes']['fields'])}
+        self.assertIn('timestamp', fields)
+
+    def test_discover_fields_follow_real_mapping_and_reject_missing_time(self):
+        caps = {'fields': {
+            'timestamp': {'date': {'searchable': True, 'aggregatable': True}},
+            'data.host': {'keyword': {'searchable': True, 'aggregatable': True}},
+            'data.process': {'keyword': {'searchable': True, 'aggregatable': True}},
+            'data.source': {'keyword': {'searchable': True, 'aggregatable': True}},
+        }}
+        fields = {field['name']: field for field in json.loads(discover_fields(caps))}
+        self.assertEqual(fields['timestamp']['type'], 'date')
+        self.assertEqual(fields['data.host']['type'], 'string')
+        self.assertIn('_source', fields)
+        with self.assertRaisesRegex(WazuhError, 'timestamp must have a date mapping'):
+            discover_fields({'fields': {'data.host': caps['fields']['data.host']}})
+
+    def test_t06_t10_evidence_filters_and_dated_comparator(self):
+        from expanded.prepare import build
+        with tempfile.TemporaryDirectory() as tmp:
+            release = build(Path(tmp) / 'release')
+            rows = [json.loads(line) for line in
+                    (release / 'initial/wazuh/telemetry.jsonl').read_text().splitlines()]
+        session = [row for row in rows if row['data'].get('session') == 'S-41'
+                   and '2026-10-15T08:00:00Z' <= row.get('timestamp', '')
+                   <= '2026-10-15T09:30:00Z']
+        self.assertEqual(len(session), 4)
+        self.assertEqual({row['data'].get('user') for row in session if row['data'].get('user')},
+                         {'m.ellis'})
+        comparator = [row for row in rows if row['data'].get('host') == 'WS-22'
+                      and row['data'].get('source') == 'hunting/approved-inventory.csv']
+        self.assertEqual(len(comparator), 1)
+        self.assertEqual(comparator[0]['timestamp'], '2026-10-15T08:45:00Z')
+        self.assertEqual(comparator[0]['data']['publisher'], 'Exercise IT')
+        self.assertTrue(all(row['data']['host'] == 'WS-22' for row in comparator))
 
     def test_manifest_fails_closed_without_digests(self):
         manifest = json.loads((WAZUH / 'manifest.json').read_text(encoding='utf-8'))

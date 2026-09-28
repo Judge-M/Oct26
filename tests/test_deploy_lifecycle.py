@@ -130,7 +130,11 @@ class FakeRunner:
                 return json.dumps({'status': 200, 'count': 2})
             if 'load' in argv:
                 return json.dumps({'ok': True, 'loaded': 2})
-            return json.dumps({'ok': True, 'indexed': 2})
+            return json.dumps({'ok': True, 'indexed': 2, 'field_caps': {
+                'fields': {'timestamp': {'date': {'searchable': True,
+                                                  'aggregatable': True}},
+                           'data.session': {'keyword': {'searchable': True,
+                                                        'aggregatable': True}}}}})
         if argv[:2] == ['docker', 'run'] and 'tarfile' in joined:
             mount = next((a for a in argv if ':/backup' in a), None)
             if mount:

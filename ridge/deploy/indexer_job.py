@@ -87,7 +87,11 @@ def _apply(index_name):
         from ridge.evidence_release import index
         index(records)  # stable document IDs: re-applying creates no duplicates
         indexed = len(records)
-    return {'ok': True, 'indexed': indexed}
+    status, capabilities = call('GET', '/%s/_field_caps?fields=*' % index_name)
+    if status != 200:
+        raise SystemExit('Discover field capabilities failed: HTTP %s: %s'
+                         % (status, str(capabilities)[:200]))
+    return {'ok': True, 'indexed': indexed, 'field_caps': capabilities}
 
 
 def _probe(index_name):
