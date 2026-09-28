@@ -81,6 +81,8 @@ class CtfdProvisionTests(unittest.TestCase):
         self.assertEqual(admin.created, {'team': 2, 'user': 4})
         self.assertEqual(admin.config['user_mode'], 'teams')
         self.assertFalse(admin.config['registration_visible'])
+        self.assertEqual(admin.config['score_visibility'], 'private')
+        self.assertEqual(admin.config['account_visibility'], 'private')
         self.assertEqual(len(first['teams']), 2)
         self.assertEqual(len(first['users']), 4)
         self.assertEqual(admin.users['team01-a']['team_id'], first['teams']['team-01']['id'])
@@ -132,6 +134,13 @@ class CtfdProvisionTests(unittest.TestCase):
         ready = preflight(admin, spec(), inventory)
         self.assertEqual(len(ready['identities']), 2)
         self.assertEqual({row['name'] for row in ready['identities']}, {'Team 01', 'Team 02'})
+
+    def test_preflight_rejects_hidden_scoreboard(self):
+        admin = FakeAdmin()
+        inventory = provision(admin, spec())
+        admin.config['score_visibility'] = None
+        with self.assertRaisesRegex(ProvisionError, 'score_visibility'):
+            preflight(admin, spec(), inventory)
 
 
 if __name__ == '__main__':
