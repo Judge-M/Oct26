@@ -102,13 +102,14 @@ value. Do not put it in `local.json`, the repository or the recovery set.
 Hand out team accounts from `R/secrets/team-credentials.json` and the shared
 Wazuh reader login from `R/secrets/wazuh_reader`.
 
-Before any participant login, distribute `R/wazuh-certs/root-ca.pem` over a
-trusted offline channel. Give each team the SHA-256 fingerprint recorded on
-the organizer host and have the client administrator verify it before adding
-the CA to that client's trusted roots. Check that all four HTTPS URLs open
-without a certificate warning. Do not ask participants to click through TLS
-warnings. Client policies that require revocation data need a separately
-tested offline revocation plan before the event.
+After `up` generates the final certificates and before any participant login,
+run `python scripts/export_participant_ca.py --runtime R --output <new-pack>`.
+Follow [participant CA trust](participant-ca-trust.md): distribute the public
+certificate over a trusted offline channel, independently verify its SHA-256
+fingerprint on each client, and check that all four HTTPS URLs open without a
+certificate warning. Do not ask participants to click through TLS warnings.
+Client policies that require revocation data need a separately tested offline
+revocation plan before the event.
 
 ## 4. Start the event
 
