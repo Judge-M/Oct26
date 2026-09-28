@@ -52,6 +52,17 @@ class ComposeAuditTests(unittest.TestCase):
         guac = yaml.safe_load((COMPOSE / 'compose.guacamole.yaml').read_text(encoding='utf-8'))
         self.assertEqual(guac['services']['guacamole']['depends_on']['database']['condition'], 'service_healthy')
 
+    def test_wazuh_manager_config_preserves_first_boot_seeding_and_checks_daemons(self):
+        wazuh = yaml.safe_load((COMPOSE / 'wazuh/compose.wazuh.yaml').read_text(encoding='utf-8'))
+        manager = wazuh['services']['wazuh-manager']
+        config_mounts = [mount for mount in manager['volumes']
+                         if 'wazuh_manager.conf:' in mount]
+        self.assertEqual(len(config_mounts), 1)
+        self.assertTrue(config_mounts[0].endswith(':/wazuh-config-mount/etc/ossec.conf:ro'))
+        command = manager['healthcheck']['test']
+        self.assertIn('wazuh-analysisd', command[1])
+        self.assertIn('wazuh-remoted', command[1])
+
     def test_audit_flags_private_port_and_missing_logging(self):
         bad = {'name': '${RIDGE_PROJECT}-x', 'services': {
             'leaky': {'ports': ['0.0.0.0:8091:8091'], 'privileged': True}}}
