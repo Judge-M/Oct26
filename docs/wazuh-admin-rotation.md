@@ -11,30 +11,72 @@ Schedule this as maintenance with the exercise paused. Take a verified private
 backup of the runtime and indexer data first. Keep the old password available
 until the new password has been tested; do not publish either password or its
 hash in a ticket or log.
+The commands below use Git Bash `\` line continuations. In PowerShell, put
+each `docker` command on one line without the backslashes.
 
 1. Identify the current indexer endpoint from the runtime's `local.json` and
    generated `wazuh.env`, and verify the old `admin` credential against the
    indexer over HTTPS using `runtime/wazuh-certs/root-ca.pem`. The dashboard
-   URL and the Wazuh **server** API are different services and are not the
-   indexer security API.
-2. Change the **live** indexer account through Wazuh's supported
-   `PUT /_plugins/_security/api/account` endpoint using the old password and
-   the new password. Supply the new password in the JSON body and authenticate
-   as `admin`. Use a private TLS client that verifies the local CA and does not
-   put either password in a shell command line. Follow Wazuh's
-   [indexer API password procedure](https://documentation.wazuh.com/current/user-manual/indexer-api/securing-indexer-api.html).
-3. Before updating any local secret, verify the new credential can query the
-   indexer and the old credential is rejected. If this check fails, stop: the
-   security index has not been rotated. A container restart will not fix it.
-4. Generate the matching password hash with the **pinned 4.9.2 indexer**
-   `hash.sh` tool and update only the `admin.hash` entry in the private
-   `wazuh_config/wazuh_indexer/internal_users.yml`. Update
-   `runtime/secrets/wazuh_admin` to `admin:<new password>` and any generated
-   dashboard, manager, or Filebeat credential settings that use this account.
-   Keep the config, secret, and running security index together in the backup.
-5. Reconcile the stack with `ridge.deploy up`, then verify authenticated
-   indexer access, dashboard login, Filebeat ingestion, and participant
-   read-only access. Record only status codes and timestamps in the event log.
+   URL and the Wazuh **server** API are different services.
+2. Export the **live** security configuration before touching its users. Run
+   the pinned indexer's `securityadmin.sh` with its generated admin certificate:
+
+   ```text
+   docker exec -e JAVA_HOME=/usr/share/wazuh-indexer/jdk <INDEXER_CONTAINER> \
+     bash /usr/share/wazuh-indexer/plugins/opensearch-security/tools/securityadmin.sh \
+     -backup /tmp/rotation-backup -icl -nhnv \
+     -cacert /usr/share/wazuh-indexer/certs/root-ca.pem \
+     -cert /usr/share/wazuh-indexer/certs/admin.pem \
+     -key /usr/share/wazuh-indexer/certs/admin-key.pem -h localhost -p 9200
+   docker cp <INDEXER_CONTAINER>:/tmp/rotation-backup <PRIVATE_BACKUP_DIR>
+   ```
+
+   Protect this export like the recovery set: it contains password hashes.
+   Confirm its `internal_users.yml` includes every current exercise user,
+   especially the participant reader and writer. The generated `admin` user
+   is **reserved** in the pinned image. A live `PUT
+   /_plugins/_security/api/account` returned HTTP 403, `Resource 'admin' is
+   reserved`, in the Windows rehearsal. [OpenSearch reserves such users from
+   REST modification](https://docs.opensearch.org/latest/security/access-control/api/).
+3. Generate a new strong password privately. Use the pinned 4.9.2 indexer's
+   `hash.sh` with password input on stdin, and on Windows send **bytes with LF**;
+   text-mode `subprocess` input can append CR and hash the wrong password.
+   Starting from the **live export**, replace only the `admin.hash` line in a
+   separate copy of `internal_users.yml`. Verify that the file retains all
+   exported users and that exactly one line changed. Do not put the plaintext
+   password in a shell command, ticket, or log.
+4. Copy the prepared full user file into the indexer container. Apply only the
+   `internalusers` configuration type using the same generated admin certificate:
+
+   ```text
+   docker cp <PREPARED_INTERNAL_USERS_YML> <INDEXER_CONTAINER>:/tmp/rotation-users.yml
+   docker exec -e JAVA_HOME=/usr/share/wazuh-indexer/jdk <INDEXER_CONTAINER> \
+     bash /usr/share/wazuh-indexer/plugins/opensearch-security/tools/securityadmin.sh \
+     -f /tmp/rotation-users.yml -t internalusers -icl -nhnv \
+     -cacert /usr/share/wazuh-indexer/certs/root-ca.pem \
+     -cert /usr/share/wazuh-indexer/certs/admin.pem \
+     -key /usr/share/wazuh-indexer/certs/admin-key.pem -h localhost -p 9200
+   ```
+
+   [OpenSearch documents](https://docs.opensearch.org/latest/security/configuration/security-admin/)
+   that even a single-file `internalusers` reload replaces that entire user
+   section. Using the live export preserves users created later through the
+   API; a stale vendored file would delete them.
+5. Before updating any local secret, verify the new credential can query the
+   indexer, the old credential returns HTTP 401, the participant reader and
+   writer still authenticate, and the exercise document count is unchanged.
+   If this check fails, stop and recover from the private export and verified
+   recovery set. A container restart alone will not repair the security index.
+6. Update only the `admin.hash` entry in the private runtime bootstrap
+   `runtime/wazuh-config/internal_users.yml` with the same new hash, then
+   atomically update `runtime/secrets/wazuh_admin` to `admin:<new password>`.
+   Check generated dashboard, manager, and Filebeat settings for any additional
+   use of this account and update them if present. Keep the config, secret,
+   live security index, and the pre-rotation backup together.
+7. Reconcile the stack with `ridge.deploy up` from the matching release source,
+   then verify indexer access, dashboard login, Filebeat ingestion, and
+   participant read-only access. Record only status codes and timestamps in
+   the event log.
 
 Do **not** apply an entire stale `internal_users.yml` with
 `securityadmin.sh -cd` as a shortcut. Wazuh's
