@@ -18,8 +18,8 @@ Usage:
 Config JSON (secrets stay in the runtime directory; never commit them):
     {
       "teams": 10, "sessions_per_team": 3,
-      "ctfd_url": "https://192.168.1.200:8083",
-      "iris_url": "https://192.168.1.200:8081",
+      "ctfd_url": "auto",
+      "iris_url": "auto",
       "ca_file": "<runtime>/wazuh-certs/root-ca.pem",
       "credentials": "<runtime>/secrets/team-credentials.json",
       "state_sqlite": "<runtime>/state/state.sqlite",
@@ -194,7 +194,7 @@ def resolve_target_urls(config):
         port = ports.get(service, default_port)
         if not isinstance(port, int) or isinstance(port, bool) or not 1 <= port <= 65535:
             raise LoadError(f'{local_path} ports.{service} must be a TCP port')
-        result[service + '_url'] = f'http://{bind}:{port}'
+        result[service + '_url'] = f'https://{bind}:{port}'
     return result
 
 PAGE_NONCE = re.compile(rb'name="nonce"\s+value="([^"]+)"')

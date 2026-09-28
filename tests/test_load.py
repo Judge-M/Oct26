@@ -224,8 +224,8 @@ class TargetUrlTests(unittest.TestCase):
             config = {'credentials': os.path.join(runtime, 'secrets', 'team-credentials.json'),
                       'ctfd_url': 'auto', 'iris_url': 'auto'}
             resolved = resolve_target_urls(config)
-            self.assertEqual(resolved['ctfd_url'], 'http://192.168.1.200:18083')
-            self.assertEqual(resolved['iris_url'], 'http://192.168.1.200:18081')
+            self.assertEqual(resolved['ctfd_url'], 'https://192.168.1.200:18083')
+            self.assertEqual(resolved['iris_url'], 'https://192.168.1.200:18081')
             self.assertEqual(config['ctfd_url'], 'auto')
 
     def test_unreachable_login_names_configured_target(self):
