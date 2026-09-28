@@ -29,9 +29,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import shutil
 import sqlite3
 import subprocess
+import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -70,6 +72,36 @@ SECRET_FILES = (
     'ridge-iris-bridge', 'ridge-ctfd-bridge',
     'wazuh_admin', 'wazuh_writer', 'wazuh_reader', 'guac-db-password',
 )
+WAZUH_API_SECRET = 'wazuh-api-password'
+
+
+def offline_wazuh_config(source):
+    """Keep the vendored manager config intact except for disabling update checks."""
+    try:
+        root = ET.fromstring('<ridge>' + source + '</ridge>')
+    except ET.ParseError as exc:
+        raise LifecycleError('vendored Wazuh manager config is invalid XML: %s' % exc)
+    globals_ = root.findall('.//global')
+    if not globals_:
+        raise LifecycleError('vendored Wazuh manager config has no <global> section')
+    updates = [entry for section in globals_ for entry in section.findall('update_check')]
+    if updates:
+        rendered, count = re.subn(r'(<update_check>\s*)([^<]*?)(\s*</update_check>)',
+                                  lambda match: match.group(1) + 'no' + match.group(3),
+                                  source, flags=re.IGNORECASE)
+        if count != len(updates):
+            raise LifecycleError('vendored Wazuh update_check entries are ambiguous')
+    else:
+        rendered, count = re.subn(r'(<global(?:\s[^>]*)?>)',
+                                  r'\1\n    <update_check>no</update_check>', source, count=1)
+        if count != 1:
+            raise LifecycleError('vendored Wazuh manager config has no usable <global> tag')
+    verified = ET.fromstring('<ridge>' + rendered + '</ridge>')
+    if any((entry.text or '').strip().lower() != 'no'
+           for section in verified.findall('.//global')
+           for entry in section.findall('update_check')):
+        raise LifecycleError('Wazuh update check must be disabled for the offline kit')
+    return rendered
 
 
 def _derive_discovered(iris_inventory, ctfd_inventory):
@@ -281,6 +313,34 @@ class LocalStack:
                                  'or remove the runtime directory and run up again' % path)
         return path.read_text(encoding='utf-8').strip()
 
+    def _wazuh_api_password(self):
+        password = self._secret(WAZUH_API_SECRET)
+        if (not 8 <= len(password) <= 64 or '\n' in password or '\r' in password
+                or not re.search(r'[A-Z]', password) or not re.search(r'[a-z]', password)
+                or not re.search(r'[0-9]', password) or not re.search(r'[^A-Za-z0-9]', password)):
+            raise LifecycleError('Wazuh API secret must be 8-64 characters with uppercase, '
+                                 'lowercase, digit and symbol; restore the generated secret')
+        marker = self.runtime / 'wazuh-api-secret.sha256'
+        if marker.is_file() and marker.read_text(encoding='utf-8').strip() != hashlib.sha256(
+                password.encode()).hexdigest():
+            raise LifecycleError('Wazuh API secret changed since initialization; restore '
+                                 'the original runtime secret')
+        return password
+
+    def _ensure_wazuh_api_secret(self):
+        """Add this new secret to older runtimes without rotating existing secrets."""
+        path = self.secrets_dir / WAZUH_API_SECRET
+        marker = self.runtime / 'wazuh-api-secret.sha256'
+        if marker.is_file() and not path.is_file():
+            raise LifecycleError('Wazuh API secret is missing from %s; restore the runtime'
+                                 % path)
+        if not path.is_file():
+            path.write_text('Aa1!' + self.host.randhex(20) + '\n', encoding='utf-8')
+        password = self._wazuh_api_password()
+        if not marker.is_file():
+            marker.write_text(hashlib.sha256(password.encode()).hexdigest() + '\n',
+                              encoding='utf-8')
+
     # ------------------------------------------------------------------ docker
 
     def _run(self, argv, check=True):
@@ -347,6 +407,7 @@ class LocalStack:
         vnc_ok = vnc_dir.is_dir() and all(
             (vnc_dir / ('team%02d' % (i + 1))).is_file() for i in range(len(self.teams)))
         if existing and team_creds.is_file() and vnc_ok:
+            self._ensure_wazuh_api_secret()
             return False
         if existing and (not team_creds.is_file() or not vnc_ok):
             raise LifecycleError('incomplete secrets in %s: team credentials or VNC passwords '
@@ -381,6 +442,7 @@ class LocalStack:
             }
             credentials['desktops'][team['desktop']] = {'password': vnc}
         team_creds.write_text(json.dumps(credentials, indent=2), encoding='utf-8')
+        self._ensure_wazuh_api_secret()
         return True
 
     def _team_credentials(self):
@@ -470,6 +532,8 @@ class LocalStack:
             'WAZUH_DASHBOARD_IMAGE': 'wazuh/wazuh-dashboard:4.9.2',
             'WAZUH_CERTS_DIR': self.runtime / 'wazuh-certs',
             'WAZUH_CONFIG_DIR': self.asset('wazuh_config'),
+            'WAZUH_RUNTIME_CONFIG_DIR': self.runtime / 'wazuh-config',
+            'WAZUH_API_PASSWORD': self._wazuh_api_password(),
             'BIND_IP': bind, 'WAZUH_DASHBOARD_PORT': str(ports['wazuh']),
         }
         files['guacamole'] = {
@@ -512,6 +576,15 @@ class LocalStack:
             text = '\n'.join('%s=%s' % (key, value) for key, value in values.items()) + '\n'
             (self.env_dir / (name + '.env')).write_text(text, encoding='utf-8')
         return files
+
+    def _render_wazuh_config(self):
+        source = self.asset('wazuh_config') / 'wazuh_cluster' / 'wazuh_manager.conf'
+        if not source.is_file():
+            raise LifecycleError('vendored Wazuh manager config missing at %s' % source)
+        target_dir = self.runtime / 'wazuh-config'
+        target_dir.mkdir(parents=True, exist_ok=True)
+        (target_dir / 'ossec.conf').write_text(
+            offline_wazuh_config(source.read_text(encoding='utf-8')), encoding='utf-8')
 
     def _render_specs(self):
         """Create missing bootstrap/provisioning specs from the runtime credentials.
@@ -634,6 +707,7 @@ class LocalStack:
     def _apply_infrastructure(self):
         self._ensure_secrets()
         self._render_specs()
+        self._render_wazuh_config()
         self._render_env()
         self._ensure_networks()
         certs = self.runtime / 'wazuh-certs'
@@ -668,6 +742,7 @@ class LocalStack:
                                  'secrets are never regenerated beneath a verified deployment'
                                  % (self.secrets_dir,
                                     ', '.join(sorted(set(SECRET_FILES) - set(existing)))))
+        self._wazuh_api_password()
         for kind, services in INFRA_SERVICES.items():
             self._require_services(kind, services,
                                    allow_exit0=INFRA_ONE_SHOT.get(kind, ()))

@@ -6,10 +6,9 @@ tree: the official `wazuh/wazuh-docker` single-node deployment at the pinned
 commit must be vendored beside it and its image identities recorded in
 `manifest.json` before the stack is event-ready.
 
-Status: **PENDING upstream vendoring; LIVE ACCEPTANCE BLOCKED** (no Docker/Linux
-host in the wave-1/2 lane and no network to fetch upstream). No digest is
-invented; `ridge.wazuh_provision.validate_manifest(..., require_digests=True)`
-fails closed until every digest is a real immutable identity.
+Status: the upstream 4.9.2 single-node stack is vendored and digest-pinned in
+`manifest.json`. The API and offline configuration changes require acceptance
+from a rebuilt air-gapped kit on the event host before this release is ready.
 
 ## Contents
 
@@ -23,6 +22,8 @@ fails closed until every digest is a real immutable identity.
   tenant access. Never map a participant to the `kibana_server` service role.
 - `compose.wazuh.yaml` — pinned stack; indexer/manager stay on an internal
   network, only the dashboard is exposed, log rotation and healthchecks set.
+- `api.yaml` — CA-signed API TLS with privilege dropping retained. The image
+  copies this and its certificate into a writable path at first boot.
 - `generate-certs.sh` — idempotent local CA/node certificate generation.
 
 ## Bootstrap
@@ -35,3 +36,12 @@ python -m ridge.wazuh_provision   # apply roles, views, index template and prefl
 Apply the plan through the local-CA HTTPS client (`ca_context`) with the writer
 credential restricted to the event index. Do not disable TLS verification and do
 not assume Elasticsearch/OpenSearch API interchangeability.
+
+`ridge.deploy up` generates a separate Wazuh API password in the private
+runtime, configures both manager and dashboard from it, and renders an
+`ossec.conf` with `<update_check>no</update_check>` for offline use. Existing
+runtime secrets are preserved. A missing API secret after initialization stops
+readiness; restore that runtime instead of resetting its credentials. The
+manager healthcheck authenticates to the API using the local CA before the
+infrastructure stage verifies. Do not mount the stock `wazuh.yml` read-only:
+the pinned dashboard image needs to write its API entry at startup.

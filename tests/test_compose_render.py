@@ -58,12 +58,25 @@ class ComposeAuditTests(unittest.TestCase):
         wazuh = yaml.safe_load((COMPOSE / 'wazuh/compose.wazuh.yaml').read_text(encoding='utf-8'))
         manager = wazuh['services']['wazuh-manager']
         config_mounts = [mount for mount in manager['volumes']
-                         if 'wazuh_manager.conf:' in mount]
+                         if '/ossec.conf:' in mount]
         self.assertEqual(len(config_mounts), 1)
         self.assertTrue(config_mounts[0].endswith(':/wazuh-config-mount/etc/ossec.conf:ro'))
         command = manager['healthcheck']['test']
         self.assertIn('wazuh-analysisd', command[1])
         self.assertIn('wazuh-remoted', command[1])
+        self.assertIn('/security/user/authenticate', command[1])
+        self.assertIn('--cacert', command[1])
+        self.assertNotIn('--insecure', command[1])
+        self.assertIn('API_PASSWORD', manager['environment'])
+        self.assertTrue(any('/wazuh-config-mount/api/configuration/api.yaml:ro' in mount
+                            for mount in manager['volumes']))
+        dashboard = wazuh['services']['wazuh-dashboard']
+        self.assertEqual(dashboard['environment']['API_PASSWORD'],
+                         manager['environment']['API_PASSWORD'])
+        self.assertFalse(any('/data/wazuh/config/wazuh.yml' in mount
+                             for mount in dashboard['volumes']))
+        self.assertEqual(dashboard['depends_on']['wazuh-manager']['condition'],
+                         'service_healthy')
 
     def test_ctfd_cookie_settings_are_scoped_to_ctfd_service(self):
         central = yaml.safe_load((COMPOSE / 'compose.central.yaml').read_text(encoding='utf-8'))
