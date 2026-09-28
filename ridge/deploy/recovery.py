@@ -53,9 +53,11 @@ class RecoveryError(RuntimeError):
 
 
 class Cipher:
-    """Secret-at-rest protection. Default: openssl AES-256-CBC/PBKDF2 with the key
-    supplied through the environment; tests inject a fake. The key is referenced
-    by environment variable name only and is never stored in the set."""
+    """OpenSSL AES-256-CBC/PBKDF2, using the loaded integration image on Windows.
+
+    The same OpenSSL format is used on both paths. The key is passed through an
+    environment variable, never a command-line argument or recovery set.
+    """
 
     def __init__(self, key_env='RIDGE_BACKUP_KEY', runner=subprocess.run):
         self.key_env = key_env
@@ -81,7 +83,28 @@ class Cipher:
     def _pipe(self, argv):
         env = dict(os.environ)
         self._key()  # fail before spawning openssl without a key
-        completed = self.runner(argv, capture_output=True, text=True, env=env)
+        command = argv
+        if os.name == 'nt' or shutil.which('openssl') is None:
+            source = Path(argv[argv.index('-in') + 1]).resolve(strict=True)
+            destination = Path(argv[argv.index('-out') + 1]).resolve()
+            if not destination.parent.is_dir():
+                raise RecoveryError('backup cipher output directory is missing: '
+                                    + str(destination.parent))
+            arguments = argv[1:].copy()
+            arguments[arguments.index('-in') + 1] = '/source/' + source.name
+            arguments[arguments.index('-out') + 1] = '/destination/' + destination.name
+            command = ['docker', 'run', '--rm', '--pull', 'never', '--network', 'none',
+                       '--read-only', '--cap-drop', 'ALL', '--security-opt',
+                       'no-new-privileges', '--env', self.key_env,
+                       '--mount', 'type=bind,src=%s,dst=/source,readonly' % source.parent,
+                       '--mount', 'type=bind,src=%s,dst=/destination' % destination.parent,
+                       '--entrypoint', 'openssl', 'silent-ridge-integration:dev',
+                       *arguments]
+        try:
+            completed = self.runner(command, capture_output=True, text=True, env=env)
+        except FileNotFoundError as exc:
+            raise RecoveryError('backup encryption requires OpenSSL or Docker with the '
+                                'loaded silent-ridge-integration:dev image') from exc
         if completed.returncode != 0:
             raise RecoveryError('openssl failed: %s' % completed.stderr.strip()[:200])
 
