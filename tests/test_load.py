@@ -49,9 +49,32 @@ class ReportTests(unittest.TestCase):
         self.assertEqual(report['sessions'], 6)
         self.assertEqual(report['latency']['ctfd:challenges']['p95_s'], 0.2)
 
-    def test_event_profile_run_is_certifying(self):
-        report = build_report(self.config(teams=10, ram=64), [], [], [], 600)
+    def test_observed_host_reserve_can_certify_below_declared_floor(self):
+        samples = ([{'endpoint': 'ctfd:login', 'seconds': 0.1, 'ok': True}] * 30
+                   + [{'endpoint': 'iris:login', 'seconds': 0.1, 'ok': True}] * 10
+                   + [{'endpoint': 'ctfd:questions', 'seconds': 0.1, 'ok': True},
+                      {'endpoint': 'iris:dashboard', 'seconds': 0.1, 'ok': True}])
+        containers = [{'containers': [{'Name': 'ctfd', 'MemUsage': '300MiB / 15GiB'}]}]
+        report = build_report(self.config(teams=10, ram=64), samples, containers, [],
+                              1800, [{'total_gib': 31.69, 'available_gib': 12.0}])
         self.assertTrue(report['certifying'])
+        self.assertEqual(report['host_ram_gib'], 31.69)
+        self.assertEqual(report['declared_host_ram_gib'], 64)
+
+    def test_declared_capacity_cannot_certify_unmeasured_run(self):
+        report = build_report(self.config(teams=10, ram=64), [], [], [], 1800)
+        self.assertFalse(report['certifying'])
+        self.assertIsNone(report['measured_reserve_pct'])
+
+    def test_host_pressure_blocks_capacity_label(self):
+        samples = ([{'endpoint': 'ctfd:login', 'seconds': 0.1, 'ok': True}] * 30
+                   + [{'endpoint': 'iris:login', 'seconds': 0.1, 'ok': True}] * 10
+                   + [{'endpoint': 'ctfd:questions', 'seconds': 0.1, 'ok': True},
+                      {'endpoint': 'iris:dashboard', 'seconds': 0.1, 'ok': True}])
+        containers = [{'containers': [{'Name': 'ctfd', 'MemUsage': '300MiB / 15GiB'}]}]
+        report = build_report(self.config(teams=10, ram=64), samples, containers, [],
+                              1800, [{'total_gib': 32.0, 'available_gib': 5.0}])
+        self.assertFalse(report['certifying'])
 
     def test_outbox_minmax_omitted_when_unreadable(self):
         report = build_report(self.config(), [], [], [None], 60)
