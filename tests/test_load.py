@@ -93,7 +93,9 @@ class FakeCtfd(BaseHTTPRequestHandler):
         length = int(self.headers.get('Content-Length', 0))
         body = self.rfile.read(length)
         if self.path == '/login':
-            self._send(b'ok')
+            self.send_response(302)
+            self.send_header('Location', '/silent-ridge')
+            self.end_headers()
         elif self.path == '/silent-ridge':
             if b'nonce=eeeeffff' not in body:
                 self._send(b'forbidden', 403)
@@ -231,6 +233,86 @@ class TargetUrlTests(unittest.TestCase):
 
         with self.assertRaisesRegex(LoadError, '192.168.1.200:8083'):
             login_bots([OfflineBot()])
+
+
+class AuthPageTests(unittest.TestCase):
+    def test_missing_authenticated_page_marker_is_a_failed_sample(self):
+        class LoginHtml(BaseHTTPRequestHandler):
+            def log_message(self, *args):
+                pass
+
+            def do_GET(self):
+                body = b'<form><input name="password"></form>'
+                self.send_response(200)
+                self.send_header('Content-Length', str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+        server = HTTPServer(('127.0.0.1', 0), LoginHtml)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        try:
+            samples = []
+            with self.assertRaisesRegex(LoadError, 'expected authenticated page'):
+                TimedClient(f'http://127.0.0.1:{server.server_port}', samples).request(
+                    'iris:dashboard', '/dashboard', require_authenticated=True,
+                    required_marker=b'Logout')
+            self.assertFalse(samples[-1]['ok'])
+        finally:
+            server.shutdown()
+            server.server_close()
+
+    def test_ctfd_login_redirect_back_to_login_is_failure(self):
+        class Bounce(FakeCtfd):
+            def do_POST(self):
+                self.send_response(302)
+                self.send_header('Location', '/login')
+                self.end_headers()
+
+        server = HTTPServer(('127.0.0.1', 0), Bounce)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        try:
+            samples = []
+            with self.assertRaisesRegex(LoadError, 'ended on the login page'):
+                CtfdBot(f'http://127.0.0.1:{server.server_port}', 'team-01-p01', 'pw', samples).login()
+            self.assertFalse(samples[-1]['ok'])
+            self.assertEqual(samples[-1]['endpoint'], 'ctfd:login')
+        finally:
+            server.shutdown()
+            server.server_close()
+
+    def test_iris_dashboard_bounce_is_failure_even_when_final_status_is_200(self):
+        class Bounce(BaseHTTPRequestHandler):
+            def log_message(self, *args):
+                pass
+
+            def do_GET(self):
+                if self.path.startswith('/login'):
+                    body = b'<form><input name="password"></form>'
+                    self.send_response(200)
+                    self.send_header('Content-Length', str(len(body)))
+                    self.end_headers()
+                    self.wfile.write(body)
+                else:
+                    self.send_response(302)
+                    self.send_header('Location', '/login?next=/dashboard')
+                    self.end_headers()
+
+            def do_POST(self):
+                self.send_response(302)
+                self.send_header('Location', '/dashboard')
+                self.end_headers()
+
+        server = HTTPServer(('127.0.0.1', 0), Bounce)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        try:
+            samples = []
+            with self.assertRaisesRegex(LoadError, 'ended on the login page'):
+                IrisBot(f'http://127.0.0.1:{server.server_port}', 'team-01', 'pw', samples).login()
+            self.assertFalse(samples[-1]['ok'])
+            self.assertEqual(samples[-1]['endpoint'], 'iris:login')
+        finally:
+            server.shutdown()
+            server.server_close()
 
 
 class OutboxTests(unittest.TestCase):
