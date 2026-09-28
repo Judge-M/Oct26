@@ -648,7 +648,12 @@ class LocalStack:
             (guac_init / '002-provision.sql').write_text(
                 guac_module.generate(config, credentials), encoding='utf-8')
         for kind, services in INFRA_SERVICES.items():
-            self._compose(kind, 'up', '-d', *services)
+            if kind == 'wazuh':
+                # A running manager container can still have no Wazuh daemons.
+                # Wait for its Compose healthcheck before recording readiness.
+                self._compose(kind, 'up', '-d', '--wait', '--wait-timeout', '300', *services)
+            else:
+                self._compose(kind, 'up', '-d', *services)
 
     def _probe_infrastructure(self):
         existing = [name for name in SECRET_FILES if (self.secrets_dir / name).is_file()]

@@ -75,6 +75,7 @@ class FakeRunner:
         self.receipts = Path(receipts)
         self.calls = []
         self.healthy = True
+        self.service_health = {}
         self.connections = 0
         self.up_projects = set()
 
@@ -161,7 +162,8 @@ class FakeRunner:
                 return 'fakeid\n' if self.healthy and kind in self.up_projects else ''
             if not self.healthy or kind not in self.up_projects:
                 return ''
-            rows = [json.dumps({'Service': s, 'State': 'running', 'Health': 'healthy',
+            rows = [json.dumps({'Service': s, 'State': 'running',
+                                'Health': self.service_health.get(s, 'healthy'),
                                 'ExitCode': 0}) for s in self.SERVICES[kind]]
             rows += [json.dumps({'Service': s, 'State': 'exited', 'Health': '', 'ExitCode': 0})
                      for s in self.ONE_SHOT.get(kind, [])]
@@ -274,6 +276,11 @@ class LifecycleTests(unittest.TestCase):
     def test_fresh_up_reaches_provisioned_paused(self):
         result = self.stack.up(self.source)
         self.assertEqual(result['state'], 'PROVISIONED_PAUSED')
+        wazuh_up = [call for call in self.runner.calls
+                    if 'compose.wazuh.yaml' in ' '.join(call)
+                    and 'up' in call and 'wazuh-manager' in call]
+        self.assertEqual(len(wazuh_up), 1)
+        self.assertIn('--wait', wazuh_up[0])
         self.assertEqual(set(result['stages']), set(LocalStack.STAGES))
         journal = Journal.open(self.runtime / 'deploy-journal.sqlite')
         self.assertTrue(all(s['state'] == 'verified' for s in journal.steps()))
@@ -376,6 +383,14 @@ class LifecycleTests(unittest.TestCase):
         document = self.stack.status()
         self.assertFalse(document['event_ready'])
         self.assertIn('error', document['live']['INFRASTRUCTURE_READY'])
+
+    def test_running_wazuh_container_with_dead_daemons_blocks_readiness(self):
+        self.stack.up(self.source)
+        self.runner.service_health['wazuh-manager'] = 'unhealthy'
+        document = self.stack.status()
+        self.assertFalse(document['event_ready'])
+        self.assertIn('wazuh/wazuh-manager health is unhealthy',
+                      document['live']['INFRASTRUCTURE_READY']['error'])
 
     def test_down_stops_projects_and_marks_journal(self):
         self.stack.up(self.source)

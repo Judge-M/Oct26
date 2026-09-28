@@ -34,12 +34,18 @@ services:
     volumes:
       - wazuh-manager-data:/var/ossec/data
       - ${WAZUH_CERTS_DIR:?Set generated local certificate directory}/root-ca.pem:/etc/ssl/certs/silent-ridge-root-ca.pem:ro
-      - ${WAZUH_CONFIG_DIR:?Set vendored Wazuh config directory}/wazuh_cluster/wazuh_manager.conf:/var/ossec/etc/ossec.conf:ro
+      # The image seeds /var/ossec/etc on first boot, then copies this file in.
+      - ${WAZUH_CONFIG_DIR:?Set vendored Wazuh config directory}/wazuh_cluster/wazuh_manager.conf:/wazuh-config-mount/etc/ossec.conf:ro
     networks: [wazuh-backend]
     depends_on: [wazuh-indexer]
     logging:
       driver: json-file
       options: {max-size: "10m", max-file: "3"}
+    healthcheck:
+      test: [CMD-SHELL, "pidof wazuh-analysisd >/dev/null && pidof wazuh-remoted >/dev/null"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
   wazuh-dashboard:
     image: ${WAZUH_DASHBOARD_IMAGE:?Set pinned immutable Wazuh dashboard image}
     pull_policy: never
