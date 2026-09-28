@@ -25,6 +25,11 @@ fails closed until every digest is a real immutable identity.
   network, only the dashboard is exposed, log rotation and healthchecks set.
 - `generate-certs.sh` — idempotent local CA/node certificate generation.
 
+After first boot, `internal_users.yml` is not the live credential store. Do
+not try to rotate `admin` by editing its hash and restarting the indexer; see
+[Wazuh admin rotation](../../../docs/wazuh-admin-rotation.md) for the
+security-index step and the required credential checks.
+
 ## Bootstrap
 
 ```text

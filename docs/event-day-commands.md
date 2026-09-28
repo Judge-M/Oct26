@@ -81,7 +81,9 @@ Create `R/local.json` pointing at the asset directories extracted in step 0:
 
 Keep the `wazuh_config` directory and the runtime secrets from the same
 generation (it embeds the hashed admin password; a mismatch fails with
-HTTP 401 from the indexer job).
+HTTP 401 from the indexer job). After first boot, editing the file or secret
+and restarting does **not** rotate the live security-index credential. Use
+[Wazuh admin rotation](wazuh-admin-rotation.md) during maintenance instead.
 
 ## 3. Bring the event up (T-minus ~30 min)
 
