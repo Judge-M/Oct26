@@ -69,3 +69,11 @@ file after a security index exists is **not** a password rotation; the old
 security state must be handled through the tested recovery/rotation procedure.
 The evidence probe runs `filebeat test output` against the CA-verified indexer
 so a healthy manager process alone does not claim an ingest-ready event.
+
+On first boot, two networkless, one-shot certificate init containers copy only
+the indexer and dashboard certificates each service needs into separate Docker
+volumes. They set ownership to the non-root service UID (1000) and mode 0600.
+The services mount those volumes read-only. This avoids relying on Windows
+bind-mount ownership for private keys, which can otherwise leave the indexer
+unable to read its certificate. Keep the generated source certificates in the
+private runtime; the init containers need them on subsequent `up` operations.
