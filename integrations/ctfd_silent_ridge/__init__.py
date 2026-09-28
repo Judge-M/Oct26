@@ -4,6 +4,7 @@ Do not also create stock challenges for this run: stock solve semantics are per 
 """
 import hmac
 import os
+from urllib.parse import urlsplit
 from urllib.error import HTTPError, URLError
 from flask import abort, jsonify, redirect, render_template_string, request, session
 from sqlalchemy.exc import IntegrityError
@@ -21,6 +22,23 @@ class RidgeCredit(db.Model):
 
 
 def load(app):
+    # Cookies are scoped by host/path, not port. IRIS and CTFd share a host in
+    # the local kit, so a stock "session" cookie breaks CTFd's CSRF nonce.
+    app.config['SESSION_COOKIE_NAME'] = os.environ.get(
+        'CTFD_SESSION_COOKIE_NAME', 'silent_ridge_ctfd_session')
+    public_scheme = urlsplit(os.environ['CTFD_PUBLIC_URL']).scheme.lower()
+    if public_scheme not in ('http', 'https'):
+        raise ValueError('CTFD_PUBLIC_URL must use http or https')
+    secure_setting = os.environ.get('CTFD_SESSION_COOKIE_SECURE')
+    if secure_setting is None:
+        secure = public_scheme == 'https'
+    elif secure_setting.lower() in ('true', 'false'):
+        secure = secure_setting.lower() == 'true'
+    else:
+        raise ValueError('CTFD_SESSION_COOKIE_SECURE must be true or false')
+    if secure != (public_scheme == 'https'):
+        raise ValueError('CTFD_SESSION_COOKIE_SECURE must match CTFD_PUBLIC_URL scheme')
+    app.config['SESSION_COOKIE_SECURE'] = secure
     with app.app_context():
         db.create_all()
     from .provision import register as register_provision

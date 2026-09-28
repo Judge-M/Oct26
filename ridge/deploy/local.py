@@ -431,6 +431,9 @@ class LocalStack:
             'SECRET_KEY': self._secret('ctfd-secret-key'),
             'REDIS_URL': 'redis://ctfd-cache:6379',
             'CTFD_NAME': 'Operation Silent Ridge',
+            'CTFD_SESSION_COOKIE_NAME': 'silent_ridge_ctfd_session',
+            'CTFD_SESSION_COOKIE_SECURE': str(
+                self.profile['addresses']['ctfd_public_url'].startswith('https://')).lower(),
         }
         files['ctfd-db'] = {
             'MARIADB_ROOT_PASSWORD': self._secret('mariadb-root-password'),
@@ -451,6 +454,9 @@ class LocalStack:
             'IRIS_PORT': str(ports['iris']), 'CTFD_PORT': str(ports['ctfd']),
             'IRIS_PUBLIC_URL': addresses['iris_public_url'],
             'CTFD_PUBLIC_URL': addresses['ctfd_public_url'],
+            'CTFD_SESSION_COOKIE_NAME': 'silent_ridge_ctfd_session',
+            'CTFD_SESSION_COOKIE_SECURE': str(
+                addresses['ctfd_public_url'].startswith('https://')).lower(),
         }
         # Placeholder IDs on first boot: IRIS services start before identities exist and
         # are recreated with the discovered IDs at the end of the identities stage.

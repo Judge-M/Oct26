@@ -6,14 +6,22 @@ from pathlib import Path
 
 os.environ.update(DATABASE_URL='sqlite:////tmp/ctfd-smoke.sqlite',SECRET_KEY='disposable-ci-key-only-000000000000',
     UPLOAD_FOLDER='/tmp/uploads',LOG_FOLDER='/tmp/logs',RIDGE_CTFD_FILE='/tmp/ridge-ctfd-secret',
-    IRIS_PUBLIC_URL='http://iris.invalid',CTFD_PUBLIC_URL='http://ctfd.invalid')
+    IRIS_PUBLIC_URL='http://iris.invalid')
+os.environ.setdefault('CTFD_PUBLIC_URL','http://ctfd.invalid')
 Path('/tmp/ridge-ctfd-secret').write_text('c'*40)
 
 from CTFd import create_app
 from CTFd.models import db,Awards,Teams,Users
 from CTFd.utils import set_config
+from flask import session
 
 app=create_app()
+assert app.config['SESSION_COOKIE_NAME']=='silent_ridge_ctfd_session'
+assert app.config['SESSION_COOKIE_SECURE'] is os.environ['CTFD_PUBLIC_URL'].startswith('https://')
+@app.route('/ridge-smoke-cookie')
+def smoke_cookie():
+    session['nonce']='smoke-nonce'
+    return 'ok'
 with app.app_context():
     set_config('setup',True);set_config('user_mode','teams')
     team=Teams(name='Smoke team',password='disposable password')
@@ -21,6 +29,12 @@ with app.app_context():
     user=Users(name='smoke-user',email='smoke@example.test',password='disposable password',type='user')
     user.team_id=team.id;db.session.add(user);db.session.commit()
     team_id=team.id;user_id=user.id
+with app.test_client() as cookie_client:
+    cookie_response=cookie_client.get('/ridge-smoke-cookie')
+    assert cookie_response.status_code==200,cookie_response.status_code
+    cookie_header=cookie_response.headers['Set-Cookie']
+    assert cookie_header.startswith('silent_ridge_ctfd_session='),cookie_header
+    assert ('Secure' in cookie_header) is app.config['SESSION_COOKIE_SECURE'],cookie_header
 
 body={'key':'smoke-run:point:T01-Q1','kind':'point','payload':{
     'question':'T01-Q1','ctfd_team':team_id,'value':1,'event':'smoke-event'}}

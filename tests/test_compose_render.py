@@ -65,6 +65,12 @@ class ComposeAuditTests(unittest.TestCase):
         self.assertIn('wazuh-analysisd', command[1])
         self.assertIn('wazuh-remoted', command[1])
 
+    def test_ctfd_cookie_settings_are_scoped_to_ctfd_service(self):
+        central = yaml.safe_load((COMPOSE / 'compose.central.yaml').read_text(encoding='utf-8'))
+        self.assertEqual(central['services']['ctfd']['environment']['CTFD_SESSION_COOKIE_NAME'],
+                         '${CTFD_SESSION_COOKIE_NAME:-silent_ridge_ctfd_session}')
+        self.assertNotIn('CTFD_SESSION_COOKIE_NAME', central['services']['iris']['environment'])
+
     def test_audit_flags_private_port_and_missing_logging(self):
         bad = {'name': '${RIDGE_PROJECT}-x', 'services': {
             'leaky': {'ports': ['0.0.0.0:8091:8091'], 'privileged': True}}}

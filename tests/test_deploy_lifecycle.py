@@ -282,6 +282,11 @@ class LifecycleTests(unittest.TestCase):
         self.assertEqual(len(wazuh_up), 1)
         self.assertIn('--wait', wazuh_up[0])
         self.assertEqual(set(result['stages']), set(LocalStack.STAGES))
+        ctfd_env = (self.runtime / 'env' / 'ctfd.env').read_text(encoding='utf-8')
+        central_env = (self.runtime / 'env' / 'central.env').read_text(encoding='utf-8')
+        for rendered in (ctfd_env, central_env):
+            self.assertIn('CTFD_SESSION_COOKIE_NAME=silent_ridge_ctfd_session', rendered)
+            self.assertIn('CTFD_SESSION_COOKIE_SECURE=false', rendered)
         journal = Journal.open(self.runtime / 'deploy-journal.sqlite')
         self.assertTrue(all(s['state'] == 'verified' for s in journal.steps()))
         # State initialized paused and provisioned.

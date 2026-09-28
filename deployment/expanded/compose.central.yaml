@@ -96,6 +96,8 @@ services:
       RIDGE_CTFD_FILE: /run/secrets/ridge_ctfd
       IRIS_PUBLIC_URL: ${IRIS_PUBLIC_URL:?Set participant IRIS URL}
       CTFD_PUBLIC_URL: ${CTFD_PUBLIC_URL:?Set participant CTFd URL}
+      CTFD_SESSION_COOKIE_NAME: ${CTFD_SESSION_COOKIE_NAME:-silent_ridge_ctfd_session}
+      CTFD_SESSION_COOKIE_SECURE: ${CTFD_SESSION_COOKIE_SECURE:-false}
       UPLOAD_FOLDER: /var/uploads
       LOG_FOLDER: /var/log/CTFd
       WORKERS: 1
