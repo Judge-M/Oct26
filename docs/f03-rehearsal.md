@@ -80,6 +80,10 @@ Verified by a full dress rehearsal on the dev host (2 teams, 180 s,
 473/473 requests OK, outbox flat); still non-certifying by definition.
 
 - `up` is an idempotent reconcile: re-run it until every stage verifies.
+- The load harness spaces preflight participant logins by 0.5 s and retries
+  HTTP 429 up to five attempts, respecting `Retry-After` up to a 10 s wait.
+  Each 429 remains a failed sample in the report. A persistently limited
+  login stops preflight with an explicit error; it is not a capacity result.
 - **Capacity model**: retuned 2026-09-23 from measurements (central 6 GiB,
   desktop 2 GiB / 1 vCPU / 15 GiB, 20% memory headroom in validation).
   Reservations are measured *peaks*, not limits — the certifying run should
