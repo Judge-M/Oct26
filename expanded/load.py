@@ -29,6 +29,7 @@ Config JSON (secrets stay in the runtime directory; never commit them):
     }
 """
 import argparse
+import ipaddress
 import json
 import os
 import queue
@@ -149,7 +150,45 @@ def login_bots(bots, pause=LOGIN_STAGGER_S):
     for index, bot in enumerate(bots):
         if index:
             time.sleep(pause)
-        bot.login()
+        try:
+            bot.login()
+        except urllib.error.HTTPError:
+            raise
+        except urllib.error.URLError as exc:
+            raise LoadError(f'{bot.client.base} login preflight failed; check the URL '
+                            'against runtime/local.json bind_ip and published port') from exc
+
+
+def resolve_target_urls(config):
+    """Resolve `auto` URLs from the same runtime that supplied participant logins."""
+    result = dict(config)
+    requested = [service for service in ('ctfd', 'iris')
+                 if result[service + '_url'] == 'auto']
+    if not requested:
+        return result
+    local_path = Path(config['credentials']).parent.parent / 'local.json'
+    try:
+        local = json.loads(local_path.read_text(encoding='utf-8'))
+    except (OSError, ValueError) as exc:
+        raise LoadError(f'Cannot derive participant URLs from {local_path}') from exc
+    bind = local.get('bind_ip') or '127.0.0.1'
+    try:
+        address = ipaddress.IPv4Address(bind)
+    except (ipaddress.AddressValueError, TypeError) as exc:
+        raise LoadError(f'{local_path} bind_ip must be an IPv4 address') from exc
+    if address.is_unspecified:
+        raise LoadError(f'{local_path} bind_ip is a wildcard, not a participant URL')
+    ports = local.get('ports') or {}
+    if not isinstance(ports, dict):
+        raise LoadError(f'{local_path} ports must be an object')
+    for service, default_port in (('ctfd', 8083), ('iris', 8081)):
+        if service not in requested:
+            continue
+        port = ports.get(service, default_port)
+        if not isinstance(port, int) or isinstance(port, bool) or not 1 <= port <= 65535:
+            raise LoadError(f'{local_path} ports.{service} must be a TCP port')
+        result[service + '_url'] = f'http://{bind}:{port}'
+    return result
 
 PAGE_NONCE = re.compile(rb'name="nonce"\s+value="([^"]+)"')
 PAGE_QUESTION = re.compile(rb'name="question"\s+value="([^"]+)"')
@@ -323,6 +362,7 @@ def run(config, duration, output):
     output = Path(output)
     if output.exists():
         raise LoadError('Choose a new output directory; runs are never overwritten')
+    config = resolve_target_urls(config)
     ca_file = config.get('ca_file')
     creds = json.loads(Path(config['credentials']).read_text(encoding='utf-8'))
     samples, container_q, outbox_samples = [], queue.Queue(), []

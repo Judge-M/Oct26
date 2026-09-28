@@ -1,14 +1,16 @@
 """Tests for expanded.load (F03 tooling); no live services required."""
 import json
 import os
+import tempfile
 import threading
 import unittest
+import urllib.error
 from unittest import mock
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 from expanded.load import (CtfdBot, IrisBot, LoadError, TimedClient, build_report,
                            login_bots, markdown, mib, outbox_depth, percentile,
-                           retry_after_seconds)
+                           resolve_target_urls, retry_after_seconds)
 
 
 class PercentileTests(unittest.TestCase):
@@ -206,6 +208,33 @@ class RateLimitTests(unittest.TestCase):
         with mock.patch('expanded.load.time.sleep', side_effect=lambda seconds: calls.append(seconds)):
             login_bots([Bot(), Bot(), Bot()])
         self.assertEqual(calls, ['login', 0.5, 'login', 0.5, 'login'])
+
+
+class TargetUrlTests(unittest.TestCase):
+    def test_auto_urls_follow_runtime_bind_and_ports(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runtime = os.path.join(tmp, 'runtime')
+            os.mkdir(runtime)
+            os.mkdir(os.path.join(runtime, 'secrets'))
+            with open(os.path.join(runtime, 'local.json'), 'w', encoding='utf-8') as stream:
+                json.dump({'bind_ip': '192.168.1.200',
+                           'ports': {'ctfd': 18083, 'iris': 18081}}, stream)
+            config = {'credentials': os.path.join(runtime, 'secrets', 'team-credentials.json'),
+                      'ctfd_url': 'auto', 'iris_url': 'auto'}
+            resolved = resolve_target_urls(config)
+            self.assertEqual(resolved['ctfd_url'], 'http://192.168.1.200:18083')
+            self.assertEqual(resolved['iris_url'], 'http://192.168.1.200:18081')
+            self.assertEqual(config['ctfd_url'], 'auto')
+
+    def test_unreachable_login_names_configured_target(self):
+        class OfflineBot:
+            client = type('Client', (), {'base': 'http://192.168.1.200:8083'})()
+
+            def login(self):
+                raise urllib.error.URLError('connection refused')
+
+        with self.assertRaisesRegex(LoadError, '192.168.1.200:8083'):
+            login_bots([OfflineBot()])
 
 
 class OutboxTests(unittest.TestCase):

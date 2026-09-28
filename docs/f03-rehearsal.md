@@ -41,8 +41,8 @@ smoke run.
    {
      "teams": 10,
      "sessions_per_team": 3,
-     "ctfd_url": "https://<LAN-IP>:8083",
-     "iris_url": "https://<LAN-IP>:8081",
+     "ctfd_url": "auto",
+     "iris_url": "auto",
      "ca_file": "<runtime-dir>/wazuh-certs/root-ca.pem",
      "credentials": "<runtime-dir>/secrets/team-credentials.json",
      "state_sqlite": "<runtime-dir>/state/state.sqlite",
@@ -51,9 +51,12 @@ smoke run.
    }
    ```
 
-   Replace `<LAN-IP>` with `local.json`'s `bind_ip` and set `host.ram_gib`
-   to the machine's actual RAM. The harness verifies the participant TLS
-   certificate against the generated local CA; do not disable verification.
+   `auto` reads `bind_ip` and `ports` from the `local.json` beside the
+   credentials runtime, so a LAN-bound stack is contacted through its LAN
+   address over HTTPS. The harness verifies the participant certificate
+   against the generated local CA; do not disable verification. Explicit URLs
+   remain supported for a remote harness. Set `host.ram_gib` to the machine's
+   actual RAM. Login preflight names the configured URL if unreachable.
 
 3. Start the exercise, then run the harness (1800 s = 30 minutes; runs
    under 30 s are refused; use a fresh output directory every time):
