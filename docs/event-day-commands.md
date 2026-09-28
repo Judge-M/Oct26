@@ -5,8 +5,8 @@ dev host (dress rehearsal, 2026-09-23). Replace `<LAN-IP>` with the event
 machine's LAN address and `R` with your chosen runtime directory (private —
 it holds secrets and state; never commit it).
 
-Timings are honest: first `up` takes 10–20 minutes including image loads and
-the guacd 5-minute healthcheck. Re-run any `up` that reports "services not
+Timings are honest: first `up` takes 10–20 minutes including image loads.
+Guacd now probes every 10 seconds. Re-run any `up` that reports "services not
 ready" — it is an idempotent reconcile, not a failure.
 
 ## 0. One-time host prep (before event week)
@@ -86,13 +86,16 @@ HTTP 401 from the indexer job).
 ## 3. Bring the event up (T-minus ~30 min)
 
 ```bash
-python -m ridge.deploy doctor
+python -m ridge.deploy doctor --profile event-profile.json --runtime R
 python -m ridge.deploy up --teams 10 --profile event-profile.json --runtime R
-# re-run `up` until every stage verifies (guacd needs ~5 min for its first healthcheck)
+# re-run `up` until every stage verifies
 python -m ridge.deploy status --profile event-profile.json --runtime R   # expect event_ready: true
 ```
 
 `up` stops at a verified, **paused** state — participants see nothing yet.
+Before the event, set and securely retain `RIDGE_BACKUP_KEY` (at least 16
+characters). Doctor reports a missing key; backup and restore require the same
+value. Do not put it in `local.json`, the repository or the recovery set.
 Hand out team accounts from `R/secrets/team-credentials.json` and the shared
 Wazuh reader login from `R/secrets/wazuh_reader`.
 

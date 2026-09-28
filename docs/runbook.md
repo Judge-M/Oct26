@@ -13,8 +13,11 @@ to participants). Windows operators may use `.\ridge.ps1 <action> -Profile P
 
 ## Event day, in order
 
-1. **Verify the host** — `python -m ridge.deploy doctor` (Docker present and
-   responding). Hardware floor for ten teams, from live measurement: 32 GB RAM
+1. **Verify the host and deployment inputs** — `python -m ridge.deploy doctor
+   --profile P --runtime R`. It checks Docker, the profile, build receipts,
+   images, assets and `RIDGE_BACKUP_KEY`; when the stack is up it also reports
+   live stage probes. Without `--profile`, doctor checks Docker only.
+   Hardware floor for ten teams, from live measurement: 32 GB RAM
    minimum (64 GB comfortable), 16 cores recommended, 100 GB free NVMe.
 2. **Bring the stack up** — `python -m ridge.deploy up --profile P --runtime R`.
    Ends at `PROVISIONED_PAUSED`; participants see nothing yet. Safe to re-run:
@@ -35,6 +38,10 @@ to participants). Windows operators may use `.\ridge.ps1 <action> -Profile P
 8. **After the AAR, back up** — `python -m ridge.deploy backup --profile P --runtime R`
    → a checksummed recovery set under `R/backups/<timestamp>/`. It is complete
    only when it contains `RECOVERY-COMPLETE.json`.
+   Set `RIDGE_BACKUP_KEY` to a private, persistent value of at least 16
+   characters **before the event**. Keep the same value available for restore;
+   it is never saved in the runtime or recovery set. Doctor reports whether it
+   is present without printing it. A missing key refuses backup before export.
 9. **Shut down** — `python -m ridge.deploy down --profile P --runtime R`
    (data kept). Add `--volumes` only when you mean it: it wipes all event data
    and **refuses unless a verified backup exists**.

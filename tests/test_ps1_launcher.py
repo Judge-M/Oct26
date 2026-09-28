@@ -47,7 +47,7 @@ class LauncherTests(unittest.TestCase):
 
     def test_actions_match_cli(self):
         for action in ('prepare', 'doctor', 'build', 'verify-build', 'up', 'status',
-                       'start', 'pause', 'backup', 'restore', 'switch', 'down'):
+                       'start', 'pause', 'backup', 'restore', 'switch', 'down', 'fence'):
             self.assertIn("'%s'" % action, self.text)
 
 

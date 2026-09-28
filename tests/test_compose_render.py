@@ -51,6 +51,8 @@ class ComposeAuditTests(unittest.TestCase):
         self.assertIn('healthcheck', central['services']['iris-db'])
         guac = yaml.safe_load((COMPOSE / 'compose.guacamole.yaml').read_text(encoding='utf-8'))
         self.assertEqual(guac['services']['guacamole']['depends_on']['database']['condition'], 'service_healthy')
+        self.assertEqual(guac['services']['guacamole']['depends_on']['guacd']['condition'], 'service_healthy')
+        self.assertEqual(guac['services']['guacd']['healthcheck']['interval'], '10s')
 
     def test_wazuh_manager_config_preserves_first_boot_seeding_and_checks_daemons(self):
         wazuh = yaml.safe_load((COMPOSE / 'wazuh/compose.wazuh.yaml').read_text(encoding='utf-8'))

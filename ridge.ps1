@@ -16,12 +16,13 @@
     .\ridge.ps1 prepare -Profile .\work\n4-run\profile.json -Runtime .\work\n4-run
     .\ridge.ps1 up      -Profile .\work\n4-run\profile.json -Runtime .\work\n4-run
     .\ridge.ps1 status  -Profile .\work\n4-run\profile.json -Runtime .\work\n4-run
+    .\ridge.ps1 fence   -Profile .\work\n4-run\profile.json -Runtime .\work\n4-run
 #>
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true, Position = 0)]
     [ValidateSet('prepare', 'doctor', 'build', 'verify-build', 'up', 'status',
-                 'start', 'pause', 'backup', 'restore', 'switch', 'down')]
+                 'start', 'pause', 'backup', 'restore', 'switch', 'down', 'fence')]
     [string]$Action,
 
     [Parameter(Position = 1)]
@@ -81,7 +82,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 # --- action dispatch ---------------------------------------------------------
-$lifecycle = @('up', 'status', 'start', 'pause', 'backup', 'restore', 'switch', 'down')
+$lifecycle = @('up', 'status', 'start', 'pause', 'backup', 'restore', 'switch', 'down', 'fence')
 
 if ($Action -eq 'prepare') {
     Write-Host "ridge: prerequisites OK (PowerShell $($PSVersionTable.PSVersion), $($pythonCmd.Source), Docker engine reachable)"
@@ -107,7 +108,12 @@ if ($Action -eq 'prepare') {
 Push-Location $root
 try {
     if ($Action -in @('doctor', 'build', 'verify-build')) {
-        & $Python -m ridge.deploy $Action
+        $cliArgs = @('-m', 'ridge.deploy', $Action)
+        if ($Action -eq 'doctor' -and $Profile) {
+            if (-not (Test-Path $Profile)) { Fail "profile not found: $Profile" }
+            $cliArgs += @('--profile', $Profile, '--runtime', $Runtime)
+        }
+        & $Python @cliArgs
         exit $LASTEXITCODE
     }
     if ($Action -in $lifecycle) {

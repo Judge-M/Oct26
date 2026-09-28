@@ -6,6 +6,7 @@ No action here starts an event or creates cloud resources.
 import argparse
 import hashlib
 import json
+import os
 import subprocess
 from pathlib import Path
 
@@ -71,6 +72,48 @@ def verify_build(component, work):
     return result
 
 
+def doctor(profile_path=None, runtime=None, work=None):
+    """Read-only host and deployment checks; never create runtime state."""
+    checks = {}
+    for name, command in (('docker', ('version',)),
+                          ('compose', ('compose', 'version')),
+                          ('engine', ('info',))):
+        try:
+            docker(*command, capture=True)
+            checks[name] = {'ok': True}
+        except (OSError, subprocess.SubprocessError) as exc:
+            checks[name] = {'ok': False, 'error': str(exc)[:300]}
+    if profile_path is not None:
+        from ridge.deploy.local import LocalStack
+        from ridge.docker_provider import SubprocessRunner
+        try:
+            profile = json.loads(Path(profile_path).read_text(encoding='utf-8'))
+            stack = LocalStack(profile, runtime, SubprocessRunner(), receipts=work)
+            checks['profile'] = {'ok': True, 'event': stack.event}
+            try:
+                checks['artifacts'] = {'ok': True, 'detail': stack._probe_artifacts()}
+            except Exception as exc:
+                checks['artifacts'] = {'ok': False, 'error': str(exc)[:1000]}
+            if (stack.runtime / 'deploy-journal.sqlite').is_file():
+                status = stack.status()
+                checks['live'] = {'ok': status['event_ready'], 'journal': status['journal'],
+                                  'stages': {name: row.get('error', 'ok')
+                                             for name, row in status['live'].items()}}
+            else:
+                checks['live'] = {'ok': False, 'detail': 'not deployed yet; run up'}
+        except (OSError, ValueError, RuntimeError, KeyError) as exc:
+            checks['profile'] = {'ok': False, 'error': str(exc)[:1000]}
+        checks['backup_key'] = {
+            'ok': len(os.environ.get('RIDGE_BACKUP_KEY', '')) >= 16,
+            'detail': 'RIDGE_BACKUP_KEY is required for backup and restore (at least 16 characters); keep it outside the runtime and recovery set',
+        }
+    return {'scope': 'deployment' if profile_path is not None else 'docker-only',
+            'checks': checks,
+            'ready_for_up': all(row['ok'] for name, row in checks.items()
+                                if name != 'live'),
+            'event_ready': checks.get('live', {}).get('ok', False)}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('action', choices=('doctor', 'build', 'verify-build', 'status',
@@ -101,9 +144,7 @@ def main():
     args = parser.parse_args()
     try:
         if args.action == 'doctor':
-            print(docker('version', capture=True))
-            print(docker('compose', 'version', capture=True))
-            docker('info', capture=True)
+            print(json.dumps(doctor(args.profile, args.runtime, args.work), indent=2))
             return
         lifecycle = ('up', 'start', 'pause', 'status', 'down', 'backup', 'restore', 'switch',
                      'fence')

@@ -138,9 +138,9 @@ Create `work/runtime/local.json` (replace `<ABS>` with the absolute path to
 ## 7. Bring the stack up (10–20 min)
 
 ```bash
-python -m ridge.deploy doctor
+python -m ridge.deploy doctor --profile event-profile.json --runtime work/runtime
 python -m ridge.deploy up --teams 10 --profile event-profile.json --runtime work/runtime
-# "services not ready"? just re-run the same up command — it reconciles (guacd needs ~5 min)
+# "services not ready"? just re-run the same up command — it reconciles
 python -m ridge.deploy status --profile event-profile.json --runtime work/runtime
 # expect: event_ready: true
 ```
