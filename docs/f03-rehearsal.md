@@ -41,8 +41,8 @@ smoke run.
    {
      "teams": 10,
      "sessions_per_team": 3,
-     "ctfd_url": "http://127.0.0.1:8083",
-     "iris_url": "http://127.0.0.1:8081",
+     "ctfd_url": "auto",
+     "iris_url": "auto",
      "credentials": "<runtime-dir>/secrets/team-credentials.json",
      "state_sqlite": "<runtime-dir>/state/state.sqlite",
      "host": {"ram_gib": 32},
@@ -50,7 +50,11 @@ smoke run.
    }
    ```
 
-   Set `host.ram_gib` to the machine's actual RAM.
+   `auto` reads `bind_ip` and `ports` from the `local.json` beside the
+   credentials runtime, so a LAN-bound stack is contacted through its LAN
+   address. Explicit URLs remain supported for a remote harness. Set
+   `host.ram_gib` to the machine's actual RAM. The harness tests the login
+   endpoints before its timed run and names the configured URL if unreachable.
 
 3. Start the exercise, then run the harness (1800 s = 30 minutes; runs
    under 30 s are refused; use a fresh output directory every time):
