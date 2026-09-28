@@ -28,6 +28,7 @@ The runtime directory is private and gitignored. Layout::
 from __future__ import annotations
 
 import hashlib
+import ipaddress
 import json
 import shutil
 import sqlite3
@@ -625,14 +626,48 @@ class LocalStack:
             except CommandError:
                 self._run(['docker', 'network', 'create', name])
 
+    def _dashboard_bind_ip(self):
+        bind = str(self.local.get('bind_ip') or '127.0.0.1')
+        try:
+            address = ipaddress.IPv4Address(bind)
+        except ipaddress.AddressValueError as exc:
+            raise LifecycleError('local.json bind_ip must be an IPv4 address: %s' % exc)
+        if (address.is_unspecified or address.is_multicast or address.is_link_local
+                or not (address.is_private or address.is_loopback)):
+            raise LifecycleError('local.json bind_ip must be a private or loopback IPv4 address')
+        return bind
+
+    def _verify_dashboard_certificate(self, certs, bind):
+        dashboard_cert = certs / 'dashboard.pem'
+        if not dashboard_cert.is_file():
+            raise LifecycleError('missing Wazuh dashboard certificate at %s' % dashboard_cert)
+        match = self._run([
+            'docker', 'run', '--rm', '--network', 'none', '--pull', 'never',
+            '-v', str(certs) + ':/certs:ro', '--entrypoint', 'openssl',
+            'wazuh/wazuh-manager:4.9.2', 'x509', '-in', '/certs/dashboard.pem',
+            '-noout', '-checkip', bind,
+        ], check=False)
+        if 'does match certificate' not in match:
+            raise LifecycleError('Wazuh dashboard certificate does not cover local.json '
+                                 'bind_ip %s; preserve the current CA and certificates, '
+                                 'then plan a certificate rotation for this address' % bind)
+
     def _apply_infrastructure(self):
         self._ensure_secrets()
         self._render_specs()
         self._render_env()
         self._ensure_networks()
         certs = self.runtime / 'wazuh-certs'
+        bind = self._dashboard_bind_ip()
         if not (certs / 'root-ca.pem').is_file():
-            self._run(['bash', str(WAZUH_DIR / 'generate-certs.sh'), str(certs)])
+            certs.mkdir(parents=True, exist_ok=True)
+            self._run([
+                'docker', 'run', '--rm', '--network', 'none', '--pull', 'never',
+                '-v', str(WAZUH_DIR / 'generate-certs.sh') + ':/generate-certs.sh:ro',
+                '-v', str(certs) + ':/certs', '--entrypoint', 'bash',
+                'wazuh/wazuh-manager:4.9.2', '/generate-certs.sh', '/certs', bind,
+            ])
+        self._verify_dashboard_certificate(certs, bind)
         guac_init = self.runtime / 'guac-init'
         guac_init.mkdir(parents=True, exist_ok=True)
         if not (guac_init / '001-initdb.sql').is_file():
@@ -657,6 +692,8 @@ class LocalStack:
                                  'secrets are never regenerated beneath a verified deployment'
                                  % (self.secrets_dir,
                                     ', '.join(sorted(set(SECRET_FILES) - set(existing)))))
+        self._verify_dashboard_certificate(self.runtime / 'wazuh-certs',
+                                           self._dashboard_bind_ip())
         for kind, services in INFRA_SERVICES.items():
             self._require_services(kind, services,
                                    allow_exit0=INFRA_ONE_SHOT.get(kind, ()))

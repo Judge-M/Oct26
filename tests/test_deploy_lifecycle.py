@@ -75,6 +75,7 @@ class FakeRunner:
         self.receipts = Path(receipts)
         self.calls = []
         self.healthy = True
+        self.certificate_matches = True
         self.connections = 0
         self.up_projects = set()
 
@@ -147,11 +148,15 @@ class FakeRunner:
             return ''
         if argv[:2] == ['docker', 'run'] and 'initdb.sh' in joined:
             return 'CREATE TABLE guacamole_connection ();'
-        if argv[0] == 'bash':
-            certs = Path(argv[-1])
+        if argv[:2] == ['docker', 'run'] and '/generate-certs.sh' in argv:
+            certs = Path(next(a for a in argv if a.endswith(':/certs')).rsplit(':/', 1)[0])
             certs.mkdir(parents=True, exist_ok=True)
             (certs / 'root-ca.pem').write_text('ca')
+            (certs / 'dashboard.pem').write_text('dashboard')
             return ''
+        if argv[:2] == ['docker', 'run'] and 'x509' in argv:
+            result = 'does match' if self.certificate_matches else 'does NOT match'
+            return 'IP %s %s certificate\n' % (argv[-1], result)
         return ''
 
     def _compose(self, argv, joined, check):
@@ -282,6 +287,30 @@ class LifecycleTests(unittest.TestCase):
         self.assertEqual(con.execute('SELECT mode FROM run').fetchone()[0], 'paused')
         self.assertEqual(con.execute('SELECT provisioned FROM control').fetchone()[0], 1)
         con.close()
+
+    def test_dashboard_certificate_covers_participant_bind_address(self):
+        self.stack.local['bind_ip'] = '192.168.1.200'
+        self.stack.up(self.source)
+        self.assertTrue(any(c[:2] == ['docker', 'run'] and '/generate-certs.sh' in c
+                            and c[-1] == '192.168.1.200'
+                            for c in self.runner.calls))
+        self.assertTrue(any(c[:2] == ['docker', 'run'] and 'x509' in c
+                            and c[-1] == '192.168.1.200'
+                            for c in self.runner.calls))
+
+    def test_existing_dashboard_certificate_without_bind_address_fails_closed(self):
+        self.stack.local['bind_ip'] = '192.168.1.200'
+        self.runner.certificate_matches = False
+        with self.assertRaisesRegex(LifecycleError, 'certificate does not cover'):
+            self.stack.up(self.source)
+        self.assertFalse(any('up' in c and 'compose' in c for c in self.runner.calls))
+
+    def test_reconfigured_bind_checks_existing_certificate_on_retry(self):
+        self.stack.up(self.source)
+        self.stack.local['bind_ip'] = '192.168.1.200'
+        self.runner.certificate_matches = False
+        with self.assertRaisesRegex(LifecycleError, 'certificate does not cover'):
+            self.stack._probe_infrastructure()
 
     def test_repeated_up_preserves_state_and_skips_creation(self):
         self.stack.up(self.source)

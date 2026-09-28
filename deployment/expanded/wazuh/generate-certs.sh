@@ -4,8 +4,22 @@
 # Existing certificates are never overwritten unless --force is supplied.
 set -euo pipefail
 OUT="${1:-./certs}"
-FORCE="${2:-}"
+DASHBOARD_IP="${2:-127.0.0.1}"
+FORCE="${3:-}"
+if [[ "$DASHBOARD_IP" == "--force" ]]; then
+  DASHBOARD_IP=127.0.0.1
+  FORCE=--force
+fi
 DAYS=825
+if [[ "$DASHBOARD_IP" != "127.0.0.1" ]]; then
+  [[ "$DASHBOARD_IP" =~ ^[0-9]+(\.[0-9]+){3}$ ]] || {
+    echo "Dashboard address must be an IPv4 address" >&2; exit 1;
+  }
+  IFS=. read -r a b c d <<<"$DASHBOARD_IP"
+  for octet in "$a" "$b" "$c" "$d"; do
+    (( 10#$octet <= 255 )) || { echo "Invalid dashboard IPv4 address" >&2; exit 1; }
+  done
+fi
 mkdir -p "$OUT"
 umask 077
 
@@ -34,7 +48,7 @@ EOF
 }
 
 issue indexer "wazuh-indexer" "DNS:wazuh-indexer,DNS:localhost,IP:127.0.0.1"
-issue dashboard "wazuh-dashboard" "DNS:wazuh-dashboard,DNS:localhost,IP:127.0.0.1"
+issue dashboard "wazuh-dashboard" "DNS:wazuh-dashboard,DNS:localhost,IP:127.0.0.1,IP:$DASHBOARD_IP"
 issue manager "wazuh-manager" "DNS:wazuh-manager,DNS:localhost,IP:127.0.0.1"
 issue admin "admin" "DNS:localhost,IP:127.0.0.1"
 
