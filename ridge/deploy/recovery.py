@@ -182,6 +182,8 @@ def create(stack, destination, cipher=None, export_job=None):
     destination = Path(destination)
     if destination.exists():
         raise RecoveryError('use a new destination directory: %s' % destination)
+    if isinstance(cipher, Cipher):
+        cipher._key()  # Refuse before creating a partial set or running export jobs.
     state = stack.host.state(stack.state_path)
     # Consistency contract: the exercise must be paused and drained, which makes the
     # state quiescent; the in-controller export then holds the export barrier while

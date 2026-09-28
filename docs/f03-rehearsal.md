@@ -85,8 +85,8 @@ Verified by a full dress rehearsal on the dev host (2 teams, 180 s,
   Reservations are measured *peaks*, not limits — the certifying run should
   confirm or adjust them with real 10-team numbers; do not weaken the
   check beforehand.
-  First boot takes minutes — the guacd image's own healthcheck only runs
-  every 300 s, so the desktop-access stage cannot verify sooner.
+  The original rehearsal used the image's 300 s guacd healthcheck. Current
+  Compose overrides it with a 10 s probe; first boot still takes minutes.
 - `up` now creates the external networks (`<event>-central`,
   `<event>-desktop`, `<event>-wazuh_wazuh-backend`) itself; older checkouts
   fail fresh bring-ups with "declared as external, but could not be found".

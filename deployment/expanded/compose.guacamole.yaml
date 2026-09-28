@@ -5,6 +5,12 @@ services:
     pull_policy: never
     restart: unless-stopped
     networks: [desktop, internal]
+    healthcheck:
+      test: [CMD-SHELL, "nc -z 127.0.0.1 4822 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
     logging:
       driver: json-file
       options: {max-size: "10m", max-file: "3"}
@@ -44,7 +50,7 @@ services:
     networks: [internal, frontend]
     depends_on:
       database: {condition: service_healthy}
-      guacd: {condition: service_started}
+      guacd: {condition: service_healthy}
     logging:
       driver: json-file
       options: {max-size: "10m", max-file: "3"}

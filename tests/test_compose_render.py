@@ -51,6 +51,8 @@ class ComposeAuditTests(unittest.TestCase):
         self.assertIn('healthcheck', central['services']['iris-db'])
         guac = yaml.safe_load((COMPOSE / 'compose.guacamole.yaml').read_text(encoding='utf-8'))
         self.assertEqual(guac['services']['guacamole']['depends_on']['database']['condition'], 'service_healthy')
+        self.assertEqual(guac['services']['guacamole']['depends_on']['guacd']['condition'], 'service_healthy')
+        self.assertEqual(guac['services']['guacd']['healthcheck']['interval'], '10s')
 
     def test_audit_flags_private_port_and_missing_logging(self):
         bad = {'name': '${RIDGE_PROJECT}-x', 'services': {
