@@ -14,6 +14,13 @@ Startup verifies it and seeds `/home/participant/Cases/WS17` exactly once. Exist
 participant work is never overwritten. Mount each team's Cases/Workspace/Scratch
 on separate persistent volumes, and mount `/evidence` and `/originals` read-only.
 
+Evidence publication is controller-side. `ridge.evidence_release` verifies each
+ticket release and atomically publishes it into the shared host evidence
+directory. Compose mounts that directory at `/evidence:ro` in every desktop, so
+newly published files become visible without a desktop-side delivery agent.
+Keep this mount read-only; participant desktops are consumers of evidence, not
+publishers.
+
 Supply a plaintext VNC password as a Compose secret at `/run/secrets/vnc_password`.
 The entrypoint encodes it into `/etc/silent-ridge/vnc-password`; input and output
 must differ. VNC is private to guacd and never host-published. Do not use
