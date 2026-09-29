@@ -40,6 +40,18 @@ WRITER_ACTIONS = (
 )
 READER_ACTIONS = ('indices:data/read/search', 'indices:data/read/get',
                   'indices:data/read/field_caps', 'indices:admin/mappings/get')
+# The dashboard keeps its API entries and index patterns as saved objects, so a
+# participant who cannot read them sees an empty "Could not select any API
+# entry" list and getPatternList fails (#61). The bare 'read' action group does
+# not cover the alias, mapping and monitor lookups the dashboard performs, so
+# the .kibana* grant is widened to match what Wazuh's own wazuh_readonly ships.
+# Read-only: no write action, no kibana_server, and still scoped to .kibana*.
+#
+# Unverified: this assumes the 4.9.2 dashboard stores those objects under
+# .kibana*. If they live in a .wazuh* index instead, this grant is too narrow
+# and #61 stays open. Confirm against a running stack before closing it.
+DASHBOARD_ACTIONS = ('get', 'read', 'indices:admin/aliases/get',
+                     'indices:admin/mappings/get', 'indices:monitor/*')
 
 
 class WazuhError(ValueError):
@@ -85,7 +97,15 @@ def reader_role(pattern: str = INDEX_PATTERN) -> dict[str, Any]:
     # kibana_server grants writes and is reserved for the dashboard service.
     role['cluster_permissions'] = ['cluster_composite_ops_ro']
     role['index_permissions'].append({
-        'index_patterns': ['.kibana*'], 'allowed_actions': ['read']})
+        'index_patterns': ['.kibana*'], 'allowed_actions': list(DASHBOARD_ACTIONS)})
+    # The tenant grant is retained deliberately. It is read-only, and whether
+    # it is consulted depends on the multi-tenancy setting in a dashboard
+    # config file that is not tracked here (it ships in the private
+    # wazuh_config asset dir). Dropping it removed a permission on the
+    # strength of an assumption, and if tenancy is enabled the grant is what
+    # lets a participant view index patterns at all -- so removing it could
+    # reintroduce the very symptom this change addresses. Verify against the
+    # pinned stack before removing it; see #61.
     role['tenant_permissions'] = [{
         'tenant_patterns': ['global_tenant'], 'allowed_actions': ['kibana_all_read']}]
     return role

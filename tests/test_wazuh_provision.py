@@ -13,9 +13,10 @@ from pathlib import Path
 
 from ridge.scenario import telemetry_record
 from ridge.wazuh_provision import (
-    INDEX_PATTERN, READER_ROLE, TIMED_VIEW, TIMELESS_VIEW, WRITER_ROLE, Request, UserSpec,
-    WazuhError, apply_plan, build_plan, ca_context, index_template, load_vendored, preflight_facts,
-    discover_fields, reader_role, record_id, saved_objects, validate_manifest, writer_role,
+    DASHBOARD_ACTIONS, INDEX_PATTERN, READER_ROLE, TIMED_VIEW, TIMELESS_VIEW, WRITER_ROLE,
+    Request, UserSpec, WazuhError, apply_plan, build_plan, ca_context, index_template,
+    load_vendored, preflight_facts, discover_fields, reader_role, record_id, saved_objects,
+    validate_manifest, writer_role,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -40,12 +41,62 @@ class VendoredConfigTests(unittest.TestCase):
         self.assertNotIn('indices:data/write/bulk', reader['index_permissions'][0]['allowed_actions'])
         self.assertIn('indices:data/read/field_caps', reader['index_permissions'][0]['allowed_actions'])
         self.assertEqual(reader['cluster_permissions'], ['cluster_composite_ops_ro'])
-        self.assertEqual(reader['index_permissions'][1], {
-            'index_patterns': ['.kibana*'], 'allowed_actions': ['read']})
+        # #61: the dashboard keeps its API entries and index patterns as saved
+        # objects. A bare 'read' does not cover the alias, mapping and monitor
+        # lookups it performs, so a participant saw an empty API list
+        # ("Could not select any API entry") and getPatternList failed.
+        # Asserted against literals, not against DASHBOARD_ACTIONS, so
+        # widening the constant cannot make this pass vacuously.
+        saved_objects_grant = reader['index_permissions'][1]
+        self.assertEqual(saved_objects_grant['index_patterns'], ['.kibana*'])
+        self.assertEqual(sorted(saved_objects_grant['allowed_actions']),
+                         sorted(['get', 'read', 'indices:admin/aliases/get',
+                                 'indices:admin/mappings/get', 'indices:monitor/*']))
+        # The read-only tenant grant is retained on purpose: whether it is
+        # consulted depends on a multi-tenancy setting in an untracked config
+        # file, and it is what lets a participant view index patterns if
+        # tenancy is enabled. See the note in reader_role().
         self.assertEqual(reader['tenant_permissions'], [{
             'tenant_patterns': ['global_tenant'], 'allowed_actions': ['kibana_all_read']}])
         self.assertNotIn('kibana_server', json.dumps(reader))
-        self.assertNotIn('indices_all', json.dumps(reader))
+        self._assert_reader_grants_nothing_that_writes(reader)
+
+    def _assert_reader_grants_nothing_that_writes(self, reader):
+        """The participant role must be read-only in fact, not in name.
+
+        A substring check for 'write'/'put'/'delete' sails straight past the
+        grants that actually matter: '*', 'indices:*' (indices_all),
+        'indices:admin/*', 'manage' (which expands to indices:monitor/* plus
+        indices:admin/*), 'crud', and the named create/delete index actions.
+        This checks index, cluster and tenant grants together.
+        """
+        escalating = ('*', 'manage', 'crud', 'indices_all', 'all',
+                      'create_index', 'delete_index', 'manage_ilm', 'kibana_all_write',
+                      'kibana_server', 'indices:admin/*', 'indices:data/write/*',
+                      'indices:data/read/*')
+        for group in ('index_permissions', 'cluster_permissions', 'tenant_permissions'):
+            for grant in reader.get(group) or []:
+                # cluster_permissions is a flat list of action names; the other
+                # two are lists of {index_patterns/tenant_patterns, allowed_actions}.
+                if isinstance(grant, str):
+                    for bad in escalating + ('write', 'put', 'delete'):
+                        if bad in ('write', 'put', 'delete'):
+                            self.assertNotIn(bad, grant, (group, grant))
+                        else:
+                            self.assertNotEqual(grant, bad, (group, grant))
+                    continue
+                for pattern in grant.get('index_patterns', []) + grant.get('tenant_patterns', []):
+                    # A trailing wildcard is fine (silent-ridge-*); a bare or
+                    # leading one is match-all, which is the escalation.
+                    self.assertNotEqual(pattern, '*', (group, pattern))
+                    self.assertFalse(pattern.startswith('*'), (group, pattern))
+                for action in grant.get('allowed_actions', []):
+                    for bad in escalating:
+                        self.assertNotEqual(action, bad, (group, action))
+                    # 'indices:admin/mappings/get' is a read, so 'admin' alone is
+                    # not the signal; write/put/delete in an action are.
+                    for bad in ('write', 'put', 'delete'):
+                        self.assertNotIn(bad, action, (group, action))
 
     def test_timed_and_timeless_views_differ_only_by_time_field(self):
         views = {view['id']: view for view in saved_objects()}
