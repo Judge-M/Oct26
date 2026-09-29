@@ -1,4 +1,4 @@
-﻿# The Operation Silent Ridge narrative â€” current state
+# The Operation Silent Ridge narrative - current state
 
 An orientation to the story, the cast, the evidence and the machinery, for
 whoever has to review, change or run this exercise. It describes what exists
@@ -8,14 +8,14 @@ undecided.
 Answers are not reproduced here. They live in `expanded/author.py`
 (`SPECS`, `FINDINGS`, `LIMITS`) and are published by design; duplicating them
 into a second document is the exact drift problem this narrative layer was built
-to stop. See [Where the answers are](#where-the-answers-are).
+to stop. See [Where the answers are](#11-where-the-answers-are).
 
 ---
 
 ## 1. The story in one paragraph
 
 A fictional internal document service holds the movement briefs for patrol
-**LANTERN** â€” a fictional field unit. A brief contains a sector, a movement
+**LANTERN**, a fictional field unit. A brief contains a sector, a movement
 window and a check-in word: the kind of document an organisation genuinely
 protects. At 09:30 UTC the outgoing shift hands the incoming team an unfinished
 problem. One document was fetched and re-used outside its normal pattern on the
@@ -43,8 +43,8 @@ coordinate or adversary.
 |---|---|
 | LANTERN | The fictional patrol whose movement briefs are the target document |
 | `plan-v3` / `plan-v4` | Two versions of the movement brief; v4 supersedes v3 at 09:10 |
-| `WS-17` | Planning clerk's workstation â€” the workstation in question |
-| `WS-22` | Duty planner's workstation â€” the benign comparator |
+| `WS-17` | Planning clerk's workstation, the workstation in question |
+| `WS-22` | Duty planner's workstation, the benign comparator |
 | `WS-31` | The unresolved lead; collection stopped mid-morning, never closed |
 | `DOCS-1` | The document service |
 | `IDP-1` | The identity provider |
@@ -68,10 +68,10 @@ Naming a group would contradict a scored answer and push participants toward
 pattern-matching instead of reading records. Atmosphere is carried descriptively
 ("the relay answered", "the endpoints named inside them are the incident
 endpoints"). The breadcrumb BC-04 is two handles that resolve to no account, host
-or directory entry anywhere â€” which is the point, because it is exactly why
+or directory entry anywhere, which is the point, because it is exactly why
 attribution cannot be made.
 
-## 3. Two narrative contracts â€” and the open decision
+## 3. Two narrative contracts, and the open decision
 
 **This is the single most important thing in this document.**
 
@@ -93,8 +93,8 @@ correct. PR #151 keeps both working and asks the organizer to decide.
 **What the page actually shows today:** #129's markup is the primary narrative
 (fiction notice, premise, discovery, stakes, role, tools, per-ticket phase,
 briefing, stakes and handoff, "Why this question matters", shared progress).
-PR #151 adds only what #129 lacks â€” the four phases with purpose/urgency/action/
-transition, hint policy, accepted-answer guidance, ticket completion, exercise
+PR #151 adds only what #129 lacks: the four phases with purpose, urgency, action
+and transition, hint policy, accepted-answer guidance, ticket completion, exercise
 completion, participant boundaries, and the T01 map link. Both render contexts
 are live on both lanes; no scenario sentence is displayed twice.
 
@@ -123,46 +123,46 @@ ticket that belongs to zero or two phases.
 ## 5. The twenty tickets
 
 20 tickets, 80 scored questions. Roots (no prerequisites) publish at run start,
-which matters for placement â€” see Â§7.
+which matters for placement: see section 7.
 
 | Ticket | Title | Tool | Evidence | Requires |
 |---|---|---|---|---|
-| T01 | Trace document traffic | Wireshark | `network/sensor.pcap` | â€” |
-| T02 | Resolve names and compare conversations | Wireshark | `network/dns.pcap` | â€” |
-| T03 | Reconstruct the viewer download | Autopsy | `browser/downloads.csv` | â€” |
-| T04 | Investigate persistence | Autopsy | `endpoint/events.csv` | â€” |
-| T05 | Recover and compare cached content | Autopsy | `disk/WS17-fat16.img` | â€” |
-| T06 | Separate password and session authentication | Wazuh | `wazuh/telemetry.jsonl` | â€” |
+| T01 | Trace document traffic | Wireshark | `network/sensor.pcap` | - |
+| T02 | Resolve names and compare conversations | Wireshark | `network/dns.pcap` | - |
+| T03 | Reconstruct the viewer download | Autopsy | `browser/downloads.csv` | - |
+| T04 | Investigate persistence | Autopsy | `endpoint/events.csv` | - |
+| T05 | Recover and compare cached content | Autopsy | `disk/WS17-fat16.img` | - |
+| T06 | Separate password and session authentication | Wazuh | `wazuh/telemetry.jsonl` | - |
 | T07 | Test the effect of the password reset | Wazuh | `wazuh/telemetry.jsonl` | T06 |
-| T08 | Audit document and roster access | Autopsy | `server/access.csv` | â€” |
+| T08 | Audit document and roster access | Autopsy | `server/access.csv` | - |
 | T09 | Compare superseding movement information | Linux file manager | `server/version-comparison.csv` | T08 |
-| T10 | Test a benign comparator | Wazuh | `wazuh/telemetry.jsonl` | â€” |
+| T10 | Test a benign comparator | Wazuh | `wazuh/telemetry.jsonl` | - |
 | T11 | Investigate the unresolved host lead | Wazuh | `wazuh/telemetry.jsonl` | T10 |
-| T12 | Map collection coverage | Wazuh | `wazuh/telemetry.jsonl` | â€” |
-| T13 | Inspect acquired process-log records | Autopsy | `prepared/windows-process.json` | â€” |
-| T14 | Inspect acquired task-log records | Autopsy | `prepared/windows-task.json` | â€” |
-| T15 | Inspect the prepared memory process tree | Autopsy | `prepared/memory-processes.json` | â€” |
-| T16 | Correlate the acquired connection snapshot | Autopsy | `prepared/windows-connections.json` | â€” |
-| T17 | Inspect the harmless training binary configuration | Cutter | `binary/brief-viewer-training` | â€” |
-| T18 | Follow a small static code example | Cutter | `binary/brief-viewer-training` | â€” |
+| T12 | Map collection coverage | Wazuh | `wazuh/telemetry.jsonl` | - |
+| T13 | Inspect acquired process-log records | Autopsy | `prepared/windows-process.json` | - |
+| T14 | Inspect acquired task-log records | Autopsy | `prepared/windows-task.json` | - |
+| T15 | Inspect the prepared memory process tree | Autopsy | `prepared/memory-processes.json` | - |
+| T16 | Correlate the acquired connection snapshot | Autopsy | `prepared/windows-connections.json` | - |
+| T17 | Inspect the harmless training binary configuration | Cutter | `binary/brief-viewer-training` | - |
+| T18 | Follow a small static code example | Cutter | `binary/brief-viewer-training` | - |
 | T19 | Verify the transmitted payload | Linux file manager | `network/dlp-metadata.json` | T01, T05 |
 | T20 | Test the limits of the overall exposure conclusion | Wazuh | `wazuh/telemetry.jsonl` | T07, T09, T11, T19 |
 
 ### What the ticket shape teaches
 
-- **T06/T07** â€” a successful sign-in and a refreshed session are different events
-  with different weaknesses. T07 establishes that a password reset does *not* end
-  the session. Three of T20's four answers are `no`, and that is the intended
-  result.
-- **T10** â€” the benign comparator. Clearing WS-22 is worth more than another
+- **T06 / T07** - a successful sign-in and a refreshed session are different
+  events with different weaknesses. T07 establishes that a password reset does
+  *not* end the session. Three of T20's four answers are `no`, and that is the
+  intended result.
+- **T10** - the benign comparator. Clearing WS-22 is worth more than another
   suspicious finding, and it is the cheapest way for a team to lose the room.
-- **T11/T12** â€” the lead that cannot be closed, and the coverage record that
+- **T11 / T12** - the lead that cannot be closed, and the coverage record that
   explains why. Absence of telemetry is not absence of activity.
-- **T16** â€” an acquired live connection snapshot, explicitly *not* a validated
+- **T16** - an acquired live connection snapshot, explicitly *not* a validated
   memory-derived finding. Overstating it is the failure the exercise is built to
   catch.
-- **T17/T18** â€” a harmless surrogate and a small static example, present to teach
-  that configuration is not execution.
+- **T17 / T18** - a harmless surrogate and a small static example, present to
+  teach that configuration is not execution.
 
 ## 6. Surfaces
 
@@ -174,8 +174,8 @@ container desktop, opened through Thunar. Firefox 140 ESR is present, so
 |---|---|---|
 | CTFd question page | `http://<host>:8083/silent-ridge` | both contracts |
 | IRIS incident queue | `http://<host>:8081/silent-ridge` | both contracts |
-| Wazuh dashboard | `https://<host>:8443` | â€” (tool, not narrative) |
-| Guacamole desktop | `http://<host>:8082` | â€” |
+| Wazuh dashboard | `https://<host>:8443` | - (tool, not narrative) |
+| Guacamole desktop | `http://<host>:8082` | - |
 | Evidence tree | `/evidence` on the team desktop | fixture text files |
 | Event-day deck | 22 slides, projected PDF | contract, byte-verified |
 | Facilitator appendix | 2 slides, never projected | contract |
@@ -202,14 +202,14 @@ T09, BC-07 on T20. Only tickets with prerequisites can carry a release safely.
 
 **The deck's closing statement is not projected.** `exercise_complete.brief`,
 `.residual` and `.scoring_note` state the supported exposure and the residual
-unknowns â€” that is the scored conclusion. Projecting them from a briefing slide
-would pre-empt it, and `FORBIDDEN_REF_PREFIXES` blocks them with a test.
+unknowns, and that is the scored conclusion. Projecting them from a briefing
+slide would pre-empt it, and `FORBIDDEN_REF_PREFIXES` blocks them with a test.
 
 **The facilitator appendix is a separate project file** with its own banner,
 excluded from the participant projection set, so a facilitator pause or inject
 instruction can never be projected by accident.
 
-**Nothing names an adversary.** See Â§2.
+**Nothing names an adversary.** See section 2.
 
 ## 8. Optional breadcrumbs
 
@@ -218,10 +218,10 @@ instruction can never be projected by accident.
 
 | ID | Phase | Gate | Points at |
 |---|---|---|---|
-| BC-01 | phase-1 | â€” | the sensor capture and the DNS capture, then T02 |
-| BC-02 | phase-1 | â€” | the service catalogue, then T19 |
-| BC-03 | phase-2 | â€” | the recovered cache and the prepared process view, then T15 |
-| BC-04 | phase-2 | â€” | the service access log, then T08 |
+| BC-01 | phase-1 | - | the sensor capture and the DNS capture, then T02 |
+| BC-02 | phase-1 | - | the service catalogue, then T19 |
+| BC-03 | phase-2 | - | the recovered cache and the prepared process view, then T15 |
+| BC-04 | phase-2 | - | the service access log, then T08 |
 | BC-05 | phase-3 | T11 | the coverage record, then T12 |
 | BC-06 | phase-4 | T09 | the version comparison, then T09 |
 | BC-07 | phase-4 | T20 | the coverage record, then T12 |
@@ -233,9 +233,9 @@ be reconciled reliably with CTFd and IRIS.
 
 ## 9. The T01 exfiltration map
 
-`assets/t01-network-map-v1.json` â†’ `ridge/network_map.py` â†’ one self-contained
-offline HTML file. 19 nodes (4 host, 1 service, 1 external, 3 object, 10
-evidence-source) and 13 directed edges â€” **11 observed, 2 inferred**.
+`assets/t01-network-map-v1.json` is rendered by `ridge/network_map.py` into one
+self-contained offline HTML file. 19 nodes (4 host, 1 service, 1 external,
+3 object, 10 evidence-source) and 13 directed edges: **11 observed, 2 inferred**.
 
 - **Keys on `request` / `path` / `time`, never on `id`.**
   `expanded/prepare.py:128-132` rewrites the `id` column of every published CSV
@@ -279,7 +279,7 @@ are what cover an inventing surface.
 
 ## 11. Where the answers are
 
-`expanded/author.py` â€” `SPECS` (question/answer pairs and the unlock graph),
+`expanded/author.py` - `SPECS` (question and answer pairs and the unlock graph),
 `FINDINGS` (the finding posted to IRIS per question), `LIMITS` (per-tool
 limitation). Rendered by `ridge/state.py` into the `questions` table, bridged to
 CTFd and IRIS, and published by design.
@@ -299,9 +299,9 @@ narrative guards are enforced against narrative text specifically.
 
 ## 12. Known limits and open work
 
-- **The two contracts (Â§3) are undecided.** Everything else here assumes PR #151
-  merges, or that #129 is extended to absorb the guards and the additional
-  surfaces.
+- **The two contracts (section 3) are undecided.** Everything else here assumes
+  PR #151 merges, or that #129 is extended to absorb the guards and the
+  additional surfaces.
 - **The deck PDF is stale.** `kimi-slides` is not on this host and 404s from npm.
   The `.page` sources are authoritative; the committed PDF still shows the old
   13-slide deck and **must be rebuilt before the deck is projected**.
@@ -321,8 +321,8 @@ narrative guards are enforced against narrative text specifically.
   committed source; the only deterministic 500 found is a non-integer `freeze`
   config, which nothing in this repo sets. Not faked. See
   `docs/narrative-operations.md`.
-- **Two pre-existing flaky tests** â€” `tests/test_load.py` and
-  `tests/test_bounded_http.py` â€” fail roughly 2-3 runs in 6 on clean
+- **Two pre-existing flaky tests** - `tests/test_load.py` and
+  `tests/test_bounded_http.py` - fail roughly 2-3 runs in 6 on clean
   `upstream/main`. Socket races, not introduced here, not fixed.
 - **Guacamole is explained on one participant line** (`pages/15_step3.page`).
   The check proves it exists; it cannot prove anyone reads slide 15.
@@ -331,7 +331,7 @@ narrative guards are enforced against narrative text specifically.
 
 `docs/narrative-operations.md` is the operational runbook: how to change the
 narrative for a new run, how to reset or reseed it, how a facilitator verifies
-it is present, and a failure â†’ meaning â†’ where-to-look table for the consistency
+it is present, and a failure, meaning and where-to-look table for the consistency
 check.
 
 The short version: **edit the contract, not the surface.** Adding a sentence to
