@@ -4,16 +4,20 @@ Operation Silent Ridge is a cooperative defensive exercise. This document states
 what participants should be able to do afterwards, maps each objective to the NICE
 Framework, and names the exercise mechanism that produces the learning rather than
 merely describing the topic. It is written for the expanded implementation:
-twenty IRIS tickets, each with four CTFd coached questions, analysed with
-Wireshark, Autopsy, Wazuh, Cutter and a Linux file manager.
+twenty IRIS tickets, each with four CTFd coached questions, coordinated through
+IRIS and CTFd from a Guacamole desktop, and analysed with Wireshark, Autopsy,
+Wazuh, Cutter and a Linux file manager.
 
 Framework reference: [NIST SP 800-181 Rev. 1, Workforce Framework for Cybersecurity
 (NICE Framework)](https://csrc.nist.gov/pubs/sp/800/181/r1/final), NICE Framework
-Components version 2.2.0. Work Role IDs use the current `CATEGORY-WRL-NNN` form.
+Components version 2.2.0. The role/task relationships used below were checked
+against the [official Components 2.2.0 JSON](https://csrc.nist.gov/csrc/media/Projects/cprt/documents/nice/v2-2-0_nf_components.json)
+on 2026-09-29 and are recorded in `docs/nice-components-2.2.0-mapping.json`.
+Work Role IDs use the current `CATEGORY-WRL-NNN` form.
 The 2017 IDs are deprecated; where an organization still reports them, the two most
 common equivalents are Cyber Defense Analyst `PR-CDA-001` (now Defensive
 Cybersecurity `PD-WRL-001`) and Cyber Defense Incident Responder `PR-CIR-001` (now
-Incident Response `PD-WRL-003`). Task IDs are stable across the revision.
+Incident Response `PD-WRL-003`).
 
 ## How learning is facilitated
 
@@ -28,7 +32,8 @@ the teaching load in the expanded implementation:
    checks every released category.
 2. **Tool-mediated analysis.** Each ticket names a tool and a starting selection:
    Wireshark (`udp.port == 514`, `dns`), Autopsy (a prepared case with disk, log and
-   memory sources), Wazuh (a `silent-ridge-*` historical data view), Cutter (a
+   memory sources), Wazuh (`silent-ridge-timed` for dated events and
+   `silent-ridge-timeless` for undated coverage/catalog records), Cutter (a
    harmless static training binary) and the Linux file manager (CSV). Participants
    learn the tool by answering a specific, evidence-bounded question.
 3. **Coached, gated questions.** Teams claim one IRIS ticket at a time. Its four
@@ -63,14 +68,17 @@ conventions, recording every correction and never editing the source.
 | Digital Forensics `PD-WRL-002` | T0173 Perform timeline analysis; T0168 Perform data comparison against established database |
 | Defensive Cybersecurity `PD-WRL-001` | T1084 Identify anomalous network activity; T1386 Analyze network traffic anomalies |
 
-**Mechanism.** Tickets `T01`/`T02` (Wireshark), `T03`/`T04` (Autopsy) and `T12`
-(coverage) apply the documented 120-second WS-17 device correction; Wazuh/SIEM times
-are already normalized. `T13`/`T14` instead read the separate native Windows
-reconstruction, whose `assets/native-windows-v1/manifest.json` records **actual
-acquisition UTC**; the historical 120-second offset must not be applied to those
-acquisition timestamps. `expanded/guides.md` instructs participants to correct only
-when a source gives an offset and never to re-correct normalized or acquisition
-records; the authored findings record the correction or its absence.
+**Mechanism.** `T01`/`T02` (Wireshark) and `T03` (Autopsy) read timestamps that are
+already normalized. Only `T04` applies the documented 120-second WS-17 device
+correction. `T12` reports that offset from an undated coverage record in
+`silent-ridge-timeless`; it does not apply the correction or use an absolute time
+range. `T13`/`T14` instead read the separate native Windows reconstruction captured
+on **2026-09-15**, whose `assets/native-windows-v1/manifest.json` records **actual
+acquisition UTC** rather than the fictional 2026-10-15 scenario time; the historical
+offset must not be applied to those acquisition timestamps. `expanded/guides.md`
+instructs participants to correct only `device_time` and never to re-correct
+normalized or acquisition records; the authored findings record the correction or
+its absence.
 
 **Achievement evidence.** Corrected times that reconcile across at least two tools
 (for example the corrected viewer start and task registration), with the offset
@@ -89,12 +97,16 @@ what the evidence does and does not establish.
 **Mechanism.** The chain closes only when records are joined by identifiers:
 `req-71` links the plan download to document-service access; session `S-41` spans
 identity, endpoint and server; the cached hash links the recovered file to the
-catalog; `T19` compares the DLP body hash with `server/catalog.csv`. `T20` is a
-synthesis ticket that requires `T07`, `T09`, `T11` and `T19` before it unlocks.
+catalog; `T15` traces the prepared memory process tree from viewer PID to parent and
+cache argument; `T16` correlates that PID with an acquired guest-local connection
+snapshot; and `T19` compares the DLP body hash with `server/catalog.csv`. `T20` is a
+synthesis ticket that requires `T07`, `T09`, `T11` and `T19` before it unlocks. The
+`T16` address was assigned to guest loopback while networking was disabled, so the
+snapshot establishes neither Internet traffic nor human receipt.
 
-**Achievement evidence.** Answers that cite the joining identifier and each finding's
-stated limitation, plus the `T20` conclusion that distinguishes transmission from
-human receipt and intent.
+**Achievement evidence.** Answers that cite the joining identifier, process ancestry
+or payload hash and each finding's stated limitation, plus the `T20` conclusion that
+distinguishes transmission from human receipt and intent.
 
 ### LO3 — Preserve and handle digital evidence defensibly
 
@@ -106,13 +118,15 @@ prepared artifacts.
 | Digital Forensics `PD-WRL-002` | T1120 Create forensically sound duplicates of evidence; T1510 Preserve digital evidence; T1199 Identify digital evidence for analysis; T0167 Perform file signature analysis; T1607 Recover information from forensic data sources |
 
 **Mechanism.** Autopsy tickets open a **copy** of a closed prepared case while
-`/evidence` stays mounted read-only; `T05` recovers a deleted cache entry by
-searching a surviving suffix. `expanded/guides.md` states that imaging, live
-containment, agent installation and large ingest jobs are out of scope. The artifact
-manifest and verifier enforce integrity, and `T17`/`T18` inspect a harmless training
-binary statically in Cutter without executing it. Reading the supplied read-only
-originals is coached practice; it does not itself demonstrate acquiring a forensic
-duplicate, and no scored item claims that skill.
+`/evidence` and `/originals` stay mounted read-only; `T05` recovers a deleted cache
+entry by searching a surviving suffix. Native prepared records retain `original_path`
+and `original_sha256` so their derivation can be checked against the supplied
+original. `expanded/guides.md` states that imaging, live containment, agent
+installation and large ingest jobs are out of scope. The artifact manifest and
+verifier enforce integrity, and `T17`/`T18` inspect a harmless training binary
+statically in Cutter without executing it. Reading the supplied read-only originals
+is coached practice; it does not itself demonstrate acquiring a forensic duplicate,
+and no scored item claims that skill.
 
 **Achievement evidence.** Correct use of the writable case copy and read-only
 evidence, deleted-file recovery, and findings that trace back to a source reference
@@ -169,10 +183,11 @@ conclusion is possible.
 | Defensive Cybersecurity `PD-WRL-001` | T1350 Perform continuous monitoring of system activity |
 | Insider Threat Analysis `PD-WRL-005` | T1743 Identify information collection gaps |
 
-**Mechanism.** Wazuh tickets use an absolute scenario-date UTC range against the
-`silent-ridge-*` view; `T10` establishes a benign host, `T11` an unresolved lead and
-`T12` the coverage map. The `T11` and `T20` questions require a host-versus-IP
-inventory comparison and explicitly forbid clearing an unobservable host.
+**Mechanism.** Timed Wazuh tickets use the absolute scenario-date UTC range against
+`silent-ridge-timed`; `T10` establishes a benign host and `T11` an unresolved lead.
+`T12` uses `silent-ridge-timeless` for the undated coverage map. The `T11` questions
+compare host inventory with collection coverage and explicitly forbid clearing an
+unobservable host.
 
 **Achievement evidence.** Reproducible queries or filters per hypothesis and a scope
 position (supported / suspected / benign / unobservable) that keeps unresolved hosts
@@ -186,11 +201,12 @@ evidence and limits are explicit, without a manual report.
 | Work role | Tasks |
 |---|---|
 | Incident Response `PD-WRL-003` | T1332 Produce incident findings reports; T1333 Communicate incident findings; T1316 Document incidents; T1251 Recommend remediation strategies |
-| Defensive Cybersecurity `PD-WRL-001` | T1241 Document cybersecurity incidents; T1428 Notify designated managers of suspected incidents; T1603 Recommend threat and vulnerability risk mitigation strategies |
+| Defensive Cybersecurity `PD-WRL-001` | T1241 Document cybersecurity incidents; T1603 Recommend threat and vulnerability risk mitigation strategies |
 
 **Mechanism.** Each CTFd question states a format ("Enter only the requested value;
-times use HH:MM:SS UTC") and is graded against a normalized answer. A correct answer
-queues an authored IRIS finding that includes `text`, `evidence` and `limitation`.
+times use HH:MM:SS UTC. Case and outer whitespace are ignored.") and is graded using
+that exact rule. A correct answer queues an authored IRIS finding that includes
+`text`, `evidence` and `limitation`.
 The queue's one-ticket-at-a-time gating and the dependency chain pace the work; the
 durable outbox and application-side receipts keep accepted findings from duplicating
 across outages, subject to the tested adapter behavior described above.
@@ -227,11 +243,12 @@ tool is the analysis mechanism.
 |---|---|---|---|
 | `T01`, `T02` | Wireshark — packet and DNS correlation | Defensive Cybersecurity `PD-WRL-001` | Digital Forensics `PD-WRL-002` |
 | `T03`, `T04`, `T05`, `T08` | Autopsy — disk, browser, persistence, access | Digital Forensics `PD-WRL-002` | Defensive Cybersecurity `PD-WRL-001` |
-| `T13`, `T14` | Autopsy — prepared process/task logs | Digital Forensics `PD-WRL-002` | Incident Response `PD-WRL-003` |
-| `T15`, `T16` | Autopsy — memory-derived process tree (`T15`); acquired live connection snapshot (`T16`, not a validated memory connection) | Digital Forensics `PD-WRL-002` | Incident Response `PD-WRL-003` |
+| `T13`, `T14` | Autopsy — “Inspect acquired process-log records”; “Inspect acquired task-log records” | Digital Forensics `PD-WRL-002` | Incident Response `PD-WRL-003` |
+| `T15`, `T16` | Autopsy — “Inspect the prepared memory process tree”; “Correlate the acquired connection snapshot” (`T16` is not a validated memory connection) | Digital Forensics `PD-WRL-002` | Incident Response `PD-WRL-003` |
 | `T06`, `T07` | Wazuh — session and credential actions | Incident Response `PD-WRL-003` | Insider Threat Analysis `PD-WRL-005`; Defensive Cybersecurity `PD-WRL-001` |
 | `T09`, `T19` | File manager — version and payload comparison | Defensive Cybersecurity `PD-WRL-001` | Vulnerability Analysis `PD-WRL-007` |
-| `T10`, `T11`, `T12`, `T20` | Wazuh — hunting, coverage and synthesis | Threat Analysis `PD-WRL-006` | Defensive Cybersecurity `PD-WRL-001`; Insider Threat Analysis `PD-WRL-005` |
+| `T10`, `T11`, `T12` | Wazuh — hunting and coverage | Threat Analysis `PD-WRL-006` | Defensive Cybersecurity `PD-WRL-001`; Insider Threat Analysis `PD-WRL-005` |
+| `T20` | Cross-source synthesis — limits of the overall exposure conclusion | Incident Response `PD-WRL-003` | Defensive Cybersecurity `PD-WRL-001`; Threat Analysis `PD-WRL-006` |
 | `T17`, `T18` | Cutter — static binary inspection | Digital Forensics `PD-WRL-002` | Vulnerability Analysis `PD-WRL-007` |
 
 ## How the after-action review revisits the objectives
@@ -268,11 +285,12 @@ Three limits matter for formal training credit:
   by itself demonstrate acquiring a forensic duplicate or unaided mastery, and no
   scored item treats it as such.
 - **The workload is an estimate.** The 1,300 team-minute figure is arithmetic, not a
-  measurement. Ten teams sharing one global ticket owner divide it into about 130
-  estimated minutes per team before dependencies, idle time and AAR — below the
-  four-hour goal — so beginner rehearsal is required before relying on it. The NICE
-  Work Role and Task IDs above are pinned to Components version 2.2.0; re-verify
-  them against that pinned official release before claiming a formal mapping.
+  measurement. With ten teams and current dependencies, the scheduling model has a
+  195-minute simulated makespan and critical path. The event target is 240–300
+  minutes, with a 270-minute planning midpoint, including facilitated segments;
+  beginner rehearsal is still required before relying on those figures. The NICE
+  Work Role and Task IDs above are pinned to Components version 2.2.0 and checked
+  against the compact official-source receipt named above.
 
 ## Maintenance
 
@@ -280,5 +298,6 @@ Work role and task IDs track NICE Framework Components version 2.2.0 (SP 800-181
 Rev. 1). When NIST publishes a new Components version, re-verify the `PD-WRL-*`
 IDs and task statements against the [NICE Framework Resource
 Center](https://www.nist.gov/itl/applied-cybersecurity/nice/resources/nice-framework)
-before reusing this mapping. When tickets are added or retitled in
-`expanded/author.py`, update the crosswalk above.
+and replace `docs/nice-components-2.2.0-mapping.json` before reusing this mapping.
+When tickets are added or retitled in `expanded/author.py`, update the crosswalk
+above.

@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "framework_publication": "NIST SP 800-181 Rev. 1, Workforce Framework for Cybersecurity (NICE Framework)",
+  "components_version": "2.2.0",
+  "source_url": "https://csrc.nist.gov/csrc/media/Projects/cprt/documents/nice/v2-2-0_nf_components.json",
+  "retrieved_date": "2026-09-29",
+  "scope": "Official role/task relationships used by docs/learning-objectives.md; this compact receipt is not a complete copy of NICE Components.",
+  "validated_role_task_pairs": {
+    "PD-WRL-001": ["T1084", "T1241", "T1348", "T1350", "T1351", "T1386", "T1391", "T1548", "T1603"],
+    "PD-WRL-002": ["T0167", "T0168", "T0173", "T1120", "T1199", "T1510", "T1607"],
+    "PD-WRL-003": ["T0510", "T1250", "T1251", "T1252", "T1316", "T1332", "T1333", "T1485", "T1489"],
+    "PD-WRL-005": ["T1084", "T1324", "T1743", "T1986"],
+    "PD-WRL-006": ["T0718", "T1053", "T1054", "T1643", "T1768"],
+    "PD-WRL-007": ["T1020"]
+  }
+}
