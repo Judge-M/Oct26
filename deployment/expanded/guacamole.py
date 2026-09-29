@@ -94,7 +94,7 @@ def reconcile(config,credentials):
     for team in teams:
         credential=credentials['teams'][team['id']]
         name=credential['username'];password=credential['password']
-        if name in names or len(password)<20:raise ValueError('Unique usernames and strong generated passwords required')
+        if name in names or not password:raise ValueError('Unique usernames and non-empty passwords required')
         names.add(name)
         digest=hashlib.sha256(password.encode()).hexdigest()
         sql.append('INSERT INTO guacamole_entity(name,type) VALUES ('+quote(name)+",'USER') ON CONFLICT (name,type) DO NOTHING;")
@@ -104,7 +104,7 @@ def reconcile(config,credentials):
         sql.append("INSERT INTO guacamole_connection_permission(entity_id,connection_id,permission) SELECT e.entity_id,c.connection_id,'READ' FROM guacamole_entity e,guacamole_connection c WHERE e.name="+
                    quote(name)+" AND e.type='USER' AND c.connection_name="+quote(team['desktop'])+" ON CONFLICT DO NOTHING;")
     facilitator=credentials.get('facilitator')
-    if not facilitator or not facilitator.get('username') or len(facilitator.get('password',''))<20:
+    if not facilitator or not facilitator.get('username') or not facilitator.get('password'):
         raise ValueError('Generated facilitator administrator credentials required')
     admin_name=facilitator['username']
     if admin_name in names or admin_name=='guacadmin':

@@ -81,15 +81,14 @@ class GuacamoleReconcileTests(unittest.TestCase):
         sql = guac.reconcile(config(), credentials())
         self.assertNotIn('admin-long-generated-password', sql)
 
-    def test_unmapped_desktop_and_weak_login_rejected(self):
+    def test_unmapped_desktop_and_empty_login_rejected(self):
         bad = config()
         bad['teams'][0]['desktop'] = 'desk-z'
         with self.assertRaisesRegex(ValueError, 'Team desktop missing'):
             guac.reconcile(bad, credentials())
-        weak = credentials()
-        weak['teams']['team-a']['password'] = 'short'
-        with self.assertRaisesRegex(ValueError, 'strong generated passwords'):
-            guac.reconcile(config(), weak)
+        short = credentials()
+        short['teams']['team-a']['password'] = 'short'
+        self.assertTrue(guac.reconcile(config(), short).startswith('BEGIN;'))
 
 
 if __name__ == '__main__':
