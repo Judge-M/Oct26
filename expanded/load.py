@@ -197,6 +197,23 @@ def resolve_target_urls(config):
         result[service + '_url'] = f'https://{bind}:{port}'
     return result
 
+
+def resolve_iris_case_path(config):
+    """Resolve the seeded IRIS case route from the same runtime as credentials."""
+    explicit = config.get('iris_case_path')
+    if explicit:
+        return explicit
+    runtime = Path(config['credentials']).parent.parent
+    inventory_path = runtime / 'inventories' / 'iris-inventory.json'
+    try:
+        inventory = json.loads(inventory_path.read_text(encoding='utf-8'))
+        case_id = inventory['inventory']['case']['id']
+        if isinstance(case_id, bool) or int(case_id) <= 0:
+            raise ValueError('case id must be positive')
+    except (OSError, ValueError, TypeError, KeyError, json.JSONDecodeError) as exc:
+        raise LoadError(f'Cannot resolve IRIS case from {inventory_path}') from exc
+    return '/case/tasks?cid=' + str(int(case_id))
+
 PAGE_NONCE = re.compile(rb'name="nonce"\s+value="([^"]+)"')
 PAGE_QUESTION = re.compile(rb'name="question"\s+value="([^"]+)"')
 
@@ -249,9 +266,11 @@ class CtfdBot:
 class IrisBot:
     """One IRIS case participant: login and poll case/activity views."""
 
-    def __init__(self, base, login_name, password, samples, ca_file=None):
+    def __init__(self, base, login_name, password, samples, ca_file=None,
+                 case_path='/case/tasks'):
         self.client = TimedClient(base, samples, ca_file)
         self.login_name, self.password = login_name, password
+        self.case_path = case_path
 
     def login(self):
         page = self.client.request('iris:login-page', '/login')
@@ -266,7 +285,8 @@ class IrisBot:
         self.client.request('iris:dashboard', '/dashboard',
                             require_authenticated=True, required_marker=b'Logout')
         if rng.random() < 0.5:
-            self.client.request('iris:case', '/case', require_authenticated=True)
+            self.client.request('iris:case', self.case_path,
+                                require_authenticated=True)
 
 
 def outbox_depth(state_sqlite):
@@ -435,7 +455,8 @@ def run(config, duration, output):
             if password:
                 bots.append(CtfdBot(config['ctfd_url'], user, password, samples, ca_file))
         bots.append(IrisBot(config['iris_url'], entry['iris_login'],
-                            entry['iris_password'], samples, ca_file))
+                            entry['iris_password'], samples, ca_file,
+                            resolve_iris_case_path(config)))
     if not bots:
         raise LoadError('No credentials matched the requested team count')
     login_bots(bots)  # fail fast on auth problems before the clock starts

@@ -10,7 +10,8 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 from expanded.load import (CtfdBot, IrisBot, LoadError, TimedClient, build_report,
                            login_bots, markdown, mib, outbox_depth, percentile,
-                           resolve_target_urls, retry_after_seconds)
+                           resolve_iris_case_path, resolve_target_urls,
+                           retry_after_seconds)
 
 
 class PercentileTests(unittest.TestCase):
@@ -260,6 +261,17 @@ class TargetUrlTests(unittest.TestCase):
 
         with self.assertRaisesRegex(LoadError, '192.168.1.200:8083'):
             login_bots([OfflineBot()])
+
+    def test_iris_case_path_uses_runtime_inventory(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            runtime = os.path.join(tmp, 'runtime')
+            os.makedirs(os.path.join(runtime, 'secrets'))
+            os.makedirs(os.path.join(runtime, 'inventories'))
+            with open(os.path.join(runtime, 'inventories', 'iris-inventory.json'),
+                      'w', encoding='utf-8') as stream:
+                json.dump({'inventory': {'case': {'id': 37}}}, stream)
+            config = {'credentials': os.path.join(runtime, 'secrets', 'team-credentials.json')}
+            self.assertEqual(resolve_iris_case_path(config), '/case/tasks?cid=37')
 
 
 class AuthPageTests(unittest.TestCase):
