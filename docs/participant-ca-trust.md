@@ -23,6 +23,27 @@ will not trust it until their own device trusts its public certificate.
 
 ## Windows participant device
 
+The repository includes `scripts/setup-participant-windows.ps1` for the final
+participant handoff. It accepts a runtime, the private credential handoff path,
+and a JSON file containing the four HTTPS URLs. It first checks the public CA,
+certificate metadata, and TCP reachability; `-DryRun` and `-VerifyOnly` make no
+trust or file changes. A typical verified run is:
+
+```powershell
+.\scripts\setup-participant-windows.ps1 `
+  -Runtime .\runtime `
+  -CredentialFile .\runtime\secrets\team-credentials.json `
+  -Config .\participant-endpoints.json -VerifyOnly
+```
+
+After independently checking the displayed CA fingerprint, rerun with
+`-ImportCertificate`. The script scopes the import to the current user's root
+store and asks for confirmation immediately before changing trust. Add
+`-OpenTabs` only after the service checks pass; it opens the four HTTPS URLs and
+never puts credentials in URLs or browser history. The handoff directory is
+ACL-protected and contains only the copied credential file plus a non-secret
+README. It is private event state and must not be committed or uploaded.
+
 1. Compare the received `root-ca.cer` fingerprint with the organizer's
    independently supplied fingerprint. The DER file's SHA-256 file hash is
    exactly the certificate fingerprint:
