@@ -63,10 +63,39 @@ def check_consistency(path=None):
     return narrative_consistency.check_deployment(path)
 
 
+def check_learning_objectives(path=None):
+    """Prove the learning objectives still describe this deployment, and carry the NICE gate.
+
+    Read-only, offline and deterministic. It reports rather than raises, because
+    the mapping gate is open by design: ``docs/learning-objectives.md`` states
+    that its NICE identifiers are unverified candidates, and a deployment receipt
+    has to say so out loud rather than fail a preflight over an honest caveat. A
+    fixture that does not validate is reported the same way, with the reason, so
+    the receipt never claims a coverage this host cannot prove.
+    """
+    from ridge import learning_objectives
+
+    try:
+        document = learning_objectives.build(path)
+        receipt = learning_objectives.report(document)
+    except learning_objectives.ObjectivesError as error:
+        return {'ready': False, 'proved': False, 'reason': str(error)}
+    return {'ready': True, 'proved': True, 'revision': receipt['revision'],
+            'document': receipt['document'], 'objectives': receipt['objectives'],
+            'tickets': receipt['tickets'], 'unclaimed_tickets': receipt['unclaimed'],
+            'views': receipt['views'],
+            'nice': {'verified': receipt['nice']['verified'],
+                     'mappings': receipt['nice']['mappings'],
+                     'unverified_mappings': receipt['nice']['unverified_mappings'],
+                     'verified_against': receipt['nice']['verified_against'],
+                     'reason': receipt['nice']['reason']}}
+
+
 def check(state, config):
     state.diagnostics()
     narrative=check_narrative()
     consistency=check_consistency()
+    objectives=check_learning_objectives()
     with state.transaction(write=False) as con:
         teams=[dict(r) for r in con.execute('SELECT * FROM teams ORDER BY id')]
         tickets=[dict(r) for r in con.execute('SELECT * FROM tickets')]
@@ -131,7 +160,8 @@ def check(state, config):
                            'revision':consistency['revision'],
                            'surfaces':consistency['surfaces'],
                            'surfaces_not_proved':sorted(consistency['surfaces_not_proved']),
-                           'leak_guard':consistency['leak_guard']}}
+                           'leak_guard':consistency['leak_guard']},
+            'learning_objectives':objectives}
 
 
 def check_desktop(questions, home, template=None):

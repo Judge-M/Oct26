@@ -1,0 +1,506 @@
+{
+  "schema": 1,
+  "revision": "learning-objectives-1, issue #157, 2026-09-29",
+  "title": "Learning objectives and NICE Framework mapping",
+  "intro": "Operation Silent Ridge is a cooperative defensive exercise. This document states what participants should be able to do afterwards, names the exercise mechanism that produces each capability rather than describing the topic, and records where that mechanism lives. It is written for the expanded implementation: twenty IRIS tickets, each with four CTFd coached questions, analysed with Wireshark, Autopsy, Wazuh, Cutter and a Linux file manager. Participants reach the queue and the findings through IRIS, the questions and the points through CTFd, and the shared desktop through Guacamole; the Wazuh dashboard is opened in their own browser. Every claim below is rendered from `assets/learning-objectives-v1.json` and checked against the tree it describes, so this file cannot drift from the exercise. See also the [narrative overview](narrative-overview.md).",
+  "status": "The framework mapping below is unverified and says so. Everything else in this document is derived from committed source and regenerated with `python -m ridge.learning_objectives --write`.",
+  "objectives_heading": "Objectives",
+  "objectives_intro": "Nine objectives, each stated as something a participant can do rather than a topic they have been exposed to, each naming the tickets that score it and the mechanism in the exercise that produces it. A ticket may be claimed by more than one objective where the same investigation genuinely serves two capabilities; `validate` refuses the document while any ticket is claimed by none.",
+  "objectives_axis_note": "The ordering below is deliberate on two points. Provenance and clock semantics sit before chain-building, because a join made across two clocks is not a join. And the observed-versus-inferred discipline has an objective of its own, because the repository enforces it hardest in code: `ridge/scenario_contract.py`, `ridge/network_map.py` and every authored finding's `limitation` all exist to keep a claim inside what a record states.",
+  "framework": {
+    "heading": "The framework mapping, and why it is not verified",
+    "base": "The current framework is **NICE Framework 4.0**, published in **NIST SP 800-160 Rev. 2**, restructured around TLP elements: Task, Knowledge and Skill.",
+    "current": "NICE Framework 4.0 (NIST SP 800-160 Rev. 2)",
+    "superseded": "NIST SP 800-181 Rev. 1 / NICE Framework Components version 2.2.0, with the 2.0-era role identifiers `PR-CDA-001` and `PR-CIR-001`",
+    "supersession_note": "SP 800-181 Rev. 1 is superseded. The Planning Note that accompanies NIST SP 800-181 Rev. 1 records that the Workforce Framework for Cybersecurity is now maintained as NICE Framework 4.0 in SP 800-160 Rev. 2. That supersession is the one framework fact this repository can state as verified.",
+    "verification_required": "Every four-digit task identifier and every `PD-WRL-*` work role identifier below is carried as **unverified candidate** text from the superseded 2.2.0 listing. None has been checked against the 4.0 catalogue, because that catalogue was not reachable when this document was generated. They are printed so a reviewer can adjudicate them, not because they are asserted: 4.0 reorganised tasks around TLP elements, so an identifier that was correct in 2.2.0 may be renumbered, absorbed or withdrawn.",
+    "withdrawn": "The previous revision of this document asserted that task IDs are stable across the NICE revision, with no citation. That assertion is withdrawn: a restructuring around TLP elements makes stability implausible and nothing in this repository evidences it. Candidate entries naming a capability the exercise states it does not demonstrate - forensic duplication, notification, containment - were removed rather than carried, so the mapping does not assert what the run cannot show.",
+    "verified_against": null
+  },
+  "phases": {
+    "heading": "Investigation phases, and an open partition decision",
+    "intro": "The exercise is delivered in four investigation phases. `ridge/narrative.py` feeds a phase, a briefing, a stake and a handoff into every authored ticket, so each ticket arrives with its context rather than as a bare prompt.",
+    "conflict": "**Two fixtures in the tree partition the twenty tickets differently, and this document does not assert either partition as fact.** Naming one as *the* phase layout would be a claim this repository cannot support until the conflict is decided.",
+    "decision": "The decision is open in PR #151, which is the same pull request that carries the contract, the deck, the map and the ten cross-surface guards. Until it lands, a ticket's phase is a property of the surface being read, not of the exercise.",
+    "consequence": "What a reader can rely on today is the unlock graph in `expanded/author.py`: prerequisites, not phases, decide what a team can work and in what order.",
+    "sources": [
+      {"fixture": "assets/scenario-narrative-v1.json"},
+      {"fixture": "ridge/scenario_narrative_v1.json"}
+    ]
+  },
+  "views": {
+    "heading": "Tool and view semantics",
+    "intro": "Two Wazuh data views are provisioned for this exercise and the authored steps select between them. The previous revision of this document told participants to use one `silent-ridge-*` view with an absolute UTC range for every Wazuh ticket, which cannot produce the coverage ticket's answers: its own step is overridden to use a view without a time field.",
+    "rule": "A coverage or catalogue record describes a collection interval rather than an event, so it carries no event timestamp and a time picker cannot select it. `ridge/scenario.py` encodes the same distinction in `TIMELESS_SOURCES`.",
+    "history": "This is the defect `ridge/learning_objectives.py` now refuses to let back in: the documented view partition is derived from the authored ticket steps, so merging the two views fails validation.",
+    "silent-ridge-timed": {
+      "tickets": ["T06", "T07", "T10", "T11", "T20"],
+      "reason": "dated event and inventory records; absolute scenario-date UTC range"
+    },
+    "silent-ridge-timeless": {
+      "tickets": ["T12"],
+      "reason": "coverage records carry no event timestamp, so the time picker hides them"
+    }
+  },
+  "clock": {
+    "heading": "Clock semantics and the two dates",
+    "intro": "`ridge/scenario.py` subtracts the documented device offset from a `device_time` field and from no other field. Proxy and DNS rows carry an already-normalized `time`, and the telemetry loader normalizes to UTC once.",
+    "rule": "Apply a correction only where the source gives an offset, and never re-correct a record that is already normalized. `expanded/guides.md` states the same rule to participants.",
+    "dates": "The two dates are a month apart on purpose, and the divergence is the lesson. The historical incident is dated {scenario_date}. The native Windows reconstruction recorded in assets/native-windows-v1/manifest.json was acquired {acquisition_date}, and its records carry actual\nacquisition UTC rather than historical incident time. A team that applies the historical offset to the native records has joined two evidence systems and two clocks, which is the error those two tickets exist to catch.",
+    "host": "WS-17",
+    "seconds": 120,
+    "applied_by": ["T04"],
+    "asked_about": ["T12"],
+    "must_not_apply": ["T13", "T14", "T15", "T16"]
+  },
+  "acquisition": {
+    "scenario_date": "2026-10-15",
+    "acquisition_date": "2026-09-15"
+  },
+  "network_map": {
+    "heading": "The T01 exfiltration network map",
+    "intro": "`assets/t01-network-map-v1.json` renders as one self-contained offline view of the reconstructed outbound path. It is an additional analytical view, not a second source of truth: it replaces no question, adds none and scores nothing.",
+    "gating": "It is deliberately **not** a released evidence file. Transport publishes a ticket's release files when that ticket unlocks, and T01 unlocks at run start, so a released map would have named the destination before the ticket that scores it was answered. It is served from the question page and gated on the same condition that closes T01. `ridge/network_map.py` records the reasoning.",
+    "labels": "Every edge carries `observed` or `inferred`. An observed edge is stated in full by one published record; an inferred edge joins two or more records and names what it joins and what it does not show. Records are joined on request, path and normalized UTC time, never on the rewritten id column."
+  },
+  "workload": {
+    "heading": "Duration",
+    "text": "The exercise has {tickets} tickets and {questions} scored questions. Authored estimates total {estimated_team_minutes} team-minutes, about {average_team_minutes} minutes per team for {teams} teams, and the simulated makespan is {makespan_minutes} minutes on the critical path {critical_path}. The configured activity target is {target_minutes} minutes.",
+    "notes": [
+      "The per-team figure is a quotient, not a plan: ten teams share one global owner per ticket, and the dependency chain with the limited number of initially available tickets is what sets the makespan.",
+      "The previous revision of this document called the target a four-hour goal and omitted the makespan. The configured target is {target_minutes} minutes, the midpoint of the event owner's confirmed 240-300 minute activity window (decided 2026-09-17), and the modelled makespan is {makespan_minutes} minutes.",
+      "Free walkthroughs reduce unaided work below the estimate, so the authored content covers roughly half the target window. Closing that gap means more authored content or facilitated segments around the investigations, not duplicated scoreable tickets per team.",
+      "Every figure here is planning arithmetic from `expanded/author.py`, not a measurement. Only a beginner rehearsal, recorded on the [rehearsal worksheet](rehearsal-worksheet.md), can replace it; the current numbers are in the [workload inventory](workload.md)."
+    ]
+  },
+  "objectives": [
+    {
+      "id": "LO1",
+      "title": "State where every timestamp came from",
+      "statement": "Name the source and the clock convention behind every time quoted, apply a correction only where the source gives one, and never re-correct a record that is already normalized or already dated by an acquisition.",
+      "tickets": ["T03", "T04", "T12", "T13", "T14"],
+      "mechanism": "Only `T04` applies the documented 120-second WS-17 device correction, because the offset is subtracted from a `device_time` field and from nothing else; `T12` asks the offset's value and is read in the view without a time field, so a second correction there is visibly wrong. `T13` and `T14` are a different evidence system on a different day: the native reconstruction acquired 2026-09-15, whose manifest records actual acquisition UTC, and `T14` scores `no` for applying the historical offset to it. `T03` supplies the already-normalized browser record the corrected endpoint time is reconciled against.",
+      "achievement_evidence": "Times quoted with their source and convention, the offset applied exactly once to the one field that carries a device clock, and an answer that keeps the acquisition clock distinct from the scenario clock.",
+      "nice": {
+        "status": "unverified",
+        "roles": [
+          {
+            "role_id": "PD-WRL-001",
+            "role": "Defensive Cybersecurity",
+            "candidate_tasks": [
+              {"id": "T1250", "statement": "Perform incident triage", "verified": false}
+            ]
+          },
+          {
+            "role_id": "PD-WRL-002",
+            "role": "Digital Forensics",
+            "candidate_tasks": [
+              {"id": "T0168", "statement": "Perform data comparison against established database", "verified": false}
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "LO2",
+      "title": "Build the chain only where records share an identifier",
+      "statement": "Join two records only where they share an identifier, and say which identifier does the joining. A causal story held together by plausibility is not a chain.",
+      "tickets": ["T01", "T02", "T03", "T05", "T13", "T14", "T15", "T16", "T19"],
+      "mechanism": "One request identifier links the plan download on the wire to the server access record and a second links the outbound upload to the transmitted body; a resolved name links the lookup to the address; a session identifier spans identity, endpoint and server records; a content hash links the transmitted body to the service catalogue. `T15` is the join the exercise needs most: the recovered cache file name and the cache argument recorded in the running process are the same string, so a deleted file and a live process corroborate each other instead of merely repeating. `T16` then carries the same process identifier across the acquired process, memory and connection records.",
+      "achievement_evidence": "Answers that name the joining identifier rather than the resemblance, and at least one place where two records were *not* joined because nothing identified them as the same thing.",
+      "nice": {
+        "status": "unverified",
+        "roles": [
+          {
+            "role_id": "PD-WRL-001",
+            "role": "Defensive Cybersecurity",
+            "candidate_tasks": [
+              {"id": "T1391", "statement": "Reconstruct malicious attacks", "verified": false},
+              {"id": "T1348", "statement": "Distinguish between benign and potentially malicious attacks and intrusions", "verified": false}
+            ]
+          },
+          {
+            "role_id": "PD-WRL-003",
+            "role": "Incident Response",
+            "candidate_tasks": [
+              {"id": "T1489", "statement": "Correlate incident data", "verified": false},
+              {"id": "T1252", "statement": "Determine the scope, urgency, and impact of cyber defense incidents", "verified": false}
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "LO3",
+      "title": "Keep the evidence defensible",
+      "statement": "Work from a copy, treat the released source and the untouched original as two different objects, and verify the link between them before you rely on a value.",
+      "tickets": ["T05", "T13", "T14", "T17"],
+      "mechanism": "There are two read-only mounts, not one: released sources under `/evidence` and the untouched originals under `/originals`. The Autopsy tickets open a writable copy of the prepared case on the team desktop while both mounts stay read-only, and the prepared native records carry `original_path` and `original_sha256`, so the prepared view can be checked against the original it was derived from. `T05` recovers a deleted cache entry by searching a surviving filename suffix rather than assuming its contents. The Cutter training binary is a real artifact gated on a hash and is inspected statically, never executed. Imaging, live containment, agent installation and large ingest jobs are out of scope during the exercise.",
+      "achievement_evidence": "A finding whose value traces to a released source, and where a native record is used, to the original hash it names; the writable case used for work and nothing written to either mount; the deleted entry recovered rather than assumed.",
+      "nice": {
+        "status": "unverified",
+        "roles": [
+          {
+            "role_id": "PD-WRL-002",
+            "role": "Digital Forensics",
+            "candidate_tasks": [
+              {"id": "T1510", "statement": "Preserve digital evidence", "verified": false},
+              {"id": "T1199", "statement": "Identify digital evidence for analysis", "verified": false}
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "LO4",
+      "title": "Judge whether the credential action contained the incident",
+      "statement": "Separate the two authentication events, read the multi-factor semantics of the session, and decide from the supplied policy whether the credential action actually ended the session.",
+      "tickets": ["T06", "T07"],
+      "mechanism": "`T06` uses the Wazuh replay to separate the external session refresh from the failed password login, and to read the refresh's multi-factor field rather than assuming a fresh challenge was performed. `T07` then tests what the password reset actually did, against the later successful refresh and the supplied identity policy, and unlocks only after `T06` - so a team cannot conclude that the incident was contained without first having separated the two events.",
+      "achievement_evidence": "A session-centric answer that concludes the reset was insufficient without explicit revocation, that cites the later refresh rather than the reset time, and that treats an address as non-attributive.",
+      "nice": {
+        "status": "unverified",
+        "roles": [
+          {
+            "role_id": "PD-WRL-003",
+            "role": "Incident Response",
+            "candidate_tasks": [
+              {"id": "T1250", "statement": "Perform incident triage", "verified": false}
+            ]
+          },
+          {
+            "role_id": "PD-WRL-001",
+            "role": "Defensive Cybersecurity",
+            "candidate_tasks": [
+              {"id": "T1548", "statement": "Determine adequacy of access controls", "verified": false}
+            ]
+          },
+          {
+            "role_id": "PD-WRL-005",
+            "role": "Insider Threat Analysis",
+            "candidate_tasks": [
+              {"id": "T1324", "statement": "Process digital evidence", "verified": false}
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "LO5",
+      "title": "Bound the disclosure",
+      "statement": "Quantify what left using response codes, byte counts, object versions and a content comparison, and keep disclosed objects separate from denied ones.",
+      "tickets": ["T08", "T09", "T19"],
+      "mechanism": "`T08` separates a successful download from a denied request by status code and body-byte count, which is the difference between a disclosed object and an attempted one. `T09` compares a superseding version against the earlier one; a superseding version changes what should have been sent, not what was already sent, so the comparison is bounded to what each version states. `T19` matches the transmitted body hash against the service catalogue, which is what identifies *which* version was transmitted. Each authored finding records its own limitation.",
+      "achievement_evidence": "A scope position that names the single disclosed object and its version, names the denied request as a denial rather than a disclosure, and states the collection limits the comparison rests on.",
+      "nice": {
+        "status": "unverified",
+        "roles": [
+          {
+            "role_id": "PD-WRL-001",
+            "role": "Defensive Cybersecurity",
+            "candidate_tasks": [
+              {"id": "T1351", "statement": "Determine impact of malicious activity", "verified": false},
+              {"id": "T1548", "statement": "Determine adequacy of access controls", "verified": false}
+            ]
+          },
+          {
+            "role_id": "PD-WRL-003",
+            "role": "Incident Response",
+            "candidate_tasks": [
+              {"id": "T1252", "statement": "Determine the scope, urgency, and impact of cyber defense incidents", "verified": false}
+            ]
+          },
+          {
+            "role_id": "PD-WRL-007",
+            "role": "Vulnerability Analysis",
+            "candidate_tasks": [
+              {"id": "T1020", "statement": "Determine the operational and safety impacts of cybersecurity lapses", "verified": false}
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "LO6",
+      "title": "Keep an unresolved lead open",
+      "statement": "Clear a benign comparator before calling something suspicious, then hold a per-host scope position open where the collection cannot support a conclusion. Absence of telemetry is not absence of activity.",
+      "tickets": ["T10", "T11", "T12"],
+      "mechanism": "`T10` establishes an approved, similarly named scheduled task on another host and is a result in its own right: clearing a host is worth more than another suspicious finding. `T11` then finds the same tool name on a host whose endpoint collection stopped mid-morning, and it unlocks only after `T10`, so a team cannot reach the unresolved lead without first having cleared the benign one. That ordering is pedagogical, not accidental. `T12` supplies the coverage record that explains the lead, and is read in the view without a time field because a collection interval is not an event.",
+      "achievement_evidence": "A per-host position of supported, suspected, benign or unobservable in which the unobservable host stays unobservable, a reproducible filter per hypothesis, and no enterprise-wide all-clear derived from a collection gap.",
+      "nice": {
+        "status": "unverified",
+        "roles": [
+          {
+            "role_id": "PD-WRL-006",
+            "role": "Threat Analysis",
+            "candidate_tasks": [
+              {"id": "T1053", "statement": "Identify and characterize intrusion activities", "verified": false},
+              {"id": "T1054", "statement": "Scope analysis reports to audiences", "verified": false}
+            ]
+          },
+          {
+            "role_id": "PD-WRL-001",
+            "role": "Defensive Cybersecurity",
+            "candidate_tasks": [
+              {"id": "T1084", "statement": "Identify anomalous network activity", "verified": false},
+              {"id": "T1350", "statement": "Perform continuous monitoring of system activity", "verified": false}
+            ]
+          },
+          {
+            "role_id": "PD-WRL-005",
+            "role": "Insider Threat Analysis",
+            "candidate_tasks": [
+              {"id": "T1743", "statement": "Identify information collection gaps", "verified": false}
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "LO7",
+      "title": "Label a statement observed or inferred, and say what it does not establish",
+      "statement": "Mark every relationship you assert as observed in one record or inferred by joining several, and state what the relationship does not prove.",
+      "tickets": ["T01", "T02", "T16", "T17", "T18"],
+      "mechanism": "Every authored finding carries a limitation, and several questions are scored directly on it. The T01 map makes the distinction visible rather than verbal: it is gated behind T01 completion precisely so it cannot pre-answer the ticket, and each of its edges declares its own basis and caveat. `T16` is the sharpest case: it is an acquired live connection snapshot and not a validated memory connection finding, and its own record shows the external address was a guest-local loopback in an isolated reconstruction with networking disabled - so an over-stated conclusion about it is demonstrably wrong from the record itself. `T17` and `T18` show that configuration present in a file is not execution of that configuration.",
+      "achievement_evidence": "Every asserted relationship labelled observed or inferred, every inference naming what it joins, and at least one explicit statement of what the evidence does not establish - receipt, reading, intent or attribution.",
+      "nice": {
+        "status": "unverified",
+        "roles": [
+          {
+            "role_id": "PD-WRL-002",
+            "role": "Digital Forensics",
+            "candidate_tasks": [
+              {"id": "T1324", "statement": "Process digital evidence", "verified": false},
+              {"id": "T0167", "statement": "Perform file signature analysis", "verified": false},
+              {"id": "T1607", "statement": "Recover information from forensic data sources", "verified": false}
+            ]
+          },
+          {
+            "role_id": "PD-WRL-001",
+            "role": "Defensive Cybersecurity",
+            "candidate_tasks": [
+              {"id": "T1386", "statement": "Analyze network traffic anomalies", "verified": false}
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "LO8",
+      "title": "State the boundary of the exposure",
+      "statement": "Conclude what the evidence supports and name what it does not support, in the same answer and without waiting to be asked twice.",
+      "tickets": ["T20"],
+      "mechanism": "`T20` unlocks only after the identity, version, lead and payload tickets, so the boundary cannot be stated without that work behind it. **Three of its four answers are `no`**, and that is the thesis of the exercise rather than an oversight: roster disclosure is not established by a denied request, the unresolved host cannot be cleared with the available telemetry, and the evidence does not establish adversary intent. A correct boundary is a result, not a failure to find one. There is deliberately no adversary name anywhere in the corpus, and the exercise has no notification path and no manager to notify.",
+      "achievement_evidence": "A closing conclusion that names the one supported exposure, leaves the three unknowns open with the reason each cannot be closed, and attributes the activity to no one.",
+      "nice": {
+        "status": "unverified",
+        "roles": [
+          {
+            "role_id": "PD-WRL-003",
+            "role": "Incident Response",
+            "candidate_tasks": [
+              {"id": "T1316", "statement": "Document incidents", "verified": false},
+              {"id": "T1252", "statement": "Determine the scope, urgency, and impact of cyber defense incidents", "verified": false}
+            ]
+          },
+          {
+            "role_id": "PD-WRL-006",
+            "role": "Threat Analysis",
+            "candidate_tasks": [
+              {"id": "T1054", "statement": "Scope analysis reports to audiences", "verified": false}
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "LO9",
+      "title": "Publish durable shared findings and run the after-action review",
+      "statement": "Publish each accepted answer as a finding other teams can use, continue another team's work without losing it, and turn the run into specific improvements.",
+      "tickets": ["T07", "T09", "T19", "T20"],
+      "mechanism": "A correct answer queues an authored finding to IRIS and an award to CTFd through durable outbox retries and application-side receipts, so an accepted finding is not duplicated across an outage and is not lost to one. Relinquishing a ticket keeps its answers and findings for the replacement owner. The dependency chain is what makes the shared findings usable: `T20` is answered from findings other teams produced, on tickets they unlocked. The [after-action review](../facilitator/assessment-aar.md) is the reflection mechanism, and there is no report, grading or approval gate anywhere in the run.",
+      "achievement_evidence": "A follow-up ticket answered from another team's finding, continued progress after a relinquish or a service interruption, and improvement items from the review carrying an owner, a target rehearsal date and an observable success criterion.",
+      "nice": {
+        "status": "unverified",
+        "roles": [
+          {
+            "role_id": "PD-WRL-003",
+            "role": "Incident Response",
+            "candidate_tasks": [
+              {"id": "T0510", "statement": "Coordinate incident response functions", "verified": false},
+              {"id": "T1485", "statement": "Prepare after action reviews", "verified": false},
+              {"id": "T1333", "statement": "Communicate incident findings", "verified": false}
+            ]
+          },
+          {
+            "role_id": "PD-WRL-006",
+            "role": "Threat Analysis",
+            "candidate_tasks": [
+              {"id": "T1643", "statement": "Develop common operational pictures", "verified": false}
+            ]
+          },
+          {
+            "role_id": "PD-WRL-005",
+            "role": "Insider Threat Analysis",
+            "candidate_tasks": [
+              {"id": "T1986", "statement": "Develop a continuously updated overview of an incident throughout its life cycle", "verified": false}
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "crosswalk": {
+    "heading": "Ticket-to-role crosswalk",
+    "intro": "The tickets group by tool and theme. The primary role is the strongest match and the tool is the analysis mechanism. Work role identifiers are candidates under the gate above, not verified mappings. Titles below are checked against `expanded/author.py` and `expanded/native.py` on every run, because upstream retitles a ticket when its scope changes, and a stale title here reads as a wrong ticket.",
+    "rows": [
+      {
+        "id": "network",
+        "tickets": ["T01", "T02"],
+        "titles": ["Trace document traffic", "Resolve names and compare conversations"],
+        "theme": ["Wireshark", "packet, syslog and DNS correlation"],
+        "primary_role": "Defensive Cybersecurity PD-WRL-001",
+        "supporting": ["Digital Forensics PD-WRL-002"]
+      },
+      {
+        "id": "case",
+        "tickets": ["T03", "T04", "T05", "T08"],
+        "titles": ["Reconstruct the viewer download", "Investigate persistence", "Recover and compare cached content", "Audit document and roster access"],
+        "theme": ["Autopsy", "browser, endpoint, deleted cache and server access"],
+        "primary_role": "Digital Forensics PD-WRL-002",
+        "supporting": ["Defensive Cybersecurity PD-WRL-001"]
+      },
+      {
+        "id": "native",
+        "tickets": ["T13", "T14", "T15", "T16"],
+        "titles": ["Inspect acquired process-log records", "Inspect acquired task-log records", "Inspect the prepared memory process tree", "Correlate the acquired connection snapshot"],
+        "theme": ["Autopsy", "acquired native process, task and memory records; T16 is an acquired live connection snapshot and not a validated memory connection finding"],
+        "primary_role": "Digital Forensics PD-WRL-002",
+        "supporting": ["Incident Response PD-WRL-003"]
+      },
+      {
+        "id": "wazuh",
+        "tickets": ["T06", "T07", "T10", "T11", "T12", "T20"],
+        "titles": ["Separate password and session authentication", "Test the effect of the password reset", "Test a benign comparator", "Investigate the unresolved host lead", "Map collection coverage", "Test the limits of the overall exposure conclusion"],
+        "theme": ["Wazuh", "session replay, approved inventory, unresolved lead, coverage and synthesis"],
+        "primary_role": "Incident Response PD-WRL-003",
+        "supporting": ["Threat Analysis PD-WRL-006", "Insider Threat Analysis PD-WRL-005", "Defensive Cybersecurity PD-WRL-001"]
+      },
+      {
+        "id": "compare",
+        "tickets": ["T09", "T19"],
+        "titles": ["Compare superseding movement information", "Verify the transmitted payload"],
+        "theme": ["Linux file manager", "superseding version and transmitted-body comparison"],
+        "primary_role": "Defensive Cybersecurity PD-WRL-001",
+        "supporting": ["Vulnerability Analysis PD-WRL-007"]
+      },
+      {
+        "id": "binary",
+        "tickets": ["T17", "T18"],
+        "titles": ["Inspect the harmless training binary configuration", "Follow a small static code example"],
+        "theme": ["Cutter", "static string and function inspection of a harmless surrogate"],
+        "primary_role": "Digital Forensics PD-WRL-002",
+        "supporting": ["Vulnerability Analysis PD-WRL-007"]
+      }
+    ]
+  },
+  "aar_map": {
+    "heading": "How the after-action review revisits the objectives",
+    "intro": "There is no rubric. `facilitator/assessment-aar.md` uses the scoreboard and the shared IRIS findings for discussion, and each prompt exercises one or more objectives.",
+    "rows": [
+      {"prompt": "How clock normalization or a cross-source correlation changed an assessment", "objectives": ["LO1", "LO2"]},
+      {"prompt": "What versions, sessions, denied accesses and collection gaps establish", "objectives": ["LO2", "LO4", "LO5"]},
+      {"prompt": "Which uncertainties remain and what further evidence would resolve them", "objectives": ["LO5", "LO6"]},
+      {"prompt": "Where a finding claimed more than its evidence supported", "objectives": ["LO7", "LO8"]},
+      {"prompt": "Whether shared findings and ownership transfers helped other teams", "objectives": ["LO8", "LO9"]},
+      {"prompt": "Which tool instructions or exercise defects need improvement before the next run", "objectives": ["LO1", "LO3", "LO7"]}
+    ]
+  },
+  "limits": {
+    "heading": "Out of scope and current limits",
+    "entries": [
+      {
+        "title": "Defensive and synthetic.",
+        "text": "The exercise teaches and assesses defensive analysis only. It does not teach offensive access, malware reverse engineering or live imaging, and the Cutter binary is a harmless training surrogate that performs no network or persistence behaviour."
+      },
+      {
+        "title": "No forensic duplication is demonstrated.",
+        "text": "Participants read supplied read-only originals and work in a copy of a prepared case. That is coached practice, not assessed mastery of acquiring a forensic duplicate: no scored item claims the skill, and no objective above maps to one. The Cutter binary is a real artifact gated on a hash, and it is inspected statically rather than executed."
+      },
+      {
+        "title": "Artifacts exist; whole-event acceptance does not.",
+        "text": "The native Windows reconstruction (`assets/native-windows-v1/manifest.json`), the prepared Autopsy case (`assets/autopsy-case-v2.json`) and the offline desktop image (`assets/desktop-v1.json`) are published and checksummed, so the acquired-record tickets have prepared artifacts to reference. That is not a validated deployment: per `docs/expanded-validation.md`, no question has yet been navigated and answered on the exact installed tools, and Hyper-V and AWS boot, Guacamole sessions and live IRIS and CTFd behaviour remain unverified."
+      },
+      {
+        "title": "The exercise is not event-ready.",
+        "text": "No Docker, CTFd, IRIS, Wazuh or desktop container has been run against these guards. They are proven to fire, not proven readable to a person. Do not read a passing test suite as a rehearsal result, and do not describe this material as live-validated."
+      },
+      {
+        "title": "The projected deck is behind its sources.",
+        "text": "The event-day deck is 22 participant slides plus a 2-slide facilitator appendix, and the committed PDF is still the earlier 13-slide build because the external toolchain that renders it is not vendored here. The `.page` sources are authoritative and the PDF must be rebuilt before the deck is projected; `python -m ridge.deck_narrative --pdf` reports the staleness rather than pretending otherwise."
+      },
+      {
+        "title": "Breadcrumbs are optional and unscored, deliberately.",
+        "text": "Seven breadcrumbs are left in the evidence, five of them cross-task. None is bonus-scored: stock CTFd challenges are locked down in this deployment, scoring is one award row per answered question, and no surface exists that could carry a bonus and reconcile it against both systems. A team that finds none has done the exercise correctly."
+      },
+      {
+        "title": "The framework mapping is unverified.",
+        "text": "Every identifier in the tables above is a candidate carried from a superseded release. See the framework section for the gate, and re-verify against a dated catalogue release before claiming any formal mapping for training credit."
+      }
+    ]
+  },
+  "maintenance": {
+    "heading": "Maintenance",
+    "commands": "Edit `assets/learning-objectives-v1.json`, then run `python -m ridge.learning_objectives --write` and commit both. `python -m ridge.learning_objectives` validates without writing, `--report` prints the receipt, and `--strict` additionally fails while the NICE gate is open. A test compares the committed document with `render()` byte for byte, so a hand edit to the document fails the suite rather than shipping.",
+    "derived": "Validation derives the ticket set and every ticket title from `expanded/author.py`, the saved view names from `ridge/wazuh_provision.py`, the device offset from `ridge/scenario.py`, the acquisition date from the native manifest, the map counts from `assets/t01-network-map-v1.json`, the phase partitions from both narrative fixtures, the duration figures from `expanded/config.json` through `expanded/workload.py`, and the answer set from the same authored questions. Changing any of those changes what this document is required to say. When a ticket is added, retitled or reassigned, update the fixture and the crosswalk in the same commit; when an objective is added, `validate` refuses until every ticket is claimed.",
+    "nice": "Do not add, renumber or \"correct\" a NICE identifier from memory. Re-verify each mapping against a dated published catalogue, record that release in `framework.verified_against`, and note in the pull request that NICE Framework 4.0 reorganised tasks around TLP elements, so a 2.0-era identifier may not survive the mapping unchanged."
+  },
+  "sections": [
+    {
+      "id": "facilitation",
+      "heading": "How learning is facilitated",
+      "blocks": [
+        {
+          "type": "numbered",
+          "items": [
+            "Authentic, deterministic artifacts. `expanded/prepare.py` generates a purpose-built FAT16 image with a recoverable deleted cache entry, a valid DNS capture, a reconstructed syslog capture that matches the proxy export, the browser, authentication, server and coverage exports, and the historical replay. Stable source hashes replace conspicuous suspicious-record ranges, and the artifact verifier checks every released category.",
+            "Tool-mediated analysis. Each ticket names a tool and a starting selection: Wireshark with a display filter, Autopsy with the writable case copy and a named record, Wazuh with one of the two provisioned saved views and a named field filter, Cutter with a harmless static training binary, and the desktop file manager for a CSV or JSON comparison. Participants learn the tool by answering a specific, evidence-bounded question.",
+            "Coached, gated questions. Teams claim one IRIS ticket at a time and its four CTFd questions are answerable only by the owner. Hints and the full walkthrough are free. Each question states the rule the repository grades by - enter only the requested value, and case and outer whitespace are ignored - which is a narrower promise than a normalised answer and is what `expanded/author.py` actually implements. A correct answer earns one point, queues an authored finding for IRIS and persists globally; the last answer closes the ticket and unlocks authored follow-ups, which is what sequences the phases.",
+            "Durable shared findings with transactional receipts. Accepted answers queue IRIS findings and CTFd awards through durable outbox retries and application-side receipts. Relinquishing a ticket retains its answers and findings for the replacement owner. Live IRIS and cross-system outage acceptance remain gates; see `docs/expanded-validation.md`.",
+            "Machine-enforced limits on what may be claimed. `ridge/scenario_contract.py` refuses any participant-facing string containing a distinctive scored answer in `check_no_answers`, and refuses an exemption that is not already public in `check_public_terms`; `ridge/narrative_consistency.py` adds ten cross-surface guards; `ridge/network_map.py` requires every edge to declare observed or inferred provenance with a basis and a caveat. This document is held to the same rule.",
+            "A narrative with every ticket. Each authored ticket carries its phase, briefing, stake and handoff, so the room hears why a ticket matters before opening a tool. The [narrative overview](narrative-overview.md) describes how the two narrative contracts differ and which one is still undecided.",
+            "Optional breadcrumbs with no bonus. Seven optional traces are left across the evidence; none is scored, and a team that finds none has done the exercise correctly. The mapping is in `facilitator/breadcrumbs.md`."
+          ]
+        },
+        {
+          "type": "table",
+          "columns": ["Surface", "Where a participant reaches it", "Narrative source"],
+          "rows": [
+            ["IRIS incident queue and findings", "the shared `/silent-ridge` queue", "narrative contract"],
+            ["CTFd questions, points and scoreboard", "one award per accepted answer", "authored questions"],
+            ["Guacamole shared desktop", "the team desktop session", "operational"],
+            ["Wazuh dashboard", "opened in the participant's own browser", "two saved views, no narrative"],
+            ["Evidence tree", "`/evidence` read-only, `/originals` read-only", "released and acquired artifacts"],
+            ["Event-day deck", "22 participant slides plus a 2-slide facilitator appendix", "narrative contract"],
+            ["T01 network map", "the question page, gated on T01 completion", "`assets/t01-network-map-v1.json`"]
+          ]
+        },
+        {
+          "type": "text",
+          "text": "Participant-facing instructions are the [team workflow](../participants/cells.md) and the [beginner guide](../expanded/guides.md); this document describes what those instructions are meant to produce."
+        }
+      ]
+    },
+    {"id": "framework", "heading": "", "blocks": [{"type": "framework"}]},
+    {"id": "phases", "heading": "", "blocks": [{"type": "phases"}]},
+    {"id": "views", "heading": "", "blocks": [{"type": "views"}]},
+    {"id": "clock", "heading": "", "blocks": [{"type": "clock"}]},
+    {"id": "map", "heading": "", "blocks": [{"type": "map"}]},
+    {"id": "objectives", "heading": "", "blocks": [{"type": "objectives"}]},
+    {"id": "crosswalk", "heading": "", "blocks": [{"type": "crosswalk"}]},
+    {"id": "duration", "heading": "", "blocks": [{"type": "workload"}]},
+    {"id": "aar", "heading": "", "blocks": [{"type": "aar_map"}]},
+    {"id": "limits", "heading": "", "blocks": [{"type": "limits"}]},
+    {"id": "maintenance", "heading": "", "blocks": [{"type": "maintenance"}]}
+  ]
+}
