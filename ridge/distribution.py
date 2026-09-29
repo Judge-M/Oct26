@@ -14,14 +14,14 @@ from pathlib import Path
 
 from ridge.artifacts import safe, sha256
 
-COMPONENTS = {'integration', 'iris', 'ctfd'}
+COMPONENTS = {'integration', 'iris', 'ctfd', 'desktop'}
 REPOSITORY = 'Judge-M/Oct26'
 MAX_ASSET_BYTES = 1024 ** 3
 
 
 def image_lock(images):
     if set(images) != COMPONENTS:
-        raise ValueError('Exactly integration, iris and ctfd image digests required')
+        raise ValueError('Exactly integration, iris, ctfd and desktop image digests required')
     for name, reference in images.items():
         if not isinstance(reference, str) or not re.fullmatch(
             rf'ghcr\.io/[a-z0-9_.-]+/oct26-{name}@sha256:[0-9a-f]{{64}}', reference

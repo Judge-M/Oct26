@@ -9,7 +9,7 @@ not a requirement or a diagnosis of this computer. Candidate versions are in
 
 On a connected Linux preparation host, obtain IRIS v2.4.20, CTFd 3.7.7, the
 official Wazuh Docker v4.9.2 single-node deployment, and Guacamole 1.5.5. Retain
-licenses, complete configurations and source commit IDs. Build the three supplied
+licenses, complete configurations and source commit IDs. Build the four supplied
 Dockerfiles from the repository root. Record source commit, image identity,
 architecture, base digest and build log. Save every image/dependency to the
 artifact store and transfer it before disconnecting the exercise network.

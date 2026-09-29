@@ -24,6 +24,7 @@ import argparse
 import json
 import os
 import shutil
+import tarfile
 import zipfile
 from pathlib import Path, PurePosixPath
 
@@ -31,6 +32,13 @@ from ridge.artifacts import safe, sha256, verify
 
 IMAGE_TAR = 'validated-images.tar'
 METADATA = {'release-manifest.json', 'SHA256SUMS.json', 'source-image-checks.json'}
+CUSTOM_COMPONENTS = ('integration', 'iris', 'ctfd', 'desktop')
+ASSET_ARCHIVES = (
+    ('evidence/evidence-public.tar.gz', ''),
+    ('dependencies/case-and-wazuh-config.tar.gz', ''),
+    ('dependencies/release-vault.tar.gz', ''),
+    ('memory/WS17-native-v1.tar.gz', 'originals'),
+)
 
 
 class InstallError(RuntimeError):
@@ -157,6 +165,90 @@ def _assemble(parts, target):
     return target
 
 
+def _extract_safe_tar(archive_path, destination):
+    """Extract regular files/directories without trusting tar paths or links."""
+    destination = Path(destination)
+    destination.mkdir(parents=True, exist_ok=True)
+    seen = set()
+    try:
+        with tarfile.open(archive_path) as archive:
+            for member in archive.getmembers():
+                name = member.name.rstrip('/')
+                parts = PurePosixPath(name).parts
+                if (not name or member.name.startswith('/') or '\\' in member.name
+                        or '..' in parts or ':' in parts[0] or name in seen):
+                    raise InstallError('unsafe or duplicate asset archive entry: '
+                                       + member.name)
+                seen.add(name)
+                target = safe(destination, name)
+                if member.isdir():
+                    target.mkdir(parents=True, exist_ok=True)
+                elif member.isfile():
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    source = archive.extractfile(member)
+                    if source is None:
+                        raise InstallError('cannot read asset archive entry: ' + member.name)
+                    with source, target.open('wb') as output:
+                        shutil.copyfileobj(source, output, 1024 * 1024)
+                else:
+                    raise InstallError('asset archive contains a link or special file: '
+                                       + member.name)
+    except InstallError:
+        raise
+    except (OSError, tarfile.TarError, ValueError) as exc:
+        raise InstallError('invalid asset archive %s: %s'
+                           % (Path(archive_path).name, exc)) from exc
+
+
+def _materialize_assets(bundle, staging, certified):
+    missing = [name for name, _ in ASSET_ARCHIVES if not (bundle / name).is_file()]
+    if missing:
+        if certified:
+            raise InstallError('certified bundle is missing deployable asset archives: '
+                               + ', '.join(missing))
+        return False
+    assets = staging / 'assets'
+    for name, relative in ASSET_ARCHIVES:
+        _extract_safe_tar(bundle / name, assets / relative)
+    expected = ('evidence-public', 'case-template', 'wazuh-config',
+                'release-vault', 'originals')
+    absent = [name for name in expected if not (assets / name).is_dir()]
+    if absent:
+        raise InstallError('asset archives did not materialize required directories: '
+                           + ', '.join(absent))
+    return True
+
+
+def _write_build_receipts(staging, manifest, source_archive_sha256):
+    fingerprint = manifest.get('source_fingerprint')
+    if not isinstance(fingerprint, str) or len(fingerprint) != 64:
+        raise InstallError('bundle has no source fingerprint for deployment build receipts; '
+                           'rebuild it with the current ridge.bundle producer')
+    tags = manifest.get('image_tags') or {}
+    images = manifest.get('images') or {}
+    missing = [name for name in CUSTOM_COMPONENTS if name not in tags or name not in images]
+    if missing:
+        raise InstallError('bundle cannot create deployment build receipts for: '
+                           + ', '.join(missing))
+    receipts = staging / 'source' / 'work' / 'build-receipts'
+    receipts.mkdir(parents=True, exist_ok=True)
+    for component in CUSTOM_COMPONENTS:
+        record = {
+            'schema': 2,
+            'component': component,
+            'image': tags[component],
+            'image_id': images[component],
+            'source': fingerprint,
+            'origin': 'verified-offline-bundle',
+            'release': manifest['release'],
+            'source_commit': manifest['source_commit'],
+            'source_archive_sha256': source_archive_sha256,
+        }
+        (receipts / (component + '.json')).write_text(
+            json.dumps(record, indent=2) + '\n', encoding='utf-8')
+    return receipts
+
+
 def install(bundle, destination, runner=None, load=True, free_bytes=None,
             expected_source_commit=None, distribution_manifest=None):
     """Verify, then atomically install source + images. Returns a receipt."""
@@ -176,8 +268,10 @@ def install(bundle, destination, runner=None, load=True, free_bytes=None,
     try:
         with zipfile.ZipFile(safe(bundle, 'source.zip')) as archive:
             archive.extractall(staging / 'source')
+        assets_materialized = _materialize_assets(bundle, staging, certified is True)
         tar = _assemble(parts, staging / IMAGE_TAR)
         images = []
+        build_receipts = False
         if load:
             if runner is None:
                 import subprocess
@@ -201,8 +295,28 @@ def install(bundle, destination, runner=None, load=True, free_bytes=None,
                 if mismatched:
                     raise InstallError('docker load did not restore expected tags: '
                                        + ', '.join(mismatched))
+            _write_build_receipts(staging, manifest, verified_sums['source.zip'])
+            build_receipts = True
+        local_template = {
+            'bind_ip': 'REPLACE_WITH_LAN_IP',
+            'assets': {
+                key: str(destination / 'assets' / directory)
+                for key, directory in (
+                    ('evidence_public', 'evidence-public'),
+                    ('release_vault', 'release-vault'),
+                    ('case_template', 'case-template'),
+                    ('originals', 'originals'),
+                    ('wazuh_config', 'wazuh-config'),
+                )
+            },
+            'ports': {'crl': 8080, 'iris': 8081, 'ctfd': 8083, 'guac': 8082,
+                      'wazuh_dashboard': 8443, 'wazuh_indexer': 9200},
+            'index_name': 'silent-ridge-oct26',
+        }
+        (staging / 'runtime-local.example.json').write_text(
+            json.dumps(local_template, indent=2) + '\n', encoding='utf-8')
         receipt = {
-            'schema': 1,
+            'schema': 2,
             'release': manifest['release'],
             'source_commit': manifest['source_commit'],
             'source_archive_sha256': verified_sums['source.zip'],
@@ -212,10 +326,13 @@ def install(bundle, destination, runner=None, load=True, free_bytes=None,
             'images': sorted(set(manifest.get('images', {}).values())),
             'images_loaded': bool(load),
             'tags_verified': bool(load and manifest.get('image_tags')),
+            'build_receipts_created': build_receipts,
+            'assets_materialized': assets_materialized,
             'source': 'source',
             'next': [
-                'cd source && python -m ridge.deploy doctor',
-                'python -m ridge.deploy up --profile <profile.json> --runtime <runtime-dir>',
+                'copy runtime-local.example.json to <runtime-dir>/local.json and set bind_ip',
+                'cd source && python -m ridge.deploy doctor --profile <profile.json> --runtime <runtime-dir>',
+                'python -m ridge.deploy up --teams 10 --profile <profile.json> --runtime <runtime-dir>',
             ],
         }
         (staging / 'install-receipt.json').write_text(json.dumps(receipt, indent=2))

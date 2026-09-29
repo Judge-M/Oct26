@@ -6,7 +6,7 @@ import hashlib
 import zipfile
 from pathlib import Path
 
-from ridge.bundle import materialize_lfs_source, save_refs, split_file
+from ridge.bundle import LAYOUTS, materialize_lfs_source, save_refs, split_file
 from ridge.offline_install import image_parts
 
 
@@ -76,6 +76,18 @@ class SaveRefsTests(unittest.TestCase):
         with self.assertRaises(ValueError) as ctx:
             save_refs(manifest, inspect=lambda ref: 'sha256:' + '9' * 64)
         self.assertIn('expected', str(ctx.exception))
+
+
+class ImageLayoutTests(unittest.TestCase):
+    def test_every_custom_image_copy_is_covered_by_source_matching(self):
+        self.assertIn(('bounded_http.py', '/opt/silent-ridge/bounded_http.py'),
+                      LAYOUTS['integration'])
+        self.assertIn(('integrations/iris_bootstrap.py',
+                       '/iriswebapp/iris_bootstrap.py'), LAYOUTS['iris'])
+        self.assertIn(('deployment/expanded/desktop/entrypoint.sh',
+                       '/usr/local/bin/silent-ridge-entrypoint'), LAYOUTS['desktop'])
+        self.assertIn(('deployment/expanded/desktop/helpers',
+                       '/opt/silent-ridge/helpers'), LAYOUTS['desktop'])
 
 
 class MaterializeSourceTests(unittest.TestCase):

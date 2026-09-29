@@ -57,6 +57,22 @@ class EvidenceTests(unittest.TestCase):
             manifest['artifacts'][0]['path']='../outside'
             with self.assertRaisesRegex(ValueError,'Unsafe'):verify(root,manifest,False)
 
+    def test_certified_store_is_valid_before_bundle_creates_container_archive(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            artifacts = []
+            for kind in ('disk', 'memory', 'autopsy', 'dependencies', 'guides', 'evidence'):
+                path = root / (kind + '.bin')
+                path.write_bytes(kind.encode())
+                artifacts.append(dict(path=path.name, kind=kind, version='1', release='r1',
+                                      bytes=path.stat().st_size, sha256=sha256(path)))
+            manifest = dict(schema=1, release='r1', source_commit='abc',
+                            compatibility_verified=True,
+                            images={'desktop': 'sha256:' + '1' * 64}, artifacts=artifacts)
+            self.assertEqual(verify(root, manifest, require_containers=False), 6)
+            with self.assertRaisesRegex(ValueError, 'Incomplete'):
+                verify(root, manifest)
+
     def test_offline_rejects_stale_application_image(self):
         from scripts import offline
         with patch.object(offline,'run',return_value='{}'):
@@ -68,6 +84,13 @@ class EvidenceTests(unittest.TestCase):
         with patch('ridge.bundle.command',return_value='{}'):
             with self.assertRaisesRegex(ValueError,'Source/image mismatch'):
                 image_sources('integration','sha256:fixture')
+
+    def test_desktop_source_probe_uses_the_interpreter_the_image_installs(self):
+        from ridge.bundle import image_sources
+        with patch('ridge.bundle.command', return_value='{}') as command:
+            with self.assertRaisesRegex(ValueError, 'Source/image mismatch'):
+                image_sources('desktop', 'sha256:fixture')
+        self.assertEqual(command.call_args.args[7], 'python3')
 
     def test_guacamole_adjustable_shared_and_exclusive(self):
         path=Path(__file__).resolve().parents[1]/'deployment/expanded/guacamole.py'

@@ -27,7 +27,7 @@ Hard rules (from the F06 card, non-negotiable):
 - [ ] **New bundle assembled** on the build host: the current
       `v0.9.0-drill` bundle lacks `dependencies/release-vault.tar.gz`
       (fixed 2026-09-24). Reassemble:
-      `python scripts/assemble_offline_store.py` then
+      `python scripts/assemble_offline_store.py --store work/offline-store --manifest work/offline-manifest.json --evidence work/evidence-public --case-template work/case-template --wazuh-config work/n1-run/wazuh-config --release-vault work/release/controller/releases` then
       `python -m ridge.bundle work/offline-store work/offline-manifest.json work/offline-bundle --allow-incomplete --max-part-bytes 2147483648`
       and publish as a new pre-release (e.g. `v0.10.0-rehearsal`).
 - [ ] Event profile prepared (`docs/event-day-commands.md` §1) with the
