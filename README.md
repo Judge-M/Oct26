@@ -230,3 +230,10 @@ late-October event, the remaining work is tracked in `docs/handoff/NEXT.md`:
 All scenario content and answers are public by design (large evidence files
 via Git LFS). Credentials, rosters, runtime directories and backups are
 private and must never be committed.
+
+## License
+
+Project-authored source code and documentation are licensed under the
+[Apache License 2.0](LICENSE). Third-party components, container images,
+evidence and assets retain their respective licenses and notices; see
+[NOTICE](NOTICE).
