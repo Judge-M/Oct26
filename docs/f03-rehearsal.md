@@ -129,9 +129,12 @@ Verified by a full dress rehearsal on the dev host (2 teams, 180 s,
 - The indexer dedupes telemetry by content hash: if `telemetry.jsonl`
   contains duplicate lines the document count is the *unique* count
   (the probe was fixed to expect that; 505 docs from 508 lines is correct).
-- The credentials file shape is `teams.<team>.accounts` (CTFd seat
-  passwords) plus `iris_login`/`iris_password` per team; older restored
-  runtimes used a different shape and will fail bot login loudly.
+- The credentials file shape is `teams.<team>.accounts` plus
+  `iris_login`/`iris_password` per team. The account-map keys are the actual
+  CTFd usernames (`team1`, `team1-p02`, `team1-p03` on a fresh classroom
+  runtime), and their values are the shared team password. Older restored
+  runtimes may retain legacy keys; the harness reads those inventories by
+  position so they remain usable.
 - The stock CTFd challenge API is deliberately closed to participants;
   the harness drives `/silent-ridge`, which is the real flow.
 - Never let other tools open the live `state.sqlite` from the host while
