@@ -63,6 +63,8 @@ def query_database(path, query):
         if not isinstance(query,str) or len(query)>8000: raise ValueError('Query limit is 8000 characters')
         cursor=con.execute(query)
         columns=[d[0] for d in cursor.description or []]
+        if len(set(columns)) != len(columns):
+            raise ValueError('Duplicate column names: use a distinct AS alias for each selected column')
         rows=[dict(zip(columns,[v.hex() if isinstance(v,bytes) else v for v in row])) for row in cursor.fetchmany(LIMIT+1)]
         return columns,rows,schema
 

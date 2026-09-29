@@ -1,0 +1,16 @@
+import json
+from urllib.request import urlopen
+from urllib.parse import urlencode
+base='http://127.0.0.1:23232/solr/'
+def get(path):
+    with urlopen(base+path,timeout=10) as response: return json.load(response)
+status=get('admin/cores?action=STATUS&wt=json')
+assert not status['initFailures']
+assert len(status['status'])==1
+core=next(iter(status['status']))
+fields=get(core+'/schema/fields?wt=json')['fields']
+print('Fields:',[f['name'] for f in fields])
+result=get(core+'/select?'+urlencode({'q':'text:BriefSync','wt':'json','rows':2}))
+assert result['response']['numFound']>0
+print(json.dumps({'core':core,'indexed_documents':status['status'][core]['index']['numDocs'],
+                  'query':'text:BriefSync','matches':result['response']['numFound']},indent=2))

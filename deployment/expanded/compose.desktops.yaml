@@ -1,0 +1,215 @@
+# Per-team desktop containers for the Docker-only desktop pivot.
+#
+# Additive to the Hyper-V desktop path: the VM provider is untouched. Each
+# service exposes TigerVNC on TCP 5901 only on the external `desktop` network,
+# which Guacamole already joins, so guacd reaches a desktop at
+# `<service-name>:5901` (for example `desktop-team01:5901`). No VNC port is ever
+# published to the host.
+name: ${RIDGE_PROJECT:?Set event-scoped project}-desktops
+
+x-desktop: &desktop
+  image: ${RIDGE_DESKTOP_IMAGE:-silent-ridge-desktop:dev}
+  pull_policy: never
+  restart: unless-stopped
+  shm_size: 2g
+  environment:
+    VNC_PASSWORD_FILE: /etc/silent-ridge/vnc-password
+    IRIS_URL: ${IRIS_PUBLIC_URL:?Set participant IRIS URL}
+    CTFD_URL: ${CTFD_PUBLIC_URL:?Set participant CTFd URL}
+    WAZUH_URL: ${WAZUH_PUBLIC_URL:?Set participant Wazuh URL}
+  deploy:
+    resources:
+      limits:
+        cpus: ${RIDGE_DESKTOP_CPUS:-2}
+        memory: ${RIDGE_DESKTOP_MEMORY:-4g}
+  healthcheck:
+    test: [CMD-SHELL, "bash -c '</dev/tcp/127.0.0.1/5901'"]
+    interval: 15s
+    timeout: 5s
+    retries: 5
+    start_period: 30s
+  logging:
+    driver: json-file
+    options: {max-size: "10m", max-file: "3"}
+  networks: [desktop]
+
+services:
+  desktop-team01:
+    <<: *desktop
+    volumes:
+      - ${RIDGE_CASE_DIR:?Set verified prepared case directory}:/opt/silent-ridge/prepared-case:ro
+      - ${RIDGE_EVIDENCE_DIR:?Set published evidence directory}:/evidence:ro
+      - ${RIDGE_ORIGINALS_DIR:?Set original evidence directory}:/originals:ro
+      - team01-cases:/home/participant/Cases
+      - team01-workspace:/home/participant/Workspace
+      - team01-scratch:/home/participant/Scratch
+    secrets:
+      - source: vnc_password_team01
+        target: vnc_password
+  desktop-team02:
+    <<: *desktop
+    volumes:
+      - ${RIDGE_CASE_DIR:?Set verified prepared case directory}:/opt/silent-ridge/prepared-case:ro
+      - ${RIDGE_EVIDENCE_DIR:?Set published evidence directory}:/evidence:ro
+      - ${RIDGE_ORIGINALS_DIR:?Set original evidence directory}:/originals:ro
+      - team02-cases:/home/participant/Cases
+      - team02-workspace:/home/participant/Workspace
+      - team02-scratch:/home/participant/Scratch
+    secrets:
+      - source: vnc_password_team02
+        target: vnc_password
+  desktop-team03:
+    <<: *desktop
+    volumes:
+      - ${RIDGE_CASE_DIR:?Set verified prepared case directory}:/opt/silent-ridge/prepared-case:ro
+      - ${RIDGE_EVIDENCE_DIR:?Set published evidence directory}:/evidence:ro
+      - ${RIDGE_ORIGINALS_DIR:?Set original evidence directory}:/originals:ro
+      - team03-cases:/home/participant/Cases
+      - team03-workspace:/home/participant/Workspace
+      - team03-scratch:/home/participant/Scratch
+    secrets:
+      - source: vnc_password_team03
+        target: vnc_password
+  desktop-team04:
+    <<: *desktop
+    volumes:
+      - ${RIDGE_CASE_DIR:?Set verified prepared case directory}:/opt/silent-ridge/prepared-case:ro
+      - ${RIDGE_EVIDENCE_DIR:?Set published evidence directory}:/evidence:ro
+      - ${RIDGE_ORIGINALS_DIR:?Set original evidence directory}:/originals:ro
+      - team04-cases:/home/participant/Cases
+      - team04-workspace:/home/participant/Workspace
+      - team04-scratch:/home/participant/Scratch
+    secrets:
+      - source: vnc_password_team04
+        target: vnc_password
+  desktop-team05:
+    <<: *desktop
+    volumes:
+      - ${RIDGE_CASE_DIR:?Set verified prepared case directory}:/opt/silent-ridge/prepared-case:ro
+      - ${RIDGE_EVIDENCE_DIR:?Set published evidence directory}:/evidence:ro
+      - ${RIDGE_ORIGINALS_DIR:?Set original evidence directory}:/originals:ro
+      - team05-cases:/home/participant/Cases
+      - team05-workspace:/home/participant/Workspace
+      - team05-scratch:/home/participant/Scratch
+    secrets:
+      - source: vnc_password_team05
+        target: vnc_password
+  desktop-team06:
+    <<: *desktop
+    volumes:
+      - ${RIDGE_CASE_DIR:?Set verified prepared case directory}:/opt/silent-ridge/prepared-case:ro
+      - ${RIDGE_EVIDENCE_DIR:?Set published evidence directory}:/evidence:ro
+      - ${RIDGE_ORIGINALS_DIR:?Set original evidence directory}:/originals:ro
+      - team06-cases:/home/participant/Cases
+      - team06-workspace:/home/participant/Workspace
+      - team06-scratch:/home/participant/Scratch
+    secrets:
+      - source: vnc_password_team06
+        target: vnc_password
+  desktop-team07:
+    <<: *desktop
+    volumes:
+      - ${RIDGE_CASE_DIR:?Set verified prepared case directory}:/opt/silent-ridge/prepared-case:ro
+      - ${RIDGE_EVIDENCE_DIR:?Set published evidence directory}:/evidence:ro
+      - ${RIDGE_ORIGINALS_DIR:?Set original evidence directory}:/originals:ro
+      - team07-cases:/home/participant/Cases
+      - team07-workspace:/home/participant/Workspace
+      - team07-scratch:/home/participant/Scratch
+    secrets:
+      - source: vnc_password_team07
+        target: vnc_password
+  desktop-team08:
+    <<: *desktop
+    volumes:
+      - ${RIDGE_CASE_DIR:?Set verified prepared case directory}:/opt/silent-ridge/prepared-case:ro
+      - ${RIDGE_EVIDENCE_DIR:?Set published evidence directory}:/evidence:ro
+      - ${RIDGE_ORIGINALS_DIR:?Set original evidence directory}:/originals:ro
+      - team08-cases:/home/participant/Cases
+      - team08-workspace:/home/participant/Workspace
+      - team08-scratch:/home/participant/Scratch
+    secrets:
+      - source: vnc_password_team08
+        target: vnc_password
+  desktop-team09:
+    <<: *desktop
+    volumes:
+      - ${RIDGE_CASE_DIR:?Set verified prepared case directory}:/opt/silent-ridge/prepared-case:ro
+      - ${RIDGE_EVIDENCE_DIR:?Set published evidence directory}:/evidence:ro
+      - ${RIDGE_ORIGINALS_DIR:?Set original evidence directory}:/originals:ro
+      - team09-cases:/home/participant/Cases
+      - team09-workspace:/home/participant/Workspace
+      - team09-scratch:/home/participant/Scratch
+    secrets:
+      - source: vnc_password_team09
+        target: vnc_password
+  desktop-team10:
+    <<: *desktop
+    volumes:
+      - ${RIDGE_CASE_DIR:?Set verified prepared case directory}:/opt/silent-ridge/prepared-case:ro
+      - ${RIDGE_EVIDENCE_DIR:?Set published evidence directory}:/evidence:ro
+      - ${RIDGE_ORIGINALS_DIR:?Set original evidence directory}:/originals:ro
+      - team10-cases:/home/participant/Cases
+      - team10-workspace:/home/participant/Workspace
+      - team10-scratch:/home/participant/Scratch
+    secrets:
+      - source: vnc_password_team10
+        target: vnc_password
+
+secrets:
+  vnc_password_team01:
+    file: ${RIDGE_VNC_PASSWORD_DIR:?Set private per-team VNC password directory}/team01
+  vnc_password_team02:
+    file: ${RIDGE_VNC_PASSWORD_DIR:?Set private per-team VNC password directory}/team02
+  vnc_password_team03:
+    file: ${RIDGE_VNC_PASSWORD_DIR:?Set private per-team VNC password directory}/team03
+  vnc_password_team04:
+    file: ${RIDGE_VNC_PASSWORD_DIR:?Set private per-team VNC password directory}/team04
+  vnc_password_team05:
+    file: ${RIDGE_VNC_PASSWORD_DIR:?Set private per-team VNC password directory}/team05
+  vnc_password_team06:
+    file: ${RIDGE_VNC_PASSWORD_DIR:?Set private per-team VNC password directory}/team06
+  vnc_password_team07:
+    file: ${RIDGE_VNC_PASSWORD_DIR:?Set private per-team VNC password directory}/team07
+  vnc_password_team08:
+    file: ${RIDGE_VNC_PASSWORD_DIR:?Set private per-team VNC password directory}/team08
+  vnc_password_team09:
+    file: ${RIDGE_VNC_PASSWORD_DIR:?Set private per-team VNC password directory}/team09
+  vnc_password_team10:
+    file: ${RIDGE_VNC_PASSWORD_DIR:?Set private per-team VNC password directory}/team10
+
+volumes:
+  team01-cases:
+  team01-workspace:
+  team01-scratch:
+  team02-cases:
+  team02-workspace:
+  team02-scratch:
+  team03-cases:
+  team03-workspace:
+  team03-scratch:
+  team04-cases:
+  team04-workspace:
+  team04-scratch:
+  team05-cases:
+  team05-workspace:
+  team05-scratch:
+  team06-cases:
+  team06-workspace:
+  team06-scratch:
+  team07-cases:
+  team07-workspace:
+  team07-scratch:
+  team08-cases:
+  team08-workspace:
+  team08-scratch:
+  team09-cases:
+  team09-workspace:
+  team09-scratch:
+  team10-cases:
+  team10-workspace:
+  team10-scratch:
+
+networks:
+  desktop:
+    external: true
+    name: ${RIDGE_DESKTOP_NETWORK:?Set network routed only to team desktop VNC ports}

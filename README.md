@@ -1,163 +1,232 @@
-# Operation Silent Ridge — October 2026 cyber lane
+# Operation Silent Ridge
 
-A runnable cooperative CND/DFIR exercise for five SOC cells investigating disclosure
-of a fictional patrol's movement information. Includes handouts, facilitator solutions,
-three injects, reproducible synthetic evidence, Jira import data and Docker services.
-All activity is defensive and confined to synthetic training data.
+A cooperative, defensive incident-response exercise for **up to ten teams of three**.
+Participants investigate a fictional breach using real forensics and detection
+tools — Autopsy, Wireshark, Cutter and Wazuh — coordinated through a shared
+IRIS case, with questions and scoring in CTFd. Teams claim investigation
+tickets, submit findings, and earn equal-value points that persist even when a
+ticket changes hands. Everything in the scenario is fictional; the evidence,
+the tools, and the teamwork are real.
 
-**Facilitator answers are public in this repository.** Give participants only the
-portal and released handouts, never the repository ZIP or host/Docker access. For
-a blind assessment, prepare and rehearse a private variation.
+This repository contains the full event: the authored scenario and evidence,
+the tooling that builds and runs it, the participant materials, and the
+facilitator guides.
 
-## Setup and startup
+## I want to run the event — where do I start?
 
-Prerequisites: Git, Python 3.12 or later, and Docker Engine with Compose v2 using
-Linux containers. No pip packages are needed. Windows: substitute `py -3.12` or an
-actual interpreter path if `python` is an inactive Store alias. Run all commands
-from the repository root. Review config.json before initialization: 15 October,
-180 minutes, 20 people and injects 35/75/115 are configurable planning assumptions.
+You do not need to know anything about how this project is built. You need
+one capable machine, Docker, and about half a day of preparation. Follow
+these steps in order; each one tells you when it is done.
 
-```text
+1. **Check your machine.** 32 GB RAM (64 GB comfortable), 16 CPU cores,
+   100 GB free SSD, Docker installed and running. Details and the
+   measurements behind these numbers:
+   [What you need to host it locally](#what-you-need-to-host-it-locally).
+2. **Get the software onto that machine.** Download the offline bundle
+   from the
+   [latest release](https://github.com/Judge-M/Oct26/releases) and install
+   it — no internet needed afterwards, and no build step. This is the
+   intended path for event day; the exact install commands are in the
+   [command sheet](docs/event-day-commands.md). (Building from source is a
+   developer path — see [Quick start](#quick-start).)
+3. **Bring the event up.** Follow
+   **[docs/event-day-commands.md](docs/event-day-commands.md)** — it is the
+   complete cold-machine → running-event → teardown checklist with exact
+   commands, written to be followed literally. It covers install, the
+   pre-flight check (`doctor`), starting the stack with your team count
+   (`up --teams N`), verifying it is ready, and what to hand out.
+4. **Brief the participants.** Project
+   **[docs/event-day-deck/event-day-deck.pdf](docs/event-day-deck/event-day-deck.pdf)**
+   — 13 slides that tell the story and walk participants through every
+   login, click by click, assuming zero prior knowledge. It is a plain PDF,
+   so it projects anywhere with no software to install. Hand each team its
+   account sheet (the command sheet says where those files are).
+5. **Run the day.** The command sheet covers starting the clock, messaging
+   all teams, pausing, and recovering a stuck team. The
+   [operator runbook](docs/runbook.md) is the one-page symptom → action
+   reference while the event is live.
+6. **Afterwards.** One command makes a verified backup; one more tears
+   down. See [Backup, restore, teardown](#backup-restore-teardown).
+
+If something breaks, the command sheet links the troubleshooting table, and
+the participant deck has a "what to try before raising a hand" slide.
+
+## What participants experience
+
+Each team shares one container-hosted Linux desktop (three people, one
+screen, via Guacamole in a browser — nothing to install on participant
+laptops). Everything else happens in the participants' own browser tabs.
+Teams:
+
+1. Claim an investigation ticket in IRIS (the shared incident case).
+2. Investigate with the desktop tools: disk images in Autopsy, network
+   captures in Wireshark, a suspicious binary in Cutter, logs in Wazuh.
+3. Answer the ticket's questions in CTFd. Correct answers post the finding
+   back into the shared IRIS case automatically and score one point — so
+   every team's work helps everyone else's picture of the incident.
+4. Later tickets unlock as their prerequisites are solved, converging on the
+   full incident story.
+
+The event is designed for a 4–5 hour day including orientation, a break, and
+a facilitated after-action review.
+
+## What you need to host it locally
+
+One machine runs the whole event. Sized from live measurement of the real
+stack, not guesswork:
+
+- **32 GB RAM minimum; 64 GB is comfortable.** Measured on the running stack:
+  central services use ~6 GiB; each team desktop idles at ~150 MiB and peaks
+  at ~2 GiB with the Autopsy case open and its text index loaded. Ten loaded
+  desktops plus central services plus the host OS land near a 30 GiB working
+  set. Desktop containers carry a 4 GB memory *limit*, but a limit reserves
+  nothing — the host only commits what is actually touched.
+- **16 CPU cores recommended**, gigabit LAN for participant browsers
+- **100 GB free NVMe SSD** — measured: ~19 GB of container images, ~14 GB for
+  the offline bundle, plus build cache and runtime growth
+- **Docker** (Docker Desktop on Windows, or Docker Engine on Linux)
+- **Python 3.11+** and **Git with Git LFS** for the build host
+
+A two-team pilot runs comfortably on 16 GB RAM (measured: ~8.4 GiB for the
+whole stack with two desktops, one under Autopsy load).
+
+## Quick start
+
+**Hosting the event? Use the offline bundle** from the
+[releases page](https://github.com/Judge-M/Oct26/releases) and follow the
+[command sheet](docs/event-day-commands.md) — it covers install, content
+assets, and bring-up with exact commands.
+
+Building from source is the **developer path**. Note that
+`build --component all` produces only the container images — the content
+assets (evidence tree, Autopsy case template, Wazuh config, release vault)
+come from the release bundle or the content pipeline documented in
+[`docs/handoff/BUILD-FIRST.md`](docs/handoff/BUILD-FIRST.md). To build
+images:
+
+```bash
 git clone https://github.com/Judge-M/Oct26.git
 cd Oct26
-python -m unittest discover -s tests -v
-python scripts/exercise.py init
-python scripts/exercise.py verify
-docker compose config --quiet
-docker compose pull gateway
-docker compose build
-docker compose up -d --wait
-docker compose ps
+git lfs pull                                # fetch the evidence assets
+
+python -m ridge.deploy doctor               # check host prerequisites
+python -m ridge.deploy build --component all   # build images (downloads dependencies)
+python -m ridge.deploy verify-build         # verify the built artifacts
 ```
 
-Use current main or a validated release tag. Open [the local portal](http://127.0.0.1:8080). The controller reads
-runtime/cell-logins.txt locally and privately gives each cell only its own line.
-Choose network, endpoint, identity, server or hunting on the login page and enter
-that cell's password. Use the **Open [cell] tab** links to sign in as all five cells
-in one browser. Each link opens an independent tab; a visible label and tab title
-identify the active cell. **Switch cell / Sign out** affects only that session.
-Sessions survive refresh, expire after eight hours, and require a new login after
-a server restart. Passwords are not saved by the application. Use these links
-rather than the browser's Duplicate Tab feature, which may copy session storage.
-Do not paste
-credentials into tickets, Git or screenshots. Config changes require a new run.
+Then create a deployment profile — copy `deployment/profiles/example-two-team.json`,
+adjust it (event id, dates, desktop count, host addresses), and bring the
+event up:
 
-For multiple seats, create an ignored .env containing `BIND_IP=<training-interface-ip>`
-and optionally `PORT=8080`. Recreate with `docker compose up -d --wait`, restrict
-the host firewall to the lab subnet and distribute `http://<training-host>:8080`.
-HTTP authentication requires an isolated lab network; use locally managed
-TLS if crossing a shared network. Do not expose the service publicly.
-
-Portable fallback after the same init/verify commands:
-
-```text
-python app/server.py
+```bash
+python -m ridge.deploy up     --profile path/to/profile.json --runtime path/to/runtime
+python -m ridge.deploy status --profile path/to/profile.json --runtime path/to/runtime
+python -m ridge.deploy start  --profile path/to/profile.json --runtime path/to/runtime
 ```
 
-It listens on loopback port 8080. For approved lab access use
-`python app/server.py --host <training-interface-ip>`. Stop with Ctrl+C. Do not run
-portable and Docker modes against the same state or port simultaneously.
+Team count is a start-time switch, not a profile rewrite:
+`up --teams N` (1–10) provisions N neutral teams (team-01…team-N, three
+seats each) on N desktops no matter what the profile roster says. The
+choice is recorded in the runtime and reused by every later command; use
+a fresh runtime directory to change it. The profile's declared host
+capacity is still checked against the requested count.
 
-## Participant distribution and operation
+`up` builds out the entire stack and stops at a verified, paused state —
+nothing is visible to participants until you explicitly `start`. The `runtime`
+directory is private: it holds the event's secrets, state, and the team
+account inventories you hand out to participants. On Windows, `ridge.ps1`
+wraps the same commands (`.\ridge.ps1 prepare / up / status / start ...`).
 
-Participants download the three handouts and initial evidence through the portal,
-verify SHA256SUMS.json, and analyze working copies. Every cell can see all evidence
-and tickets. Native PCAP/SQLite are supplied where practical; collection notes label
-simplified CSV/JSONL and reconstructed sensor traffic. No executable is supplied.
-Jira is the intended work surface: follow [Jira setup](docs/jira.md). Choose Jira
-or the built-in rehearsal board as the authoritative record before starting.
+Participants then connect in a browser (default ports, bound to localhost
+unless you set `BIND_IP`):
 
-Controller materials: [event plan](docs/event-plan.md),
-[ground truth](facilitator/ground-truth.md), [controller guide](facilitator/controller-guide.md),
-[solutions](facilitator/solutions.md), [assessment and AAR](facilitator/assessment-aar.md).
-At each scheduled elapsed time, run the corresponding release, then verify:
+| What | Where |
+|---|---|
+| Team desktops (Guacamole) | `http://<host>:8082` |
+| IRIS incident case | `http://<host>:8081` |
+| CTFd questions and score | `http://<host>:8083` |
+| Wazuh dashboard | `https://<host>:8443` |
 
-```text
-python scripts/exercise.py release 1
-python scripts/exercise.py verify
+## Running the event
+
+The [event-day command sheet](docs/event-day-commands.md) is the
+cold-machine → running-event → teardown checklist with exact commands.
+The [participant briefing deck](docs/event-day-deck/event-day-deck.pdf)
+(13 slides, PDF) is what you project at the start: it explains the
+scenario and walks participants through setup click by click.
+
+```bash
+python -m ridge.deploy pause   --profile ... --runtime ...   # pause the clock
+python -m ridge.cli announce --operator EXCON --text "..."   # message all teams
+python -m ridge.cli recover T03 --generation 1 --operator EXCON --reason "..."
 ```
 
-Repeat with `release 2` and `release 3` only when due. Do not release all three at
-startup. Announce deadlines and ask cells to refresh. Releases are ordered and
-idempotent. Recommendations go through exercise control and need written simulated
-acknowledgment; participants never direct real personnel.
+Facilitator materials (solutions, coaching and AAR guides) live in
+`facilitator/`; participant worksheets in `participants/`. The
+[operator runbook](docs/runbook.md) is the one-page event-day reference with
+recovery appendices; see `docs/expanded-operations.md` for the deeper guide.
 
-## Verification
+## Backup, restore, teardown
 
-```text
-python -m unittest discover -s tests -v
-python scripts/exercise.py verify
-docker compose config --quiet
-docker compose ps
-docker compose logs --tail 50
+```bash
+python -m ridge.deploy backup  --profile ... --runtime ...   # verified recovery set
+python -m ridge.deploy down    --profile ... --runtime ...   # stop; keeps all data
+python -m ridge.deploy down --volumes --profile ... --runtime ...   # full wipe
+python -m ridge.deploy restore --from <recovery-set> --profile ... --runtime <empty-dir>
 ```
 
-Tests cover evidence determinism and consistency, PCAP/SQLite validity, access
-boundaries, shared comments, status ownership, inject gating, persistence, export
-and reset. See [validation record](docs/validation.md) for executed checks and gaps.
-On a rehearsal run only, `python scripts/smoke.py` tests the deployed HTTP service
-and writes a test comment. After restart, use `python scripts/smoke.py --expect-persistence`.
-After release 1, also pass `--released`. It expects a clean run on its first invocation.
+`backup` produces a checksummed recovery set (databases, state, evidence,
+team workspaces, Wazuh index, encrypted secrets). `down --volumes` is
+destructive and **refuses to run unless a verified backup exists**. Restore
+onto an empty runtime directory replays the complete event — this exact
+backup → wipe → restore → keep-playing cycle has been drill-tested live.
 
-Before live use, verify each participant seat can download/hash evidence, comment
-on another cell's ticket and see retained comments after restart. Check that future
-inject paths return 404. Rehearse actual Jira permissions and export separately.
-If Docker reports a missing engine pipe, start Docker Desktop with Linux containers
-and check virtualization/WSL; use portable mode while resolving the host requirement.
-For /state permission failures, see [architecture](docs/architecture.md). Never fix
-access by mounting the repository or vault. Reset rotates credentials.
+## Project status
 
-## Export, shutdown and reset
+The local event is working software: the full lifecycle (build → provision →
+run → pause → backup → wipe → restore) has been exercised against the real
+stack, and a scripted walkthrough solved all 80 questions end-to-end with
+findings and points landing in IRIS and CTFd. An offline drill release,
+[`v0.9.0-drill`](https://github.com/Judge-M/Oct26/releases/tag/v0.9.0-drill),
+packages every image and asset and has been cold-install-tested from the
+release page alone (fresh download, hash-verified, all 13 images loaded). Its
+notes carry the install steps and the honest certification gaps. Event-day
+materials are ready: the operator command sheet
+(`docs/event-day-commands.md`) and the participant briefing deck
+(`docs/event-day-deck/`).
 
-Pause inject releases, then:
+**Picking up development (human or agent): start at
+[`docs/handoff/NEXT.md`](docs/handoff/NEXT.md)** — its "Current position"
+section says what is done, what is in flight, and the single next action,
+with links to receipts and evidence. Task cards live alongside it in
+`docs/handoff/tasks/`.
 
-```text
-python scripts/exercise.py export
-docker compose down
-```
+Before the
+late-October event, the remaining work is tracked in `docs/handoff/NEXT.md`:
 
-For portable mode use Ctrl+C instead of Compose down. Ignored exports/run-<UTC>.zip
-contains a coherent SQLite snapshot, released evidence, config and release log,
-excluding credentials. Export Jira work including comments separately if authoritative.
-Keep all participant work private. For a new run, after stopping the service:
+- Ten-team capacity rehearsal on the actual event hardware
+- Desktop image rebuild with the measured Autopsy heap cap, then the final
+  event release, operator freeze, and dress rehearsal
+- A beginner rehearsal to validate the 4–5 hour duration with real people
+- AWS deployment option (AMI, cloud fencing, teardown) — deferred until the
+  local release is proven
 
-```text
-python scripts/exercise.py reset --stopped
-python scripts/exercise.py verify
-docker compose up -d --wait
-```
+## Repository map
 
-Reset exports and archives the old runtime under ignored exports/, then creates only
-initial evidence and new credentials. The full runtime archive contains old passwords;
-keep it controller-only. Nothing is recursively deleted. --stopped is your attestation,
-not automatic process detection. Do not reset a running service. Set archive retention
-with the event owner.
+| Path | What it is |
+|---|---|
+| `participants/` | Participant worksheets and handover notes |
+| `facilitator/` | Operator runbook, solutions, coaching, AAR guides |
+| `expanded/` | Scenario authoring and content tooling |
+| `ridge/` | The event platform: state core, deployment, CLI |
+| `deployment/` | Container builds, compose files, example profiles |
+| `docs/` | Architecture, operations, and planning documents |
+| `docs/event-day-commands.md` | **Run the event**: cold-machine → teardown checklist |
+| `docs/event-day-deck/` | **Brief participants**: 13-slide setup + story deck |
+| `docs/handoff/` | **Start here when picking up work**: `NEXT.md` (current position), receipts, evidence, and task cards |
+| `tests/` | Automated test suite (`python -m unittest discover -s tests`) |
+| `app/`, `admin/`, root `Dockerfile` | Retired rehearsal portal, kept only as a test fixture — not part of the event |
 
-To generate a separate bundle without starting a run:
-
-```text
-python scripts/generate.py build/rehearsal-evidence
-```
-
-The destination must not exist. Distribute initial/ only; inject directories stay
-private until release. Identical sources/config/runtime produce identical hashes.
-SQLite bytes can vary across runtime versions; archive tool versions and each build's
-manifest. Runtime, credentials, exports and student data are excluded from Git and
-the Docker image. See [architecture and access control](docs/architecture.md).
-
-## Decisions before live rehearsal
-
-Confirm date, duration, count/skills, staff, hardware/virtualization, network/TLS,
-Jira project and permissions or fallback, public-answer exposure, accessibility and
-retention. Optional narrative connections for other instructors are in the event
-plan; the cyber lane depends on no other lane's products.
-
-
-## Controller records, timing and offline restoration
-
-Run `python scripts/schedule.py` before initialization. Set duration_minutes to 120
-or 180 to select a validated schedule; all deadlines and inject headings are rendered
-from that schedule. Read [controller ledger](docs/controller-ledger.md) for named
-acknowledgments, clock start/pause/resume, comment IDs and export traceability.
-Read [offline deployment](docs/offline.md) to package both exact images plus the
-controller source/configuration and restore without a build or network pull.
+All scenario content and answers are public by design (large evidence files
+via Git LFS). Credentials, rosters, runtime directories and backups are
+private and must never be committed.

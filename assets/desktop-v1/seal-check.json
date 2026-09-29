@@ -1,0 +1,8 @@
+{
+  "temporary_access_removed": true,
+  "ssh_host_keys_removed": true,
+  "machine_identity_reset": true,
+  "cloud_init_cache_removed": true,
+  "native_capture_present": true,
+  "prepared_case_present": true
+}

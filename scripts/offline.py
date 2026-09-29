@@ -29,6 +29,17 @@ def verify(root):
     print('Offline package verified (compare SHA256SUMS.json itself with your trusted transfer record).')
 
 
+def verify_application_image(identity):
+    expected={p.relative_to(REPO/'app').as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
+              for p in (REPO/'app').rglob('*') if p.is_file() and '__pycache__' not in p.parts and p.suffix!='.pyc'}
+    script="import pathlib,hashlib,json; r=pathlib.Path('/app'); print(json.dumps({p.relative_to(r).as_posix():hashlib.sha256(p.read_bytes()).hexdigest() for p in r.rglob('*') if p.is_file() and '__pycache__' not in p.parts and p.suffix!='.pyc'}))"
+    observed=json.loads(run('docker','run','--rm','--network','none','--read-only',
+                            '--entrypoint','python',identity,'-c',script))
+    if observed != expected:
+        raise ValueError('Application image content differs from current source; rebuild and validate before packaging')
+    return expected
+
+
 def pack(root):
     root=Path(root).resolve()
     if root.exists(): raise ValueError('Use a new offline package directory')
@@ -52,6 +63,8 @@ def pack(root):
         inspection=json.loads(run('docker','inspect',container))[0]
         identity=inspection['Image']
         image=json.loads(run('docker','image','inspect',identity))[0]
+        if service=='exercise':
+            info['application_source_hashes']=verify_application_image(identity)
         tag=f'silent-ridge-offline-{service}:{identity.split(":")[1][:16]}'
         run('docker','tag',identity,tag)
         info['images'][service]={'id':identity,'tag':tag,'repo_digests':image.get('RepoDigests',[]),

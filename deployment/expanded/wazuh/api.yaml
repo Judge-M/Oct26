@@ -1,0 +1,9 @@
+# The pinned manager image copies this file and the CA-signed certificate from
+# /wazuh-config-mount into its writable API configuration directory at boot.
+https:
+  enabled: yes
+  key: "server.key"
+  cert: "server.crt"
+  use_ca: false
+  ca: "ca.crt"
+drop_privileges: yes

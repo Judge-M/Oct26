@@ -1,0 +1,112 @@
+pageType: content
+background:
+  type: solid
+  color: "$paper"
+elements:
+  - elementId: tag
+    elementType: text
+    bounds: [64, 40, 400, 20]
+    content: {style: "$tag", wrap: false, text: PART 1 · THE STORY}
+  - elementId: title
+    elementType: text
+    bounds: [64, 66, 832, 40]
+    content: {style: "$title", wrap: false, text: "09:30 UTC: the outgoing shift hands you a problem"}
+  - elementId: rule
+    elementType: line
+    bounds: [64, 116, 832, 2]
+    viewBox: [832, 2]
+    points: "0,1 832,1"
+    curve: sharp
+    border: {style: solid, width: 2, color: "$line"}
+  - elementId: narrative
+    elementType: text
+    bounds: [64, 138, 832, 78]
+    content:
+      style: "$body"
+      fontSize: 15
+      text: |
+        <p>Patrol <strong>LANTERN</strong> is already in the field. The outgoing shift suspects its movement
+        details were disclosed — an account password was reset at 09:20, and a viewer tool was run minutes
+        later. Endpoint, network, identity, document-service and SIEM exports are already collected.</p>
+  - elementId: keyline
+    elementType: text
+    bounds: [64, 226, 832, 22]
+    content: {style: "$body", fontSize: 15, bold: true, wrap: false, text: "No confirmed harm. Do not assume it is over."}
+  - elementId: col1-head
+    elementType: text
+    bounds: [64, 258, 250, 24]
+    content: {fontSize: 15, bold: true, color: "$slate", wrap: false, text: WHAT WE KNOW}
+  - elementId: col1-rule
+    elementType: line
+    bounds: [64, 284, 250, 2]
+    viewBox: [250, 2]
+    points: "0,1 250,1"
+    curve: sharp
+    border: {style: solid, width: 2, color: "$slate"}
+  - elementId: col1-body
+    elementType: text
+    bounds: [64, 296, 250, 150]
+    content:
+      style: "$body"
+      fontSize: 14
+      text: |
+        <p>· A password reset happened at 09:20 UTC</p>
+        <p>· A viewer tool was downloaded and accessed a browser session store</p>
+        <p>· All evidence exports are already collected and waiting for you</p>
+  - elementId: col2-head
+    elementType: text
+    bounds: [355, 258, 250, 24]
+    content: {fontSize: 15, bold: true, color: "$amber", wrap: false, text: WHAT WE DON'T KNOW}
+  - elementId: col2-rule
+    elementType: line
+    bounds: [355, 284, 250, 2]
+    viewBox: [250, 2]
+    points: "0,1 250,1"
+    curve: sharp
+    border: {style: solid, width: 2, color: "$amber"}
+  - elementId: col2-body
+    elementType: text
+    bounds: [355, 296, 250, 150]
+    content:
+      style: "$body"
+      fontSize: 14
+      text: |
+        <p>· Which movements were exposed, and to whom</p>
+        <p>· How access was gained</p>
+        <p>· Which systems are still affected</p>
+        <p>· Whether the incident has ended</p>
+  - elementId: col3-head
+    elementType: text
+    bounds: [646, 258, 250, 24]
+    content: {fontSize: 15, bold: true, color: "$slate", wrap: false, text: WHAT YOU DO ABOUT IT}
+  - elementId: col3-rule
+    elementType: line
+    bounds: [646, 284, 250, 2]
+    viewBox: [250, 2]
+    points: "0,1 250,1"
+    curve: sharp
+    border: {style: solid, width: 2, color: "$slate"}
+  - elementId: col3-body
+    elementType: text
+    bounds: [646, 296, 250, 150]
+    content:
+      style: "$body"
+      fontSize: 14
+      text: |
+        <p>· Investigate the evidence in teams</p>
+        <p>· Label every claim: confirmed, assessed, or unknown</p>
+        <p>· Build a defensible shared assessment before the day ends</p>
+  - elementId: fiction
+    elementType: text
+    bounds: [64, 466, 832, 20]
+    content:
+      style: "$small"
+      text: All names, hosts, addresses and artifacts are fictional exercise material. Nothing here is a real system or person.
+  - elementId: footer
+    elementType: text
+    bounds: [64, 505, 700, 18]
+    content: {style: "$small", wrap: false, text: OPERATION SILENT RIDGE — EXERCISE ONLY}
+  - elementId: pagenum
+    elementType: text
+    bounds: [880, 505, 40, 18]
+    content: {style: "$small", align: [right, top], wrap: false, text: "3"}

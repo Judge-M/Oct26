@@ -1,0 +1,19 @@
+#!/bin/bash
+set -euo pipefail
+python3 - <<'PY'
+import secrets,subprocess
+from pathlib import Path
+password=secrets.token_urlsafe(24)
+result=subprocess.run(['tigervncpasswd','-f'],input=(password+'\n').encode(),capture_output=True,check=True)
+Path('/etc/silent-ridge/vnc-password').write_bytes(result.stdout)
+PY
+chown participant:participant /etc/silent-ridge/vnc-password
+chmod 600 /etc/silent-ridge/vnc-password
+cp -a /opt/silent-ridge/cases/* /home/participant/Cases/
+chown -R participant:participant /home/participant/Cases
+systemctl start silent-ridge-desktop
+sleep 4
+runuser -u participant -- env DISPLAY=:1 bash -c 'nohup /usr/local/bin/firefox --no-remote about:blank > /home/participant/firefox-test.log 2>&1 &'
+runuser -u participant -- env DISPLAY=:1 bash -c 'nohup /opt/cutter/Cutter.AppImage --appimage-extract-and-run /evidence/binary/brief-viewer-training > /home/participant/cutter-test.log 2>&1 &'
+runuser -u participant -- env DISPLAY=:1 bash -c 'nohup wireshark -r /evidence/network/dns.pcap > /home/participant/wireshark-test.log 2>&1 &'
+runuser -u participant -- env DISPLAY=:1 bash -c 'nohup /opt/silent-ridge/open-autopsy.sh > /home/participant/autopsy-test.log 2>&1 &'

@@ -1,0 +1,55 @@
+from pathlib import Path
+import hashlib
+import json
+import shutil
+import subprocess
+
+root = Path('/opt/silent-ridge-build/desktop')
+repo = Path('/mnt/c/Users/mj777/Documents/Codex/2026-09-14/i/work/Oct26-fixes')
+image = root / 'silent-ridge-desktop-v1-compact.qcow2'
+boot = json.loads((root / 'offline-boot-check.json').read_text())
+assert boot['boot_passed']
+target = repo / 'assets/large/desktop'
+target.mkdir(exist_ok=False)
+part_limit = 900 * 1024 * 1024
+whole = hashlib.sha256()
+parts = []
+with image.open('rb') as stream:
+    while True:
+        first = stream.read(1024 * 1024)
+        if not first: break
+        part = target / f'silent-ridge-desktop-v1.qcow2.part{len(parts)+1:03d}'
+        digest = hashlib.sha256()
+        count = 0
+        with part.open('xb') as output:
+            block = first
+            while block:
+                output.write(block)
+                digest.update(block)
+                whole.update(block)
+                count += len(block)
+                if count == part_limit: break
+                block = stream.read(min(1024 * 1024, part_limit-count))
+        parts.append(dict(path=part.relative_to(repo).as_posix(), bytes=count, sha256=digest.hexdigest()))
+        print('Packaged', part.name, count, flush=True)
+info = json.loads(subprocess.check_output(['qemu-img', 'info', '--output=json', str(image)]))
+provenance = repo / 'assets/desktop-v1'
+provenance.mkdir(exist_ok=False)
+for name in ('packages.tsv', 'seal-check.json', 'offline-boot-check.json'):
+    shutil.copyfile(root / name, provenance / name)
+manifest = dict(schema=1, format='qcow2', version='desktop-v1',
+    bytes=image.stat().st_size, sha256=whole.hexdigest(), virtual_bytes=info['virtual-size'],
+    parts=parts, event_ready=False, aws_import_validated=False, hyperv_boot_validated=False,
+    tested_resources=dict(vcpus=4, memory_mib=8192),
+    base_image=json.loads(Path('/mnt/c/Users/mj777/Documents/Codex/2026-09-14/i/work/media/ubuntu-source.json').read_text()),
+    tools=dict(autopsy='4.22.0', sleuthkit='4.13.0',
+        cutter=dict(version='2.5.0', sha256='b8ad215d7a9e2af9e1f463511229f16e1f4745a0fb541413e5f4787f949ac0cf',
+            url='https://github.com/rizinorg/cutter/releases/download/v2.5.0/Cutter-v2.5.0-Linux-x86_64.AppImage'),
+        firefox=dict(version='140.16.0esr', sha256='a90174f8fecfb1767371015a625a2f7ffc1edafd9110717348e797a46a066edf',
+            url='https://archive.mozilla.org/pub/firefox/releases/140.16.0esr/linux-x86_64/en-US/firefox-140.16.0esr.tar.xz')),
+    prepared_case='assets/autopsy-case-v2.json', native_capture='assets/native-windows-v1/archive.json',
+    boot_validation=boot, unused_filesystem_blocks_zeroed=True,
+    gui_validation=dict(autopsy_case_opened=True, keyword_documents=90, briefsync_matches=6,
+        cutter_functions=11, cutter_strings=16, firefox_launched=True, wireshark_launched=True))
+(repo / 'assets/desktop-v1.json').write_text(json.dumps(manifest, indent=2)+'\n')
+print('Desktop packaged:', manifest['bytes'], manifest['sha256'], flush=True)

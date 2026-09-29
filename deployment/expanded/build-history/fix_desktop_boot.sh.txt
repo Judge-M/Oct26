@@ -1,0 +1,19 @@
+#!/bin/bash
+set -euo pipefail
+root=/opt/silent-ridge-build/desktop
+pid=$(cat "$root/qemu.pid")
+[[ $(readlink -f "/proc/$pid/exe") == /usr/bin/qemu-system-x86_64 ]]
+kill -TERM "$pid"
+for attempt in {1..30}; do [[ ! -e /proc/$pid ]] && break; sleep .2; done
+[[ ! -e /proc/$pid ]] || [[ $(awk '{print $3}' /proc/$pid/stat) == Z ]]
+qemu-nbd --connect=/dev/nbd0 "$root/desktop-build.qcow2"
+trap 'umount "$root/mount" 2>/dev/null || true; qemu-nbd --disconnect /dev/nbd0' EXIT
+udevadm settle
+mkdir -p "$root/mount"
+mount /dev/nbd0p1 "$root/mount"
+printf 'datasource_list: [ NoCloud, Ec2, Azure, None ]\n' > "$root/mount/etc/cloud/cloud.cfg.d/99-silent-ridge-datasources.cfg"
+find "$root/mount/var/lib/cloud" -maxdepth 2 -type f -name datasource -print
+umount "$root/mount"
+qemu-nbd --disconnect /dev/nbd0
+trap - EXIT
+python3 /mnt/c/Users/mj777/Documents/Codex/2026-09-14/i/work/boot_desktop.py

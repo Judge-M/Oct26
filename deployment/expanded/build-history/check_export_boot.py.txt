@@ -1,0 +1,50 @@
+from pathlib import Path
+import json
+import subprocess
+import time
+
+root = Path('/opt/silent-ridge-build/desktop')
+disk = root / 'silent-ridge-desktop-v1-compact.qcow2'
+assert disk.is_file()
+script = '''#!/bin/bash
+set -euo pipefail
+test "$(uname -r)" = 6.8.0-139-generic
+test -f /home/participant/Cases/WS17/WS17.aut
+test -f /evidence/prepared/memory-processes.json
+test -f /originals/windows/WS17.raw
+findmnt -n -o OPTIONS /evidence | grep -qw ro
+findmnt -n -o OPTIONS /originals | grep -qw ro
+test ! -e /etc/silent-ridge/vnc-password
+test ! -e /home/builder/.ssh/authorized_keys
+test "$(getent passwd builder | cut -d: -f7)" = /usr/sbin/nologin
+! systemctl is-active --quiet silent-ridge-desktop.service
+command -v Xtigervnc
+command -v wireshark
+test -x /opt/autopsy/bin/autopsy
+test -x /opt/cutter/Cutter.AppImage
+test -x /opt/firefox/firefox
+echo SILENT_RIDGE_OFFLINE_BOOT_PASSED
+'''
+config = dict(users=[], package_update=False, package_upgrade=False,
+    write_files=[dict(path='/run/verify-desktop.sh', permissions='0700', content=script)],
+    runcmd=[['bash', '/run/verify-desktop.sh']],
+    power_state=dict(mode='poweroff', timeout=30, condition=True))
+(root / 'verify-user-data').write_text('#cloud-config\n'+json.dumps(config))
+(root / 'verify-meta-data').write_text('instance-id: ridge-offline-validation-v1\n')
+seed = root / 'verify-seed.img'
+subprocess.run(['cloud-localds', str(seed), str(root / 'verify-user-data'), str(root / 'verify-meta-data')], check=True)
+log = root / 'offline-boot.log'
+command = ['qemu-system-x86_64', '-enable-kvm', '-cpu', 'host', '-smp', '4', '-m', '8192',
+    '-drive', f'file={disk},if=virtio,format=qcow2,snapshot=on',
+    '-drive', f'file={seed},if=virtio,format=raw,readonly=on',
+    '-netdev', 'user,id=net0,restrict=on', '-device', 'virtio-net-pci,netdev=net0',
+    '-display', 'none', '-serial', f'file:{log}', '-no-reboot']
+subprocess.run(command, check=True, timeout=240)
+data = log.read_text(errors='replace')
+assert 'SILENT_RIDGE_OFFLINE_BOOT_PASSED' in data, data[-5000:]
+(root / 'offline-boot-check.json').write_text(json.dumps(dict(
+    boot_passed=True, network='QEMU user networking restrict=on; no outbound access',
+    immutable_base=True, generic_kernel='6.8.0-139-generic',
+    evidence_read_only=True, originals_read_only=True,
+    desktop_waits_for_runtime_credentials=True), indent=2)+'\n')
+print('Exported disk booted offline; evidence mounts and runtime credential gate verified.')

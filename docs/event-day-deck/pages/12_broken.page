@@ -1,0 +1,67 @@
+pageType: content
+background:
+  type: solid
+  color: "$paper"
+elements:
+  - elementId: tag
+    elementType: text
+    bounds: [64, 40, 400, 20]
+    content: {style: "$tag", wrap: false, text: WHEN THINGS GO WRONG}
+  - elementId: title
+    elementType: text
+    bounds: [64, 66, 832, 40]
+    content: {style: "$title", wrap: false, text: "If something breaks: what to try before raising a hand"}
+  - elementId: rule
+    elementType: line
+    bounds: [64, 116, 832, 2]
+    viewBox: [832, 2]
+    points: "0,1 832,1"
+    curve: sharp
+    border: {style: solid, width: 2, color: "$line"}
+  - elementId: table
+    elementType: table
+    bounds: [64, 140, 832, 250]
+    columnWidths: [0.38, 0.62]
+    rowHeights: [0.18, 0.205, 0.205, 0.205, 0.205]
+    style:
+      cellStyle:
+        fontSize: 14
+        color: "$ink"
+        align: [left, middle]
+        border: [null, null, {style: solid, width: 1, color: "$line"}, null]
+      firstRowStyle:
+        bold: true
+        color: "$slate"
+        border: [null, null, {style: solid, width: 2, color: "$slate"}, null]
+    rows:
+      - - text: WHAT YOU SEE
+        - text: WHAT TO DO
+      - - text: "“Connection interrupted” on the question page"
+        - text: Wait a few seconds and retry — accepted answers are retained; nothing you earned is lost
+      - - text: Points or findings not showing yet
+        - text: Give it about ten seconds — scoring and findings synchronize in the background
+      - - text: Desktop frozen or disconnected
+        - text: Reconnect from the :8082 tab; the desktop and your case are exactly where you left them
+      - - text: Login refused everywhere
+        - text: Check you're on the right app with the right login kind (team vs seat vs Guacamole), then ask a facilitator
+  - elementId: help-title
+    elementType: text
+    bounds: [64, 412, 300, 22]
+    content: {style: "$tag", wrap: false, text: STILL STUCK}
+  - elementId: help-body
+    elementType: text
+    bounds: [64, 438, 832, 50]
+    content:
+      style: "$body"
+      fontSize: 15
+      text: |
+        <p>Raise a hand. Facilitators can pause the exercise clock, recover a stuck ticket,
+        or re-issue a login — you cannot break the exercise by asking.</p>
+  - elementId: footer
+    elementType: text
+    bounds: [64, 505, 700, 18]
+    content: {style: "$small", wrap: false, text: OPERATION SILENT RIDGE — EXERCISE ONLY}
+  - elementId: pagenum
+    elementType: text
+    bounds: [880, 505, 40, 18]
+    content: {style: "$small", align: [right, top], wrap: false, text: "12"}

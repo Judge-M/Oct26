@@ -175,7 +175,7 @@ if __name__=='__main__':
     parser.add_argument('number',nargs='?',type=int,choices=(1,2,3))
     parser.add_argument('--stopped',action='store_true')
     parser.add_argument('--operator',help='Named controller alias, recorded with authenticated host user')
-    parser.add_argument('--request',help='Ticket/comment reference, e.g. T1-C12 or Jira issue/comment ID')
+    parser.add_argument('--request',help='Legacy rehearsal ticket/comment reference, e.g. T1-C12')
     parser.add_argument('--outcome',choices=('approved','denied','pending'))
     parser.add_argument('--effective-minute',type=float)
     parser.add_argument('--text',help='Reason, tradeoff, verification or revised deadline')

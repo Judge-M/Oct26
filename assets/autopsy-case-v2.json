@@ -1,0 +1,151 @@
+{
+  "schema": 1,
+  "artifact": "assets/large/autopsy/WS17-prepared-case-v2.tar.gz",
+  "sha256": "4bdc220685d2771cf7eee4392d6d90a9b39350524bd3bf5392c586ce329ec18d",
+  "bytes": 259770,
+  "autopsy": "4.22.0",
+  "sleuthkit": "4.13.0",
+  "case_path": "cases/WS17/WS17.aut",
+  "evidence_mount": "/evidence",
+  "data_sources": 2,
+  "case_file_records": 53,
+  "database_integrity": "ok",
+  "ingest_complete": true,
+  "saved_keyword_index": true,
+  "relocated_case_reopened": true,
+  "desktop_keyword_check": {
+    "query": "text:BriefSync",
+    "matches": 6,
+    "indexed_documents": 90
+  },
+  "native_windows_records_included": true,
+  "native_windows_memory_included": false,
+  "event_ready": false,
+  "evidence_files": [
+    {
+      "path": "README.txt",
+      "bytes": 204,
+      "sha256": "d92f7311bd48d167498f884962896c49f949353a2bba8a5e73ebf75375bc7152"
+    },
+    {
+      "path": "binary/brief-viewer-training",
+      "bytes": 17864,
+      "sha256": "2ab86ebd0e692c44d79753ad3ca6558e67261d46575dd2df8331e1b00335238b"
+    },
+    {
+      "path": "browser/downloads.csv",
+      "bytes": 128,
+      "sha256": "141ff9ee80095b8db33569c855691455bcd80dd7479b3f65ff8e83dffeb0127a"
+    },
+    {
+      "path": "disk/WS17-fat16.img",
+      "bytes": 8388608,
+      "sha256": "63287b8b6d36dd750a85fe86a635983316a46315b173be28a1ec5a2fcca657b1"
+    },
+    {
+      "path": "endpoint/browser.sqlite",
+      "bytes": 8192,
+      "sha256": "acda6548dd71d550de51a3885ed00165fad8330501f9fa973322242685cee912"
+    },
+    {
+      "path": "endpoint/events.csv",
+      "bytes": 2559,
+      "sha256": "74485dad1531657b1d3a0c579328fd7e946e8b1f41c2f351924a3a0511ce77c4"
+    },
+    {
+      "path": "guides/getting-started.md",
+      "bytes": 4167,
+      "sha256": "786ba61fc4379054b136615fcea147bd4050775c18e71d41e9dc41b36231f87f"
+    },
+    {
+      "path": "hunting/approved-inventory.csv",
+      "bytes": 198,
+      "sha256": "a3d0fa5167cbc8d67d94d434a989d61217334ff8a272361a47e4917be73599f2"
+    },
+    {
+      "path": "hunting/coverage.csv",
+      "bytes": 316,
+      "sha256": "56e0e681be287294b6ec6aea19083fd92ea6cc80ec9a842a17e38d699cad03b8"
+    },
+    {
+      "path": "hunting/siem.jsonl",
+      "bytes": 3078,
+      "sha256": "22eb42bda966ee7b6d56940ffb5ff66b05fcd8ff66f0347f7270d233640bca5e"
+    },
+    {
+      "path": "identity/auth.csv",
+      "bytes": 1551,
+      "sha256": "c230fd2746441269da9ab965a010d59f8046ec3bca361a52148fc967f379ea3b"
+    },
+    {
+      "path": "identity/policy.txt",
+      "bytes": 312,
+      "sha256": "6a78bcff92edeb61bf7477ac7c44b3b3497232bad7b39fa1fe1737220d0266c5"
+    },
+    {
+      "path": "network/dns.csv",
+      "bytes": 201,
+      "sha256": "6ca0723a2f41c51453e9205424470446cde2208f93c4f635f306ac32a5c3e144"
+    },
+    {
+      "path": "network/dns.pcap",
+      "bytes": 438,
+      "sha256": "4708d40d1e80808a681dd31200be2388474f6423b39e6c105062f0ef4d4084cc"
+    },
+    {
+      "path": "network/proxy.csv",
+      "bytes": 2065,
+      "sha256": "4e5e9894c8ba1dace4770cf7e1602cef674bc4a1eeb6aed198a0ccaf17604f8e"
+    },
+    {
+      "path": "network/sensor-note.txt",
+      "bytes": 127,
+      "sha256": "4dee725684fb5e528afca6795d9aec5c8a98b4f61a774b9cdca4d65c5b99c75a"
+    },
+    {
+      "path": "network/sensor.pcap",
+      "bytes": 7386,
+      "sha256": "45e5be2084f275b7038550d060110a50d4e5da72b60fd3460ce1c8919eb9e0be"
+    },
+    {
+      "path": "prepared/memory-processes.json",
+      "bytes": 1538,
+      "sha256": "661d3bdfd47bdf6607059c6ecde2bdf788e5a903a5264f1a4e0e61d20fb3e2f0"
+    },
+    {
+      "path": "prepared/windows-connections.json",
+      "bytes": 1101,
+      "sha256": "bee2425c83e52160a17e913fc135f45aeb928a8f978bcd53c30e1475c88c6832"
+    },
+    {
+      "path": "prepared/windows-process.json",
+      "bytes": 1389,
+      "sha256": "73802f32f5ab2a625e7d15c7248b729d2323d862991530db61493fb01012fc53"
+    },
+    {
+      "path": "prepared/windows-task.json",
+      "bytes": 2119,
+      "sha256": "947e40ad38cd3031b7a5694d60d1676f3a9934fd0c59675a38a0e0d8fc0107ff"
+    },
+    {
+      "path": "server/access.csv",
+      "bytes": 1719,
+      "sha256": "96e5b8918e85af232e2aacbfcde95f9f801a48e58c35f66f15813ae6d3e663e4"
+    },
+    {
+      "path": "server/catalog.csv",
+      "bytes": 393,
+      "sha256": "fd402f4c195877dcc7ef499a3889828614d245a19a91657a2fa12cf9bf98442d"
+    },
+    {
+      "path": "server/collection.txt",
+      "bytes": 109,
+      "sha256": "0b4601bf6e6777568041514088afc36825dccbe0a911881e012aba8c8aacd789"
+    },
+    {
+      "path": "wazuh/telemetry.jsonl",
+      "bytes": 135707,
+      "sha256": "36c2fd4063d77b5b25682d02f86c73a6f2d68f4be8fe4d7400c77fc7ab58a7f8"
+    }
+  ]
+}

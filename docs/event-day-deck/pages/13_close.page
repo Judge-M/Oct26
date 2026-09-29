@@ -1,0 +1,75 @@
+pageType: final
+background:
+  type: solid
+  color: "$deep"
+elements:
+  - elementId: ring-outer
+    elementType: shape
+    bounds: [760, 320, 260, 260]
+    shapeName: donut
+    adjustments: [5000]
+    fill: {type: solid, color: "#3A524B66"}
+  - elementId: ring-inner
+    elementType: shape
+    bounds: [820, 380, 140, 140]
+    shapeName: donut
+    adjustments: [8000]
+    fill: {type: solid, color: "#3A524B99"}
+  - elementId: tag
+    elementType: text
+    bounds: [64, 90, 400, 22]
+    content: {style: "$tag", wrap: false, text: YOU'RE READY}
+  - elementId: title
+    elementType: text
+    bounds: [64, 122, 700, 60]
+    content:
+      fontSize: 36
+      bold: true
+      color: "#F5F2EA"
+      wrap: false
+      text: Success today looks like this
+  - elementId: rule
+    elementType: line
+    bounds: [64, 196, 120, 3]
+    viewBox: [120, 3]
+    points: "0,1.5 120,1.5"
+    curve: sharp
+    border: {style: solid, width: 3, color: "$amber"}
+  - elementId: body
+    elementType: text
+    bounds: [64, 218, 640, 178]
+    content:
+      fontSize: 16
+      color: "#C9CFC7"
+      lineHeight: 1.5
+      text: |
+        <p>· A <strong>defensible shared assessment</strong> of what happened to LANTERN — every claim labeled and cited</p>
+        <p>· <strong>Timely updates</strong> — brief even when confidence is low</p>
+        <p>· <strong>Proportionate recommendations</strong> — no invented harm, no guesswork presented as fact</p>
+        <p>· Points on the board are the byproduct, not the goal</p>
+  - elementId: urls-title
+    elementType: text
+    bounds: [64, 414, 300, 20]
+    content: {style: "$tag", wrap: false, text: YOUR FOUR ADDRESSES}
+  - elementId: urls
+    elementType: text
+    bounds: [64, 438, 700, 52]
+    content:
+      fontSize: 14
+      color: "#C9CFC7"
+      lineHeight: 1.6
+      text: |
+        <p>IRIS :8081 · CTFd :8083 · Wazuh :8443 (HTTPS) · Team desktop :8082</p>
+        <p><span style="color:#7E877F">All in your own browser. All fictional. Good hunting.</span></p>
+  - elementId: footer
+    elementType: text
+    bounds: [64, 505, 700, 18]
+    content:
+      fontSize: 12
+      color: "#7E877F"
+      wrap: false
+      text: OPERATION SILENT RIDGE — EXERCISE ONLY
+  - elementId: pagenum
+    elementType: text
+    bounds: [880, 505, 40, 18]
+    content: {fontSize: 12, color: "#7E877F", align: [right, top], wrap: false, text: "13"}

@@ -1,0 +1,8 @@
+{
+  "schema": 1,
+  "release": "silent-ridge-expanded-1",
+  "source_commit": "REPLACE_WITH_VALIDATED_SOURCE_COMMIT",
+  "compatibility_verified": false,
+  "artifacts": [],
+  "missing": ["validated central container archives", "validated Linux desktop template", "native disk and memory artifacts", "native Windows event logs", "ready-to-open Autopsy cases", "offline dependencies and symbols", "rendered participant guides"]
+}

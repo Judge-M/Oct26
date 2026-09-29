@@ -1,0 +1,9 @@
+{
+  "boot_passed": true,
+  "network": "QEMU user networking restrict=on; no outbound access",
+  "immutable_base": true,
+  "generic_kernel": "6.8.0-139-generic",
+  "evidence_read_only": true,
+  "originals_read_only": true,
+  "desktop_waits_for_runtime_credentials": true
+}

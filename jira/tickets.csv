@@ -1,6 +1,0 @@
-Summary,Issue Type,Description,Labels
-Network incident investigation,Task,"Owner cell: network. Investigate proxy DNS and reconstructed sensor PCAP. Report timeline exposure confidence and visibility gaps. All cells may comment. Use participant worksheets.",silent-ridge-network
-Endpoint incident investigation,Task,"Owner cell: endpoint. Normalize device clocks and examine process file network and task evidence plus browser SQLite. Preserve evidence and recommend scoped containment.",silent-ridge-endpoint
-Identity incident investigation,Task,"Owner cell: identity. Reconstruct S-41 usage and assess MFA and password reset versus session revocation. Report uncertainty and verification needs.",silent-ridge-identity
-Server and data incident investigation,Task,"Owner cell: server. Bound successful and denied object access by version. Account for collection gaps. Correlate file hashes with other cells.",silent-ridge-server
-Enterprise hunting incident investigation,Task,"Owner cell: hunting. Test linked-activity and scope hypotheses using SIEM and coverage. Distinguish confirmed suspected and unknown hosts. Coordinate cross-cell evidence.",silent-ridge-hunting

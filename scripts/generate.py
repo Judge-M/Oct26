@@ -24,7 +24,10 @@ def write_csv(path, rows):
 
 
 def manifest(root):
-    return {p.relative_to(root).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
+    def digest(path):
+        with path.open('rb') as source:
+            return hashlib.file_digest(source,'sha256').hexdigest()
+    return {p.relative_to(root).as_posix(): digest(p)
             for p in sorted(root.rglob('*')) if p.is_file() and p.name != 'SHA256SUMS.json'}
 
 

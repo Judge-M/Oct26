@@ -2,6 +2,8 @@
 import getpass
 import json
 import os
+import sqlite3
+from contextlib import closing
 from contextlib import contextmanager
 from datetime import datetime, timezone
 
@@ -77,6 +79,15 @@ def locked(runtime):
 
 
 def append(runtime, kind, operator=None, details=None, now=None):
+    database=runtime/'state/tickets.sqlite'
+    if kind in ('start','pause','resume') and database.exists():
+        with closing(sqlite3.connect(database,timeout=15)) as con, con:
+            con.execute('BEGIN IMMEDIATE')
+            return _append(runtime,kind,operator,details,now)
+    return _append(runtime,kind,operator,details,now)
+
+
+def _append(runtime, kind, operator=None, details=None, now=None):
     events=read(runtime)
     when=utc(now)
     if events and when < utc(events[-1]['actual_utc']): raise ValueError('Controller UTC moved backwards')

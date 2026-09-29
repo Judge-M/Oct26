@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "version": "native-windows-v1",
+  "artifact": "assets/large/native/WS17-native-v1.tar.gz",
+  "bytes": 879914343,
+  "sha256": "ab62411aee3591b2589a217218d6c576228b44e681e1168011453a164393aa5c",
+  "files": {
+    "WS17.raw": {
+      "bytes": 10871635968,
+      "sha256": "79f47a1c7386824f03f72ae6e5bcf188bf1cb5324555066e27665c4b9a787a06"
+    },
+    "Security.evtx": {
+      "bytes": 1118208,
+      "sha256": "a505818400cc562085b2b8bbb0d515de07b9f0e24bea28f9a21cd3fffa36800b"
+    },
+    "TaskScheduler.evtx": {
+      "bytes": 69632,
+      "sha256": "c39851141c4924ec678e398ff0a8bd1b2272066d07d7baa2da20660897c3ebb8"
+    },
+    "Security.evtx.records.json": {
+      "bytes": 69460,
+      "sha256": "d78ec57cf69ac5bcc795e9fde2441bed52bf3ea0dc8b042f107d1e28e7dd3fb8"
+    },
+    "TaskScheduler.evtx.records.json": {
+      "bytes": 1782,
+      "sha256": "f5f4acd2a43886c1975b416e235a6dda38b3bfa2b11d3d24bf93edfdc313ee88"
+    },
+    "observed-processes.json": {
+      "bytes": 489,
+      "sha256": "52e7f5ef3ed36e3006f1f03c2bd1ccb381539ee362c80891732c0bff91c25702"
+    },
+    "observed-connections.json": {
+      "bytes": 423,
+      "sha256": "284fec42c077feda428df33666dfebba4f2b61555895d9c809acd17bca7fb940"
+    },
+    "native-provenance.json": {
+      "bytes": 579,
+      "sha256": "d8cf9cebb3ba5b8340365c2e1096ef4fbf291c19624efd3052b9d622b48f098b"
+    },
+    "BriefSync.xml": {
+      "bytes": 1083,
+      "sha256": "c7a67d90f9748b766d1d0e9b8ba942cea6ea9f937588fd1dd6c27e30ab7bb7d7"
+    },
+    "brief-viewer.exe": {
+      "bytes": 7168,
+      "sha256": "40f2d2ceb513d80ef6672ee2905974f0a62968397b81870e42dfc1ec4fbbb068"
+    },
+    "browser.exe": {
+      "bytes": 4096,
+      "sha256": "68b8464096713ec77def7d654ee52e2259447cf3cef58869e575ea2716bbf331"
+    },
+    "move-cache.txt": {
+      "bytes": 90,
+      "sha256": "fc16471366c4f448d4c1ce851aab1433fe7ac5e20ac20e5815d3ad637b12d3ef"
+    },
+    "acquisition.log": {
+      "bytes": 3786,
+      "sha256": "f8c075d1a13f74e6f117ac601bc5909bc027301c48e7950b169def82f2db5165"
+    },
+    "memory-sha256.json": {
+      "bytes": 116,
+      "sha256": "aaa457afa32d1f4feba0498cb1f4c702fa13c075f72ff919fb5e211e0e509333"
+    },
+    "analysis/memory-pslist.json": {
+      "bytes": 26781,
+      "sha256": "04e5f6e60ff66ce4771235a306d0fe66364503498efef94319ff5691801bbb78"
+    },
+    "analysis/memory-cmdline.json": {
+      "bytes": 286,
+      "sha256": "e6e0ac9e512ee7a02d66aa626e8051412b0fbb2b8279e3cc348deebebe05784c"
+    },
+    "analysis/memory-info-explicit.json": {
+      "bytes": 1934,
+      "sha256": "982d061ab13d596ae60048e00ecb8da259a0b56ca3c6d3a7b3f79ccd151796d1"
+    },
+    "memory-layer.json": {
+      "bytes": 834,
+      "sha256": "805b5128a337812d3fe50028ca97064099c695c211eb8701f16b44dcb7465186"
+    },
+    "symbols/C29EBFB06B78B3C020DCA66D99713F9E-1.json.xz": {
+      "bytes": 714996,
+      "sha256": "e7f5329fd2efcbe3b8551b4e3804450f7b23f6e462addd3e18284915e7635ea9"
+    }
+  },
+  "acquisition_tool": {
+    "url": "https://github.com/Velocidex/WinPmem/releases/download/v4.1.dev1/go-winpmem_amd64_1.0-rc2_signed.exe",
+    "sha256": "86691bb4af2c17dd9ec4834c04a99ad51e04f780a07d1b05bc382a5d1892e0c4"
+  },
+  "memory_parser": "Volatility 3 2.28.0",
+  "memory_processes_validated": true,
+  "memory_connections_validated": false,
+  "native_logs_validated": true,
+  "event_ready": false
+}

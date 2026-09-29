@@ -1,0 +1,59 @@
+{
+  "silent-ridge-writer": {
+    "cluster_permissions": [],
+    "index_permissions": [
+      {
+        "index_patterns": [
+          "silent-ridge-*"
+        ],
+        "allowed_actions": [
+          "create_index",
+          "indices:admin/get",
+          "indices:data/write/index",
+          "indices:data/write/bulk",
+          "indices:data/write/bulk*",
+          "indices:admin/mappings/put",
+          "indices:admin/template/put",
+          "indices:data/read/search",
+          "indices:data/read/get"
+        ]
+      }
+    ]
+  },
+  "silent-ridge-participant": {
+    "cluster_permissions": [
+      "cluster_composite_ops_ro"
+    ],
+    "index_permissions": [
+      {
+        "index_patterns": [
+          "silent-ridge-*"
+        ],
+        "allowed_actions": [
+          "indices:data/read/search",
+          "indices:data/read/get",
+          "indices:data/read/field_caps",
+          "indices:admin/mappings/get"
+        ]
+      },
+      {
+        "index_patterns": [
+          ".kibana*"
+        ],
+        "allowed_actions": [
+          "read"
+        ]
+      }
+    ],
+    "tenant_permissions": [
+      {
+        "tenant_patterns": [
+          "global_tenant"
+        ],
+        "allowed_actions": [
+          "kibana_all_read"
+        ]
+      }
+    ]
+  }
+}

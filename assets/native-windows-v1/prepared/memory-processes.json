@@ -1,0 +1,48 @@
+{
+  "provenance": "Native artifacts acquired from an isolated training reconstruction; not original incident acquisition",
+  "scenario_host": "WS-17",
+  "clock_semantics": "Actual acquisition UTC; do not apply the historical WS-17 120-second offset",
+  "pid": 6364,
+  "ppid": 7644,
+  "process_kernel_name": "brief-viewer.e",
+  "parent": "browser.exe",
+  "command_line": "\"C:\\Fixture\\brief-viewer.exe\" --cache C:/Temp/move-cache.txt",
+  "utc": "2026-09-15T23:22:00+00:00",
+  "memory_offset": "0xc98352279080",
+  "address_space": "kernel virtual",
+  "original_path": "/originals/windows/WS17.raw",
+  "original_sha256": "79f47a1c7386824f03f72ae6e5bcf188bf1cb5324555066e27665c4b9a787a06",
+  "parser": "Volatility 3 2.28.0",
+  "commands": [
+    "vol -c memory-layer.json -r json windows.pslist",
+    "vol -c memory-layer.json -r json windows.cmdline --pid 6364 7644"
+  ],
+  "process_record": {
+    "CreateTime": "2026-09-15T23:22:00+00:00",
+    "ExitTime": null,
+    "File output": "Disabled",
+    "Handles": null,
+    "ImageFileName": "brief-viewer.e",
+    "Offset(V)": 221565856223360,
+    "PID": 6364,
+    "PPID": 7644,
+    "SessionId": 1,
+    "Threads": 9,
+    "Wow64": false,
+    "__children": []
+  },
+  "parent_record": {
+    "CreateTime": "2026-09-15T23:22:00+00:00",
+    "ExitTime": null,
+    "File output": "Disabled",
+    "Handles": null,
+    "ImageFileName": "browser.exe",
+    "Offset(V)": 221565838229632,
+    "PID": 7644,
+    "PPID": 8544,
+    "SessionId": 1,
+    "Threads": 6,
+    "Wow64": false,
+    "__children": []
+  }
+}

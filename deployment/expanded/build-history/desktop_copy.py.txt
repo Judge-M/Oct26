@@ -1,0 +1,7 @@
+from pathlib import Path
+import subprocess
+import sys
+root=Path('/opt/silent-ridge-build/desktop')
+subprocess.run(['scp','-i',str(root/'build-key'),'-P','2222','-o','BatchMode=yes',
+    '-o','StrictHostKeyChecking=yes','-o','UserKnownHostsFile='+str(root/'known-hosts'),
+    sys.argv[1],'builder@127.0.0.1:'+sys.argv[2]],check=True)

@@ -3,5 +3,5 @@
   "duration_minutes": 180,
   "participants": 20,
   "cells": ["network", "endpoint", "identity", "server", "hunting"],
-  "note": "Planning assumptions only; date and staffing require event-owner confirmation. Evidence clock is UTC; event wall clock is separate."
+  "note": "RETIRED BASELINE: these are the original five-cell single-exercise planning values, superseded by the expanded Operation Silent Ridge design (ten teams / thirty participants, ~260-minute activity target; see README.md and expanded/config.json). Retained only for the legacy app/ fixture. Evidence clock is UTC; event wall clock is separate."
 }

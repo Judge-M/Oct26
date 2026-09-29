@@ -1,0 +1,17 @@
+from pathlib import Path
+import hashlib
+import json
+import subprocess
+repo=Path('/mnt/c/Users/mj777/Documents/Codex/2026-09-14/i/work/Oct26-fixes')
+out=repo/'assets/large/binary/brief-viewer-training'
+out.parent.mkdir(parents=True,exist_ok=True)
+source=repo/'expanded/binary/brief-viewer-training.c'
+command=['cc','-O0','-g','-fno-inline','-o',str(out),str(source)]
+subprocess.run(command,check=True)
+manifest=dict(path=out.relative_to(repo).as_posix(),sha256=hashlib.sha256(out.read_bytes()).hexdigest(),
+    source=source.relative_to(repo).as_posix(),source_sha256=hashlib.sha256(source.read_bytes()).hexdigest(),
+    compiler=subprocess.check_output(['cc','--version'],text=True).splitlines()[0],
+    command='cc -O0 -g -fno-inline -o brief-viewer-training expanded/binary/brief-viewer-training.c',
+    architecture='Linux x86-64',behavior='Harmless static-analysis surrogate; no network or persistence behavior')
+(repo/'assets/training-binary.json').write_text(json.dumps(manifest,indent=2)+'\n')
+print(manifest['sha256'])

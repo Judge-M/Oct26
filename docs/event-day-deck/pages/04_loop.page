@@ -1,0 +1,131 @@
+pageType: content
+background:
+  type: solid
+  color: "$paper"
+elements:
+  - elementId: tag
+    elementType: text
+    bounds: [64, 40, 400, 20]
+    content: {style: "$tag", wrap: false, text: PART 1 · THE STORY}
+  - elementId: title
+    elementType: text
+    bounds: [64, 66, 832, 40]
+    content: {style: "$title", wrap: false, text: "How the day works: claim, investigate, answer, share"}
+  - elementId: rule
+    elementType: line
+    bounds: [64, 116, 832, 2]
+    viewBox: [832, 2]
+    points: "0,1 832,1"
+    curve: sharp
+    border: {style: solid, width: 2, color: "$line"}
+  - elementId: s1-shape
+    elementType: shape
+    bounds: [64, 158, 176, 136]
+    shapeName: rect
+    fill: {type: solid, color: "$palegreen"}
+    border: {style: solid, width: 1, color: "$slate"}
+  - elementId: s1-text
+    elementType: text
+    bounds: [76, 170, 152, 114]
+    content:
+      fontSize: 13
+      color: "$ink"
+      lineHeight: 1.4
+      text: |
+        <p><strong>1 · CLAIM</strong></p>
+        <p>Pick an open ticket in the IRIS queue. One active ticket per team.</p>
+  - elementId: a1
+    elementType: line
+    bounds: [244, 220, 40, 12]
+    viewBox: [40, 12]
+    points: "0,6 40,6"
+    curve: sharp
+    arrow: [null, "arrow"]
+    border: {style: solid, width: 2, color: "$amber"}
+  - elementId: s2-shape
+    elementType: shape
+    bounds: [288, 158, 176, 136]
+    shapeName: rect
+    fill: {type: solid, color: "$palegreen"}
+    border: {style: solid, width: 1, color: "$slate"}
+  - elementId: s2-text
+    elementType: text
+    bounds: [300, 170, 152, 114]
+    content:
+      fontSize: 13
+      color: "$ink"
+      lineHeight: 1.4
+      text: |
+        <p><strong>2 · INVESTIGATE</strong></p>
+        <p>Use the desktop tools on the released evidence. Read-only, always.</p>
+  - elementId: a2
+    elementType: line
+    bounds: [468, 220, 40, 12]
+    viewBox: [40, 12]
+    points: "0,6 40,6"
+    curve: sharp
+    arrow: [null, "arrow"]
+    border: {style: solid, width: 2, color: "$amber"}
+  - elementId: s3-shape
+    elementType: shape
+    bounds: [512, 158, 176, 136]
+    shapeName: rect
+    fill: {type: solid, color: "$palegreen"}
+    border: {style: solid, width: 1, color: "$slate"}
+  - elementId: s3-text
+    elementType: text
+    bounds: [524, 170, 152, 114]
+    content:
+      fontSize: 13
+      color: "$ink"
+      lineHeight: 1.4
+      text: |
+        <p><strong>3 · ANSWER</strong></p>
+        <p>Submit the requested value in CTFd. One point per correct answer.</p>
+  - elementId: a3
+    elementType: line
+    bounds: [692, 220, 40, 12]
+    viewBox: [40, 12]
+    points: "0,6 40,6"
+    curve: sharp
+    arrow: [null, "arrow"]
+    border: {style: solid, width: 2, color: "$amber"}
+  - elementId: s4-shape
+    elementType: shape
+    bounds: [736, 158, 176, 136]
+    shapeName: rect
+    fill: {type: solid, color: "$palegreen"}
+    border: {style: solid, width: 1, color: "$slate"}
+  - elementId: s4-text
+    elementType: text
+    bounds: [748, 170, 152, 114]
+    content:
+      fontSize: 13
+      color: "$ink"
+      lineHeight: 1.4
+      text: |
+        <p><strong>4 · SHARE</strong></p>
+        <p>The finding publishes to IRIS for every team. Closed tickets unlock new ones.</p>
+  - elementId: notes-title
+    elementType: text
+    bounds: [64, 326, 300, 22]
+    content: {style: "$tag", wrap: false, text: WORTH KNOWING UP FRONT}
+  - elementId: notes-body
+    elementType: text
+    bounds: [64, 354, 832, 130]
+    content:
+      style: "$body"
+      fontSize: 15
+      text: |
+        <p>· <strong>Hints are free.</strong> Every question has help levels; using them costs nothing.</p>
+        <p>· <strong>Wrong answers cost nothing.</strong> You only ever gain points — try, read the next hint, try again.</p>
+        <p>· <strong>Stuck?</strong> Relinquish the ticket in IRIS so another team can continue it. Your solved questions stay solved and your points stay yours.</p>
+        <p>· <strong>No reports, no approvals.</strong> Answering questions and sharing findings is the whole job.</p>
+  - elementId: footer
+    elementType: text
+    bounds: [64, 505, 700, 18]
+    content: {style: "$small", wrap: false, text: OPERATION SILENT RIDGE — EXERCISE ONLY}
+  - elementId: pagenum
+    elementType: text
+    bounds: [880, 505, 40, 18]
+    content: {style: "$small", align: [right, top], wrap: false, text: "4"}

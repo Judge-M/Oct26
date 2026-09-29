@@ -1,0 +1,121 @@
+"""Execute inside the actual extended CTFd 3.7.7 image, using a disposable database."""
+import concurrent.futures
+import os
+from unittest.mock import patch
+from pathlib import Path
+
+os.environ.update(DATABASE_URL='sqlite:////tmp/ctfd-smoke.sqlite',SECRET_KEY='disposable-ci-key-only-000000000000',
+    UPLOAD_FOLDER='/tmp/uploads',LOG_FOLDER='/tmp/logs',RIDGE_CTFD_FILE='/tmp/ridge-ctfd-secret',
+    IRIS_PUBLIC_URL='http://iris.invalid')
+os.environ.setdefault('CTFD_PUBLIC_URL','http://ctfd.invalid')
+Path('/tmp/ridge-ctfd-secret').write_text('c'*40)
+
+from CTFd import create_app
+from CTFd.models import db,Awards,Teams,Users
+from CTFd.utils import get_config,set_config
+from flask import session
+from ridge.ctfd_provision import ProvisionSpec,TeamSpec,UserSpec,provision
+from CTFd.plugins.ctfd_silent_ridge.provision import OrmAdmin
+
+app=create_app()
+assert app.config['SESSION_COOKIE_NAME']=='silent_ridge_ctfd_session'
+assert app.config['SESSION_COOKIE_SECURE'] is os.environ['CTFD_PUBLIC_URL'].startswith('https://')
+@app.route('/ridge-smoke-cookie')
+def smoke_cookie():
+    session['nonce']='smoke-nonce'
+    return 'ok'
+with app.app_context():
+    assert get_config('score_visibility')=='private'
+    assert get_config('account_visibility')=='private'
+    set_config('setup',True);set_config('user_mode','teams')
+    team=Teams(name='Smoke team',password='disposable password')
+    db.session.add(team);db.session.flush()
+    user=Users(name='smoke-user',email='smoke@example.test',password='disposable password',type='user')
+    user.team_id=team.id;db.session.add(user);db.session.commit()
+    team_id=team.id;user_id=user.id
+    provision(OrmAdmin(),ProvisionSpec(
+        teams=(TeamSpec('smoke','Smoke team','disposable password'),),
+        users=(UserSpec('smoke-user','smoke@example.test','smoke','disposable password'),)))
+    db.session.commit()
+with app.test_client() as cookie_client:
+    cookie_response=cookie_client.get('/ridge-smoke-cookie')
+    assert cookie_response.status_code==200,cookie_response.status_code
+    cookie_header=cookie_response.headers['Set-Cookie']
+    assert cookie_header.startswith('silent_ridge_ctfd_session='),cookie_header
+    assert ('Secure' in cookie_header) is app.config['SESSION_COOKIE_SECURE'],cookie_header
+
+body={'key':'smoke-run:point:T01-Q1','kind':'point','payload':{
+    'question':'T01-Q1','ctfd_team':team_id,'value':1,'event':'smoke-event'}}
+
+def deliver(_):
+    with app.test_client() as client:
+        response=client.post('/silent-ridge/internal',json=body,headers={'X-Ridge-Key':'Bearer '+'c'*40})
+        assert response.status_code==200,(response.status_code,response.get_data(as_text=True))
+        return response.get_json()['id']
+
+with concurrent.futures.ThreadPoolExecutor(4) as pool:
+    assert len(set(pool.map(deliver,range(4))))==1
+with app.app_context():
+    assert Awards.query.count()==1
+    assert Awards.query.first().value==1
+
+# The award survives failed cache invalidation; a receipt retry must invalidate again.
+from CTFd.plugins import ctfd_silent_ridge as plugin
+retry_body={**body,'key':'smoke-run:point:T01-Q2'}
+with app.test_client() as client:
+    with patch.object(plugin,'invalidate_scores',side_effect=ConnectionError('cache unavailable')):
+        try:
+            response=client.post('/silent-ridge/internal',json=retry_body,headers={'X-Ridge-Key':'Bearer '+'c'*40})
+            assert response.status_code==500
+        except ConnectionError:
+            pass  # Some test configurations propagate application exceptions.
+    with patch.object(plugin,'invalidate_scores') as invalidated:
+        response=client.post('/silent-ridge/internal',json=retry_body,headers={'X-Ridge-Key':'Bearer '+'c'*40})
+        assert response.status_code==200
+        invalidated.assert_called_once()
+with app.app_context():
+    assert Awards.query.count()==2
+
+from CTFd.plugins.ctfd_silent_ridge.provision import OrmAdmin
+from ridge.ctfd_provision import FacilitatorSpec, ProvisionSpec, TeamSpec, provision, preflight
+admin_spec=ProvisionSpec(
+    teams=(TeamSpec('smoke-team','Smoke team','disposable password'),), users=(),
+    facilitator=FacilitatorSpec('ridge-facilitator','admin@example.test',
+                                 'generated-disposable-admin-password-000001'))
+with app.app_context():
+    first=provision(OrmAdmin(),admin_spec)
+    db.session.commit()
+    assert preflight(OrmAdmin(),admin_spec,first)['ready']
+    assert provision(OrmAdmin(),admin_spec)==first
+    db.session.commit()
+    facilitator=Users.query.filter_by(name='ridge-facilitator').one()
+    assert facilitator.type=='admin' and facilitator.team_id is None
+    assert Awards.query.count()==2
+with app.test_client() as admin_browser:
+    assert admin_browser.get('/login').status_code==200
+    with admin_browser.session_transaction() as browser_session:
+        nonce=browser_session['nonce']
+    login=admin_browser.post('/login',data={
+        'name':'ridge-facilitator','password':'generated-disposable-admin-password-000001',
+        'nonce':nonce})
+    assert login.status_code==302,login.status_code
+    dashboard=admin_browser.get('/admin',follow_redirects=True)
+    assert dashboard.status_code==200,dashboard.status_code
+
+with app.test_client() as client:
+    assert client.get('/scoreboard').status_code in (301,302), 'guest scoreboard must require login'
+    with client.session_transaction() as session:
+        session.update(id=user_id,name='smoke-user',email='smoke@example.test',type='user',nonce='smoke-nonce')
+    scoreboard=client.get('/scoreboard')
+    assert scoreboard.status_code==200,(scoreboard.status_code,scoreboard.get_data(as_text=True)[:200])
+    assert 'Smoke team' in scoreboard.get_data(as_text=True)
+
+with app.test_client() as client:
+    assert client.post('/silent-ridge/internal',json=body).status_code in (401,403)
+    with client.session_transaction() as session:
+        session.update(id=user_id,name='smoke-user',email='smoke@example.test',type='user',nonce='smoke-nonce')
+    assert client.get('/api/v1/challenges').status_code==403
+    assert client.post('/api/v1/challenges/attempt',json={'challenge_id':1,'submission':'anything'},
+                       headers={'CSRF-Token':'smoke-nonce'}).status_code==403
+    assert client.get('/silent-ridge/internal').status_code in (404,405)
+print('Actual CTFd image: unique credits, retry race, authentication and stock API blocking passed.')

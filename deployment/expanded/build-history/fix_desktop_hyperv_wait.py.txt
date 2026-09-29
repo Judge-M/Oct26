@@ -1,0 +1,28 @@
+from pathlib import Path
+import subprocess
+import time
+root = Path('/opt/silent-ridge-build/desktop')
+disk = root / 'silent-ridge-desktop-v1-compact.qcow2'
+mount = root / 'inspection'
+assert not Path('/sys/block/nbd0/pid').exists()
+subprocess.run(['qemu-nbd', '--connect=/dev/nbd0', str(disk)], check=True)
+mounted = False
+try:
+    for _ in range(50):
+        if Path('/dev/nbd0p1').exists(): break
+        time.sleep(.2)
+    subprocess.run(['mount', '/dev/nbd0p1', str(mount)], check=True)
+    mounted = True
+    units = []
+    for unit in (mount / 'usr/lib/systemd/system').glob('*.service'):
+        if 'vmbus' in unit.read_text(errors='replace'):
+            units.append(unit.name)
+    print('Hyper-V-specific units:', units, flush=True)
+    for unit in units:
+        # A condition alone would not suppress its hardware-device dependency.
+        # Remove its enablement; Hyper-V builds may enable it during provisioning.
+        subprocess.run(['systemctl', '--root='+str(mount), 'disable', unit], check=True)
+finally:
+    if mounted: subprocess.run(['umount', str(mount)], check=True)
+    subprocess.run(['qemu-nbd', '--disconnect', '/dev/nbd0'], check=True)
+subprocess.run(['qemu-img', 'check', str(disk)], check=True)

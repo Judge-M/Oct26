@@ -1,0 +1,16 @@
+#!/bin/bash
+set -euo pipefail
+test -f /boot/vmlinuz-6.8.0-139-generic
+cat >/etc/default/grub.d/99-silent-ridge.cfg <<'EOF'
+GRUB_DEFAULT='Advanced options for Ubuntu>Ubuntu, with Linux 6.8.0-139-generic'
+GRUB_TIMEOUT=1
+EOF
+update-grub
+install -d /opt/silent-ridge/originals
+if [[ -d /originals/windows ]]; then mv /originals/windows /opt/silent-ridge/originals/; fi
+if ! grep -q '^/opt/silent-ridge/originals /originals ' /etc/fstab; then
+  printf '/opt/silent-ridge/originals /originals none bind,ro 0 0\n' >> /etc/fstab
+fi
+systemctl stop silent-ridge-desktop
+sync
+systemctl reboot

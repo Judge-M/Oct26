@@ -1,0 +1,26 @@
+import hashlib
+import json
+from pathlib import Path
+import urllib.request
+
+root = Path(__file__).parent / 'media'
+root.mkdir(exist_ok=True)
+base = 'https://cloud-images.ubuntu.com/noble/20260911/'
+name = 'noble-server-cloudimg-amd64-azure.vhd.tar.gz'
+sums = urllib.request.urlopen(base + 'SHA256SUMS', timeout=60).read().decode()
+expected = next(line.split()[0] for line in sums.splitlines() if line.split()[-1].lstrip('*') == name)
+part = root / (name + '.part')
+digest = hashlib.sha256()
+count = 0
+with urllib.request.urlopen(base + name, timeout=60) as response, part.open('wb') as output:
+    while block := response.read(4 * 1024 * 1024):
+        output.write(block)
+        digest.update(block)
+        count += len(block)
+        if count % (64 * 1024 * 1024) == 0:
+            print(f'Downloaded {count // (1024 * 1024)} MiB', flush=True)
+if digest.hexdigest() != expected:
+    raise SystemExit('Ubuntu image checksum mismatch')
+part.rename(root / name)
+(root / 'ubuntu-source.json').write_text(json.dumps(dict(url=base + name, sha256=expected, bytes=count), indent=2))
+print('Ubuntu image verified', flush=True)

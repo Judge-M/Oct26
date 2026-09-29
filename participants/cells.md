@@ -1,31 +1,36 @@
-# Five cooperative investigation assignments
+# Team workflow
 
-All five cells investigate the same incident. Every cell can read and comment on
-all tickets. The owning cell maintains its status and final assessment.
-Assign an analyst, evidence recorder, and reporter; combine roles as needed.
+IRIS, CTFd and the Wazuh dashboard all open in your own laptop browser (see
+your team handout for addresses and logins). The shared team desktop is for
+the native investigation tools only.
 
-| Ticket | Specialist cell | Initial sources | Assignment |
-|---|---|---|---|
-| 1 | Network | network/ | Assess network activity and possible data movement. |
-| 2 | Endpoint | endpoint/ | Reconstruct endpoint activity and assess affected systems. |
-| 3 | Identity | identity/ | Assess account and authentication activity. |
-| 4 | Server and data | server/ | Assess access to documents and potential exposure. |
-| 5 | Threat hunting | hunting/ | Investigate scope across systems and document coverage gaps. |
+Teams are general-purpose investigation groups. Open the shared IRIS queue and
+claim an available ticket. Each team can own one active ticket; each ticket has
+one owner. Open CTFd to see the unanswered questions for your owned ticket.
+Use the **Incident queue** shortcut or `/silent-ridge` in IRIS; the queue links
+to the correct native case for this installation. Do not guess a numeric case
+ID from another installation. Before claiming a ticket, CTFd may show no
+questions and the native IRIS tasks may show To do/Unassigned.
 
-Use the collection context to understand each source and its limitations.
-Develop your own hypotheses, cite supporting and contradicting evidence, and
-ask other cells for corroboration. Keep facts separate from assessments.
-Do not execute files or connect to addresses found in evidence.
+Investigate the released evidence using the desktop file manager, Autopsy,
+Wireshark, Cutter and the configured Wazuh view as directed by the question.
+Use the beginner guide and free hints whenever needed. Do not execute evidence
+files or connect to addresses found in evidence.
 
-Every cell posts its initial report by elapsed minute {{initial_report}}.
-Respond to command messages as they arrive. Comment on at least one other cell's
-ticket with useful evidence and identify a next collection step.
+In Wazuh, start in **Discover**. Use `silent-ridge-timed` with the absolute
+2026-10-15 08:00–09:30 UTC window for event questions such as T06 and the dated
+T10 approved-program inventory comparator. Use `silent-ridge-timeless` for
+undated coverage and catalog records. The stock Overview and empty Reports screen are not the
+exercise evidence view. See the [Wazuh guide](../expanded/guides.md#wazuh).
 
-## Joint assessment ownership
+Submit answers in CTFd. Each globally accepted correct answer earns one point
+and publishes its predefined evidence-backed finding to IRIS. Completion closes
+the ticket and makes eligible follow-up work available. Read shared completed
+findings to understand the wider incident.
 
-The hunting reporter coordinates the joint assessment on ticket 5.
-Each cell contributes by minute {{cell_handover}}, linking ticket and comment IDs,
-facts, confidence, unresolved questions, and defensive priorities.
-The hunting reporter posts JOINT ASSESSMENT by minute {{joint_report}}.
-Record unresolved disagreements rather than forcing consensus.
-Only published controller acknowledgments establish simulated action status.
+Relinquish a ticket in IRIS if another team should continue it. Solved questions
+stay solved and points remain with the team that earned them. You do not need
+to write a report, change native task status, or obtain facilitator approval.
+
+See [beginner guidance](../expanded/guides.md) and
+[current operations](../docs/expanded-operations.md).

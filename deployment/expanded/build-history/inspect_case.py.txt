@@ -1,0 +1,12 @@
+from pathlib import Path
+import sqlite3
+
+case = Path('/opt/silent-ridge-build/prepared-cases/WS17_2026_09_15_10_17_55')
+with sqlite3.connect(f'file:{case}/autopsy.db?mode=ro', uri=True) as db:
+    print('Integrity:', db.execute('pragma integrity_check').fetchall())
+    print('Files:', db.execute('select count(*) from tsk_files').fetchall())
+    print('Cache:', db.execute("select obj_id,name,size,dir_flags,meta_flags from tsk_files where name like '%OVECACH%' ").fetchall())
+    print('Jobs schema:', db.execute('pragma table_info(ingest_jobs)').fetchall())
+    print('Jobs:', db.execute('select * from ingest_jobs').fetchall())
+    print('Source paths:', db.execute('select * from tsk_files_path').fetchmany(4))
+print('Index:', [(p.name,p.stat().st_size) for p in (case/'ModuleOutput/keywordsearch').rglob('*') if p.is_file()][:25])

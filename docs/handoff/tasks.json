@@ -1,0 +1,603 @@
+{
+  "schema": 1,
+  "baseline": "305c257",
+  "tasks": [
+    {
+      "id": "A01",
+      "title": "Reconcile readiness documentation and prepare PR #6 updates",
+      "dependencies": [],
+      "read_first": [
+        "README.md",
+        "docs/expanded-validation.md",
+        "docs/expanded-deployment.md",
+        "deployment/expanded/versions.json",
+        "assets/desktop-v1.json",
+        "expanded/native.py",
+        "PR #6 patch",
+        "PR #7 patch"
+      ],
+      "implementation": "Replace obsolete missing-artifact/toolchain assertions with dated evidence and unresolved gates. Record Cutter 2.5.0 and actual artifact versions without silently upgrading packages. Prepare the six corrections to PR #6 listed in ASSESSMENT.md. Mark #7 optional and outside the release critical path; verify NICE mappings only against an identified official release.",
+      "acceptance": "Every readiness claim links to a manifest or recorded check; T13/T14 say acquisition UTC and T16 says live snapshot. Existing links resolve. No document asserts full deployment acceptance. Return a small documentation PR and a proposed #6 disposition; do not merge automatically.",
+      "out_of_scope": "Do not import President\u2019s Cup content, rewrite learning objectives into a new curriculum, or change runtime behavior.",
+      "review": "standard"
+    },
+    {
+      "id": "A02",
+      "title": "Inventory the ten-team workload and dependency schedule",
+      "dependencies": [],
+      "read_first": [
+        "expanded/author.py",
+        "expanded/native.py",
+        "ridge/scenario.py",
+        "facilitator/assessment-aar.md",
+        "expanded/config.json"
+      ],
+      "implementation": "Generate a table from authored tickets: ID, prerequisites, tool, questions, release files and estimated minutes. Model one globally owned ticket per team, dependency unlocks and ten teams. Separate estimated team-minutes, elapsed critical path and individual participation. Flag free walkthrough effects and duplicate/superficial questions. Produce a rehearsal worksheet and configurable duration target.",
+      "acceptance": "Report 20 tickets/80 current questions and distinguish 1300 estimated team-minutes from measured learning. Demonstrate the ten-team 130-minute arithmetic limitation and report scheduling assumptions. Worksheet records active/idle time, help use and tool failures per team.",
+      "out_of_scope": "Do not silently change ownership/scoring semantics or add tickets to satisfy an arbitrary number.",
+      "review": "standard"
+    },
+    {
+      "id": "A03",
+      "title": "Define and validate one private deployment profile",
+      "dependencies": [],
+      "read_first": [
+        "expanded/config.json",
+        "ridge/preflight.py",
+        "deployment/expanded/compose.central.yaml",
+        "deployment/expanded/compose.guacamole.yaml",
+        "ridge/scenario.py"
+      ],
+      "implementation": "Add a versioned deployment profile schema and validator in a focused ridge/deploy configuration module. Include event/release IDs, provider, ten-team roster shape, host capacity, addresses, secret references, retention and spending/TTL envelope. Keep incident_date separate from event_start. Separate desired names from resolved IDs in generated runtime inventory. Generate neutral accounts when no roster is provided.",
+      "acceptance": "Tests reject duplicate names, unmapped desktops, documentation-only production addresses, missing required fields, invalid dates, incompatible versions and secrets embedded in public examples. A two-team and a ten-team profile validate without any fixed application IDs. Error messages name the exact field.",
+      "out_of_scope": "No provisioning or credentials in Git. Freeze the schema before dependent agents edit consumers.",
+      "review": "standard"
+    },
+    {
+      "id": "A04",
+      "title": "Specify deployment receipts, locking and provider interfaces",
+      "dependencies": [
+        "A03"
+      ],
+      "read_first": [
+        "ridge/state.py",
+        "ridge/storage.py",
+        "ridge/export_run.py",
+        "proposed ridge/deploy configuration module",
+        "EXECUTION.md"
+      ],
+      "implementation": "Implement private deployment journal primitives separately from the event scoring DB. Define create/probe/resume/stop/inventory provider operations and an event-scoped lock. Persist resource IDs, configuration/release fingerprints, step attempts and verified completion atomically. Define explicit failure/rollback boundaries and partial-run cleanup contracts. Supply a fake provider for deterministic tests only.",
+      "acceptance": "Two concurrent up attempts serialize. Kill/restart between create and acknowledgment reconciles one resource instead of creating two. A changed release/profile requires an explicit migration/new-run action. Corrupt or half-written journals fail closed. Tests prove fake receipts cannot count as deployment acceptance.",
+      "out_of_scope": "Do not build a generic workflow engine or implement AWS resources in this task.",
+      "review": "focused architecture review"
+    },
+    {
+      "id": "A05",
+      "title": "Fix the Autopsy evidence-path and preflight contract",
+      "dependencies": [
+        "A03"
+      ],
+      "read_first": [
+        "expanded/author.py",
+        "ridge/preflight.py",
+        "expanded/prepare.py",
+        "assets/autopsy-case-v2.json",
+        "deployment/expanded/desktop/configure-image.sh",
+        "tests/test_resilience.py"
+      ],
+      "implementation": "Separate an evidence reference from a tool\u2019s local case entrypoint. Autopsy opens ~/Cases/WS17/WS17.aut; source files remain at /evidence and originals at /originals. Make controller preflight verify real released source inventory and desktop readiness verify the writable case/template. Eliminate the nonexistent /evidence/autopsy/WS17/WS17.aut requirement. Document backward compatibility for generated tickets.",
+      "acceptance": "Generate a release from current source and run preflight against stubbed remote identities with the real filesystem layout. It passes without a shared writable case. Missing source or desktop case still fails the appropriate check. Ticket navigation names the actual installed path.",
+      "out_of_scope": "Do not create an empty .aut placeholder, disable source validation, or regenerate native evidence.",
+      "review": "standard"
+    },
+    {
+      "id": "B01",
+      "title": "Automate and test IRIS bootstrap",
+      "dependencies": [
+        "A03",
+        "A04"
+      ],
+      "read_first": [
+        "integrations/iris_silent_ridge.py",
+        "deployment/expanded/Dockerfile.iris",
+        "deployment/expanded/compose.central.yaml",
+        "ridge/preflight.py",
+        "docs/expanded-deployment.md"
+      ],
+      "implementation": "Build/run the pinned IRIS image with its real dependencies. Add a bootstrap operation that initializes receipts, creates/finds the exercise case, service user and restricted team users, discovers actual open/closed status IDs, and returns names/IDs to runtime inventory. Use supported APIs or a version-pinned application command with explicit transactions; no guessed numeric values.",
+      "acceptance": "Run twice against a disposable real database: one case/user per desired identity, receipt table available, preflight resolves expected names. Post one task and finding through the adapter. A participant cannot mutate native tasks directly or access another case/admin function. Wrong version/schema fails clearly.",
+      "out_of_scope": "No public default credentials; no unsupported database patching without a pinned tested contract.",
+      "review": "focused adapter review"
+    },
+    {
+      "id": "B02",
+      "title": "Automate CTFd settings, teams and participants",
+      "dependencies": [
+        "A03",
+        "A04"
+      ],
+      "read_first": [
+        "integrations/ctfd_silent_ridge/__init__.py",
+        "tests/ctfd_container_smoke.py",
+        "deployment/expanded/Dockerfile.ctfd",
+        "ridge/preflight.py"
+      ],
+      "implementation": "Provision team mode, closed registration, local users, teams, memberships and service settings from the private profile. Resolve real IDs and expected names into runtime inventory. Preserve existing scores/accounts on a repeated deployment. Keep shared IRIS identity versus individual CTFd membership explicit.",
+      "acceptance": "Real-container test creates two teams with three participants each, repeats bootstrap without duplicates and signs in as each role. Owner-only custom questions work; stock challenge/award routes cannot bypass the integration. Reinitialization never resets awards or rotates user passwords silently.",
+      "out_of_scope": "Do not replace CTFd or add a second authentication platform.",
+      "review": "standard"
+    },
+    {
+      "id": "B03",
+      "title": "Vendor and bootstrap the complete Wazuh historical stack",
+      "dependencies": [
+        "A03"
+      ],
+      "read_first": [
+        "deployment/expanded/versions.json",
+        "ridge/evidence_release.py",
+        "ridge/preflight.py",
+        "ridge/scenario.py",
+        "docs/expanded-deployment.md"
+      ],
+      "implementation": "Vendor a version-pinned official Wazuh Compose/configuration set with provenance and image identities. Automate local CA/cert creation, integration writer restricted to the event index, participant read-only identities, initial indexing and saved views. Provide timestamped and timeless views; coverage/catalog facts must not disappear under a date filter. Configure explicit CA trust in integration.",
+      "acceptance": "A real two-team deployment can query known S-41, WS-31 and coverage facts. Re-indexing does not duplicate records. Participant writes and cross-index access fail. Invalid CA fails securely; valid generated CA succeeds. Restart preserves indices and view configuration without Internet.",
+      "out_of_scope": "No second SIEM, live endpoint agents, disabled TLS verification or assumed Elasticsearch/OpenSearch API interchangeability.",
+      "review": "standard"
+    },
+    {
+      "id": "B04",
+      "title": "Make central Compose, networks and secrets run-scoped",
+      "dependencies": [
+        "A03",
+        "A04"
+      ],
+      "read_first": [
+        "compose.yaml",
+        "deployment/expanded/compose.central.yaml",
+        "deployment/expanded/compose.integration.yaml",
+        "deployment/expanded/compose.guacamole.yaml",
+        "deployment/nginx.conf"
+      ],
+      "implementation": "Render a complete event-specific Compose environment with private secrets, persistent volumes, immutable image references, health dependencies and explicit CA mounts. Allocate unique project/network/volume names. Expose only intended participant gateways and keep integration 8091/databases/indexer/VNC private. Add bounded container log rotation and service-specific readiness probes. Document port/domain/TLS routing.",
+      "acceptance": "docker compose config succeeds from generated profiles with no manual env edits. Two disposable events coexist without shared DBs. Port scan from participant network cannot reach private ports. Database-not-ready causes a diagnosable bounded startup failure, not a false ready status. No secrets appear in output.",
+      "out_of_scope": "No global Docker prune or changes to unrelated networks. Coordinate Compose edits from other tasks through this owner.",
+      "review": "standard"
+    },
+    {
+      "id": "B05",
+      "title": "Prove a real two-team vertical slice while paused",
+      "dependencies": [
+        "A05",
+        "B01",
+        "B02",
+        "B03",
+        "B04"
+      ],
+      "read_first": [
+        "ridge/cli.py",
+        "ridge/preflight.py",
+        "ridge/service.py",
+        "ridge/state.py",
+        "integrations/iris_silent_ridge.py",
+        "integrations/ctfd_silent_ridge/__init__.py"
+      ],
+      "implementation": "Add an integration harness using actual IRIS, CTFd and Wazuh services. Build generated identities/content, initialize the core paused, run preflight/provision, drain initial delivery, then explicitly start. Exercise claim, one correct answer, one finding, one point, relinquish and takeover. Record versions and native IDs/receipt counts privately.",
+      "acceptance": "Before provision no remote tasks are created. After provision initial task delivery is allowed but paused participant claims/answers fail. After start, real application state matches the core. Restart preserves state. A successful HTTP response alone is insufficient: query native rows through supported test interfaces.",
+      "out_of_scope": "No mock sink may satisfy this acceptance; no ten-team sizing claim from two teams.",
+      "review": "focused integration review"
+    },
+    {
+      "id": "C01",
+      "title": "Prepare and verify a local Hyper-V desktop provider",
+      "dependencies": [
+        "A03",
+        "A04"
+      ],
+      "read_first": [
+        "ridge/desktop_image.py",
+        "assets/desktop-v1.json",
+        "docs/desktop-image.md",
+        "deployment/expanded/desktop/configure-image.sh",
+        "deployment/expanded/desktop/seal-image.sh"
+      ],
+      "implementation": "Convert the verified QCOW2 into a local Hyper-V-compatible disk and test the actual boot mode, drivers and cloud-init seed. Implement event-scoped cloning and guest configuration through the provider contract. Inject per-team private admin/VNC credentials and endpoint JSON; retain separate writable case/workspace disks or paths. Cache conversion by source hash, not filename.",
+      "acceptance": "One actual Hyper-V guest boots, all tools open, prepared case/search works, originals stay read-only and two clones have distinct machine/SSH identities. No host rebuild or ISO download is required. Wrong hash/insufficient disk fails before cloning. Record first-boot time and resources.",
+      "out_of_scope": "No assumption that format conversion proves boot compatibility; no installation onto the user\u2019s host OS.",
+      "review": "standard"
+    },
+    {
+      "id": "C02",
+      "title": "Provision Guacamole and prove team session isolation",
+      "dependencies": [
+        "B04",
+        "C01"
+      ],
+      "read_first": [
+        "deployment/expanded/guacamole.py",
+        "deployment/expanded/compose.guacamole.yaml",
+        "expanded/config.json",
+        "desktop runtime inventory"
+      ],
+      "implementation": "Turn one-shot SQL generation into a tested initial-provision/reconcile operation, retaining official schema setup. Remove/rotate upstream default admin access. Register actual desktop addresses and team permissions from inventory; do not publish VNC passwords. Verify three participant sessions share the intended desktop, and exclusive mode works when selected.",
+      "acceptance": "Two teams see only their own connection. Three sessions within one team see the same display; reconnect preserves work. Repeated provisioning creates no duplicate user/connection rows. Guacd loss and desktop loss produce bounded errors, not core state loss. Ports are reachable only through the configured gateway path.",
+      "out_of_scope": "No new remote desktop product and no public TCP 5901.",
+      "review": "standard"
+    },
+    {
+      "id": "C03",
+      "title": "Deliver released evidence to desktops reliably",
+      "dependencies": [
+        "A05",
+        "B05",
+        "C02"
+      ],
+      "read_first": [
+        "ridge/evidence_release.py",
+        "ridge/transport.py",
+        "ridge/scenario.py",
+        "deployment/expanded/desktop/configure-image.sh",
+        "expanded/author.py"
+      ],
+      "implementation": "Implement one provider-independent delivery contract. Recommended first implementation: a service on each desktop fetches a checksum manifest and new files from a private controller endpoint into root-owned staging, validates them, and atomically publishes read-only files. Keep originals/template immutable. Report release generation and lag per desktop; reconnect catches up. Define which follow-ups require file manager/Wazuh rather than Autopsy indexing.",
+      "acceptance": "Unlock T07/T09/T11/T19 in real services and verify expected files/index rows on every required desktop. Interrupt a transfer: no truncated visible file; retry converges without duplicates. A disconnected desktop is marked unready/lagging and catches up before claiming readiness. Participants cannot write the share or obtain controller credentials.",
+      "out_of_scope": "Do not mount SQLite or writable Autopsy databases over network shares. Do not invent automatic Autopsy ingest.",
+      "review": "focused release-consistency review"
+    },
+    {
+      "id": "C04",
+      "title": "Walk all questions through the installed tools",
+      "dependencies": [
+        "A05",
+        "C02",
+        "C03"
+      ],
+      "read_first": [
+        "expanded/author.py",
+        "expanded/native.py",
+        "expanded/guides.md",
+        "assets/autopsy-case-v2.json",
+        "assets/native-windows-v1/manifest.json",
+        "facilitator/assessment-aar.md"
+      ],
+      "implementation": "Create an 80-question acceptance matrix containing actual evidence path, tool selection/query, expected value, source record and limitation. Validate every workflow on the exact desktop release, including deleted-file recovery, native records, CSV opener, Cutter strings/branch and timeless Wazuh views. Render offline guides and fix navigation only where demonstrated broken.",
+      "acceptance": "Every question has a reproducible successful route, with screenshots or structured evidence for each distinct tool workflow. T13/T14 never shift acquisition time; T16 never claims memory connection validation. Tool launch, evidence availability and answer correctness are separate assertions. Record guide hashes in release inventory.",
+      "out_of_scope": "Do not rewrite incident history or consider submitting the answer key alone a usability test.",
+      "review": "standard"
+    },
+    {
+      "id": "D01",
+      "title": "Test live transactional failures and pause races",
+      "dependencies": [
+        "B05",
+        "C03"
+      ],
+      "read_first": [
+        "ridge/state.py",
+        "ridge/service.py",
+        "ridge/transport.py",
+        "integrations/iris_silent_ridge.py",
+        "integrations/ctfd_silent_ridge/__init__.py",
+        "tests/test_resilience.py"
+      ],
+      "implementation": "Extend the real-service harness with a response-dropping proxy and process restarts. Force remote commit then lost response, simultaneous duplicate deliveries, claim/relinquish with stale generations, worker death mid-lease, Wazuh failure during follow-up publication, and pause/export races. Verify unrelated tickets can proceed while a destination fails.",
+      "acceptance": "For each accepted question: one award, one finding and stable receipt key after retries; tasks/closures respect dependencies. Stale owner submissions fail. Nothing participant-controlled mutates before start/while paused. No network I/O holds the SQLite transaction. Bound recovery time and assert no swallowed failures.",
+      "out_of_scope": "Do not alter receipt keys to make tests pass, bypass real adapters or promise active-active support.",
+      "review": "mandatory transaction review"
+    },
+    {
+      "id": "D02",
+      "title": "Build coherent full-event backup",
+      "dependencies": [
+        "B05",
+        "C02",
+        "C03",
+        "A04"
+      ],
+      "read_first": [
+        "ridge/export_run.py",
+        "ridge/state.py export_barrier",
+        "ridge/storage.py",
+        "central and Guacamole Compose volumes",
+        "desktop runtime inventory"
+      ],
+      "implementation": "Add a recovery-set command that pauses/drains, freezes native edits and desktop writes as needed, creates native IRIS/CTFd/Guacamole DB backups, core SQLite-consistent backup, Wazuh snapshot, released evidence and per-team case/workspace backups. Include private identity/secret restoration material encrypted separately from public artifacts. Record schema/version/resource mapping and receipt watermarks; publish completion marker last.",
+      "acceptance": "Inject a failure in every phase: no incomplete set is marked restorable. Restore-required components and encryption key references are enumerated. Receipt/score counts and case/workspace hashes are captured. Backup does not require new Internet downloads and resumes/releases barriers safely after failure.",
+      "out_of_scope": "Do not treat logical JSON audit export as a disaster backup or copy a live SQLite file unsafely.",
+      "review": "mandatory backup review"
+    },
+    {
+      "id": "D03",
+      "title": "Restore onto a clean local destination",
+      "dependencies": [
+        "D02",
+        "C01"
+      ],
+      "read_first": [
+        "full recovery-set format from D02",
+        "ridge/preflight.py",
+        "ridge/schema.py",
+        "provider inventory contract",
+        "docs/expanded-operations.md"
+      ],
+      "implementation": "Implement restore to fresh event-scoped volumes/desktops using the exact release. Restore native IDs/receipts before binding core mappings. Rebind only provider endpoints and runtime secrets; restore released evidence generation, index state, desktop cases and team workspaces. Leave destination paused. Refuse a wrong release, corrupt backup or already-live destination.",
+      "acceptance": "After wiping only disposable test resources, restore and compare scores, solved answers, owners/generations, IRIS findings, pending deliveries, index records and workspace hashes. Retry restore without duplicates. Resume and solve one more question successfully. Capture measured recovery time.",
+      "out_of_scope": "No production overwrite, partial-ID remapping shortcut or cross-site activation yet.",
+      "review": "mandatory restore review"
+    },
+    {
+      "id": "D04",
+      "title": "Bound storage growth and implement safe retention",
+      "dependencies": [
+        "D02",
+        "D03",
+        "A04"
+      ],
+      "read_first": [
+        "ridge/storage.py",
+        "ridge/evidence_release.py",
+        "deployment/expanded/measure.py",
+        "Compose logging/volumes",
+        "recovery-set inventory"
+      ],
+      "implementation": "Extend storage accounting to VM clones, cases, workspace files, app logs, indices, backups, partial downloads and release caches. Estimate incoming allocation before copies/imports and enforce configurable reserves. Add dry-run cleanup scoped to event-owned IDs, removing only expired, independently verified backed-up data; preserve golden artifacts and active runs.",
+      "acceptance": "Low-space tests stop before partial publication. Unknown directories/resources are never removed. Corrupt/missing backup prevents protected pruning. Abandoned staging cleanup runs only when no publisher holds its lock. Repeat reset/backup cycles show bounded retained growth under the configured policy.",
+      "out_of_scope": "No systemwide prune, arbitrary recursive deletion or silent deletion of incomplete backups.",
+      "review": "mandatory deletion review"
+    },
+    {
+      "id": "E01",
+      "title": "Implement the shared deployment CLI",
+      "dependencies": [
+        "A04",
+        "B05",
+        "C03",
+        "D03",
+        "D04"
+      ],
+      "read_first": [
+        "deployment state/provider contracts",
+        "ridge/cli.py",
+        "ridge/preflight.py",
+        "ridge/distribution.py",
+        "ridge/desktop_image.py",
+        "B01\u2013D04 task receipts"
+      ],
+      "implementation": "Implement python -m ridge.deploy prepare/up/status/start/pause/backup/restore/down using tested component operations. Emit one structured status document and clear operator summary. Enforce step receipts, bounded waits, locking, resume behavior and paused-by-default setup; --start is explicit and only runs after full readiness. Distinguish recoverable degradation from unsafe state.",
+      "acceptance": "On a real two-team run: one up command reaches provisioned-paused with no manual IDs/SQL/env edits. Repeating it preserves state. Kill at each phase and resume. Missing secrets/capacity/artifacts produce actionable errors, never a reset. Tests verify start cannot skip failed checks.",
+      "out_of_scope": "No duplicated provider logic in CLI handlers or generic plug-in framework.",
+      "review": "standard"
+    },
+    {
+      "id": "E02",
+      "title": "Provide the Windows one-command local launcher",
+      "dependencies": [
+        "E01",
+        "C01",
+        "C02"
+      ],
+      "read_first": [
+        "ridge.deploy interface from E01",
+        "local provider from C01",
+        "docs/desktop-image.md",
+        "private profile schema"
+      ],
+      "implementation": "Add a thin ridge.ps1 launcher that checks supported PowerShell/Python/Hyper-V prerequisites, validates the requested profile, and invokes the shared CLI with correct quoting and exit codes. Preparation installs/caches required dependencies only under the approved host envelope. Produce a private credential handout and stable local access URL after readiness.",
+      "acceptance": "From a clean supported Windows preparation/event host, execute prepare then one up command without manual shell edits. Test spaces in paths, unavailable elevation, missing virtualization, interrupted download and rerun. No host reboot/install happens unexpectedly on event day. Offline prepared setup makes zero outbound calls.",
+      "out_of_scope": "Do not promise a blank unprepared Windows machine can import gigabytes instantly; do not put private passwords in command arguments.",
+      "review": "standard"
+    },
+    {
+      "id": "E03",
+      "title": "Prepare and validate the AWS desktop AMI",
+      "dependencies": [
+        "A03",
+        "A04",
+        "C01"
+      ],
+      "read_first": [
+        "assets/desktop-v1.json",
+        "docs/desktop-image.md",
+        "desktop sealing/configuration scripts",
+        "AWS official VM Import prerequisites"
+      ],
+      "implementation": "Within the approved AWS account/region and budget, convert the source to a supported import format, stage it privately and import a versioned AMI. Test boot mode, ENA/NVMe/device naming, cloud-init, filesystem growth, guest identity and all tools. Tag source hash/release and save AMI/import IDs in the preparation inventory. Cache by hash so event day does not repeat import.",
+      "acceptance": "Launch one disposable imported desktop, provision runtime configuration, reopen the case/search and compare evidence hashes. Stop/recreate successfully and inspect actual root-volume size. Confirm image has no build keys/VNC secrets. Clean the test instance/import staging under retention policy.",
+      "out_of_scope": "No claim that a QCOW2 conversion alone makes a usable AMI; no paid launch without the organizer envelope.",
+      "review": "focused cloud image review"
+    },
+    {
+      "id": "E04",
+      "title": "Implement minimal AWS infrastructure and provisioning",
+      "dependencies": [
+        "E01",
+        "E03",
+        "B04"
+      ],
+      "read_first": [
+        "ridge.deploy provider interface",
+        "private AWS profile",
+        "B04 networking contract",
+        "E03 AMI inventory"
+      ],
+      "implementation": "Use one checked-in infrastructure definition/tool and a thin Python adapter; avoid overlapping Terraform and ad-hoc creation code. Provision tagged central EC2, team desktop EC2, networks/security groups, encrypted storage, approved access endpoint and narrowly scoped roles. Pin image IDs, resolve real addresses, and reuse shared application bootstrap. Separate retained image/backup resources from event compute.",
+      "acceptance": "Dry-run lists exact resource types/counts and budget assumptions. Two-team create/rerun/interrupted-create/cleanup tests succeed without duplicate instances. No public database/indexer/VNC or integration API. Expand config to ten teams without manual IP edits. Record actual resource inventory and service readiness.",
+      "out_of_scope": "No Kubernetes, mandatory NAT gateway, managed DB expansion or fabricated instance pricing; obtain current estimates only in the authorized region.",
+      "review": "focused infrastructure review"
+    },
+    {
+      "id": "E05",
+      "title": "Implement AWS expiry and verified teardown",
+      "dependencies": [
+        "E04",
+        "D03",
+        "D04"
+      ],
+      "read_first": [
+        "AWS provider resource inventory",
+        "recovery-set receipts",
+        "event retention/TTL profile",
+        "ridge.deploy down contract"
+      ],
+      "implementation": "Implement down with a completed restorable backup prerequisite, plus an approved emergency/TTL policy that cannot leave uncontrolled compute running. Delete only tagged and journal-owned resources. Inventory EC2, EBS, IPs, import staging, snapshots, AMIs, logs and any network services; distinguish retained backups/images from leaks. Store teardown evidence outside the destroyed host.",
+      "acceptance": "Destroy an active disposable event and an interrupted deployment. Re-run safely. Verify no event compute or unintended network/storage resource remains. Print retained resources and continuing cost categories; stopped EC2 is not reported as zero cost. Simulate failed backup and expired credentials with explicit safe outcomes.",
+      "out_of_scope": "No accountwide delete or removal of the only verified recovery set. Spending/retention limits must be set first.",
+      "review": "mandatory cost/deletion review"
+    },
+    {
+      "id": "F01",
+      "title": "Implement active-site fencing and recovery ownership",
+      "dependencies": [
+        "A04",
+        "D03",
+        "E04"
+      ],
+      "read_first": [
+        "ridge.state mutability/provisioning boundaries",
+        "deployment journal",
+        "local/AWS provider controls",
+        "EXECUTION.md switch sequence"
+      ],
+      "implementation": "Define one authoritative active-site generation and implement a practical fencing mechanism. A planned move must disable source writes/network access before destination activation. A partitioned/unreachable source requires externally verifiable fencing, not a flag only written at the destination. Ensure all mutation paths and resumed workers respect the chosen generation/activation contract.",
+      "acceptance": "Two simulated sites cannot accept mutations for the same active generation. Stale worker restart is fenced. Partial switch cannot unpause both sites. Test coordinator crash before/after fencing and restore a safe paused state. Document where the authority lives if the central host is lost.",
+      "out_of_scope": "Do not invent active-active replication, use clocks alone as authority, or promise zero-loss automatic failover.",
+      "review": "mandatory distributed-state review"
+    },
+    {
+      "id": "F02",
+      "title": "Automate local\u2194AWS switching with rollback",
+      "dependencies": [
+        "F01",
+        "D03",
+        "E04",
+        "E05"
+      ],
+      "read_first": [
+        "ridge.deploy switch interface",
+        "backup/restore operations",
+        "active-site fence",
+        "endpoint configuration and desktop evidence generation"
+      ],
+      "implementation": "Compose destination preparation, source pause/drain, coherent backup, source fencing, restore, readiness, access-endpoint switch and controlled resume. Support both directions. Verify old local paths/IPs are not treated as incident evidence changes. Reuse cloud/local golden images and restore only event state. Produce a recovery point/time report.",
+      "acceptance": "During a disposable active run, move local\u2192AWS\u2192local with scores, findings, owners, releases and team workspaces preserved. Inject failure at each phase and demonstrate rollback or safe paused recovery. Source-unreachable path uses the last completed backup and reports possible lost work rather than claiming full continuity.",
+      "out_of_scope": "No automatic restart of the old site after destination activation; no hidden full-data deletion.",
+      "review": "mandatory recovery review"
+    },
+    {
+      "id": "F03",
+      "title": "Measure ten-team/30-participant capacity",
+      "dependencies": [
+        "E02",
+        "E04",
+        "C04",
+        "D01"
+      ],
+      "read_first": [
+        "deployment/expanded/measure.py",
+        "tool acceptance matrix",
+        "two provider profiles",
+        "state/outbox metrics",
+        "desktop VM measurements"
+      ],
+      "implementation": "Create a repeatable load scenario with thirty authenticated browser sessions, ten shared desktops, simultaneous case/search/network/static-analysis activity and live scoring. Measure CPU/RAM, storage/IO latency, API percentiles, outbox drain/recovery, desktop usability and disk growth. Begin with candidate 4-vCPU/8-GiB desktops but tune only from measurements.",
+      "acceptance": "Publish sanitized results for each supported event profile and a minimum/reserved capacity check. Proposed starting targets: p95 ordinary app requests under 2 s, normal score/finding delivery under 10 s, no OOM/swap collapse and at least 20% measured capacity reserve; revise targets explicitly before the run. Unsupported hosts fail readiness.",
+      "out_of_scope": "Do not certify capacity from docker stats alone, synthetic answer loops alone, or the existing 32-GiB development machine.",
+      "review": "standard"
+    },
+    {
+      "id": "F04",
+      "title": "Close the duration and beginner usability gap",
+      "dependencies": [
+        "A02",
+        "C04",
+        "F03"
+      ],
+      "read_first": [
+        "workload inventory",
+        "80-question acceptance matrix",
+        "PR #6 learning objectives",
+        "facilitator/assessment-aar.md"
+      ],
+      "implementation": "Run scripted agent walkthroughs first to catch broken tasks, then a small representative beginner rehearsal for navigation and active-time evidence. If the agreed duration is unmet, add focused self-authored evidence/questions using existing tools, or obtain an explicit revised duration. Preserve incident facts, cooperative scoring and provenance. Split any additions into separate small content tasks rather than expanding this task indefinitely.",
+      "acceptance": "Record active/idle time and learning observations rather than claiming skill gains from a bot. A scheduling model plus rehearsal supports the agreed ten-team duration with AAR/breaks accounted separately. Every added item has correct answer, source, limitation, guide, tests and package inclusion. Re-run affected tool checks.",
+      "out_of_scope": "No mandatory President\u2019s Cup imports or busywork. Human learning validation cannot honestly be replaced entirely by autonomous agents.",
+      "review": "standard"
+    },
+    {
+      "id": "F05",
+      "title": "Publish the complete versioned offline release",
+      "dependencies": [
+        "E02",
+        "E04",
+        "D03",
+        "C04",
+        "F04"
+      ],
+      "read_first": [
+        "ridge/distribution.py",
+        "ridge/bundle.py",
+        "ridge/artifacts.py",
+        ".github/workflows/publish.yml",
+        "expanded/manifest.example.json",
+        "all artifact manifests"
+      ],
+      "implementation": "Unify distribution and complete-offline inventory semantics without breaking old downloads. Pin/build/publish custom GHCR images and every upstream image, include guides/cert bootstrap dependencies and both provider image references, and save exact offline archives in bounded parts. Verify anonymous or intended authenticated package access. Make source installation/materialization automatic and atomic; do not leave users copying asset-NNNN.bin files manually.",
+      "acceptance": "Publish a candidate release only after matching source/image checks. Cold-cache fetch and install reconstruct all files and verify hashes; LFS stubs, missing parts, wrong image/source, low disk or interruption fail cleanly. Run a no-Internet local install. Capacity/restore gates must be linked before setting compatibility_verified/event_ready.",
+      "out_of_scope": "No placeholder digests, mutable latest tags, or downloaded-but-untested completeness claims. Do not publish live secrets/participant state.",
+      "review": "focused release review"
+    },
+    {
+      "id": "F06",
+      "title": "Execute the event dress rehearsal and recovery drill",
+      "dependencies": [
+        "D01",
+        "F02",
+        "F03",
+        "F04",
+        "F05"
+      ],
+      "read_first": [
+        "immutable release from F05",
+        "two event profiles",
+        "operator runbook draft",
+        "all task acceptance receipts"
+      ],
+      "implementation": "On designated event hardware, use only the published bundle and private profile: cold setup, repeated up, thirty participant sessions, full ticket dependency flow, pause/resume, disconnect/reconnect desktops, provider switch, export and teardown. Block Internet for local/offline phases. Test a lost central host using the chosen backup/fencing procedure.",
+      "acceptance": "No manual database IDs, SQL patching, image builds or missing downloads during setup. Record measured setup/RTO/RPO, score/finding reconciliation, remaining billable resources and all exceptions. Fix failures in narrow follow-up tasks, rerun affected phases, and freeze a new immutable candidate if artifacts change.",
+      "out_of_scope": "No waiving failed gates because event day is close; no inference of beginner learning from automated technical rehearsal.",
+      "review": "mandatory final acceptance review"
+    },
+    {
+      "id": "G01",
+      "title": "Finalize operator handoff and freeze the event release",
+      "dependencies": [
+        "A01",
+        "F06"
+      ],
+      "read_first": [
+        "all task receipts",
+        "docs/expanded-validation.md",
+        "docs/expanded-operations.md",
+        "README.md",
+        "private credential/backup inventory"
+      ],
+      "implementation": "Generate a concise runbook from the accepted commands: prepare, up, start, pause, health, backup, switch, down and recovery. Include symptom\u2192diagnostic\u2192action tables, private credential retrieval, backup location, offline cache verification and retained-cost inventory. Update all readiness documents to the accepted commit/release, supported hardware profiles and exact remaining limitations.",
+      "acceptance": "A second agent or operator follows the runbook without conversation history and completes the accepted two-team smoke. All links/commands resolve, public docs contain no secrets, latest acceptance references one release, and event-day instructions fit on one page with detailed recovery appendices. No scheduled agent work remains after handoff unless requested.",
+      "out_of_scope": "No new features after release freeze; keep untested profiles explicitly unsupported.",
+      "review": "standard"
+    },
+    {
+      "id": "H01",
+      "title": "Consolidate preserved recipes into a portable build pipeline",
+      "dependencies": [],
+      "read_first": [
+        "deployment/expanded/build-history/README.md",
+        "expanded/materialize_native.py"
+      ],
+      "implementation": "See tasks/H01.md: five bounded child tasks H01a through H01e.",
+      "acceptance": "Clean-machine recovery and parameterized rebuild from published inputs; no original-workstation paths or credentials.",
+      "out_of_scope": "No host-memory acquisition, historical evidence mutation, or event infrastructure deployment.",
+      "review": "focused block-device/deletion review"
+    }
+  ]
+}

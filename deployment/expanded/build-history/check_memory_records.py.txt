@@ -1,0 +1,7 @@
+import json
+from pathlib import Path
+root=Path('/opt/silent-ridge-build')
+for name in ('pslist','netstat'):
+    rows=json.loads((root/f'memory-{name}.json').read_text())
+    selected=[r for r in rows if r.get('PID') in (6364,7644)]
+    print(name,json.dumps(selected,indent=2))

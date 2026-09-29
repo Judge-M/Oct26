@@ -1,0 +1,45 @@
+from pathlib import Path
+import subprocess
+import time
+import json
+
+root = Path('/opt/silent-ridge-build/desktop')
+assert not (root / 'qemu.pid').exists(), 'Build VM must be stopped'
+image = root / 'desktop-build.qcow2'
+out = root / 'silent-ridge-desktop-v1.qcow2'
+assert not out.exists()
+mount = root / 'inspection'
+mount.mkdir(exist_ok=True)
+subprocess.run(['modprobe', 'nbd', 'max_part=31'], check=True)
+subprocess.run(['qemu-nbd', '--read-only', '--connect=/dev/nbd0', str(image)], check=True)
+mounted = False
+try:
+    for _ in range(50):
+        if Path('/dev/nbd0p1').exists():
+            break
+        time.sleep(.2)
+    subprocess.run(['mount', '-o', 'ro,noload', '/dev/nbd0p1', str(mount)], check=True)
+    mounted = True
+    for name in ['home/builder', 'etc/silent-ridge/vnc-password',
+                 'etc/silent-ridge/endpoints.json', 'root/.ssh/authorized_keys',
+                 'etc/sudoers.d/90-cloud-init-users']:
+        assert not (mount / name).exists(), name
+    assert not list((mount / 'etc/ssh').glob('ssh_host_*'))
+    assert not list((mount / 'var/lib/cloud').glob('instances/*'))
+    assert (mount / 'opt/silent-ridge/originals/windows/WS17.raw').stat().st_size == 10871635968
+    assert (mount / 'home/participant/Cases/WS17/WS17.aut').is_file()
+    assert (mount / 'etc/machine-id').read_text().strip() in ('', 'uninitialized')
+    (root / 'packages.tsv').write_bytes((mount / 'opt/silent-ridge/provenance/packages.tsv').read_bytes())
+    (root / 'seal-check.json').write_text(json.dumps(dict(
+        temporary_access_removed=True, ssh_host_keys_removed=True,
+        machine_identity_reset=True, cloud_init_cache_removed=True,
+        native_capture_present=True, prepared_case_present=True), indent=2)+'\n')
+    print('Offline sealing checks passed', flush=True)
+finally:
+    if mounted:
+        subprocess.run(['umount', str(mount)], check=True)
+    subprocess.run(['qemu-nbd', '--disconnect', '/dev/nbd0'], check=True)
+subprocess.run(['qemu-img', 'check', str(image)], check=True)
+subprocess.run(['qemu-img', 'convert', '-p', '-c', '-O', 'qcow2', str(image), str(out)], check=True)
+subprocess.run(['qemu-img', 'check', str(out)], check=True)
+print('Export complete:', out, out.stat().st_size)

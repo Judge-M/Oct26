@@ -1,0 +1,21 @@
+import json
+from pathlib import Path
+import subprocess
+
+root=Path('/opt/silent-ridge-build')
+config={'kernel':{'layer_name':{'class':'volatility3.framework.layers.intel.WindowsIntel32e',
+    'memory_layer':{'class':'volatility3.framework.layers.physical.FileLayer',
+       'location':Path('/mnt/c/Users/mj777/Documents/Codex/2026-09-14/i/work/windows-capture/output/WS17.raw').as_uri()},
+    'page_map_offset':0x7d5000,'kernel_virtual_offset':0xfffff80675fd0000}}}
+def flatten(value,prefix=''):
+    output={}
+    for key,item in value.items():
+        name=prefix+key
+        if isinstance(item,dict): output.update(flatten(item,name+'.'))
+        else: output[name]=item
+    return output
+(root/'memory-layer.json').write_text(json.dumps(flatten(config),indent=2))
+with (root/'memory-info-explicit.json').open('w') as output,(root/'memory-info-explicit.log').open('w') as log:
+    subprocess.run([str(root/'volatility-venv/bin/vol'),'-q','-c',str(root/'memory-layer.json'),
+                    '-r','json','--save-config',str(root/'memory-resolved.json'),'windows.info'],
+                   stdout=output,stderr=log,check=True)

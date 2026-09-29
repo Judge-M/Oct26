@@ -1,0 +1,187 @@
+name: ${RIDGE_PROJECT:?Set event-scoped Compose project name}-central
+x-logging: &logging
+  driver: json-file
+  options: {max-size: "10m", max-file: "3"}
+services:
+  iris:
+    image: ${IRIS_IMAGE:?Set validated extended IRIS image digest}
+    pull_policy: never
+    command: [nohup, ./iris-entrypoint.sh, iriswebapp]
+    env_file: ${IRIS_ENV_FILE:?Set private complete IRIS environment file}
+    environment:
+      RIDGE_URL: http://integration:8091
+      RIDGE_IRIS_FILE: /run/secrets/ridge_iris
+      IRIS_PUBLIC_URL: ${IRIS_PUBLIC_URL:?Set participant IRIS URL}
+      CTFD_PUBLIC_URL: ${CTFD_PUBLIC_URL:?Set participant CTFd URL}
+      RIDGE_IRIS_CASE: ${RIDGE_IRIS_CASE:?Set dedicated exercise case ID}
+      RIDGE_IRIS_SERVICE_USER: ${RIDGE_IRIS_SERVICE_USER:?Set service user ID}
+      RIDGE_IRIS_OPEN_STATUS: ${RIDGE_IRIS_OPEN_STATUS:?Set verified open status ID}
+      RIDGE_IRIS_CLOSED_STATUS: ${RIDGE_IRIS_CLOSED_STATUS:?Set verified closed status ID}
+      POSTGRES_SERVER: iris-db
+    volumes: [iris-downloads:/home/iris/downloads, iris-templates:/home/iris/user_templates, iris-data:/home/iris/server_data]
+    secrets: [ridge_iris]
+    networks: [central, iris-backend, frontend]
+    depends_on:
+      iris-db-init: {condition: service_completed_successfully}
+      rabbitmq: {condition: service_healthy}
+    healthcheck:
+      test: [CMD-SHELL, "curl -fsS http://127.0.0.1:8000/ >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    logging: *logging
+    restart: unless-stopped
+  iris-worker:
+    image: ${IRIS_IMAGE:?Set validated extended IRIS image digest}
+    pull_policy: never
+    command: [./wait-for-iriswebapp.sh, iris:8000, ./iris-entrypoint.sh, iris-worker]
+    env_file: ${IRIS_ENV_FILE:?Set private complete IRIS environment file}
+    environment:
+      POSTGRES_SERVER: iris-db
+    volumes: [iris-downloads:/home/iris/downloads, iris-templates:/home/iris/user_templates, iris-data:/home/iris/server_data]
+    networks: [iris-backend]
+    depends_on:
+      iris: {condition: service_healthy}
+    logging: *logging
+    restart: unless-stopped
+  iris-db:
+    image: ghcr.io/dfir-iris/iriswebapp_db:v2.4.20
+    pull_policy: never
+    env_file: ${IRIS_ENV_FILE:?Set private complete IRIS environment file}
+    volumes: [iris-db:/var/lib/postgresql/data]
+    networks: [iris-backend]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -q"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    logging: *logging
+    restart: unless-stopped
+  iris-db-init:
+    image: ghcr.io/dfir-iris/iriswebapp_db:v2.4.20
+    pull_policy: never
+    env_file: ${IRIS_ENV_FILE:?Set private complete IRIS environment file}
+    entrypoint: [/bin/sh, -ec]
+    command:
+      - |
+        : "$${POSTGRES_USER:?Set the actual database superuser}"
+        : "$${POSTGRES_PASSWORD:?Set the database password}"
+        : "$${POSTGRES_DB:?Set the application database}"
+        test "$${POSTGRES_ADMIN_USER}" = "$${POSTGRES_USER}" || { echo 'POSTGRES_ADMIN_USER must match POSTGRES_USER'; exit 1; }
+        export PGPASSWORD="$${POSTGRES_PASSWORD}"
+        psql -v ON_ERROR_STOP=1 -h iris-db -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}" -c 'CREATE EXTENSION IF NOT EXISTS pgcrypto;'
+    networks: [iris-backend]
+    depends_on:
+      iris-db: {condition: service_healthy}
+    logging: *logging
+  rabbitmq:
+    image: ${RABBITMQ_IMAGE:?Set pinned locally loaded RabbitMQ image digest}
+    pull_policy: never
+    networks: [iris-backend]
+    healthcheck:
+      test: [CMD-SHELL, "rabbitmq-diagnostics -q ping"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    logging: *logging
+    restart: unless-stopped
+  ctfd:
+    image: ${CTFD_IMAGE:?Set validated extended CTFd image digest}
+    pull_policy: never
+    env_file: ${CTFD_ENV_FILE:?Set private CTFd environment file with DATABASE_URL SECRET_KEY REDIS_URL}
+    environment:
+      RIDGE_URL: http://integration:8091
+      RIDGE_CTFD_FILE: /run/secrets/ridge_ctfd
+      IRIS_PUBLIC_URL: ${IRIS_PUBLIC_URL:?Set participant IRIS URL}
+      CTFD_PUBLIC_URL: ${CTFD_PUBLIC_URL:?Set participant CTFd URL}
+      CTFD_SESSION_COOKIE_NAME: ${CTFD_SESSION_COOKIE_NAME:-silent_ridge_ctfd_session}
+      CTFD_SESSION_COOKIE_SECURE: ${CTFD_SESSION_COOKIE_SECURE:-false}
+      UPLOAD_FOLDER: /var/uploads
+      LOG_FOLDER: /var/log/CTFd
+      WORKERS: 1
+    secrets: [ridge_ctfd]
+    volumes: [ctfd-uploads:/var/uploads, ctfd-logs:/var/log/CTFd]
+    networks: [central, ctfd-backend, frontend]
+    depends_on:
+      ctfd-db: {condition: service_healthy}
+      ctfd-cache: {condition: service_healthy}
+    healthcheck:
+      # The CTFd image has no curl; urlopen raises on >=400. /login is stable:
+      # / 404s once setup completes.
+      test: [CMD, python, "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/login')"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    logging: *logging
+    restart: unless-stopped
+  ctfd-db:
+    image: ${MARIADB_IMAGE:?Set pinned locally loaded MariaDB image digest}
+    pull_policy: never
+    env_file: ${CTFD_DB_ENV_FILE:?Set private MariaDB environment file}
+    command: [mysqld, --character-set-server=utf8mb4, --collation-server=utf8mb4_unicode_ci]
+    volumes: [ctfd-db:/var/lib/mysql]
+    networks: [ctfd-backend]
+    healthcheck:
+      test: [CMD-SHELL, "mysqladmin ping -h 127.0.0.1 --silent || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    logging: *logging
+    restart: unless-stopped
+  ctfd-cache:
+    image: ${REDIS_IMAGE:?Set pinned locally loaded Redis image digest}
+    pull_policy: never
+    networks: [ctfd-backend]
+    healthcheck:
+      test: [CMD-SHELL, "redis-cli ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    logging: *logging
+    restart: unless-stopped
+  participant-tls:
+    image: nginx:alpine
+    pull_policy: never
+    volumes:
+      - ./participant-tls.conf:/etc/nginx/nginx.conf:ro
+      - ${PARTICIPANT_CERTS_DIR:?Set generated participant certificate directory}/participant.pem:/etc/silent-ridge/participant.pem:ro
+      - ${PARTICIPANT_CERTS_DIR}/participant-key.pem:/etc/silent-ridge/participant-key.pem:ro
+    ports:
+      - ${BIND_IP:-127.0.0.1}:${IRIS_PORT:-8081}:8081
+      - ${BIND_IP:-127.0.0.1}:${GUAC_PORT:-8082}:8082
+      - ${BIND_IP:-127.0.0.1}:${CTFD_PORT:-8083}:8083
+    networks: [central]
+    healthcheck:
+      test: [CMD, nginx, -t]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    logging: *logging
+    restart: unless-stopped
+secrets:
+  ridge_iris:
+    file: ${RIDGE_IRIS_SECRET_FILE:?Set private IRIS bridge secret file}
+  ridge_ctfd:
+    file: ${RIDGE_CTFD_SECRET_FILE:?Set private CTFd bridge secret file}
+volumes:
+  iris-downloads: {name: "${RIDGE_PROJECT:?Set run-scoped project}-iris-downloads"}
+  iris-templates: {name: "${RIDGE_PROJECT:?Set run-scoped project}-iris-templates"}
+  iris-data: {name: "${RIDGE_PROJECT:?Set run-scoped project}-iris-data"}
+  iris-db: {name: "${RIDGE_PROJECT:?Set run-scoped project}-iris-db"}
+  ctfd-db: {name: "${RIDGE_PROJECT:?Set run-scoped project}-ctfd-db"}
+  ctfd-uploads: {name: "${RIDGE_PROJECT:?Set run-scoped project}-ctfd-uploads"}
+  ctfd-logs: {name: "${RIDGE_PROJECT:?Set run-scoped project}-ctfd-logs"}
+networks:
+  central:
+    external: true
+    name: ${RIDGE_CENTRAL_NETWORK:?Set isolated shared service network}
+  iris-backend:
+    internal: true
+    name: ${RIDGE_PROJECT:?Set run-scoped project}-iris-backend
+  ctfd-backend:
+    internal: true
+    name: ${RIDGE_PROJECT:?Set run-scoped project}-ctfd-backend
+  frontend:
+    name: ${RIDGE_PROJECT:?Set run-scoped project}-frontend

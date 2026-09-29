@@ -1,0 +1,26 @@
+from pathlib import Path
+import subprocess
+import tarfile
+root=Path('/opt/silent-ridge-build/desktop')
+repo=Path('/mnt/c/Users/mj777/Documents/Codex/2026-09-14/i/work/Oct26-fixes')
+archive=root/'updated-content.tar'
+case=next(Path('/opt/silent-ridge-build/native-case-v2/cases').glob('*/WS17.aut')).parent
+payload=[p for folder in (Path('/evidence'),case) for p in folder.rglob('*') if p.is_file()]
+assert not any(p.is_symlink() for p in payload), 'Unexpected linked evidence'
+payload_bytes=sum(p.stat().st_size for p in payload)
+assert payload_bytes < 64*1024*1024, 'This update must contain only the small prepared case and released records, never raw memory'
+args=['-i',str(root/'build-key'),'-o','BatchMode=yes','-o','UserKnownHostsFile='+str(root/'known-hosts')]
+available=int(subprocess.check_output(['ssh',*args,'-p','2222','builder@127.0.0.1',
+    'df -B1 --output=avail / | tail -1'],text=True).strip())
+assert available > 3*payload_bytes + 1024**3, 'Insufficient space for case transfer and extraction'
+print(f'Checked update: {payload_bytes} source bytes; guest free: {available} bytes. Raw memory is excluded.',flush=True)
+with tarfile.open(archive,'w') as tar:
+    tar.add('/evidence',arcname='opt/silent-ridge/evidence')
+    tar.add(case,arcname='opt/silent-ridge/prepared-case/WS17')
+    tar.add(repo/'deployment/expanded/desktop/configure-image.sh',arcname='home/builder/configure-image.sh')
+subprocess.run(['scp',*args,'-P','2222',str(archive),'builder@127.0.0.1:/home/builder/updated-content.tar'],check=True)
+subprocess.run(['ssh',*args,'-p','2222','builder@127.0.0.1',
+    'sudo tar -xf /home/builder/updated-content.tar -C / && sudo bash /home/builder/configure-image.sh && '
+    'sudo cp -a /opt/silent-ridge/prepared-case/WS17 /home/participant/Cases/WS17 && '
+    'sudo chown -R participant:participant /home/participant/Cases/WS17'],check=True)
+print('Updated case and native prepared records copied into desktop')
