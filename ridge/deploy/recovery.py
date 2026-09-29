@@ -197,6 +197,25 @@ def data_volumes(event):
     return ['%s-%s' % (event, name) for name in CENTRAL_DATA_VOLUMES]
 
 
+def event_volumes(event, teams):
+    """Every named Docker volume owned by one local event deployment.
+
+    Recovery archives only the application and team data volumes, but a wipe
+    must also remove the native databases plus Wazuh data and certificate
+    staging volumes.  Keeping the complete inventory here prevents teardown
+    and restore from drifting apart.
+    """
+    return data_volumes(event) + team_volumes(event, teams) + [
+        event + '-iris-db',
+        event + '-ctfd-db',
+        event + '-guacamole-database',
+        event + '-wazuh_wazuh-indexer-data',
+        event + '-wazuh_wazuh-manager-data',
+        event + '-wazuh_wazuh-indexer-certs',
+        event + '-wazuh_wazuh-dashboard-certs',
+    ]
+
+
 def create(stack, destination, cipher=None, export_job=None):
     """D02: full coherent recovery set. Requires a paused, drained exercise; the
     export barrier freezes native writes while watermarks and state are captured."""
@@ -390,8 +409,6 @@ def restore(profile, runtime, backup, runner, host=None, operator='deploy',
     runtime = Path(runtime)
     manifest = verify_set(backup)  # corrupt/incomplete sets die here
 
-    stack = LocalStack(profile, runtime, runner, host=host, operator=operator,
-                       receipts=receipts)
     fingerprint = manifest.get('release_fingerprint')
     if fingerprint and release_fingerprint and fingerprint != release_fingerprint:
         if accept_release != fingerprint:
@@ -421,6 +438,43 @@ def restore(profile, runtime, backup, runner, host=None, operator='deploy',
                             'with `down` (and wipe disposable volumes with `down --volumes`) '
                             'before restoring onto this host'
                             % (manifest['event'], ', '.join(live[:3])))
+    manifest_teams = manifest.get('teams')
+    if not isinstance(manifest_teams, list) or not manifest_teams:
+        raise RecoveryError('recovery manifest has no effective team roster; refusing to '
+                            'guess the destination topology')
+    volume_output = runner.run(['docker', 'volume', 'ls', '--format', '{{.Name}}'])
+    existing_volumes = set(volume_output.splitlines())
+    stale_volumes = sorted(existing_volumes.intersection(
+        event_volumes(manifest['event'], manifest_teams)))
+    if stale_volumes:
+        raise RecoveryError('destination still has event-owned Docker volumes for %s (%s); '
+                            'restore refuses to layer a backup over stale data. Complete a '
+                            'verified backup, then run `down --volumes` and retry'
+                            % (manifest['event'], ', '.join(stale_volumes[:3])))
+
+    from ridge.deploy import config as deploy_config
+    base_profile = deploy_config.validate(profile)
+    base_team_names = [team['name'] for team in base_profile['roster']['teams']]
+    override_required = base_team_names != manifest_teams
+    if override_required:
+        neutral_names = ['team-%02d' % index
+                         for index in range(1, len(manifest_teams) + 1)]
+        if manifest_teams != neutral_names:
+            raise RecoveryError('destination profile roster does not match the recovery '
+                                'manifest, and the recorded roster is not a neutral '
+                                '`--teams N` override; use the original event profile')
+        effective_profile = deploy_config.validate(
+            deploy_config.apply_team_override(profile, len(manifest_teams)))
+    else:
+        effective_profile = base_profile
+    if effective_profile['event']['id'] != manifest['event']:
+        raise RecoveryError('destination profile event %s does not match recovery event %s'
+                            % (effective_profile['event']['id'], manifest['event']))
+    if override_required:
+        (runtime / 'overrides.json').write_text(
+            json.dumps({'team_count': len(manifest_teams)}) + '\n', encoding='utf-8')
+    stack = LocalStack(profile, runtime, runner, host=host, operator=operator,
+                       receipts=receipts)
 
     # Materialize the runtime: secrets (decrypted), state, journal, inventories, specs.
     with tempfile.TemporaryDirectory() as staging:
@@ -544,11 +598,14 @@ def _restore_databases(stack, db_dir):
 def _restore_tree(source, destination):
     destination = Path(destination)
     destination.mkdir(parents=True, exist_ok=True)
+    for existing in destination.iterdir():
+        if existing.is_dir():
+            shutil.rmtree(existing)
+        else:
+            existing.unlink()
     for item in Path(source).iterdir():
         target = destination / item.name
         if item.is_dir():
-            if target.exists():
-                shutil.rmtree(target)
             shutil.copytree(item, target)
         else:
             shutil.copy2(item, target)

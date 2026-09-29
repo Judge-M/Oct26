@@ -109,13 +109,20 @@ class FakeRunner:
         self.crl_valid = True
         self.connections = 0
         self.up_projects = set()
+        from ridge.deploy import recovery
+        self.volume_names = set(recovery.event_volumes(
+            'silent-ridge-test', [{'name': 'team-01'}, {'name': 'team-02'}]))
+        self.volume_remove_failure = None
+        self.compose_down_failure = None
 
     def run_stdin(self, argv, text, check=True):
         self.calls.append(list(argv))
         if 'hash.sh' in ' '.join(argv):
             return '$2y$12$' + 'a' * 53 + '\n'
         if 'psql' in argv:
-            self.connections = 2
+            override = self.runtime / 'overrides.json'
+            self.connections = (json.loads(override.read_text())['team_count']
+                                if override.is_file() else 2)
         return ''
 
     def run(self, argv, check=True):
@@ -133,19 +140,32 @@ class FakeRunner:
             return self._compose(argv, joined, check)
         if argv[:2] == ['docker', 'inspect']:
             return '/fake-container\n'
-        if argv[:2] == ['docker', 'volume']:
+        if argv[:3] == ['docker', 'volume', 'ls']:
+            return '\n'.join(sorted(self.volume_names))
+        if argv[:3] == ['docker', 'volume', 'rm']:
+            name = argv[-1]
+            if name == self.volume_remove_failure and check:
+                raise deploy_local.CommandError(argv, 1, 'simulated volume removal failure')
+            self.volume_names.discard(name)
             return ''
         if argv[:2] == ['docker', 'cp']:
             if argv[2].split(':')[0] in ('iris', 'ctfd', 'fake-container'):  # container -> host
                 Path(argv[3]).parent.mkdir(parents=True, exist_ok=True)
                 if '/tmp/silent-ridge-inventory' in argv[2]:
+                    override = self.runtime / 'overrides.json'
+                    count = (json.loads(override.read_text())['team_count']
+                             if override.is_file() else 2)
+                    identities = {'team-%02d' % index:
+                                  {'id': index + 2, 'login': 'team-%02d' % index}
+                                  for index in range(1, count + 1)}
+                    teams = {'team-%02d' % index:
+                             {'id': index, 'name': 'team-%02d' % index}
+                             for index in range(1, count + 1)}
                     inventory = {'inventory': {'case': {'id': 2, 'name': 'case'},
                                                'service_user': {'id': 2, 'login': 'svc'},
                                                'statuses': {'open': 1, 'closed': 4},
-                                               'identities': {'team-01': {'id': 3, 'login': 't1'},
-                                                              'team-02': {'id': 4, 'login': 't2'}},
-                                               'teams': {'team-01': {'id': 1, 'name': 'team-01'},
-                                                         'team-02': {'id': 2, 'name': 'team-02'}}},
+                                               'identities': identities,
+                                               'teams': teams},
                                  'preflight': {'ready': True}}
                     Path(argv[3]).write_text(json.dumps(inventory), encoding='utf-8')
                 else:  # native database dump
@@ -210,14 +230,22 @@ class FakeRunner:
 
     def _compose(self, argv, joined, check):
         kind = next((name for name in self.SERVICES if 'compose.%s.yaml' % name in joined), '')
+        if 'down' in argv and kind == self.compose_down_failure and check:
+            raise deploy_local.CommandError(argv, 1, 'simulated Compose down failure')
         if 'ps' in argv:
             if '-q' in argv:
                 return 'fakeid\n' if self.healthy and kind in self.up_projects else ''
             if not self.healthy or kind not in self.up_projects:
                 return ''
+            services = self.SERVICES[kind]
+            if kind == 'desktops':
+                override = self.runtime / 'overrides.json'
+                count = (json.loads(override.read_text())['team_count']
+                         if override.is_file() else len(services))
+                services = ['desktop-team%02d' % (index + 1) for index in range(count)]
             rows = [json.dumps({'Service': s, 'State': 'running',
                                 'Health': self.service_health.get(s, 'healthy'),
-                                'ExitCode': 0}) for s in self.SERVICES[kind]]
+                                'ExitCode': 0}) for s in services]
             rows += [json.dumps({'Service': s, 'State': 'exited', 'Health': '', 'ExitCode': 0})
                      for s in self.ONE_SHOT.get(kind, [])]
             return '\n'.join(rows)
@@ -656,8 +684,39 @@ class LifecycleTests(unittest.TestCase):
         result = self.stack.down(volumes=True)
         self.assertEqual(result['state'], 'STOPPED')
         self.assertIn('silent-ridge-test-iris-db', result['volumes_removed'])
+        self.assertIn('silent-ridge-test-wazuh_wazuh-indexer-certs',
+                      result['volumes_removed'])
+        self.assertIn('silent-ridge-test-wazuh_wazuh-dashboard-certs',
+                      result['volumes_removed'])
+        self.assertFalse(self.runner.volume_names)
         journal = Journal.open(self.runtime / 'deploy-journal.sqlite')
         self.assertEqual(journal.state, 'STOPPED')
+
+    def test_down_volumes_fails_closed_when_docker_cannot_remove_one(self):
+        self.stack.up(self.source)
+        self._drain_outbox()
+        self.stack.backup()
+        failed = 'silent-ridge-test-wazuh_wazuh-indexer-certs'
+        self.runner.volume_remove_failure = failed
+        with self.assertRaisesRegex(deploy_local.CommandError,
+                                    'simulated volume removal failure'):
+            self.stack.down(volumes=True)
+        self.assertIn(failed, self.runner.volume_names)
+        journal = Journal.open(self.runtime / 'deploy-journal.sqlite')
+        self.assertNotEqual(journal.state, 'STOPPED')
+
+    def test_down_volumes_fails_before_removal_when_compose_down_fails(self):
+        self.stack.up(self.source)
+        self._drain_outbox()
+        self.stack.backup()
+        original = set(self.runner.volume_names)
+        self.runner.compose_down_failure = 'central'
+        with self.assertRaisesRegex(deploy_local.CommandError,
+                                    'simulated Compose down failure'):
+            self.stack.down(volumes=True)
+        self.assertEqual(self.runner.volume_names, original)
+        journal = Journal.open(self.runtime / 'deploy-journal.sqlite')
+        self.assertNotEqual(journal.state, 'STOPPED')
 
     def test_down_volumes_after_fence_uses_pre_fence_backup(self):
         self.stack.up(self.source)
