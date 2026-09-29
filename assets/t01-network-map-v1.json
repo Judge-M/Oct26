@@ -3,6 +3,11 @@
   "map": "silent-ridge-t01-network-map",
   "revision": 1,
   "status": "approved",
+  "narrative_contract": {
+    "contract": "silent-ridge-narrative",
+    "revision": 1,
+    "rule": "The contract revision this fixture was written against. ridge/narrative_consistency.py refuses a map whose revision is behind, because a narrative change nobody carried through to the map is exactly the drift the programme exists to stop. Bump both together or neither."
+  },
   "exercise_date": "2026-10-15",
   "unlocks_after": "T01",
   "authority": "An additional analytical view reconstructed from evidence the completed T01 task already exposes. It is not a new source of truth, it does not replace or extend any T01 question, and it scores nothing. The canonical scenario document and the published evidence remain authoritative; where this map and a record disagree, the record is right.",

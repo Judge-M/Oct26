@@ -3,6 +3,11 @@
   "contract": "silent-ridge-breadcrumbs",
   "revision": 1,
   "status": "proposed",
+  "narrative_contract": {
+    "contract": "silent-ridge-narrative",
+    "revision": 1,
+    "rule": "The contract revision this fixture was written against. ridge/narrative_consistency.py refuses breadcrumbs whose revision is behind, because a narrative change nobody carried through to the breadcrumbs is exactly the drift the programme exists to stop. Bump both together or neither."
+  },
   "authority": "Small, believable traces left across the prepared evidence (issue 59). Every breadcrumb is rendered from this file by expanded/prepare.py into the same deterministic release as the rest of the evidence, so a reset or a reseed rebuilds every one of them byte for byte. Nothing here is added at run time by hand and nothing is held only in facilitator material. The fixture carries participant-facing text only; what each breadcrumb points at is a legitimate piece of released evidence or a real ticket in expanded/author.py, never host infrastructure, and no facilitator solution mapping lives in this file.",
 
   "framing": {
