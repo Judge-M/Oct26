@@ -34,19 +34,21 @@ jobs:
         with:
           python-version: '3.12'
       - run: python expanded/prepare.py work/evidence
-      - name: Build harmless static training surrogate
+      - name: Verify published training-binary contract
+        run: python scripts/verify_training_binary.py
+      - name: Compile training surrogate smoke (not byte reproduction)
         run: |
           mkdir -p work/rebuilt-binary
           cc -O0 -g -fno-inline -o work/rebuilt-binary/brief-viewer-training expanded/binary/brief-viewer-training.c
           cc --version > work/compiler-version.txt
-          sha256sum work/rebuilt-binary/brief-viewer-training > work/binary-sha256.txt
+          sha256sum work/rebuilt-binary/brief-viewer-training > work/compile-smoke-sha256.txt
           file work/rebuilt-binary/brief-viewer-training
       - uses: actions/upload-artifact@v4
         with:
-          name: preparation-fixtures-not-a-complete-offline-bundle
+          name: preparation-fixtures-and-compile-smoke-not-a-release-rebuild
           path: |
             work/evidence
             work/compiler-version.txt
-            work/binary-sha256.txt
+            work/compile-smoke-sha256.txt
             work/rebuilt-binary
           retention-days: 14
