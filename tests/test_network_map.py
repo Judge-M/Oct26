@@ -583,20 +583,25 @@ class PlacementTests(unittest.TestCase):
 
     @unittest.skipUnless(jinja2, 'jinja2 is a deployment dependency')
     def test_the_question_page_carries_the_link_only_on_the_ctfd_lane(self):
+        from ridge.scenario_contract import load as load_contract
         from ridge.web import PAGE
+        from ridge.web_narrative import context as narrative_context
         page = jinja2.Environment().from_string(PAGE)
-        base = dict(snapshot={'team': '0', 'mode': 'running', 'pending': 0, 'elapsed_seconds': 0,
-                              'announcements': [], 'tickets': []},
-                    questions=[], iris='i', ctfd='c', csrf='n', message='', case='1')
-        queue = page.render(lane='iris', **base)
-        self.assertNotIn('t01-network-map', queue)
-        self.assertNotIn('/silent-ridge/network-map', queue)
+        # The template renders the approved narrative, so the test must build the
+        # same context the CTFd and IRIS plugins build rather than a bare one.
+        def render(lane, snapshot, questions=()):
+            return page.render(lane=lane, snapshot=snapshot,
+                               network_map=network_map_link(snapshot),
+                               iris='i', ctfd='c', csrf='n', message='', case='1',
+                               **narrative_context(load_contract(), snapshot, questions, lane))
+        running = {'team': '0', 'mode': 'running', 'pending': 0, 'elapsed_seconds': 0,
+                   'announcements': [], 'tickets': []}
+        self.assertNotIn('t01-network-map', render('iris', running))
+        self.assertNotIn('/silent-ridge/network-map', render('iris', running))
         # An unlocked map must not appear on the queue lane even once T01 is closed.
-        closed = dict(base, snapshot=dict(base['snapshot'],
-                                          tickets=[dict(id=UNLOCKS_AFTER, status='complete')]))
-        self.assertNotIn('/silent-ridge/network-map', page.render(lane='iris', **closed))
-        unlocked = network_map_link(closed['snapshot'])
-        questions = page.render(lane='ctfd', network_map=unlocked, **closed)
+        closed = dict(running, tickets=[dict(id=UNLOCKS_AFTER, status='complete')])
+        self.assertNotIn('/silent-ridge/network-map', render('iris', closed))
+        questions = render('ctfd', closed)
         self.assertIn('t01-network-map', questions)
         self.assertIn('href="%s"' % NETWORK_MAP, questions)
         self.assertIn('Open the T01 network map', questions)
