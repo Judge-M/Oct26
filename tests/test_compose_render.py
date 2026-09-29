@@ -119,6 +119,14 @@ class ComposeAuditTests(unittest.TestCase):
                          '${CTFD_SESSION_COOKIE_NAME:-silent_ridge_ctfd_session}')
         self.assertNotIn('CTFD_SESSION_COOKIE_NAME', central['services']['iris']['environment'])
 
+    def test_iris_worker_concurrency_is_bounded(self):
+        central = yaml.safe_load((COMPOSE / 'compose.central.yaml').read_text(encoding='utf-8'))
+        worker = central['services']['iris-worker']
+        self.assertEqual(worker['environment']['CELERY_WORKER_CONCURRENCY'], '4')
+        self.assertEqual(worker['command'],
+                         ['./wait-for-iriswebapp.sh', 'iris:8000',
+                          './iris-entrypoint.sh', 'iris-worker'])
+
     def test_only_tls_proxy_publishes_participant_ports(self):
         central = yaml.safe_load((COMPOSE / 'compose.central.yaml').read_text(encoding='utf-8'))
         guac = yaml.safe_load((COMPOSE / 'compose.guacamole.yaml').read_text(encoding='utf-8'))

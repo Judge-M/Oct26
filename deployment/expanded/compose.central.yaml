@@ -38,6 +38,11 @@ services:
     command: [./wait-for-iriswebapp.sh, iris:8000, ./iris-entrypoint.sh, iris-worker]
     env_file: ${IRIS_ENV_FILE:?Set private complete IRIS environment file}
     environment:
+      # Celery otherwise defaults to the host CPU count. On the 32-thread event
+      # host that created 32 prefork children and consumed about 2.6 GiB while
+      # the worker was nearly idle. Celery 5.2 maps this variable to the
+      # supported `worker --concurrency` option.
+      CELERY_WORKER_CONCURRENCY: "4"
       POSTGRES_SERVER: iris-db
     volumes: [iris-downloads:/home/iris/downloads, iris-templates:/home/iris/user_templates, iris-data:/home/iris/server_data]
     networks: [iris-backend]
