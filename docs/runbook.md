@@ -24,7 +24,8 @@ to participants). Windows operators may use `.\ridge.ps1 <action> -Profile P
    it re-probes, it never resets state.
 3. **Check readiness** — `python -m ridge.deploy status --profile P --runtime R`.
    You want `event_ready: true`, all stages verified.
-4. **Distribute team logins** — from `R/inventories/` (private). Each team gets
+4. **Distribute team logins** — from `R/secrets/team-credentials.json` (private).
+   Each team gets
    its IRIS/CTFd account and its Guacamole desktop connection. For this
    classroom event the operator login is intentionally memorable: use
    `admin` / `admin` for IRIS, CTFd, Guacamole, and Wazuh. Team logins use
@@ -81,7 +82,7 @@ adds VNC lag.
 ## Appendix A — Private credentials and backups
 
 - All secrets live only under `R/` (env files, `secrets/`, `inventories/`).
-  Retrieve team accounts from `R/inventories/`; bridge credentials from
+  Retrieve team accounts from `R/secrets/team-credentials.json`; bridge credentials from
   `R/secrets/`. None of this is in git.
 - Backups: `R/backups/<UTC timestamp>/`, each with `manifest.json`,
   `SHA256SUMS.json`, and `RECOVERY-COMPLETE.json` when complete. Secrets inside

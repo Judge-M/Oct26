@@ -79,9 +79,11 @@ python deployment/expanded/guacamole.py expanded/config.json PRIVATE-CREDENTIALS
 ```
 
 The private input contains `teams: {team-id: {username, password}}` and
-`desktops: {desktop-id: {password}}`. Use generated high-entropy login passwords
-and per-desktop VNC passwords. SQL contains VNC passwords and must stay private.
-Rotate/remove Guacamole's upstream default administrator account.
+`desktops: {desktop-id: {password}}`. The classroom deployment intentionally
+uses the memorable `teamN` / `teamN` team logins and `admin` / `admin` operator
+login; per-desktop VNC passwords remain private and are generated separately.
+SQL contains VNC passwords and must stay private. Rotate/remove Guacamole's
+upstream default administrator account.
 
 One persistent Xfce display runs per VM, served by TigerVNC. Every connection to
 that team desktop sees the same keyboard, pointer and windows. `shared: true`
