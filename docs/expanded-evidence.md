@@ -104,6 +104,12 @@ participant-time compilation is required. The compiled binary is published with
 compiler/source hashes in `assets/training-binary.json`; Cutter 2.5.0 successfully
 analyzed it in the Ubuntu desktop guest (11 functions and 16 strings).
 
+CI verifies the published binary SHA-256, the tracked LF source SHA-256, and the
+documented CRLF compiler-input SHA-256 against that manifest. Its fresh compiler
+run is a portability smoke only: compiler paths, versions and debug metadata can
+change executable bytes, so the resulting hash is not presented as reproduction
+of the published artifact.
+
 ## Workload
 
 20 tickets × 65 estimated team-minutes = 1,300 estimated team-minutes, or 260
