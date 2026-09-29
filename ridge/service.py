@@ -6,7 +6,8 @@ import os
 import threading
 import time
 import logging
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from http.server import BaseHTTPRequestHandler
+from bounded_http import BoundedThreadingHTTPServer, RequestBodyTimeout, read_request_body
 from ridge.state import State, Conflict
 from ridge.transport import secret, remote_sink
 
@@ -39,10 +40,14 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if self.path != '/action':
                 return self.send(404, {})
+            authorization = self.headers.get('Authorization','')
+            if not any(hmac.compare_digest(authorization, 'Bearer '+value)
+                       for value in self.server.secrets.values()):
+                return self.send(401, {'error':'Authentication required'})
             count = int(self.headers.get('Content-Length', '0'))
             if not 0 < count <= 8192:
                 return self.send(413, {'error':'Invalid request size'})
-            data = json.loads(self.rfile.read(count))
+            data = json.loads(read_request_body(self,count))
             app = data.get('application')
             if app not in ('iris','ctfd') or not hmac.compare_digest(
                     self.headers.get('Authorization',''), 'Bearer '+self.server.secrets[app]):
@@ -67,6 +72,8 @@ class Handler(BaseHTTPRequestHandler):
             self.send(403, {'error':str(exc)})
         except Conflict as exc:
             self.send(409, {'error':str(exc)})
+        except RequestBodyTimeout:
+            self.send(408, {'error':'Request body timed out; retry'})
         except (ValueError,KeyError,TypeError):
             self.send(400, {'error':'Invalid request'})
         except Exception:
@@ -80,7 +87,7 @@ def main():
     args=parser.parse_args()
     state=State(os.environ['RIDGE_STATE'])
     state.diagnostics()  # Refuse old/uninitialized schemas before starting the worker.
-    server=ThreadingHTTPServer((args.host,args.port),Handler)
+    server=BoundedThreadingHTTPServer((args.host,args.port),Handler)
     server.state=state
     server.secrets={app:secret('RIDGE_'+app.upper()) for app in ('iris','ctfd')}
     if server.secrets['iris'] == server.secrets['ctfd']:

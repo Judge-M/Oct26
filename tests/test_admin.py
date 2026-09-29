@@ -1,5 +1,7 @@
 import json
+import socket
 import threading
+import time
 import urllib.request
 import urllib.error
 import unittest
@@ -69,3 +71,17 @@ class AdminTests(unittest.TestCase):
         self.assertEqual(self.call('/api/action',{'action':'export'})[0],200)
         self.assertTrue(list((self.root/'exports').glob('*.zip')))
         self.assertEqual(control.read(self.runtime)[-1]['operator'],'facilitator-one')
+    def test_nonlogin_auth_precedes_body_and_slow_login_times_out(self):
+        self.admin.request_timeout=0.2
+        with socket.create_connection(('127.0.0.1',self.admin.server_port),timeout=2) as client:
+            started=time.monotonic()
+            client.sendall(b'POST /api/action HTTP/1.1\r\nHost: test\r\n'
+                           b'Content-Type: application/json\r\nX-Admin-Request: 1\r\n'
+                           b'Authorization: Bearer invalid\r\nContent-Length: 100\r\n\r\n')
+            self.assertIn(b'401 Unauthorized',client.recv(4096))
+            self.assertLess(time.monotonic()-started,0.2)
+        with socket.create_connection(('127.0.0.1',self.admin.server_port),timeout=2) as client:
+            client.sendall(b'POST /api/login HTTP/1.1\r\nHost: test\r\n'
+                           b'Content-Type: application/json\r\nX-Admin-Request: 1\r\n'
+                           b'Content-Length: 100\r\n\r\n{}')
+            self.assertIn(b'408 Request Timeout',client.recv(4096))

@@ -29,7 +29,7 @@ def fingerprint(root=ROOT):
             if path.is_file() and '__pycache__' not in path.parts and path.suffix != '.pyc':
                 digest.update(path.relative_to(root).as_posix().encode())
                 digest.update(path.read_bytes())
-    for name in ('.dockerignore', *IMAGES.values()):
+    for name in ('.dockerignore', 'bounded_http.py', *IMAGES.values()):
         digest.update((root / name).read_bytes())
     return digest.hexdigest()
 
