@@ -30,7 +30,7 @@ def safe(root,name):
     return path
 
 
-def verify(root,manifest,complete=True):
+def verify(root,manifest,complete=True,require_containers=True):
     root=Path(root).resolve()
     if manifest.get('schema')!=1 or not manifest.get('release') or not manifest.get('source_commit'):
         raise ValueError('Versioned manifest with source commit required')
@@ -46,6 +46,10 @@ def verify(root,manifest,complete=True):
         if artifact.get('release')!=manifest['release'] or not artifact.get('version'):
             raise ValueError('Artifact release/version mismatch: '+name)
     required = set(REQUIRED)
+    # Store assembly validates before ridge.bundle has created the Docker image
+    # archive. The finished bundle must still contain and verify that archive.
+    if not require_containers:
+        required.discard('containers')
     # The supported event desktop is a versioned container. Its immutable image
     # in the saved archive satisfies the desktop category; the parked QCOW2 is
     # optional historical material and must not be required for a release.

@@ -163,7 +163,7 @@ def pack(store,manifest,destination,allow_incomplete=False,max_part_bytes=None):
         raise ValueError('--allow-incomplete is only for uncertified drill bundles')
     if not allow_incomplete and not manifest.get('compatibility_verified'):
         raise ValueError('Uncertified manifest; pass --allow-incomplete to build a drill bundle')
-    verify(store,manifest,complete=not allow_incomplete)
+    verify(store,manifest,complete=not allow_incomplete,require_containers=False)
     if not REQUIRED_IMAGES<=set(manifest.get('images',{})):
         raise ValueError('Record every central application and dependency image identity')
     reserved={'source.zip','release-manifest.json','source-image-checks.json','SHA256SUMS.json','validated-images.tar'}

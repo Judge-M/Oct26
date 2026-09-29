@@ -57,6 +57,22 @@ class EvidenceTests(unittest.TestCase):
             manifest['artifacts'][0]['path']='../outside'
             with self.assertRaisesRegex(ValueError,'Unsafe'):verify(root,manifest,False)
 
+    def test_certified_store_is_valid_before_bundle_creates_container_archive(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            artifacts = []
+            for kind in ('disk', 'memory', 'autopsy', 'dependencies', 'guides', 'evidence'):
+                path = root / (kind + '.bin')
+                path.write_bytes(kind.encode())
+                artifacts.append(dict(path=path.name, kind=kind, version='1', release='r1',
+                                      bytes=path.stat().st_size, sha256=sha256(path)))
+            manifest = dict(schema=1, release='r1', source_commit='abc',
+                            compatibility_verified=True,
+                            images={'desktop': 'sha256:' + '1' * 64}, artifacts=artifacts)
+            self.assertEqual(verify(root, manifest, require_containers=False), 6)
+            with self.assertRaisesRegex(ValueError, 'Incomplete'):
+                verify(root, manifest)
+
     def test_offline_rejects_stale_application_image(self):
         from scripts import offline
         with patch.object(offline,'run',return_value='{}'):
