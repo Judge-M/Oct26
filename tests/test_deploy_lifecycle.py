@@ -30,6 +30,16 @@ class WazuhOfflineConfigTests(unittest.TestCase):
         with self.assertRaisesRegex(LifecycleError, 'invalid bcrypt'):
             deploy_local.render_indexer_admin(source, 'not-a-hash')
 
+    def test_private_indexer_seeds_weak_event_account(self):
+        source = 'admin:\n  hash: "' + '$2y$12$' + 'b' * 53 + '"\n'
+        admin_hash = '$2y$12$' + 'a' * 53
+        team_hash = '$2y$12$' + 'c' * 53
+        rendered = deploy_local.render_indexer_admin(
+            source, admin_hash,
+            [('team1', team_hash, 'silent-ridge-participant')])
+        self.assertIn('team1:\n  hash: "' + team_hash + '"', rendered)
+        self.assertIn('  - "silent-ridge-participant"', rendered)
+
     def test_disables_networked_manager_modules_without_changing_other_settings(self):
         source = ('<ossec_config><global><jsonout_output>yes</jsonout_output>'
                   '<update_check>yes</update_check></global>'

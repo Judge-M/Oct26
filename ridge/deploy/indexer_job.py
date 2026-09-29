@@ -69,7 +69,10 @@ def _apply(index_name):
     reader_name, reader_pw = _credential_parts('wazuh_reader')
     users = [UserSpec(writer_name, writer_pw, WRITER_ROLE),
              UserSpec(reader_name, reader_pw, READER_ROLE)]
-    plan = [r for r in build_plan(index_name, users) if not r.path.startswith('/api/')]
+    weak_names = {user.name for user in users if len(user.password) < 8}
+    plan = [r for r in build_plan(index_name, users)
+            if not r.path.startswith('/api/')
+            and not any(r.path.endswith('/internalusers/' + name) for name in weak_names)]
     call = _transport(admin)
 
     def transport(method, path, body):
