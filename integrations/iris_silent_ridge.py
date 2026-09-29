@@ -16,6 +16,7 @@ from sqlalchemy.exc import IntegrityError
 from app import db
 from app.models.models import CaseTasks, Comments, TaskComments
 from ridge.transport import bridge, secret, TRANSPORT_ERRORS
+from ridge.narrative import participant_context
 from ridge.web import PAGE
 
 
@@ -47,7 +48,8 @@ def install(app):
             snapshot=bridge('iris',current_user.id,'snapshot')
             return render_template_string(PAGE,lane='iris',snapshot=snapshot,
                 iris=os.environ['IRIS_PUBLIC_URL'],ctfd=os.environ['CTFD_PUBLIC_URL'],
-                csrf=generate_csrf(),case=os.environ['RIDGE_IRIS_CASE'],message='')
+                csrf=generate_csrf(),case=os.environ['RIDGE_IRIS_CASE'],message='',
+                story=participant_context(snapshot))
         except HTTPError as exc:
             return 'Ticket unavailable, another team claimed it, or exercise paused. Reload the queue.',exc.code
         except TRANSPORT_ERRORS:
@@ -108,7 +110,7 @@ def install(app):
         try:
             if kind=='ticket':
                 task=CaseTasks(task_title=p['ticket']+' · '+p['title'],
-                    task_description='Choose ownership through /silent-ridge. Correct answers add findings automatically.',
+                    task_description=p.get('description','Choose ownership through /silent-ridge. Correct answers add findings automatically.'),
                     task_tags='Silent Ridge',task_case_id=case,task_status_id=int(os.environ['RIDGE_IRIS_OPEN_STATUS']),
                     task_open_date=stamp,task_last_update=stamp,task_userid_open=user,task_userid_update=user,
                     custom_attributes={},modification_history={})

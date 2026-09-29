@@ -1,0 +1,57 @@
+{
+  "schema": 1,
+  "title": "Operation Silent Ridge",
+  "fiction_notice": "Fictional exercise: every identity, host, address, and artifact belongs to the training scenario.",
+  "premise": "Patrol LANTERN is already in the field. The outgoing shift suspects that an older movement brief left the protected enclave before a newer route replaced it.",
+  "discovery": "A document request, an outbound transfer, identity activity, and persistence records overlap around WS-17. Some records support the disclosure; other leads remain incomplete or benign.",
+  "stakes": "Build a defensible shared assessment before the next operational update. Separate what the records prove from what they merely suggest, preserve evidence provenance, and report uncertainty.",
+  "participant_role": "You are one team in a cooperative incident response cell. Claim one IRIS ticket, investigate its named evidence, answer in CTFd, and let the verified finding publish back to the shared case.",
+  "operating_rule": "Use only the supplied fictional evidence and read-only investigation paths. Do not turn an inference into a fact or treat missing telemetry as proof that nothing happened.",
+  "roles": [
+    {"name": "Triage", "purpose": "Choose an available lead and record who owns it."},
+    {"name": "Investigation", "purpose": "Follow the coached tool route and preserve the evidence limitation."},
+    {"name": "Handoff", "purpose": "Submit the value, publish the finding, and use shared results to guide the next lead."}
+  ],
+  "tools": {
+    "IRIS": "Own work, review the case, and read shared findings.",
+    "CTFd": "Read coached questions, submit values, and track team points.",
+    "Wazuh": "Search the supplied historical telemetry with the read-only participant role.",
+    "Guacamole": "Open the analyst desktop and its prepared evidence tools.",
+    "Evidence tools": "Inspect the named PCAP, case artifact, export, or harmless training binary."
+  },
+  "phases": [
+    {
+      "id": "disclosure",
+      "title": "Phase 1 — Establish the disclosure path",
+      "tickets": ["T01", "T02", "T03", "T04", "T05"],
+      "briefing": "Reconstruct the document request, destination, download, persistence record, and recovered cached brief.",
+      "stakes": "Confirm which movement brief is actually supported before broader identity or intent claims are made.",
+      "handoff": "Carry the request identifiers, destination, file version, and corrected times into the identity review."
+    },
+    {
+      "id": "identity",
+      "title": "Phase 2 — Test identity and access explanations",
+      "tickets": ["T06", "T07", "T08", "T09", "T10"],
+      "briefing": "Separate session activity from password authentication, audit access, compare superseding information, and test a benign look-alike.",
+      "stakes": "Avoid blaming an account or host from a name match when the authentication and access records say something narrower.",
+      "handoff": "Record the surviving session, denied access, superseding brief, and benign comparator before scoping other hosts."
+    },
+    {
+      "id": "scope",
+      "title": "Phase 3 — Define scope and collection limits",
+      "tickets": ["T11", "T12", "T13", "T14", "T15"],
+      "briefing": "Examine the unresolved host lead, coverage gaps, normalized process and task records, and prepared memory process tree.",
+      "stakes": "Collection gaps and clock corrections can change the conclusion; apply each correction once and keep unresolved systems unresolved.",
+      "handoff": "Carry documented gaps, corrected timestamps, process ancestry, and remaining uncertainty into final correlation."
+    },
+    {
+      "id": "assessment",
+      "title": "Phase 4 — Correlate and state the defensible conclusion",
+      "tickets": ["T16", "T17", "T18", "T19", "T20"],
+      "briefing": "Correlate connections, static configuration, a harmless code example, payload metadata, and the limits of the overall exposure conclusion.",
+      "stakes": "A network connection or acknowledgment supports transmission, not human receipt, intent, or complete compromise scope.",
+      "handoff": "Publish the supported disclosure finding, list the denied or unproven claims, and name the collection still required."
+    }
+  ],
+  "completion": "Success is a shared, cited assessment: what was transmitted, which records support it, what was denied or superseded, and which leads remain unresolved."
+}

@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from ridge.scenario import AUTOPSY_CASE_ENTRYPOINT, RELEASE_FILES, incident_day
+from ridge.narrative import ticket_context
 from expanded.native import question_overrides
 
 # title, subject/tool, evidence, selection, dependencies, question/answer pairs.
@@ -159,8 +160,10 @@ def build(config=None):
             if tool=='Autopsy':
                 question['case_entrypoint']=AUTOPSY_CASE_ENTRYPOINT
             questions.append(question)
+        narrative=ticket_context(tid)
         tickets.append(dict(id=tid,title=title,subject=tool,requires=requires,release_files=RELEASE_FILES.get(tid, []),estimate_minutes=65,
-            estimate_basis='Unmeasured planning allowance: opening/orientation 10, four guided investigations 40, cross-check and recovery 15. Must be replaced by beginner rehearsal measurements.',questions=questions))
+            estimate_basis='Unmeasured planning allowance: opening/orientation 10, four guided investigations 40, cross-check and recovery 15. Must be replaced by beginner rehearsal measurements.',
+            phase=narrative['phase'],briefing=narrative['briefing'],stakes=narrative['stakes'],handoff=narrative['handoff'],questions=questions))
     return tickets
 
 

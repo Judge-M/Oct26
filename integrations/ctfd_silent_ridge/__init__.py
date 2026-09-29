@@ -12,6 +12,7 @@ from CTFd.models import db, Awards
 from CTFd.utils.decorators import authed_only
 from CTFd.utils.user import get_current_user, is_admin
 from ridge.transport import bridge, secret, TRANSPORT_ERRORS
+from ridge.narrative import participant_context
 from ridge.web import PAGE
 
 
@@ -79,7 +80,8 @@ def load(app):
             snapshot=bridge('ctfd',team,'snapshot')
             questions=bridge('ctfd',team,'questions',question=request.args.get('question'))
             return render_template_string(PAGE,lane='ctfd',snapshot=snapshot,questions=questions,
-                iris=os.environ['IRIS_PUBLIC_URL'],ctfd=os.environ['CTFD_PUBLIC_URL'],csrf=session['nonce'],message=message)
+                iris=os.environ['IRIS_PUBLIC_URL'],ctfd=os.environ['CTFD_PUBLIC_URL'],csrf=session['nonce'],
+                message=message,story=participant_context(snapshot,questions))
         except HTTPError as exc:
             return 'Question unavailable or exercise paused. Return to the incident queue.',exc.code
         except TRANSPORT_ERRORS:

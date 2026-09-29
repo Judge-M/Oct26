@@ -16,6 +16,7 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Protocol, TypedDict, Any
+from ridge.narrative import ticket_delivery
 from ridge.schema import migrate, VERSION
 
 
@@ -120,7 +121,7 @@ class State:
                     con.execute('INSERT INTO questions VALUES (?,?,?,?,?)',
                                 (q['id'], t['id'], json.dumps(body), self.digest(q['answer']), json.dumps(q['finding'])))
                 if not requires:
-                    self.enqueue(con, 'ticket:'+t['id'], 'ticket', {'ticket':t['id'], 'title':t['title']})
+                    self.enqueue(con, 'ticket:'+t['id'], 'ticket', ticket_delivery(t['id'],t['title']))
 
     @staticmethod
     def digest(answer):
@@ -356,7 +357,7 @@ class State:
                 for lead in con.execute("SELECT * FROM tickets WHERE status='locked'").fetchall():
                     if set(json.loads(lead['requires'])) <= completed:
                         con.execute("UPDATE tickets SET status='available' WHERE id=?", (lead['id'],))
-                        self.enqueue(con, 'ticket:'+lead['id'], 'ticket', {'ticket':lead['id'], 'title':lead['title']})
+                        self.enqueue(con, 'ticket:'+lead['id'], 'ticket', ticket_delivery(lead['id'],lead['title']))
             return {'correct':True, 'event':event, 'closed':not remaining, 'synchronization':'pending'}
 
     def snapshot(self):
