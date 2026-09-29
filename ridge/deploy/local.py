@@ -1177,15 +1177,13 @@ class LocalStack:
             raise LifecycleError('controller preflight returned no JSON result: %s'
                                  % out.strip()[-300:])
 
-    def _probe_provisioned(self):
+    def _probe_exercise(self, expected_mode):
         if not self.state_path.is_file():
             raise LifecycleError('exercise state %s is missing; run up' % self.state_path)
         state = self.host.state(self.state_path)
         mode = self._state_mode(state)
-        if mode != 'paused':
-            raise LifecycleError("exercise mode is %r, expected 'paused' after provisioning; "
-                                 "pause it with `python -m ridge.deploy pause` before "
-                                 "re-verifying" % mode)
+        if mode != expected_mode:
+            raise LifecycleError("exercise mode is %r, expected %r" % (mode, expected_mode))
         config = json.loads((self.state_dir / 'config.json').read_text(encoding='utf-8'))
         ready = self._controller_preflight()
         if ready.get('ready') is not True:
@@ -1195,6 +1193,12 @@ class LocalStack:
         if controller is None or controller['state'] != 'running':
             raise LifecycleError('integration controller is not running; run up to reconcile')
         return {'mode': mode, 'teams': ready.get('teams'), 'tickets': ready.get('tickets')}
+
+    def _probe_provisioned(self):
+        return self._probe_exercise('paused')
+
+    def _probe_running(self):
+        return self._probe_exercise('running')
 
     def _state_mode(self, state):
         with state.transaction(write=False) as con:
@@ -1338,6 +1342,8 @@ class LocalStack:
                                  for s in journal.steps()]
         for stage in self.STAGES:
             _, probe = self._stage_ops(stage)
+            if stage == 'PROVISIONED_PAUSED' and journal is not None and journal.state == 'RUNNING':
+                probe = self._probe_running
             try:
                 document['live'][stage] = {'ok': True, 'detail': probe()}
             except Exception as exc:

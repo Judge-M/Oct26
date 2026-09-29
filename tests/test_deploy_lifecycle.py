@@ -537,6 +537,15 @@ class LifecycleTests(unittest.TestCase):
         self.assertEqual(con.execute('SELECT mode FROM run').fetchone()[0], 'paused')
         con.close()
 
+    def test_status_reports_running_event_ready(self):
+        self.stack.up(self.source)
+        self.stack.start(self.source)
+        document = self.stack.status()
+        self.assertTrue(document['event_ready'], json.dumps(document['live'], indent=2))
+        self.assertEqual(document['journal'], 'RUNNING')
+        self.assertEqual(document['live']['PROVISIONED_PAUSED']['detail']['mode'], 'running')
+        self.assertEqual(document['live']['exercise']['mode'], 'running')
+
     def test_status_reports_probe_failures_truthfully(self):
         document = self.stack.status()
         self.assertFalse(document['event_ready'])
