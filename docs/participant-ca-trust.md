@@ -32,9 +32,9 @@ mechanism for this isolated event network.
 
 ## Windows participant device
 
-The repository includes `scripts/setup-participant-windows.ps1` for the final
-participant handoff. It accepts a runtime, the private credential handoff path,
-and a JSON file containing the four HTTPS URLs. It first checks the public CA,
+The repository includes `scripts/install-participant-windows.ps1` as the normal
+one-command participant install. It accepts a runtime, the private credential
+handoff path, and a JSON file containing the four HTTPS URLs. It first checks the public CA,
 certificate metadata, and TCP reachability; `-DryRun` and `-VerifyOnly` make no
 trust or file changes. A typical verified run is:
 
@@ -45,11 +45,18 @@ trust or file changes. A typical verified run is:
   -Config .\participant-endpoints.json -VerifyOnly
 ```
 
-After independently checking the displayed CA fingerprint, rerun with
-`-ImportCertificate`. The script scopes the import to the current user's root
-store and asks for confirmation immediately before changing trust. Add
-`-OpenTabs` only after the service checks pass; it opens the four HTTPS URLs and
-never puts credentials in URLs or browser history. The handoff directory is
+Run the installer directly:
+
+```powershell
+.\scripts\install-participant-windows.ps1 `
+  -Runtime .\runtime `
+  -CredentialFile .\runtime\secrets\team-credentials.json `
+  -Config .\participant-endpoints.json -OpenTabs
+```
+
+It imports the verified CA into the current user's root store only when that
+fingerprint is not already trusted, so rerunning it does not prompt repeatedly.
+The handoff directory is
 ACL-protected and contains only the copied credential file plus a non-secret
 README. It is private event state and must not be committed or uploaded.
 
