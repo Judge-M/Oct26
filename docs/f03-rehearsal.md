@@ -108,6 +108,14 @@ Verified by a full dress rehearsal on the dev host (2 teams, 180 s,
   separate desktop usability, outbox, and latency targets still need review.
   The original rehearsal used the image's 300 s guacd healthcheck. Current
   Compose overrides it with a 10 s probe; first boot still takes minutes.
+- **IRIS worker concurrency**: the Compose definition fixes Celery at four
+  prefork children. The upstream entrypoint otherwise uses one child per host
+  CPU; a 32-thread host produced 32 mostly idle children and an observed
+  2.6 GiB worker peak. Four workers preserve parallel background processing for
+  this ten-team exercise without tying memory use to the host CPU count. During
+  the rerun, verify the worker banner reports `concurrency: 4 (prefork)` and
+  record its peak working set. Any change to this limit needs another full F03
+  measurement; do not infer reserve from process-count arithmetic.
 - `up` now creates the external networks (`<event>-central`,
   `<event>-desktop`, `<event>-wazuh_wazuh-backend`) itself; older checkouts
   fail fresh bring-ups with "declared as external, but could not be found".
