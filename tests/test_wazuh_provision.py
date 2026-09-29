@@ -14,6 +14,7 @@ from pathlib import Path
 from ridge.scenario import telemetry_record
 from ridge.wazuh_provision import (
     DASHBOARD_ACTIONS, INDEX_PATTERN, READER_ROLE, TIMED_VIEW, TIMELESS_VIEW, WRITER_ROLE,
+    WAZUH_ALERTS_VIEW, WAZUH_MONITORING_VIEW, WAZUH_STATISTICS_VIEW,
     Request, UserSpec, WazuhError, apply_plan, build_plan, ca_context, index_template,
     load_vendored, preflight_facts, discover_fields, reader_role, record_id, saved_objects,
     validate_manifest, writer_role,
@@ -104,6 +105,12 @@ class VendoredConfigTests(unittest.TestCase):
         self.assertIsNone(views[TIMELESS_VIEW]['attributes']['timeFieldName'])
         fields = {field['name'] for field in json.loads(views[TIMED_VIEW]['attributes']['fields'])}
         self.assertIn('timestamp', fields)
+
+    def test_wazuh_health_check_views_are_preprovisioned(self):
+        views = {view['id']: view for view in saved_objects()}
+        for view_id in (WAZUH_ALERTS_VIEW, WAZUH_MONITORING_VIEW, WAZUH_STATISTICS_VIEW):
+            self.assertIn(view_id, views)
+            self.assertEqual(views[view_id]['attributes']['title'], view_id)
 
     def test_discover_fields_follow_real_mapping_and_reject_missing_time(self):
         caps = {'fields': {
