@@ -35,6 +35,39 @@ class ReadinessDocumentTests(unittest.TestCase):
         self.assertNotIn('exactly-once', text.lower())
         self.assertNotIn('native Windows EVTX and memory sources and\nready-to-open Autopsy cases are still required', text)
 
+    def test_native_evidence_index_registers_the_archive_manifest(self):
+        """versions.json must name the authoritative archive manifest, not just
+        the prepared-record companion (#134).
+
+        It previously registered only manifest.json, which covers the four
+        prepared sidecars and carries none of the archive hash, byte count,
+        per-file checksums or acquisition provenance, while
+        assets/desktop-v1.json already pointed at archive.json. Nothing read
+        the delivered_evidence block, so the two indexes could disagree
+        unnoticed with CI green.
+        """
+        delivered = json.loads(read('deployment/expanded/versions.json'))['delivered_evidence']
+        archive_path = delivered['native_windows_archive']
+        records_path = delivered['native_windows_records']
+        self.assertTrue((ROOT / archive_path).is_file(), archive_path)
+        self.assertTrue((ROOT / records_path).is_file(), records_path)
+        self.assertNotEqual(archive_path, records_path)
+
+        archive = json.loads(read(archive_path))
+        for field in ('artifact', 'bytes', 'sha256', 'files'):
+            self.assertIn(field, archive)
+        self.assertRegex(archive['sha256'], r'^[0-9a-f]{64}$')
+        self.assertIsInstance(archive['bytes'], int)
+        self.assertGreater(archive['bytes'], 0)
+        self.assertTrue(archive['files'])
+        for name, record in archive['files'].items():
+            self.assertRegex(record['sha256'], r'^[0-9a-f]{64}$', name)
+            self.assertIsInstance(record['bytes'], int, name)
+
+        # The desktop index must name the same authoritative manifest.
+        desktop = json.loads(read('assets/desktop-v1.json'))
+        self.assertEqual(desktop['native_capture'], archive_path)
+
     def test_local_links_resolve(self):
         files = ['README.md', 'docs/learning-objectives.md', 'docs/expanded-validation.md',
                  'docs/expanded-deployment.md', 'docs/expanded-evidence.md']

@@ -29,7 +29,32 @@ class DoctorTests(unittest.TestCase):
         self.assertFalse(result['checks']['profile']['ok'])
         self.assertFalse(result['checks']['backup_key']['ok'])
         self.assertFalse(result['ready_for_up'])
+        self.assertFalse(result['recovery_ready'])
         self.assertNotIn('secret', json.dumps(result).lower())
+
+    @patch('ridge.docker_provider.SubprocessRunner')
+    @patch('ridge.deploy.local.LocalStack')
+    @patch('ridge.deploy.__main__.docker', return_value='ok')
+    def test_missing_backup_key_does_not_block_up(self, docker_mock, stack_mock, runner_mock):
+        """RIDGE_BACKUP_KEY gates backup and restore, never ``up``.
+
+        A first deployment is legitimately ready without the key, so folding
+        it into ready_for_up reported a false blocker and trained operators to
+        ignore the headline result. It is reported as recovery_ready instead.
+        """
+        stack_mock.return_value._probe_artifacts.return_value = {}
+        stack_mock.return_value.event = 'rehearsal'
+        stack_mock.return_value.runtime = Path('unused')
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / 'profile.json'
+            path.write_text('{"event": "rehearsal"}', encoding='utf-8')
+            with patch.dict(os.environ, {'RIDGE_BACKUP_KEY': ''}):
+                result = doctor(path, Path(folder) / 'runtime', Path(folder))
+        self.assertTrue(result['checks']['profile']['ok'])
+        self.assertTrue(result['checks']['artifacts']['ok'])
+        self.assertFalse(result['checks']['backup_key']['ok'])
+        self.assertTrue(result['ready_for_up'])
+        self.assertFalse(result['recovery_ready'])
 
     def test_missing_backup_key_refuses_before_creating_recovery_set(self):
         with tempfile.TemporaryDirectory() as folder:

@@ -74,7 +74,15 @@ def verify_build(component, work):
 
 
 def doctor(profile_path=None, runtime=None, work=None):
-    """Read-only host and deployment checks; never create runtime state."""
+    """Read-only host and deployment checks; never create runtime state.
+
+    ``ready_for_up`` answers only whether the inputs to ``up`` are sound.
+    ``recovery_ready`` reports backup/restore key availability separately:
+    RIDGE_BACKUP_KEY gates backup and restore, never ``up``, so a first
+    deployment is legitimately ready without it. Folding the key into
+    ``ready_for_up`` reported a false blocker and taught operators to
+    disregard the headline result.
+    """
     checks = {}
     for name, command in (('docker', ('version',)),
                           ('compose', ('compose', 'version')),
@@ -111,7 +119,8 @@ def doctor(profile_path=None, runtime=None, work=None):
     return {'scope': 'deployment' if profile_path is not None else 'docker-only',
             'checks': checks,
             'ready_for_up': all(row['ok'] for name, row in checks.items()
-                                if name != 'live'),
+                                if name not in ('live', 'backup_key')),
+            'recovery_ready': checks.get('backup_key', {}).get('ok', False),
             'event_ready': checks.get('live', {}).get('ok', False)}
 
 
