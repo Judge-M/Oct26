@@ -221,6 +221,14 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual(status, 503)
         self.assertEqual(json.loads(body)['error'], 'Ticket data is temporarily busy; retry shortly')
 
+    def test_incomplete_login_body_returns_request_timeout(self):
+        self.server.request_timeout = 0.2
+        with socket.create_connection(('127.0.0.1', self.server.server_port), timeout=2) as client:
+            client.sendall(b'POST /api/login HTTP/1.1\r\nHost: test\r\n'
+                           b'Content-Type: application/json\r\nX-Exercise-Request: 1\r\n'
+                           b'Content-Length: 100\r\n\r\n{}')
+            self.assertIn(b'408 Request Timeout', client.recv(4096))
+
     def test_updates_rejected_before_start_and_while_paused(self):
         payload={'ticket':1,'body':'premature','status':'Closed'}
         self.assertEqual(self.request('/api/update',payload=payload)[0],409)

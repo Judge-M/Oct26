@@ -13,8 +13,12 @@ import sqlite3
 import threading
 import time
 from contextlib import closing
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from http.server import BaseHTTPRequestHandler
 from pathlib import Path
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from bounded_http import BoundedThreadingHTTPServer, RequestBodyTimeout, read_request_body
 import control
 import exercise
 
@@ -72,10 +76,12 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         if self.headers.get('Content-Type')!='application/json' or self.headers.get('X-Admin-Request')!='1':
             return self.send(403,{'error':'Use the facilitator panel'})
+        if self.path!='/api/login' and not self.user():
+            return self.send(401,{'error':'Facilitator login required'})
         try:
             size=int(self.headers.get('Content-Length','0'))
             if not 0<size<=16000:raise ValueError('Invalid request size')
-            data=json.loads(self.rfile.read(size))
+            data=json.loads(read_request_body(self,size))
             if not isinstance(data,dict):raise ValueError('Invalid request')
             if self.path=='/api/login':
                 with self.server.lock:
@@ -90,7 +96,6 @@ class Handler(BaseHTTPRequestHandler):
                 with self.server.lock:self.server.sessions[token]=(name,time.monotonic()+4*3600)
                 return self.send(200,{'token':token})
             user=self.user()
-            if not user:return self.send(401,{'error':'Facilitator login required'})
             if self.path=='/api/logout':
                 with self.server.lock:self.server.sessions.pop(self.headers.get('Authorization','').removeprefix('Bearer '),None)
                 return self.send(200,{'ok':True})
@@ -117,6 +122,7 @@ class Handler(BaseHTTPRequestHandler):
                 with control.locked(exercise.RUNTIME):control.append(exercise.RUNTIME,action,user,details)
             else:raise ValueError('Unsupported action')
             self.send(200,{'message':'Recorded '+action})
+        except RequestBodyTimeout:self.send(408,{'error':'Request body timed out; retry'})
         except (ValueError,TypeError,KeyError,OSError,sqlite3.Error) as error:self.send(400,{'error':str(error)})
 
 # 8084 is deliberately outside the participant-published range (8080 CRL,
@@ -125,8 +131,9 @@ class Handler(BaseHTTPRequestHandler):
 # whenever BIND_IP is left at its 127.0.0.1 default.
 DEFAULT_PORT = 8084
 
-def serve(port=DEFAULT_PORT):
-    server=ThreadingHTTPServer(('127.0.0.1',port),Handler)
+def serve(port=DEFAULT_PORT,request_timeout=5.0,max_handlers=16):
+    server=BoundedThreadingHTTPServer(('127.0.0.1',port),Handler,
+                                      request_timeout=request_timeout,max_handlers=max_handlers)
     server.sessions={};server.lock=threading.Lock();server.attempts=[]
     return server
 

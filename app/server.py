@@ -13,9 +13,10 @@ import threading
 import time
 from contextlib import closing
 from datetime import datetime, timezone
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from http.server import BaseHTTPRequestHandler
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
+from bounded_http import BoundedThreadingHTTPServer, RequestBodyTimeout, read_request_body
 from exercise_clock import elapsed_at
 
 CELLS = ('network', 'endpoint', 'identity', 'server', 'hunting')
@@ -149,7 +150,7 @@ class Handler(BaseHTTPRequestHandler):
                 length = int(self.headers.get('Content-Length', '0'))
                 if not 0 < length <= 4096:
                     raise ValueError()
-                payload = json.loads(self.rfile.read(length))
+                payload = json.loads(read_request_body(self, length))
                 user, password = payload['cell'], payload['password']
                 if not isinstance(user, str) or not isinstance(password, str):
                     raise ValueError()
@@ -165,6 +166,8 @@ class Handler(BaseHTTPRequestHandler):
                         return self.send(503, {'error': 'Session capacity reached; sign out unused tabs'})
                     self.server.sessions[token] = (user, now + 8 * 3600)
                 return self.send(200, {'cell': user, 'token': token})
+            except RequestBodyTimeout:
+                return self.send(408, {'error': 'Request body timed out; retry'})
             except (ValueError, KeyError, TypeError):
                 return self.send(400, {'error': 'Choose a cell and enter its password'})
         user = self.auth()
@@ -183,10 +186,12 @@ class Handler(BaseHTTPRequestHandler):
                 length = int(self.headers.get('Content-Length', '0'))
                 if not 0 < length <= 16384:
                     return self.send(413, {'error': 'Request limit is 16 KB'})
-                payload = json.loads(self.rfile.read(length))
+                payload = json.loads(read_request_body(self, length))
                 if not isinstance(payload, dict):
                     raise ValueError()
                 return self.send(200, analysis_tools.inspect(self.server.root, payload))
+            except RequestBodyTimeout:
+                return self.send(408, {'error': 'Request body timed out; retry'})
             except (ValueError, TypeError, OSError, sqlite3.Error, KeyError, struct.error):
                 return self.send(400, {'error': 'Cannot analyze this file or query. Use a released artifact and a bounded read-only SELECT.'})
         if urlsplit(self.path).path != '/api/update':
@@ -195,7 +200,7 @@ class Handler(BaseHTTPRequestHandler):
             length = int(self.headers.get('Content-Length', '0'))
             if not 0 < length <= 16384:
                 return self.send(413, {'error': 'Request too large or empty'})
-            payload = json.loads(self.rfile.read(length))
+            payload = json.loads(read_request_body(self, length))
             ticket = payload['ticket']
             body = payload.get('body', '')
             status = payload.get('status')
@@ -218,6 +223,8 @@ class Handler(BaseHTTPRequestHandler):
                 if status:
                     con.execute('UPDATE tickets SET status=? WHERE id=?', (status, ticket))
             self.send(201, {'saved': True})
+        except RequestBodyTimeout:
+            self.send(408, {'error': 'Request body timed out; retry'})
         except (ValueError, KeyError, TypeError):
             self.send(400, {'error': 'Invalid ticket, text, or status'})
 
@@ -227,11 +234,14 @@ class Handler(BaseHTTPRequestHandler):
         return json.loads(path.read_text()) if path.exists() else []
 
 
-def serve(host, port, root, state, credentials, control=None):
+def serve(host, port, root, state, credentials, control=None, request_timeout=5.0,
+          max_handlers=64):
     root, state = Path(root).resolve(), Path(state).resolve()
     if not root.is_dir() or not state.is_dir():
         raise ValueError('Run exercise.py init first')
-    server = ThreadingHTTPServer((host, port), Handler)
+    server = BoundedThreadingHTTPServer((host, port), Handler,
+                                        request_timeout=request_timeout,
+                                        max_handlers=max_handlers)
     server.root, server.state = root, state
     server.control=Path(control).resolve() if control else root.parent/'control'
     server.credentials = json.loads(Path(credentials).read_text())

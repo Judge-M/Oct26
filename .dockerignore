@@ -2,6 +2,7 @@
 !app/
 !app/**
 !Dockerfile
+!bounded_http.py
 !ridge/
 !ridge/**
 !integrations/
