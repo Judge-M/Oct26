@@ -271,6 +271,19 @@ class State:
             self.mutable(con)
             self.record(con, actor, 'announcement', {'text':text})
 
+    def ticket_complete(self, ticket):
+        """True once every question of a ticket carries a scored answer.
+
+        The gate for post-completion views such as the T01 network map. It reads the
+        same answers the ticket already scores and changes none of them, so a map
+        can never be unlocked by a state the scoring path would not have reached.
+        """
+        with self.transaction(write=False) as con:
+            row = con.execute('''SELECT COUNT(*) total, COUNT(a.question) answered
+                                 FROM questions q LEFT JOIN answers a ON a.question=q.id
+                                 WHERE q.ticket=?''', (ticket,)).fetchone()
+        return bool(row['total']) and row['total'] == row['answered']
+
     def claim(self, team, ticket, generation=0):
         with self.transaction() as con:
             self.running(con)

@@ -9,6 +9,7 @@ import logging
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from ridge.state import State, Conflict
 from ridge.transport import secret, remote_sink
+from ridge.scenario import NETWORK_MAP, NETWORK_MAP_UNLOCKS_AFTER
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -60,6 +61,13 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(200, {'ok':True})
             if app == 'ctfd' and action == 'questions':
                 return self.send(200, state.questions(team, data.get('question')))
+            if app == 'ctfd' and action == 'network_map':
+                # The map names the destination T01 scores. It is withheld until that
+                # ticket is closed, so it cannot pre-answer the ticket it follows.
+                if not state.ticket_complete(NETWORK_MAP_UNLOCKS_AFTER):
+                    return self.send(403, {'error': NETWORK_MAP_UNLOCKS_AFTER + ' is not complete'})
+                return self.send(200, dict(unlocks_after=NETWORK_MAP_UNLOCKS_AFTER,
+                                           path=NETWORK_MAP, unlocked=True))
             if app == 'ctfd' and action == 'answer':
                 return self.send(200, state.answer(team, data['question'], data['answer']))
             self.send(403, {'error':'Action not allowed for this application'})

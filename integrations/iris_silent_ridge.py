@@ -50,7 +50,7 @@ def install(app):
             # Same contract and same assembler as the CTFd lane; a participant who
             # only ever opens the queue still gets the event briefing and role.
             return render_template_string(PAGE,**narrative_context(load_contract(),snapshot,None,'iris'),
-                lane='iris',snapshot=snapshot,
+                lane='iris',snapshot=snapshot,network_map=None,
                 iris=os.environ['IRIS_PUBLIC_URL'],ctfd=os.environ['CTFD_PUBLIC_URL'],
                 csrf=generate_csrf(),case=os.environ['RIDGE_IRIS_CASE'],message='')
         except HTTPError as exc:
