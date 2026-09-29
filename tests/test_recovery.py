@@ -57,7 +57,7 @@ class CipherRuntimeTests(unittest.TestCase):
 
 
 class VolumeArchiveRuntimeTests(unittest.TestCase):
-    def test_restore_runs_as_root_offline_and_uses_safe_tar_filter(self):
+    def test_restore_runs_as_root_offline_and_preserves_safe_archive_ownership(self):
         calls = []
         recovery._volume_untar(calls.append, 'event-ctfd-logs',
                                Path('backup') / 'event-ctfd-logs.tar.gz')
@@ -68,7 +68,11 @@ class VolumeArchiveRuntimeTests(unittest.TestCase):
         self.assertIn('--network', command)
         self.assertIn('none', command)
         self.assertEqual(command[command.index('--user') + 1], '0:0')
-        self.assertIn("filter='data'", command[command.index('-c') + 1])
+        program = command[command.index('-c') + 1]
+        self.assertIn('tarfile.data_filter(member,path)', program)
+        self.assertIn('uid=member.uid', program)
+        self.assertIn('gid=member.gid', program)
+        self.assertIn('filter=owned_data', program)
 
 
 def make_stack(case):

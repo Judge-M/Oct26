@@ -175,14 +175,20 @@ def _volume_untar(runner, volume, archive):
     # The integration image intentionally runs as uid 10001. Recovery archives
     # preserve each application's native ownership (for example CTFd logs are
     # uid 1001), so extraction must run as root or it cannot populate a fresh
-    # root-owned volume. Keep the helper isolated and use Python's safe data
-    # filter while restoring the verified archive.
+    # root-owned volume. Python's data filter validates paths, links and file
+    # types but deliberately clears ownership. Restore only those four owner
+    # fields after validation so the archive remains traversal-safe and useful.
     runner(['docker', 'run', '--rm', '--pull', 'never', '--network', 'none',
             '--user', '0:0', '-v', volume + ':/data',
             '-v', str(archive.parent.resolve()) + ':/backup:ro',
             '--entrypoint', 'python', 'silent-ridge-integration:dev', '-c',
             "import tarfile,sys\n"
-            "with tarfile.open(sys.argv[1]) as tar: tar.extractall(sys.argv[2],filter='data')",
+            "def owned_data(member,path):\n"
+            " safe=tarfile.data_filter(member,path)\n"
+            " return safe.replace(uid=member.uid,gid=member.gid,uname=member.uname,"
+            "gname=member.gname,deep=False)\n"
+            "with tarfile.open(sys.argv[1]) as tar: tar.extractall(sys.argv[2],"
+            "filter=owned_data)",
             '/backup/' + archive.name, '/data'])
 
 
