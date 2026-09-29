@@ -50,6 +50,10 @@ class ReadinessDocumentTests(unittest.TestCase):
         )
         self.assertNotIn('Normalize and correlate time across heterogeneous sources', text)
         self.assertNotIn('Hunt across the enterprise', text)
+        lo1 = text.split('### LO1', 1)[1].split('### LO2', 1)[0]
+        for ticket_id in ('T04', 'T12', 'T13', 'T14'):
+            self.assertIn(f'`{ticket_id}`', lo1)
+        self.assertNotIn('at least two tools', lo1)
         objectives = text.split('## Objectives', 1)[1].split('## Ticket-to-role crosswalk', 1)[0]
         mechanisms = '\n'.join(re.findall(
             r'\*\*Mechanism\.\*\*(.*?)(?=\n\n\*\*Achievement evidence\.\*\*)',
@@ -94,6 +98,7 @@ class ReadinessDocumentTests(unittest.TestCase):
             for phase in narrative['phases']
             for ticket in phase['tickets']
         }
+        authored = {ticket['id']: ticket for ticket in authored_tickets()}
         observed = {}
         for line in crosswalk.splitlines():
             if not line.startswith('| `T'):
@@ -101,7 +106,13 @@ class ReadinessDocumentTests(unittest.TestCase):
             cells = [cell.strip() for cell in line.strip().strip('|').split('|')]
             tickets = re.findall(r'`(T\d{2})`', cells[0])
             self.assertTrue(cells[5], line)
-            self.assertNotIn('machine-enforced', cells[5].lower())
+            authored_limits = {
+                question['finding']['limitation']
+                for ticket in tickets
+                for question in authored[ticket]['questions']
+            }
+            self.assertEqual(len(authored_limits), 1, tickets)
+            self.assertEqual(cells[5], authored_limits.pop(), tickets)
             for ticket in tickets:
                 self.assertNotIn(ticket, observed, ticket)
                 observed[ticket] = cells[1]

@@ -82,9 +82,11 @@ instructs participants to correct only `device_time` and never to re-correct
 normalized or acquisition records; the authored findings record the correction or
 its absence.
 
-**Achievement evidence.** Corrected times that reconcile across at least two tools
-(for example the corrected viewer start and task registration), with the offset
-stated and no double correction.
+**Achievement evidence.** The corrected `T04` registration time and the `T12`
+device-offset value, alongside `T13`/`T14` answers that preserve actual acquisition
+UTC and explicitly refuse the historical correction. Together these demonstrate
+that participants can distinguish corrected `device_time`, already normalized
+records, timeless coverage facts and provenance-bearing acquisition timestamps.
 
 ### LO2 — Reconstruct an intrusion chain and separate observation from inference
 
@@ -103,8 +105,9 @@ catalog; `T15` traces the prepared memory process tree from viewer PID to parent
 cache argument; `T16` correlates that PID with an acquired guest-local connection
 snapshot; and `T19` compares the DLP body hash with `server/catalog.csv`. `T20` is a
 synthesis ticket that requires `T07`, `T09`, `T11` and `T19` before it unlocks. The
-`T16` address was assigned to guest loopback while networking was disabled, so the
-snapshot establishes neither Internet traffic nor human receipt.
+`T16` snapshot is not a validated memory connection; its address was assigned to
+guest loopback while networking was disabled, so it establishes neither Internet
+traffic nor human receipt.
 
 **Achievement evidence.** Answers that cite the joining identifier, process ancestry
 or payload hash and each finding's stated limitation, plus the `T20` conclusion that
@@ -246,19 +249,19 @@ and the final column states the boundary that must survive into the finding.
 
 | Tickets | Scenario phase | Tool / theme | Primary work role | Supporting roles | Evidence limitation |
 |---|---|---|---|---|---|
-| `T01`, `T02` | Phase 1 — Establish the disclosure path | Wireshark — packet and DNS correlation | Defensive Cybersecurity `PD-WRL-001` | Digital Forensics `PD-WRL-002` | Outer collector addresses are not incident endpoints; packets establish recorded transfer details, not human intent. |
-| `T03`, `T04`, `T05` | Phase 1 — Establish the disclosure path | Autopsy — browser, persistence and deleted cache | Digital Forensics `PD-WRL-002` | Defensive Cybersecurity `PD-WRL-001` | The prepared case supports historical reconstruction, not live acquisition; only `device_time` receives the documented correction. |
-| `T06`, `T07` | Phase 2 — Test identity and access explanations | Wazuh — session and credential actions | Incident Response `PD-WRL-003` | Insider Threat Analysis `PD-WRL-005`; Defensive Cybersecurity `PD-WRL-001` | An IP address is not identity, and a password reset does not revoke an already issued session. |
-| `T08` | Phase 2 — Test identity and access explanations | Autopsy — document and roster access | Digital Forensics `PD-WRL-002` | Defensive Cybersecurity `PD-WRL-001` | HTTP 403 with zero response bytes does not establish roster disclosure. |
-| `T09` | Phase 2 — Test identity and access explanations | File manager — superseding movement information | Defensive Cybersecurity `PD-WRL-001` | Vulnerability Analysis `PD-WRL-007` | A newer v4 supersedes v3 operationally; it does not erase evidence that v3 was transmitted. |
-| `T10` | Phase 2 — Test identity and access explanations | Wazuh — benign comparator | Threat Analysis `PD-WRL-006` | Defensive Cybersecurity `PD-WRL-001`; Insider Threat Analysis `PD-WRL-005` | The approved WS-22 comparator supports a conclusion about WS-22 only. |
-| `T11`, `T12` | Phase 3 — Define scope and collection limits | Wazuh — unresolved lead and coverage | Threat Analysis `PD-WRL-006` | Defensive Cybersecurity `PD-WRL-001`; Insider Threat Analysis `PD-WRL-005` | Coverage gaps keep WS-31 unresolved; `T12` coverage records are timeless facts. |
-| `T13`, `T14` | Phase 3 — Define scope and collection limits | Autopsy — “Inspect acquired process-log records”; “Inspect acquired task-log records” | Digital Forensics `PD-WRL-002` | Incident Response `PD-WRL-003` | Actual native acquisition times are not historical incident times and receive no scenario clock correction. |
-| `T15` | Phase 3 — Define scope and collection limits | Autopsy — “Inspect the prepared memory process tree” | Digital Forensics `PD-WRL-002` | Incident Response `PD-WRL-003` | The prepared memory tree supports process ancestry and arguments, not network activity or execution intent. |
-| `T16` | Phase 4 — Correlate and state the defensible conclusion | Autopsy — “Correlate the acquired connection snapshot” | Digital Forensics `PD-WRL-002` | Incident Response `PD-WRL-003` | This is a guest-loopback live snapshot, not a validated memory connection, Internet traffic or proof of human receipt. |
-| `T17`, `T18` | Phase 4 — Correlate and state the defensible conclusion | Cutter — static binary inspection | Digital Forensics `PD-WRL-002` | Vulnerability Analysis `PD-WRL-007` | Static strings and branches do not establish that network or branch behavior executed. |
-| `T19` | Phase 4 — Correlate and state the defensible conclusion | File manager — payload/hash comparison | Defensive Cybersecurity `PD-WRL-001` | Vulnerability Analysis `PD-WRL-007` | A matching payload hash and HTTP acknowledgment support transmission, not human receipt. |
-| `T20` | Phase 4 — Correlate and state the defensible conclusion | Cross-source synthesis — limits of the overall exposure conclusion | Incident Response `PD-WRL-003` | Defensive Cybersecurity `PD-WRL-001`; Threat Analysis `PD-WRL-006` | The conclusion is bounded by supplied evidence, denied requests and documented collection gaps. |
+| `T01`, `T02` | Phase 1 — Establish the disclosure path | Wireshark — packet and DNS correlation | Defensive Cybersecurity `PD-WRL-001` | Digital Forensics `PD-WRL-002` | Replayed or reconstructed evidence; transmission metadata does not establish human receipt, reading, or intent. |
+| `T03`, `T04`, `T05` | Phase 1 — Establish the disclosure path | Autopsy — browser, persistence and deleted cache | Digital Forensics `PD-WRL-002` | Defensive Cybersecurity `PD-WRL-001` | Prepared evidence is limited to the specified collection. Presence of an artifact is not proof of every related action. |
+| `T06`, `T07` | Phase 2 — Test identity and access explanations | Wazuh — session and credential actions | Incident Response `PD-WRL-003` | Insider Threat Analysis `PD-WRL-005`; Defensive Cybersecurity `PD-WRL-001` | Historical replay is not a live observation. Missing telemetry is not proof that an event did not occur. |
+| `T08` | Phase 2 — Test identity and access explanations | Autopsy — document and roster access | Digital Forensics `PD-WRL-002` | Defensive Cybersecurity `PD-WRL-001` | Prepared evidence is limited to the specified collection. Presence of an artifact is not proof of every related action. |
+| `T09` | Phase 2 — Test identity and access explanations | File manager — superseding movement information | Defensive Cybersecurity `PD-WRL-001` | Vulnerability Analysis `PD-WRL-007` | The supplied document or export supports only the stated comparison, not human receipt or adversary intent. |
+| `T10` | Phase 2 — Test identity and access explanations | Wazuh — benign comparator | Threat Analysis `PD-WRL-006` | Defensive Cybersecurity `PD-WRL-001`; Insider Threat Analysis `PD-WRL-005` | Historical replay is not a live observation. Missing telemetry is not proof that an event did not occur. |
+| `T11`, `T12` | Phase 3 — Define scope and collection limits | Wazuh — unresolved lead and coverage | Threat Analysis `PD-WRL-006` | Defensive Cybersecurity `PD-WRL-001`; Insider Threat Analysis `PD-WRL-005` | Historical replay is not a live observation. Missing telemetry is not proof that an event did not occur. |
+| `T13`, `T14` | Phase 3 — Define scope and collection limits | Autopsy — “Inspect acquired process-log records”; “Inspect acquired task-log records” | Digital Forensics `PD-WRL-002` | Incident Response `PD-WRL-003` | Isolated native training reconstruction with actual acquisition UTC. It does not replace the historical incident timeline. Consult the record provenance and original hash. |
+| `T15` | Phase 3 — Define scope and collection limits | Autopsy — “Inspect the prepared memory process tree” | Digital Forensics `PD-WRL-002` | Incident Response `PD-WRL-003` | Isolated native training reconstruction with actual acquisition UTC. It does not replace the historical incident timeline. Consult the record provenance and original hash. |
+| `T16` | Phase 4 — Correlate and state the defensible conclusion | Autopsy — “Correlate the acquired connection snapshot” | Digital Forensics `PD-WRL-002` | Incident Response `PD-WRL-003` | Isolated native training reconstruction with actual acquisition UTC. It does not replace the historical incident timeline. Consult the record provenance and original hash. |
+| `T17`, `T18` | Phase 4 — Correlate and state the defensible conclusion | Cutter — static binary inspection | Digital Forensics `PD-WRL-002` | Vulnerability Analysis `PD-WRL-007` | This harmless training surrogate demonstrates static inspection, not behavior of an acquired incident executable. |
+| `T19` | Phase 4 — Correlate and state the defensible conclusion | File manager — payload/hash comparison | Defensive Cybersecurity `PD-WRL-001` | Vulnerability Analysis `PD-WRL-007` | The supplied document or export supports only the stated comparison, not human receipt or adversary intent. |
+| `T20` | Phase 4 — Correlate and state the defensible conclusion | Cross-source synthesis — limits of the overall exposure conclusion | Incident Response `PD-WRL-003` | Defensive Cybersecurity `PD-WRL-001`; Threat Analysis `PD-WRL-006` | Historical replay is not a live observation. Missing telemetry is not proof that an event did not occur. |
 
 ## How the after-action review revisits the objectives
 
