@@ -6,8 +6,10 @@ matching executes only a Python hashing probe in a networkless read-only contain
 import argparse
 import hashlib
 import json
+import re
 import shutil
 import subprocess
+import zipfile
 from pathlib import Path
 from ridge.artifacts import safe,sha256,verify
 
@@ -18,6 +20,8 @@ LAYOUTS={
     'ctfd':[('ridge','/opt/CTFd/ridge'),('integrations/ctfd_silent_ridge','/opt/CTFd/CTFd/plugins/ctfd_silent_ridge')]}
 REQUIRED_IMAGES=set(LAYOUTS)|{'iris_db','rabbitmq','ctfd_db','ctfd_cache','wazuh_manager',
     'wazuh_indexer','wazuh_dashboard','guacamole','guacd','guacamole_db'}
+LFS_POINTER = re.compile(rb'\Aversion https://git-lfs.github.com/spec/v1\r?\n'
+                         rb'oid sha256:([0-9a-f]{64})\r?\nsize ([0-9]+)\r?\n?\Z')
 
 
 def command(*args):
@@ -100,6 +104,46 @@ def save_refs(manifest, inspect=None):
     return refs
 
 
+def materialize_lfs_source(source_archive, root=REPO, exclude_prefixes=()):
+    """Replace archived Git LFS pointers with their verified working-tree bytes.
+
+    ``git archive`` exports pointer blobs even when LFS is checked out. The
+    installed source must contain the actual files, and a missing or wrong LFS
+    object must fail packaging before the Docker image archive is saved.
+    """
+    source_archive, root = Path(source_archive), Path(root)
+    replacement = source_archive.with_name(source_archive.name + '.materializing')
+    replaced = []
+    try:
+        with zipfile.ZipFile(source_archive) as original, zipfile.ZipFile(
+                replacement, 'w', allowZip64=True) as output:
+            for entry in original.infolist():
+                if any(entry.filename.startswith(prefix) for prefix in exclude_prefixes):
+                    continue
+                source = None
+                if not entry.is_dir() and entry.file_size <= 1024:
+                    with original.open(entry) as stream:
+                        pointer = LFS_POINTER.fullmatch(stream.read())
+                    if pointer:
+                        source = safe(root, entry.filename)
+                        expected_size = int(pointer.group(2))
+                        if (not source.is_file() or source.stat().st_size != expected_size
+                                or sha256(source) != pointer.group(1).decode()):
+                            raise ValueError('Materialize and verify Git LFS content before '
+                                             'packaging: ' + entry.filename)
+                        replaced.append(entry.filename)
+                if entry.is_dir():
+                    output.writestr(entry, b'')
+                    continue
+                with (source.open('rb') if source else original.open(entry)) as data, \
+                        output.open(entry, 'w', force_zip64=True) as target:
+                    shutil.copyfileobj(data, target, length=1024 * 1024)
+        replacement.replace(source_archive)
+    finally:
+        replacement.unlink(missing_ok=True)
+    return replaced
+
+
 def pack(store,manifest,destination,allow_incomplete=False,max_part_bytes=None):
     store=Path(store);destination=Path(destination)
     if destination.exists():raise ValueError('Use a new bundle destination')
@@ -126,6 +170,10 @@ def pack(store,manifest,destination,allow_incomplete=False,max_part_bytes=None):
         sources[kind]=image_sources(kind,image)
     destination.mkdir(parents=True)
     command('git','archive','--format=zip','--output',str((destination/'source.zip').resolve()),'HEAD')
+    # The parked VM is released separately when requested by the assembler;
+    # its six Git LFS parts are never useful as source-tree pointer stubs.
+    materialize_lfs_source(destination/'source.zip',
+                           exclude_prefixes=('assets/vm-desktop/',))
     for artifact in manifest['artifacts']:
         if artifact['kind']=='containers':continue  # Re-save the exact checked identities.
         source=safe(store,artifact['path']);target=safe(destination,artifact['path'])

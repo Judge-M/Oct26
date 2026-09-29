@@ -56,6 +56,8 @@ class FakeHost(deploy_local.HostOps):
 
     def http_json(self, method, url, headers=None, body=None, timeout=10, ca_file=None):
         self.http_calls.append((url, ca_file))
+        if self.logins.get('ctfd_fail') and '/login' in url and ':8083/' in url:
+            return 503, {}
         if self.logins.get('fail'):
             return 503, {}
         return 200, {}
@@ -317,6 +319,8 @@ class LifecycleTests(unittest.TestCase):
     def test_fresh_up_reaches_provisioned_paused(self):
         result = self.stack.up(self.source)
         self.assertEqual(result['state'], 'PROVISIONED_PAUSED')
+        self.assertTrue(any(':8083/setup' in url for url, _ in self.host.http_calls))
+        self.assertTrue(any(':8083/login' in url for url, _ in self.host.http_calls))
         wazuh_up = [call for call in self.runner.calls
                     if 'compose.wazuh.yaml' in ' '.join(call)
                     and 'up' in call and 'wazuh-manager' in call]
@@ -355,6 +359,14 @@ class LifecycleTests(unittest.TestCase):
         self.assertEqual(con.execute('SELECT mode FROM run').fetchone()[0], 'paused')
         self.assertEqual(con.execute('SELECT provisioned FROM control').fetchone()[0], 1)
         con.close()
+
+    def test_provisioned_ctfd_login_must_be_reachable(self):
+        self.host.logins['ctfd_fail'] = True
+        with self.assertRaisesRegex(LifecycleError, 'provisioned CTFd login returned HTTP 503'):
+            self.stack.up(self.source)
+        journal = Journal.open(self.runtime / 'deploy-journal.sqlite')
+        self.assertEqual(journal.step('APPLICATIONS_READY')['state'], 'verified')
+        self.assertEqual(journal.step('IDENTITIES_READY')['state'], 'failed')
 
     def test_dashboard_certificate_covers_participant_bind_address(self):
         self.stack.local['bind_ip'] = '192.168.1.200'

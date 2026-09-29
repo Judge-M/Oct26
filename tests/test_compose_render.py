@@ -53,6 +53,32 @@ class ComposeAuditTests(unittest.TestCase):
         self.assertIn('wazuh_indexer_credential', manager['secrets'])
         self.assertIn('WAZUH_ADMIN_SECRET_FILE', document['secrets']['wazuh_indexer_credential']['file'])
 
+    def test_wazuh_private_certs_are_staged_for_nonroot_services(self):
+        document = yaml.safe_load((COMPOSE / 'wazuh/compose.wazuh.yaml').read_text(encoding='utf-8'))
+        services = document['services']
+        for target, certs in (
+            ('wazuh-indexer', ('root-ca.pem', 'indexer.pem', 'indexer-key.pem', 'admin.pem', 'admin-key.pem')),
+            ('wazuh-dashboard', ('root-ca.pem', 'dashboard.pem', 'dashboard-key.pem')),
+        ):
+            init = services[f'{target}-certs-init']
+            service = services[target]
+            self.assertEqual(init['user'], '0:0')
+            self.assertEqual(init['network_mode'], 'none')
+            self.assertTrue(init['read_only'])
+            self.assertEqual(init['entrypoint'], ['/bin/sh', '-ec'])
+            self.assertEqual(len(init['command']), 1)
+            command = init['command'][0]
+            self.assertTrue(any('WAZUH_CERTS_DIR' in mount and mount.endswith(':/source:ro')
+                                for mount in init['volumes']))
+            self.assertIn('chown 1000:1000', command)
+            self.assertIn('chmod 600', command)
+            for cert in certs:
+                self.assertIn(cert, command)
+            self.assertEqual(service['depends_on'][f'{target}-certs-init']['condition'],
+                             'service_completed_successfully')
+            self.assertTrue(any(mount.endswith('/certs:ro') for mount in service['volumes']))
+            self.assertFalse(any('WAZUH_CERTS_DIR' in mount for mount in service['volumes']))
+
     def test_database_readiness_gates_dependents(self):
         central = yaml.safe_load((COMPOSE / 'compose.central.yaml').read_text(encoding='utf-8'))
         self.assertEqual(central['services']['iris']['depends_on']['iris-db-init']['condition'], 'service_completed_successfully')
@@ -103,6 +129,12 @@ class ComposeAuditTests(unittest.TestCase):
         self.assertEqual(len(proxy['ports']), 3)
         self.assertIn('participant.pem', ' '.join(proxy['volumes']))
         self.assertIn('central', guac['services']['guacamole']['networks'])
+
+    def test_tls_proxy_preserves_the_external_host_port(self):
+        proxy = (COMPOSE / 'participant-tls.conf').read_text(encoding='utf-8')
+        self.assertIn('proxy_set_header Host $http_host;', proxy)
+        self.assertIn('proxy_set_header X-Forwarded-Host $http_host;', proxy)
+        self.assertNotRegex(proxy, r'(?m)^\s*proxy_set_header X-Forwarded-Port ')
 
     def test_audit_flags_private_port_and_missing_logging(self):
         bad = {'name': '${RIDGE_PROJECT}-x', 'services': {
