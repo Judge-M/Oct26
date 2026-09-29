@@ -37,6 +37,7 @@ class RunProfile:
     release_vault: str = ''
     evidence_public: str = ''
     ca_file: str = ''
+    crl_port: int = 8080
     iris_port: int = 8081
     ctfd_port: int = 8083
     guac_port: int = 8082
@@ -75,6 +76,7 @@ def render_env(profile: RunProfile) -> dict[str, str]:
         'RIDGE_RELEASE_VAULT': profile.release_vault,
         'RIDGE_EVIDENCE_PUBLIC': profile.evidence_public,
         'WAZUH_CA_FILE': profile.ca_file,
+        'CRL_PORT': str(profile.crl_port),
         'IRIS_PORT': str(profile.iris_port),
         'CTFD_PORT': str(profile.ctfd_port),
         'GUAC_PORT': str(profile.guac_port),

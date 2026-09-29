@@ -74,7 +74,7 @@ Create `R/local.json` pointing at the asset directories extracted in step 0:
     "originals": "<abs path>/assets/originals",
     "wazuh_config": "<abs path>/assets/wazuh-config"
   },
-  "ports": {"iris": 8081, "ctfd": 8083, "guac": 8082,
+  "ports": {"crl": 8080, "iris": 8081, "ctfd": 8083, "guac": 8082,
             "wazuh_dashboard": 8443, "wazuh_indexer": 9200},
   "index_name": "silent-ridge-oct26"
 }
@@ -111,9 +111,10 @@ run `python scripts/export_participant_ca.py --runtime R --output <new-pack>`.
 Follow [participant CA trust](participant-ca-trust.md): distribute the public
 certificate over a trusted offline channel, independently verify its SHA-256
 fingerprint on each client, and check that all four HTTPS URLs open without a
-certificate warning. Do not ask participants to click through TLS warnings.
-Client policies that require revocation data need a separately tested offline
-revocation plan before the event.
+certificate warning. Keep `http://<LAN-IP>:8080/root-ca.crl` reachable from
+participant devices; it is the signed offline CRL embedded in every generated
+participant certificate. Do not ask participants to click through TLS warnings
+or disable revocation checks.
 
 ## 4. Start the event
 
@@ -124,6 +125,7 @@ python -m ridge.deploy start --profile event-profile.json --runtime R
 Participant URLs (all in their own laptop browser):
 `https://<LAN-IP>:8082` desktops · `:8081` IRIS · `:8083` CTFd ·
 `https://<LAN-IP>:8443` Wazuh.
+Certificate revocation: `http://<LAN-IP>:8080/root-ca.crl` (signed CRL only).
 
 Opening briefing: project **`docs/event-day-deck/event-day-deck.pdf`**
 (13 slides, story + click-by-click setup — plays anywhere, no software

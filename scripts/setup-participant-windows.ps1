@@ -83,8 +83,11 @@ function Test-TlsEndpoint([string]$Url, [hashtable]$Ca) {
             try {
                 $custom.ChainPolicy.ExtraStore.Add($Ca.Certificate) | Out-Null
                 $custom.ChainPolicy.VerificationFlags = [Security.Cryptography.X509Certificates.X509VerificationFlags]::AllowUnknownCertificateAuthority
-                $custom.Build($state.observed) | Out-Null
-                $state.chain_ok = $custom.ChainElements.Count -gt 1
+                $custom.ChainPolicy.RevocationMode = [Security.Cryptography.X509Certificates.X509RevocationMode]::Online
+                $custom.ChainPolicy.RevocationFlag = [Security.Cryptography.X509Certificates.X509RevocationFlag]::EndCertificateOnly
+                $custom.ChainPolicy.UrlRetrievalTimeout = [TimeSpan]::FromSeconds(5)
+                $built = $custom.Build($state.observed)
+                $state.chain_ok = $built -and $custom.ChainElements.Count -gt 1
                 if ($state.chain_ok) {
                     $root = $custom.ChainElements[$custom.ChainElements.Count - 1].Certificate
                     $state.chain_ok = $root.Thumbprint -eq $Ca.Fingerprint

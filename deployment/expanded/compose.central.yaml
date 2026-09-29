@@ -148,13 +148,15 @@ services:
       - ./participant-tls.conf:/etc/nginx/nginx.conf:ro
       - ${PARTICIPANT_CERTS_DIR:?Set generated participant certificate directory}/participant.pem:/etc/silent-ridge/participant.pem:ro
       - ${PARTICIPANT_CERTS_DIR}/participant-key.pem:/etc/silent-ridge/participant-key.pem:ro
+      - ${PARTICIPANT_CERTS_DIR}/root-ca.crl:/etc/silent-ridge/root-ca.crl:ro
     ports:
+      - ${BIND_IP:-127.0.0.1}:${CRL_PORT:-8080}:8080
       - ${BIND_IP:-127.0.0.1}:${IRIS_PORT:-8081}:8081
       - ${BIND_IP:-127.0.0.1}:${GUAC_PORT:-8082}:8082
       - ${BIND_IP:-127.0.0.1}:${CTFD_PORT:-8083}:8083
     networks: [central]
     healthcheck:
-      test: [CMD, nginx, -t]
+      test: [CMD-SHELL, "nginx -t && wget -qO- http://127.0.0.1:8080/root-ca.crl >/dev/null"]
       interval: 15s
       timeout: 5s
       retries: 5

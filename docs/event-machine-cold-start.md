@@ -140,7 +140,7 @@ LAN address and `<ABS>` with the absolute path to
     "originals": "<ABS>/assets/originals",
     "wazuh_config": "<ABS>/assets/wazuh-config"
   },
-  "ports": {"iris": 8081, "ctfd": 8083, "guac": 8082,
+  "ports": {"crl": 8080, "iris": 8081, "ctfd": 8083, "guac": 8082,
             "wazuh_dashboard": 8443, "wazuh_indexer": 9200},
   "index_name": "silent-ridge-oct26"
 }

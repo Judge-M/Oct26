@@ -6,6 +6,14 @@ be placed in a participant pack. The Wazuh Dashboard and participant HTTPS
 proxy for IRIS, CTFd and Guacamole use this CA. Stock participant browsers
 will not trust it until their own device trusts its public certificate.
 
+Every generated participant-facing certificate contains an HTTP CRL
+distribution point at `http://<LAN-IP>:8080/root-ca.crl`. The participant TLS
+proxy publishes the signed DER CRL there and does not serve any other path on
+that port. Keep TCP 8080 reachable from participant devices: revocation lookup
+must not depend on the HTTPS certificate being checked. The event CA does not
+advertise an OCSP responder; the signed offline CRL is the supported revocation
+mechanism for this isolated event network.
+
 ## Organizer preparation
 
 1. After final certificate generation, run
@@ -19,7 +27,8 @@ will not trust it until their own device trusts its public certificate.
    the public certificate only after that check. If the CA is regenerated, repeat the
    export and client import before reopening the event.
 3. Confirm the server certificate includes the actual participant LAN IP or
-   DNS name. CA trust cannot repair a hostname mismatch.
+   DNS name and that `http://<LAN-IP>:8080/root-ca.crl` returns the generated
+   CRL. CA trust cannot repair a hostname mismatch or an unreachable CRL.
 
 ## Windows participant device
 
@@ -74,11 +83,12 @@ README. It is private event state and must not be committed or uploaded.
    import or enterprise-root setting.
 
 `SSL_CERT_FILE` configures some command-line clients; it does not install a
-browser trust root. Do not work around this flow with HTTP, `-k`, or a browser
-certificate bypass. Schannel revocation-status behavior (#93) is a separate
-client-policy question: record the exact client and policy if it fails after
-chain and hostname trust succeed; do not infer all Windows browsers fail from
-one `curl` result.
+browser trust root. Do not work around this flow with HTTP, `-k`,
+`--ssl-no-revoke`, or a browser certificate bypass. The setup script performs
+online end-certificate revocation validation with a bounded retrieval timeout;
+an unreachable or invalid CRL fails participant setup before credentials are
+handed off. Managed Windows policies may impose additional checks, so validate
+the exact event client image before the event.
 
 Windows import and managed distribution references:
 [Import-Certificate](https://learn.microsoft.com/en-us/powershell/module/pki/import-certificate),
