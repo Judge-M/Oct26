@@ -16,7 +16,9 @@ from sqlalchemy.exc import IntegrityError
 from app import db
 from app.models.models import CaseTasks, Comments, TaskComments
 from ridge.transport import bridge, secret, TRANSPORT_ERRORS
+from ridge.scenario_contract import load as load_contract
 from ridge.web import PAGE
+from ridge.web_narrative import context as narrative_context
 
 
 class RidgeReceipt(db.Model):
@@ -45,7 +47,10 @@ def install(app):
                 payload={'ticket':request.form['ticket'],'generation':int(request.form['generation'])}
                 bridge('iris',current_user.id,action,**payload)
             snapshot=bridge('iris',current_user.id,'snapshot')
-            return render_template_string(PAGE,lane='iris',snapshot=snapshot,
+            # Same contract and same assembler as the CTFd lane; a participant who
+            # only ever opens the queue still gets the event briefing and role.
+            return render_template_string(PAGE,**narrative_context(load_contract(),snapshot,None,'iris'),
+                lane='iris',snapshot=snapshot,
                 iris=os.environ['IRIS_PUBLIC_URL'],ctfd=os.environ['CTFD_PUBLIC_URL'],
                 csrf=generate_csrf(),case=os.environ['RIDGE_IRIS_CASE'],message='')
         except HTTPError as exc:

@@ -1,3 +1,5 @@
 FROM ctfd/ctfd:3.7.7
 COPY ridge /opt/CTFd/ridge
 COPY integrations/ctfd_silent_ridge /opt/CTFd/CTFd/plugins/ctfd_silent_ridge
+# ridge.scenario_contract resolves the fixture relative to the ridge package root.
+COPY assets/scenario-narrative-v1.json /opt/CTFd/assets/scenario-narrative-v1.json

@@ -10,6 +10,13 @@ Backward compatibility: tickets generated before this contract referenced
 ``/evidence/autopsy/WS17/WS17.aut``, which never existed on the evidence mount.
 :func:`check` now rejects those paths with an explicit message. Regenerate tickets
 with ``python expanded/author.py``.
+
+:func:`check_narrative` is the narrative half of the same reconciliation. A
+deployment that provisions cleanly but has no participant narrative still sends
+ten team desktops to a page of bare prompts, and the only symptom a participant
+would report is that the exercise made no sense. So the approved contract is
+loaded, rendered for both lanes and refused if any section a participant reads is
+missing. It is read-only, needs no service and no network.
 """
 import json
 import os
@@ -19,10 +26,23 @@ from ridge.evidence_release import validate_release
 from ridge.storage import require_space
 from ridge.artifacts import safe
 from ridge.scenario import AUTOPSY_CASE_ENTRYPOINT
+from ridge.web_narrative import check_deployment
+
+
+def check_narrative(snapshot=None, questions=None, path=None):
+    """Prove the participant narrative is present and complete in this deployment.
+
+    Validates the contract, renders both lanes and checks the render context.
+    Read-only, no service and no network, so it runs identically on the
+    controller host and inside the integration container that hosts
+    ``python -m ridge.cli preflight``.
+    """
+    return check_deployment(path, snapshot, questions)
 
 
 def check(state, config):
     state.diagnostics()
+    narrative=check_narrative()
     with state.transaction(write=False) as con:
         teams=[dict(r) for r in con.execute('SELECT * FROM teams ORDER BY id')]
         tickets=[dict(r) for r in con.execute('SELECT * FROM tickets')]
@@ -80,7 +100,9 @@ def check(state, config):
     with urlopen(request,timeout=8) as response:
         if index_name not in json.load(response):
             raise ValueError('Historical index is not available')
-    return {'ready':True,'teams':len(teams),'tickets':len(tickets)}
+    return {'ready':True,'teams':len(teams),'tickets':len(tickets),
+            'narrative':{'contract':narrative['contract'],'revision':narrative['revision'],
+                         'surfaces':['ctfd','iris']}}
 
 
 def check_desktop(questions, home, template=None):
