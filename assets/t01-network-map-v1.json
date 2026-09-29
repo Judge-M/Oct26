@@ -1,0 +1,465 @@
+{
+  "schema": 1,
+  "map": "silent-ridge-t01-network-map",
+  "revision": 1,
+  "status": "approved",
+  "narrative_contract": {
+    "contract": "silent-ridge-narrative",
+    "revision": 1,
+    "rule": "The contract revision this fixture was written against. ridge/narrative_consistency.py refuses a map whose revision is behind, because a narrative change nobody carried through to the map is exactly the drift the programme exists to stop. Bump both together or neither."
+  },
+  "exercise_date": "2026-10-15",
+  "unlocks_after": "T01",
+  "authority": "An additional analytical view reconstructed from evidence the completed T01 task already exposes. It is not a new source of truth, it does not replace or extend any T01 question, and it scores nothing. The canonical scenario document and the published evidence remain authoritative; where this map and a record disagree, the record is right.",
+
+  "key_fields": ["request", "path", "time_utc"],
+  "key_fields_note": "Every edge is keyed on the request identifier, the request path and the UTC time. The short record labels used when the evidence was authored (N101, S101, D01, E104, H103, I102 and their neighbours) are deliberately absent: expanded/prepare.py rewrites the id column of every published CSV to a 12-character hash, so an id from the authoring table is not in the participant evidence and must never be used as a join key.",
+
+  "caption": "Read the graph with the records beside it. Solid edges are observed: a single published record states the transfer metadata directly. Dashed edges are inferred: this map joins two or more records, and the join is an interpretation rather than something any one file says. The record labels you may have seen in preparation notes are not in the published exports; quote the request, the path and the UTC time instead.",
+  "unlock_note": "This view unlocks when T01 is closed, because it names the destination that T01 asks you to identify. It adds a way of navigating the evidence you have already worked; it adds no question and no point.",
+
+  "link": {
+    "headline": "T01 closed · the outbound path, reconstructed",
+    "brief": "An additional view of the evidence you have already worked, and the reason it appears only now is that it names the destination T01 asked you to identify. It adds no question and no point. Read the solid and the dashed edges separately: a status code, a byte count and an address are statements about a request, not about a person.",
+    "action": "Open the T01 network map"
+  },
+
+  "legend": [
+    {"kind": "host", "label": "Host", "shape": "rounded rectangle", "meaning": "A named workstation or appliance. The label carries the address recorded in the published sources."},
+    {"kind": "service", "label": "Service", "shape": "hexagon", "meaning": "An internal service that other systems talk to, and whose own audit or log is a separate source."},
+    {"kind": "external", "label": "External address", "shape": "octagon, dashed border", "meaning": "An address outside the estate. In this exercise it is documentation space and nothing can be reached at it."},
+    {"kind": "object", "label": "Object", "shape": "document with a folded corner", "meaning": "A document identified in the service catalogue. Size and hash come from the catalogue, not from a copy of the content."},
+    {"kind": "evidence-source", "label": "Evidence source", "shape": "circle", "meaning": "A published file under /evidence. Selecting an edge highlights the sources that support it."}
+  ],
+
+  "nodes": [
+    {
+      "id": "ws-17",
+      "kind": "host",
+      "label": "WS-17",
+      "sublabel": "10.26.10.17",
+      "x": 140, "y": 90,
+      "detail": "The workstation recorded as the client of the plan-v3 request, the upload and the name lookup.",
+      "provenance": {
+        "confidence": "observed",
+        "basis": "network/proxy.csv and network/dns.csv record 10.26.10.17 as src and client; the coverage export names the same host.",
+        "evidence": ["/evidence/network/proxy.csv", "/evidence/network/dns.csv", "/evidence/hunting/coverage.csv"]
+      }
+    },
+    {
+      "id": "ws-22",
+      "kind": "host",
+      "label": "WS-22",
+      "sublabel": "10.26.10.22",
+      "x": 140, "y": 200,
+      "detail": "A second workstation. It is on the map because it shows the ordinary path as well as the questioned one.",
+      "provenance": {
+        "confidence": "observed",
+        "basis": "network/proxy.csv records 10.26.10.22 as src for req-74 and network/dns.csv as the client for the internal lookup.",
+        "evidence": ["/evidence/network/proxy.csv", "/evidence/network/dns.csv"]
+      }
+    },
+    {
+      "id": "idp-1",
+      "kind": "host",
+      "label": "IDP-1",
+      "sublabel": "10.26.20.20",
+      "x": 140, "y": 310,
+      "detail": "The identity provider. Session validity and password state are separate here, and the supplied policy says so.",
+      "provenance": {
+        "confidence": "observed",
+        "basis": "hunting/coverage.csv and hunting/siem.jsonl name IDP-1; identity/auth.csv carries the session and result fields.",
+        "evidence": ["/evidence/hunting/coverage.csv", "/evidence/hunting/siem.jsonl", "/evidence/identity/auth.csv"]
+      }
+    },
+    {
+      "id": "collector",
+      "kind": "host",
+      "label": "Collector",
+      "sublabel": "10.26.20.30",
+      "x": 140, "y": 420,
+      "detail": "The address that wrapped the proxy rows as syslog inside the sensor capture. The outer packets are collection transport; the endpoints named inside them are the incident endpoints.",
+      "provenance": {
+        "confidence": "observed",
+        "basis": "network/sensor-note.txt states that the outer packets carry collector syslog and that the embedded fields hold the incident endpoints.",
+        "evidence": ["/evidence/network/sensor-note.txt", "/evidence/network/sensor.pcap"]
+      }
+    },
+    {
+      "id": "docs-1",
+      "kind": "service",
+      "label": "DOCS-1",
+      "sublabel": "10.26.20.10",
+      "x": 470, "y": 145,
+      "detail": "The internal document service. Its audit records what was returned to the application in bytes, which is not the same as what a person did with them.",
+      "provenance": {
+        "confidence": "observed",
+        "basis": "network/proxy.csv records it as the destination of req-71 and req-74; server/access.csv is its audit export.",
+        "evidence": ["/evidence/network/proxy.csv", "/evidence/server/access.csv"]
+      }
+    },
+    {
+      "id": "plan-v3",
+      "kind": "object",
+      "label": "plan-v3",
+      "sublabel": "v3 · 137 bytes",
+      "x": 800, "y": 80,
+      "detail": "Catalogue entry, classification EXERCISE, size 137, with a recorded SHA-256. The map does not contain a copy of the content.",
+      "provenance": {
+        "confidence": "observed",
+        "basis": "server/catalog.csv carries the version, classification, size and hash; the file contains no content of the brief.",
+        "evidence": ["/evidence/server/catalog.csv"]
+      }
+    },
+    {
+      "id": "plan-v4",
+      "kind": "object",
+      "label": "plan-v4",
+      "sublabel": "v4 · 170 bytes",
+      "x": 800, "y": 190,
+      "detail": "The superseding version. It is on the map so the ordinary read is visible next to the questioned one; the comparison of the two versions is a separate ticket.",
+      "provenance": {
+        "confidence": "observed",
+        "basis": "server/catalog.csv records version 4 at size 170 with the hash not collected.",
+        "evidence": ["/evidence/server/catalog.csv"]
+      }
+    },
+    {
+      "id": "roster-v2",
+      "kind": "object",
+      "label": "roster-v2",
+      "sublabel": "v2 · 640 bytes",
+      "x": 800, "y": 300,
+      "detail": "The larger document that was requested and refused. It is on the map because a denial and a disclosure are different findings.",
+      "provenance": {
+        "confidence": "observed",
+        "basis": "server/catalog.csv records version 2 at size 640; server/access.csv records the refused request with zero body bytes.",
+        "evidence": ["/evidence/server/catalog.csv", "/evidence/server/access.csv"]
+      }
+    },
+    {
+      "id": "relay-archive",
+      "kind": "external",
+      "label": "198.51.100.77",
+      "sublabel": "relay.archive.example",
+      "x": 1130, "y": 190,
+      "detail": "RFC 5737 TEST-NET-2. The supplied identity policy states that no approved VPN or egress proxy uses this address. Nothing in this exercise can be reached at it, and this document makes no attempt to.",
+      "provenance": {
+        "confidence": "observed",
+        "basis": "identity/policy.txt states the approved-remote-access position; network/dns.csv records the name that resolved to the address.",
+        "evidence": ["/evidence/identity/policy.txt", "/evidence/network/dns.csv"]
+      }
+    },
+    {
+      "id": "ev-proxy",
+      "kind": "evidence-source",
+      "label": "network/proxy.csv",
+      "sublabel": "proxy export",
+      "x": 100, "y": 545,
+      "detail": "The proxy's own record of each request, with the request identifier, the path, the status and the application body bytes.",
+      "provenance": {"confidence": "observed", "basis": "Published evidence.", "evidence": ["/evidence/network/proxy.csv"]}
+    },
+    {
+      "id": "ev-sensor",
+      "kind": "evidence-source",
+      "label": "network/sensor.pcap",
+      "sublabel": "reconstructed syslog capture",
+      "x": 350, "y": 545,
+      "detail": "Twenty-four UDP syslog packets that embed the proxy rows whole. The outer addresses are the collector, not the incident.",
+      "provenance": {"confidence": "observed", "basis": "Published evidence with its own explanatory note.", "evidence": ["/evidence/network/sensor.pcap", "/evidence/network/sensor-note.txt"]}
+    },
+    {
+      "id": "ev-dns",
+      "kind": "evidence-source",
+      "label": "network/dns.csv",
+      "sublabel": "name resolution export",
+      "x": 600, "y": 545,
+      "detail": "Which client asked which name and what address came back, with a TTL. It records no status code.",
+      "provenance": {"confidence": "observed", "basis": "Published evidence.", "evidence": ["/evidence/network/dns.csv"]}
+    },
+    {
+      "id": "ev-access",
+      "kind": "evidence-source",
+      "label": "server/access.csv",
+      "sublabel": "document service audit",
+      "x": 850, "y": 545,
+      "detail": "The service's own view: actor, session, object, action, status and the bytes the application received.",
+      "provenance": {"confidence": "observed", "basis": "Published evidence.", "evidence": ["/evidence/server/access.csv"]}
+    },
+    {
+      "id": "ev-catalog",
+      "kind": "evidence-source",
+      "label": "server/catalog.csv",
+      "sublabel": "service catalogue",
+      "x": 1100, "y": 545,
+      "detail": "What the service holds: version, classification, size and, where collected, a hash. No document content.",
+      "provenance": {"confidence": "observed", "basis": "Published evidence.", "evidence": ["/evidence/server/catalog.csv"]}
+    },
+    {
+      "id": "ev-endpoint",
+      "kind": "evidence-source",
+      "label": "endpoint/events.csv",
+      "sublabel": "endpoint event export",
+      "x": 100, "y": 645,
+      "detail": "WS-17 process, file and network events on the device clock, which runs 120 seconds fast across this window.",
+      "provenance": {"confidence": "observed", "basis": "Published evidence, with the offset recorded in the coverage export.", "evidence": ["/evidence/endpoint/events.csv", "/evidence/hunting/coverage.csv"]}
+    },
+    {
+      "id": "ev-coverage",
+      "kind": "evidence-source",
+      "label": "hunting/coverage.csv",
+      "sublabel": "collection coverage",
+      "x": 350, "y": 645,
+      "detail": "Where collection ran, where it stopped, and which host has none. Absence of telemetry is not absence of activity.",
+      "provenance": {"confidence": "observed", "basis": "Published evidence.", "evidence": ["/evidence/hunting/coverage.csv"]}
+    },
+    {
+      "id": "ev-siem",
+      "kind": "evidence-source",
+      "label": "hunting/siem.jsonl",
+      "sublabel": "SIEM detections",
+      "x": 600, "y": 645,
+      "detail": "Analytic detections. A detection is a reading of another record, not an independent observation of the event.",
+      "provenance": {"confidence": "observed", "basis": "Published evidence.", "evidence": ["/evidence/hunting/siem.jsonl"]}
+    },
+    {
+      "id": "ev-auth",
+      "kind": "evidence-source",
+      "label": "identity/auth.csv",
+      "sublabel": "identity export",
+      "x": 850, "y": 645,
+      "detail": "Logins, session refreshes and the reset, with the MFA field and the result. An account is not an attribution.",
+      "provenance": {"confidence": "observed", "basis": "Published evidence.", "evidence": ["/evidence/identity/auth.csv"]}
+    },
+    {
+      "id": "ev-policy",
+      "kind": "evidence-source",
+      "label": "identity/policy.txt",
+      "sublabel": "identity behaviour statement",
+      "x": 1100, "y": 645,
+      "detail": "The fictional identity model, including the statement that no approved VPN or egress proxy uses the external address.",
+      "provenance": {"confidence": "observed", "basis": "Published evidence.", "evidence": ["/evidence/identity/policy.txt"]}
+    }
+  ],
+
+  "edges": [
+    {
+      "id": "e-plan-download",
+      "source": "ws-17",
+      "target": "docs-1",
+      "time_utc": "2026-10-15T09:04:00Z",
+      "method": "GET",
+      "path": "/files/plan-v3",
+      "status": 200,
+      "body_bytes": 137,
+      "request": "req-71",
+      "evidence": ["/evidence/network/proxy.csv", "/evidence/network/sensor.pcap"],
+      "confidence": "observed",
+      "basis": "One proxy row states the request in full, and the same row is embedded whole in the sensor capture.",
+      "caveat": "The status and byte count describe what the application received. They say nothing about what was done with it afterwards."
+    },
+    {
+      "id": "e-plan-served",
+      "source": "docs-1",
+      "target": "plan-v3",
+      "time_utc": "2026-10-15T09:04:00Z",
+      "method": "GET",
+      "path": "/files/plan-v3",
+      "status": 200,
+      "body_bytes": 137,
+      "request": "req-71",
+      "evidence": ["/evidence/server/access.csv"],
+      "confidence": "observed",
+      "basis": "The service audit records the same request identifier, the same object, a download and 137 bytes returned.",
+      "caveat": "An audit row counts bytes handed to the application. It is not a record of a person reading the document."
+    },
+    {
+      "id": "e-plan-cache",
+      "source": "ws-17",
+      "target": "plan-v3",
+      "time_utc": "2026-10-15T09:04:00Z",
+      "method": "FILE_CREATE",
+      "path": "C:/Temp/move-cache.txt",
+      "status": null,
+      "body_bytes": 137,
+      "request": null,
+      "evidence": ["/evidence/endpoint/events.csv", "/evidence/hunting/coverage.csv"],
+      "confidence": "observed",
+      "basis": "The endpoint export records a file creation carrying the catalogue SHA-256 for plan-v3, at device time 09:06:00Z.",
+      "caveat": "The device clock runs 120 seconds fast across this window, so 09:06:00Z on the device is 09:04:00Z in UTC. Correct it once, here, and not again."
+    },
+    {
+      "id": "e-dns-lookup",
+      "source": "ws-17",
+      "target": "relay-archive",
+      "time_utc": "2026-10-15T09:05:45Z",
+      "method": "DNS",
+      "path": "relay.archive.example",
+      "status": null,
+      "body_bytes": null,
+      "request": null,
+      "ttl": 60,
+      "evidence": ["/evidence/network/dns.csv"],
+      "confidence": "observed",
+      "basis": "The resolution export records this client, this name, the answer address and a 60-second TTL.",
+      "caveat": "The export records no status code and no indication of who, if anyone, is behind the name. A name is not a reputation."
+    },
+    {
+      "id": "e-upload",
+      "source": "ws-17",
+      "target": "relay-archive",
+      "time_utc": "2026-10-15T09:06:00Z",
+      "method": "POST",
+      "path": "/upload",
+      "status": 201,
+      "body_bytes": 137,
+      "request": "req-72",
+      "evidence": ["/evidence/network/proxy.csv", "/evidence/network/sensor.pcap", "/evidence/hunting/siem.jsonl"],
+      "confidence": "observed",
+      "basis": "One proxy row states the upload in full, the same row is embedded in the sensor capture, and the SIEM raises a rare-egress detection naming the same address, path and minute.",
+      "caveat": "This is the edge the exercise turns on, and it still does not say who received it. A created resource, a byte count and a detection are all statements about the request."
+    },
+    {
+      "id": "e-remote-connect",
+      "source": "ws-17",
+      "target": "relay-archive",
+      "time_utc": "2026-10-15T09:06:00Z",
+      "method": "NETWORK_CONNECT",
+      "path": "198.51.100.77:443",
+      "status": null,
+      "body_bytes": null,
+      "request": null,
+      "evidence": ["/evidence/endpoint/events.csv", "/evidence/hunting/coverage.csv"],
+      "confidence": "observed",
+      "basis": "The endpoint export records a network connect to that address and port at device time 09:08:00Z, which is 09:06:00Z after the documented 120-second fast offset.",
+      "caveat": "A connect record carries no request identifier, so it corroborates the upload in time and destination only. It is not the same record."
+    },
+    {
+      "id": "e-ack",
+      "source": "ws-17",
+      "target": "relay-archive",
+      "time_utc": "2026-10-15T09:07:00Z",
+      "method": "GET",
+      "path": "/ack",
+      "status": 200,
+      "body_bytes": 12,
+      "request": "req-73",
+      "evidence": ["/evidence/network/proxy.csv", "/evidence/network/sensor.pcap"],
+      "confidence": "observed",
+      "basis": "One proxy row states this request in full: a GET to the same address one minute after the upload, returning 12 bytes.",
+      "caveat": "A response arrived. Which request it answers is a separate question, marked as inferred below."
+    },
+    {
+      "id": "e-body-identity",
+      "source": "plan-v3",
+      "target": "relay-archive",
+      "time_utc": "2026-10-15T09:06:00Z",
+      "method": "POST",
+      "path": "/upload",
+      "status": 201,
+      "body_bytes": 137,
+      "request": "req-72",
+      "evidence": ["/evidence/network/proxy.csv", "/evidence/server/catalog.csv"],
+      "confidence": "inferred",
+      "basis": "The uploaded body is the same length as the catalogue entry for plan-v3, and this workstation was served that object under the same session one minute earlier. Two records agree on size; no single record states the identity.",
+      "caveat": "Equal size is not identity of content. Identifying the transmitted body requires comparing a released payload hash with the catalogue, and that comparison is its own ticket. Until then this edge is a reasoned guess, and it is drawn as one."
+    },
+    {
+      "id": "e-ack-correlation",
+      "source": "relay-archive",
+      "target": "ws-17",
+      "time_utc": "2026-10-15T09:07:00Z",
+      "method": "GET",
+      "path": "/ack",
+      "status": 200,
+      "body_bytes": 12,
+      "request": "req-73",
+      "evidence": ["/evidence/network/proxy.csv"],
+      "confidence": "inferred",
+      "basis": "The 12-byte response follows the upload by one minute between the same pair of endpoints, which makes it the likely acknowledgement of that upload. No single record states that it acknowledges that upload, so this is a reading of two rows rather than a statement in either.",
+      "caveat": "The acknowledgement carries its own request identifier, and no record states which request it answers. More importantly, an acknowledgement is a response from a program. Nothing in these records shows that a person received the body, opened it, read it or understood it."
+    },
+    {
+      "id": "e-roster-denied",
+      "source": "relay-archive",
+      "target": "docs-1",
+      "time_utc": "2026-10-15T09:04:30Z",
+      "method": "GET",
+      "path": null,
+      "status": 403,
+      "body_bytes": 0,
+      "request": "req-75",
+      "evidence": ["/evidence/server/access.csv", "/evidence/server/catalog.csv"],
+      "confidence": "observed",
+      "basis": "The service audit records a request from this address for roster-v2 under the same session identifier as the download, returning 403 and zero body bytes.",
+      "caveat": "A denied request with zero bytes is a specific finding: the service refused and returned nothing. It is not a partial disclosure, and it does not become one by being adjacent to a successful one."
+    },
+    {
+      "id": "e-session-refresh",
+      "source": "relay-archive",
+      "target": "idp-1",
+      "time_utc": "2026-10-15T09:03:00Z",
+      "method": "SESSION_REFRESH",
+      "path": "S-41",
+      "status": "success",
+      "body_bytes": null,
+      "request": null,
+      "mfa": "previous_claim",
+      "evidence": ["/evidence/identity/auth.csv", "/evidence/identity/policy.txt", "/evidence/hunting/siem.jsonl"],
+      "confidence": "observed",
+      "basis": "The identity export records a successful session refresh from this address carrying previous_claim rather than a newly challenged result. The supplied policy states what that value means.",
+      "caveat": "This is an authentication event, not a person. The export names an account and a session, and neither is an attribution."
+    },
+    {
+      "id": "e-login-failure",
+      "source": "relay-archive",
+      "target": "idp-1",
+      "time_utc": "2026-10-15T09:05:00Z",
+      "method": "PASSWORD_LOGIN",
+      "path": "none",
+      "status": "failure",
+      "body_bytes": null,
+      "request": null,
+      "mfa": "not_reached",
+      "evidence": ["/evidence/identity/auth.csv"],
+      "confidence": "observed",
+      "basis": "The identity export records a failed password login from this address two minutes after the session refresh succeeded, with the MFA step never reached.",
+      "caveat": "Two records two minutes apart, one successful and one failed, are two events. Reading a successful session refresh as a successful sign-in is the error this exercise is built to catch."
+    },
+    {
+      "id": "e-v4-read",
+      "source": "ws-22",
+      "target": "docs-1",
+      "time_utc": "2026-10-15T09:12:00Z",
+      "method": "GET",
+      "path": "/files/plan-v4",
+      "status": 200,
+      "body_bytes": 170,
+      "request": "req-74",
+      "evidence": ["/evidence/network/proxy.csv", "/evidence/network/sensor.pcap", "/evidence/server/access.csv"],
+      "confidence": "observed",
+      "basis": "The proxy export and the service audit agree on this request, its object, its status and its byte count.",
+      "caveat": "Drawn so the ordinary read sits beside the questioned one. A superseded version being read after the transfer changes what is still sensitive; it does not change what left."
+    }
+  ],
+
+  "external_address": {
+    "address": "198.51.100.77",
+    "block": "198.51.100.0/24",
+    "registry": "RFC 5737 TEST-NET-2",
+    "reason": "The exercise uses reserved documentation space so that no real host exists to be contacted. The supplied identity policy states that no approved VPN or egress proxy uses this address.",
+    "live_reference": "none",
+    "rule": "This document contains no link, image, stylesheet, font, script or request that could cause a browser to contact this address, and none may be added. The address is displayed as text so that the finding can be quoted, and for no other purpose."
+  },
+
+  "disclaimer": {
+    "headline": "What this map does not establish",
+    "receipt": "A successful HTTP response, a byte count and an IP address do not establish that a person received, opened, read or understood anything. Nothing here shows who received the transfer.",
+    "identity": "No record on this map identifies a person, a group, an operator or a sponsor. The identity sources name an account and a session; an account is not an attribution, and the map draws no line to any individual.",
+    "intent": "The records describe transfers and authentication events. They do not establish motive, authorisation or intent, and the exercise is scored on the answer that they do not.",
+    "inference": "Edges marked inferred are this map's reading of two or more records. They are not statements found in any single file, and they should be argued from the evidence rather than accepted from the picture.",
+    "scope": "This is a reconstruction from the published exports, not a new source of truth. Where a record is absent the map stays silent rather than implying a negative result, and it adds no question and no point."
+  },
+
+  "companion": "The full set of tickets, findings and limitations lives in the question page. Where a participant and this map read a record differently, take the record."
+}

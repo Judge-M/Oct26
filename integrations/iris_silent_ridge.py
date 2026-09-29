@@ -17,7 +17,9 @@ from app import db
 from app.models.models import CaseTasks, Comments, TaskComments
 from ridge.transport import bridge, secret, TRANSPORT_ERRORS
 from ridge.narrative import participant_context
+from ridge.scenario_contract import load as load_contract
 from ridge.web import PAGE
+from ridge.web_narrative import context as narrative_context
 
 
 class RidgeReceipt(db.Model):
@@ -46,7 +48,11 @@ def install(app):
                 payload={'ticket':request.form['ticket'],'generation':int(request.form['generation'])}
                 bridge('iris',current_user.id,action,**payload)
             snapshot=bridge('iris',current_user.id,'snapshot')
-            return render_template_string(PAGE,lane='iris',snapshot=snapshot,
+            # Both narrative implementations, as on the CTFd lane. The map is
+            # CTFd-lane only, so the queue lane passes None rather than offering a
+            # view the controller would refuse for this identity.
+            return render_template_string(PAGE,**narrative_context(load_contract(),snapshot,None,'iris'),
+                lane='iris',snapshot=snapshot,network_map=None,
                 iris=os.environ['IRIS_PUBLIC_URL'],ctfd=os.environ['CTFD_PUBLIC_URL'],
                 csrf=generate_csrf(),case=os.environ['RIDGE_IRIS_CASE'],message='',
                 story=participant_context(snapshot))

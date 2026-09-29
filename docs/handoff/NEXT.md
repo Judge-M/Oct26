@@ -22,9 +22,15 @@ event). All three fixed with five regression tests on PR #49 — merge
 before the dress rehearsal and before relying on event-day teardown.
 
 Participant-facing material: event-day briefing deck at
-`docs/event-day-deck/` (13 slides — narrative + click-by-click setup,
-validated with `kimi-slides check` and full-page screenshots; projectable
-`event-day-deck.pdf` committed alongside the `.pptd` source; PR #48).
+`docs/event-day-deck/` (22 slides — incident brief, role and urgency, the four
+investigation phases, click-by-click setup, reminders, ground rules and the
+closing AAR — plus a two-slide facilitator appendix that is excluded from the
+projection set). Scenario wording is rendered from
+`assets/scenario-narrative-v1.json` by `ridge/deck_narrative.py`, which also
+validates the deck; see `docs/event-day-deck/README.md`. The projectable
+`event-day-deck.pdf` is a build artifact of the external `kimi-slides` toolchain
+and is currently **stale** — it still holds the pre-#58 13-slide deck, and must
+be rebuilt on a host that has the toolchain before the deck is projected.
 
 Cold-reader pass (2026-09-24, PR #48): found and fixed three host-path
 gaps — (1) the offline bundle never shipped the release vault

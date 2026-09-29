@@ -1,4 +1,5 @@
 pageType: content
+audience: participant
 background:
   type: solid
   color: "$paper"
@@ -6,7 +7,7 @@ elements:
   - elementId: tag
     elementType: text
     bounds: [64, 40, 400, 20]
-    content: {style: "$tag", wrap: false, text: GROUND RULES}
+    content: {style: "$tag", wrap: false, text: PART 4 · WORKING RULES}
   - elementId: title
     elementType: text
     bounds: [64, 66, 832, 40]
@@ -53,21 +54,31 @@ elements:
     border: {style: solid, width: 2, color: "$amber"}
   - elementId: no-body
     elementType: text
-    bounds: [496, 180, 400, 260]
+    bounds: [496, 180, 400, 140]
     content:
       style: "$body"
       fontSize: 14
       text: |
         <p>· <strong>Never execute evidence</strong> — no running binaries, scripts or documents found in the material</p>
         <p style="margin-top:8px">· <strong>Never scan or contact</strong> external systems, and never direct real personnel "in the field"</p>
-        <p style="margin-top:8px">· <strong>Don't invent harm</strong>, adversary names, or movements the evidence doesn't show</p>
         <p style="margin-top:8px">· <strong>Don't browse inside the desktop</strong> — keep it fast for your team's tools</p>
+  - elementId: attribution
+    elementType: text
+    bounds: [496, 330, 400, 110]
+    contractRef: boundaries.attribution
+    content:
+      style: "$body"
+      fontSize: 14
+      text: |
+        <p>The evidence supports an unauthorised tool and an outbound transfer. It does not support naming a person, a group or a sponsor. Do not supply one in a finding.</p>
   - elementId: note-body
     elementType: text
-    bounds: [64, 456, 832, 36]
+    bounds: [64, 456, 832, 40]
+    contractRef: boundaries.fiction_repeat
     content:
       style: "$small"
-      text: Every address, identity and artifact in this exercise is fictional. The defensive habits above are the real takeaway — they are what makes an assessment defensible.
+      text: |
+        <p>Operation Silent Ridge is fictional. No real organisation, patrol, person, address or adversary is represented.</p>
   - elementId: footer
     elementType: text
     bounds: [64, 505, 700, 18]
@@ -75,4 +86,4 @@ elements:
   - elementId: pagenum
     elementType: text
     bounds: [880, 505, 40, 18]
-    content: {style: "$small", align: [right, top], wrap: false, text: "11"}
+    content: {style: "$small", align: [right, top], wrap: false, text: "19"}

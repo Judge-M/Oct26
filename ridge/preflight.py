@@ -10,6 +10,23 @@ Backward compatibility: tickets generated before this contract referenced
 ``/evidence/autopsy/WS17/WS17.aut``, which never existed on the evidence mount.
 :func:`check` now rejects those paths with an explicit message. Regenerate tickets
 with ``python expanded/author.py``.
+
+:func:`check_narrative` is the narrative half of the same reconciliation. A
+deployment that provisions cleanly but has no participant narrative still sends
+ten team desktops to a page of bare prompts, and the only symptom a participant
+would report is that the exercise made no sense. So the approved contract is
+loaded, rendered for both lanes and refused if any section a participant reads is
+missing. It is read-only, needs no service and no network.
+
+:func:`check_consistency` is the second half. ``ridge.narrative_consistency``
+proves the five participant-facing surfaces - the two lanes, the event-day deck,
+the T01 network map and the breadcrumbs - all render the same contract revision,
+share one set of fictional names, place every tool the issue names, and leak no
+answer key, credential, adversary name or deployment detail. One page rendering
+the contract is not the same as five agreeing about it, and only the second fact
+is worth checking before a room fills up. Like the narrative check it is
+read-only, offline and deterministic, and it names every surface it could not
+prove on this host rather than implying it checked them all.
 """
 import json
 import os
@@ -19,10 +36,37 @@ from ridge.evidence_release import validate_release
 from ridge.storage import require_space
 from ridge.artifacts import safe
 from ridge.scenario import AUTOPSY_CASE_ENTRYPOINT
+from ridge.web_narrative import check_deployment
+
+
+def check_narrative(snapshot=None, questions=None, path=None):
+    """Prove the participant narrative is present and complete in this deployment.
+
+    Validates the contract, renders both lanes and checks the render context.
+    Read-only, no service and no network, so it runs identically on the
+    controller host and inside the integration container that hosts
+    ``python -m ridge.cli preflight``.
+    """
+    return check_deployment(path, snapshot, questions)
+
+
+def check_consistency(path=None):
+    """Prove the integrated surfaces still tell one story.
+
+    Read-only, offline and deterministic, and it degrades honestly: the
+    integration container ships the contract and no deck, no map and no
+    breadcrumbs, so its receipt names those under ``surfaces_not_proved`` instead
+    of claiming a coverage it does not have.
+    """
+    from ridge import narrative_consistency
+
+    return narrative_consistency.check_deployment(path)
 
 
 def check(state, config):
     state.diagnostics()
+    narrative=check_narrative()
+    consistency=check_consistency()
     with state.transaction(write=False) as con:
         teams=[dict(r) for r in con.execute('SELECT * FROM teams ORDER BY id')]
         tickets=[dict(r) for r in con.execute('SELECT * FROM tickets')]
@@ -80,7 +124,14 @@ def check(state, config):
     with urlopen(request,timeout=8) as response:
         if index_name not in json.load(response):
             raise ValueError('Historical index is not available')
-    return {'ready':True,'teams':len(teams),'tickets':len(tickets)}
+    return {'ready':True,'teams':len(teams),'tickets':len(tickets),
+            'narrative':{'contract':narrative['contract'],'revision':narrative['revision'],
+                         'surfaces':['ctfd','iris']},
+            'consistency':{'contract':consistency['contract'],
+                           'revision':consistency['revision'],
+                           'surfaces':consistency['surfaces'],
+                           'surfaces_not_proved':sorted(consistency['surfaces_not_proved']),
+                           'leak_guard':consistency['leak_guard']}}
 
 
 def check_desktop(questions, home, template=None):

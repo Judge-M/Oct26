@@ -1,4 +1,5 @@
 pageType: content
+audience: participant
 background:
   type: solid
   color: "$paper"
@@ -6,7 +7,7 @@ elements:
   - elementId: tag
     elementType: text
     bounds: [64, 40, 400, 20]
-    content: {style: "$tag", wrap: false, text: WHEN THINGS GO WRONG}
+    content: {style: "$tag", wrap: false, text: PART 4 · WORKING RULES}
   - elementId: title
     elementType: text
     bounds: [64, 66, 832, 40]
@@ -64,4 +65,4 @@ elements:
   - elementId: pagenum
     elementType: text
     bounds: [880, 505, 40, 18]
-    content: {style: "$small", align: [right, top], wrap: false, text: "12"}
+    content: {style: "$small", align: [right, top], wrap: false, text: "20"}

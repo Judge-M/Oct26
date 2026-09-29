@@ -37,10 +37,11 @@ these steps in order; each one tells you when it is done.
    (`up --teams N`), verifying it is ready, and what to hand out.
 4. **Brief the participants.** Project
    **[docs/event-day-deck/event-day-deck.pdf](docs/event-day-deck/event-day-deck.pdf)**
-   — 13 slides that tell the story and walk participants through every
-   login, click by click, assuming zero prior knowledge. It is a plain PDF,
-   so it projects anywhere with no software to install. Hand each team its
-   account sheet (the command sheet says where those files are).
+   — 22 slides that give the incident brief, state each participant's role and
+   the four investigation phases with their urgency, and then walk participants
+   through every login, click by click, assuming zero prior knowledge. It is a
+   plain PDF, so it projects anywhere with no software to install. Hand each
+   team its account sheet (the command sheet says where those files are).
 5. **Run the day.** The command sheet covers starting the clock, messaging
    all teams, pausing, and recovering a stuck team. The
    [operator runbook](docs/runbook.md) is the one-page symptom → action
@@ -151,9 +152,12 @@ unless you set `BIND_IP`):
 
 The [event-day command sheet](docs/event-day-commands.md) is the
 cold-machine → running-event → teardown checklist with exact commands.
-The [participant briefing deck](docs/event-day-deck/event-day-deck.pdf)
-(13 slides, PDF) is what you project at the start: it explains the
-scenario and walks participants through setup click by click.
+The [participant briefing deck](docs/event-day-deck/)
+(22 slides, `.page` sources plus a projectable PDF) is what you project at the
+start: it briefs the incident, states each role and the four investigation
+phases with their urgency, and walks participants through setup click by click.
+Its [README](docs/event-day-deck/README.md) covers the source layout, the
+contract-rendered narrative, and how to rebuild the PDF.
 
 ```bash
 python -m ridge.deploy pause   --profile ... --runtime ...   # pause the clock
@@ -222,7 +226,8 @@ late-October event, the remaining work is tracked in `docs/handoff/NEXT.md`:
 | `deployment/` | Container builds, compose files, example profiles |
 | `docs/` | Architecture, operations, and planning documents |
 | `docs/event-day-commands.md` | **Run the event**: cold-machine → teardown checklist |
-| `docs/event-day-deck/` | **Brief participants**: 13-slide setup + story deck |
+| `docs/event-day-deck/` | **Brief participants**: 22-slide incident brief + setup deck, with a separate facilitator appendix |
+| `docs/narrative-operations.md` | **Update, reset or validate the participant narrative** across all five surfaces, and how a facilitator verifies it is present |
 | `docs/handoff/` | **Start here when picking up work**: `NEXT.md` (current position), receipts, evidence, and task cards |
 | `tests/` | Automated test suite (`python -m unittest discover -s tests`) |
 | `app/`, `admin/`, root `Dockerfile` | Retired rehearsal portal, kept only as a test fixture — not part of the event |

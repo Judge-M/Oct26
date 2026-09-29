@@ -7,6 +7,11 @@
 !ridge/**
 !integrations/
 !integrations/**
+# The participant images need the approved narrative contract and nothing else
+# from assets/; the LFS artefacts under it stay out of the build context.
+!assets/
+assets/**
+!assets/scenario-narrative-v1.json
 **/__pycache__/
 **/*.pyc
 

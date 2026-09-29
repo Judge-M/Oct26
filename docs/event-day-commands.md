@@ -130,9 +130,17 @@ Participant URLs (all in their own laptop browser):
 Certificate revocation: `http://<LAN-IP>:8080/root-ca.crl` (signed CRL only).
 
 Opening briefing: project **`docs/event-day-deck/event-day-deck.pdf`**
-(13 slides, story + click-by-click setup — plays anywhere, no software
-needed). The editable source is `event-day-deck.pptd` in the same folder.
-The `<event-address>` shown in the deck is the `<LAN-IP>` above.
+(22 slides: incident brief, role, urgency, the four investigation phases, the
+click-by-click setup, reminders, ground rules and the closing AAR — plays
+anywhere, no software needed). The authoritative source is the `.page` files;
+`event-day-deck.pptd` and the PDF are both built from them, and
+`docs/event-day-deck/README.md` records how to rebuild the PDF and how to check
+whether the committed one is stale. The `<event-address>` shown in the deck is
+the `<LAN-IP>` above.
+
+Facilitator pause/inject/recovery procedure is **not** on any participant
+slide. It is in `docs/event-day-deck/facilitator-pages/`, behind its own project
+file, for the operator's own reference during the day.
 
 ## 5. During the event
 

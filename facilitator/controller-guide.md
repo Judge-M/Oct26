@@ -18,7 +18,19 @@ Provide free coaching and graduated hints. No report, command acknowledgment or
 facilitator sign-off is required for progression. Pause for technical failures
 and record problems for rehearsal follow-up.
 
+The T01 network map is an additional view of evidence T01 already exposes. It is
+not a released evidence file and must never be attached to the share by hand: it
+names the destination T01 scores, so it is unlocked by the platform only once
+that ticket is closed. The rehearsal steps and the screenshot moment are in
+[the T01 network map capture point](network-map-capture.md).
+
 Keep the vault, answers, credentials, participant work and full audit exports
 private. Pause and drain synchronization before the combined IRIS/CTFd/core export.
 Run the AAR before preparing a clean run. Full deployment and rehearsal readiness
 must be established using the [acceptance record](../docs/expanded-validation.md).
+
+The evidence also carries seven unscored traces left behind for issue 59. Teams
+may find them; nothing requires them and no finding should rest on one. Do not
+confirm one during the run, and never quote one in a hint. See
+[the breadcrumb note](breadcrumbs.md) for all seven, how they are released, and
+what to do with a team that finds all of them.

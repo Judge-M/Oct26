@@ -15,9 +15,12 @@ from ridge.artifacts import safe,sha256,verify
 
 REPO=Path(__file__).resolve().parents[1]
 LAYOUTS={
-    'integration':[('ridge','/opt/silent-ridge/ridge')],
-    'iris':[('ridge','/iriswebapp/ridge'),('integrations/iris_silent_ridge.py','/iriswebapp/iris_silent_ridge.py')],
-    'ctfd':[('ridge','/opt/CTFd/ridge'),('integrations/ctfd_silent_ridge','/opt/CTFd/CTFd/plugins/ctfd_silent_ridge')]}
+    'integration':[('ridge','/opt/silent-ridge/ridge'),
+                   ('assets/scenario-narrative-v1.json','/opt/silent-ridge/assets/scenario-narrative-v1.json')],
+    'iris':[('ridge','/iriswebapp/ridge'),('integrations/iris_silent_ridge.py','/iriswebapp/iris_silent_ridge.py'),
+            ('assets/scenario-narrative-v1.json','/iriswebapp/assets/scenario-narrative-v1.json')],
+    'ctfd':[('ridge','/opt/CTFd/ridge'),('integrations/ctfd_silent_ridge','/opt/CTFd/CTFd/plugins/ctfd_silent_ridge'),
+            ('assets/scenario-narrative-v1.json','/opt/CTFd/assets/scenario-narrative-v1.json')]}
 REQUIRED_IMAGES=set(LAYOUTS)|{'iris_db','rabbitmq','ctfd_db','ctfd_cache','wazuh_manager',
     'wazuh_indexer','wazuh_dashboard','guacamole','guacd','guacamole_db'}
 LFS_POINTER = re.compile(rb'\Aversion https://git-lfs.github.com/spec/v1\r?\n'

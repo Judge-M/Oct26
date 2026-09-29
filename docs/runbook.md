@@ -76,6 +76,8 @@ adds VNC lag.
 | Answers accepted but no points showing | Outbox backlog: worker logs (`docker logs <event>-integration-1`) | Fix connectivity/credentials; the worker retries — do **not** re-award points or edit receipts |
 | A team disconnects mid-ticket | `status` shows the ticket active with an absent owner | `ridge.cli recover <ticket> --generation N --reason "..."` releases it |
 | Desktop sluggish | Host CPU/RAM saturated (`docker stats`) | Pause non-critical team work; stagger Autopsy ingests; do not restart containers mid-event |
+| Participant page has no briefing, roles or phases | `python -m ridge.cli preflight` names the missing section, or the log says `narrative contract not found` | The image predates the narrative contract. Rebuild CTFd and IRIS; see `docs/narrative-operations.md` |
+| Participant scoreboard returns 500 | Compare `/scoreboard` with `/api/v1/scoreboard` for the same session; check the `freeze` row in `config` | A non-integer `freeze` breaks the page only. See the known finding in `docs/narrative-operations.md`; do not clear a real freeze |
 | Anything feels lost | Don't improvise | `backup`, then Appendix B |
 
 ## Appendix A — Private credentials and backups

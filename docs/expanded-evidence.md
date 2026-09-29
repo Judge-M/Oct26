@@ -27,6 +27,31 @@ ticket unlocks and indexes released CSV records with stable document IDs.
 Repeated publication accepts identical files and rejects conflicting content.
 The controller preparation fixtures and source manifests are not desktop shares.
 
+## The T01 network map is a view, not evidence
+
+`assets/t01-network-map-v1.json` describes a directed graph over records the
+completed T01 task has already exposed. `ridge/network_map.py` renders it into a
+single self-contained offline HTML document and `python -m ridge.network_map
+<path>` writes that file; the CTFd plugin serves the identical document at
+`/silent-ridge/network-map` once the controller confirms T01 is closed.
+
+It is deliberately not a released evidence file. Release publication happens
+when a ticket unlocks, T01 unlocks at run start, and the map names
+`198.51.100.77` — so a released map would answer T01-Q4 for the room. The gate
+is `State.ticket_complete('T01')`, checked in `ridge.service`; the link appears
+in the T01 completion state on the participant question page.
+
+Two invariants are enforced, not reviewed. Every edge is `observed` (stated in
+full by one published record) or `inferred` (a join across records, with its own
+basis and caveat), and the document carries a boundary statement that a status
+code, a byte count and an address say nothing about human receipt, intent or
+attribution. `offline_report` refuses to render a document that references any
+external resource or that could make the browser contact the documentation-space
+address. Records are joined on `request`, `path` and `time_utc` only, because
+the published `id` column is a rewritten hash and is not a usable key. Rehearsal
+steps and the screenshot moment are in
+[the facilitator capture point](../facilitator/network-map-capture.md).
+
 ## Native Windows and memory sources
 
 The JSON under `controller/preparation-fixtures/` is explicitly synthetic. It is
@@ -109,6 +134,30 @@ documented CRLF compiler-input SHA-256 against that manifest. Its fresh compiler
 run is a portability smoke only: compiler paths, versions and debug metadata can
 change executable bytes, so the resulting hash is not presented as reproduction
 of the published artifact.
+
+## Optional breadcrumbs
+
+`assets/breadcrumbs-v1.json` declares seven small traces left across the prepared
+evidence, rendered by `expanded/prepare.py` from that one fixture and validated by
+`ridge/breadcrumbs.py`. They carry no points, no scored question names one, and
+each entry declares what it must not reveal.
+
+Delivery uses the two existing paths. Phase-1 and phase-2 breadcrumbs are written
+into the published evidence tree as `notes/<file>` and are visible at run start,
+which is correct because every ticket in those phases is unlocked at run start.
+Phase-3 and phase-4 breadcrumbs are carried in the release vault beside the
+follow-up evidence for a gated ticket and published by `ridge.evidence_release.py`
+when that ticket is delivered. That gating matters: `State.initialize` enqueues
+every ticket with no prerequisites, so a breadcrumb hung on a root ticket would be
+on the mount before any team had done anything. `ridge.breadcrumbs.check_delivery`
+refuses that, and the breadcrumb tests walk a real state to prove it.
+
+They are unattributed by design. The narrative contract forbids naming an adversary
+group, codename, operator or sponsor and T20-Q4 scores `no` for intent, so a note
+left behind is never the calling card of a named side. `facilitator/breadcrumbs.md`
+lists all seven with their locations, what they point at, and what to do when a
+team finds them. They are `.txt` files and are not ingested into the published
+prepared case or indexed into Wazuh.
 
 ## Workload
 
