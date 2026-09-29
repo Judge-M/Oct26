@@ -85,6 +85,13 @@ class EvidenceTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'Source/image mismatch'):
                 image_sources('integration','sha256:fixture')
 
+    def test_desktop_source_probe_uses_the_interpreter_the_image_installs(self):
+        from ridge.bundle import image_sources
+        with patch('ridge.bundle.command', return_value='{}') as command:
+            with self.assertRaisesRegex(ValueError, 'Source/image mismatch'):
+                image_sources('desktop', 'sha256:fixture')
+        self.assertEqual(command.call_args.args[7], 'python3')
+
     def test_guacamole_adjustable_shared_and_exclusive(self):
         path=Path(__file__).resolve().parents[1]/'deployment/expanded/guacamole.py'
         spec=importlib.util.spec_from_file_location('guac',path);module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
