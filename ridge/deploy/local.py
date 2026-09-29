@@ -156,8 +156,14 @@ def offline_wazuh_config(source):
     return rendered
 
 
-def render_indexer_admin(source, password_hash):
-    """Replace only the vendored admin hash in a private runtime copy."""
+def render_indexer_admin(source, password_hash, extra_users=()):
+    """Render the private indexer user file with the generated admin hash.
+
+    The Wazuh REST API rejects classroom passwords such as ``team1`` as weak,
+    even though the event intentionally uses those memorable values.  Fresh
+    runtimes therefore seed those users with bcrypt hashes before the indexer
+    starts; the API is still used for roles, mappings, and any strong account.
+    """
     if not re.fullmatch(r'\$2[aby]\$12\$[./A-Za-z0-9]{53}', password_hash):
         raise LifecycleError('indexer hash tool returned an invalid bcrypt hash')
     lines = source.splitlines(keepends=True)
@@ -176,7 +182,20 @@ def render_indexer_admin(source, password_hash):
     old = lines[hashes[0]]
     newline = '\r\n' if old.endswith('\r\n') else '\n'
     lines[hashes[0]] = '  hash: "' + password_hash + '"' + newline
-    return ''.join(lines)
+    rendered = ''.join(lines)
+    for username, user_hash, role in extra_users:
+        if not re.fullmatch(r'[A-Za-z0-9_-]+', username):
+            raise LifecycleError('invalid indexer username %r' % username)
+        if not re.fullmatch(r'\$2[aby]\$12\$[./A-Za-z0-9]{53}', user_hash):
+            raise LifecycleError('indexer hash tool returned an invalid bcrypt hash')
+        if not re.fullmatch(r'[A-Za-z0-9_-]+', role):
+            raise LifecycleError('invalid indexer backend role %r' % role)
+        if re.search(r'^' + re.escape(username) + r':\s*$', rendered, re.MULTILINE):
+            continue
+        rendered += ('\n%s:\n  hash: "%s"\n  reserved: false\n'
+                     '  backend_roles:\n  - "%s"\n  description: "Silent Ridge event account"\n'
+                     % (username, user_hash, role))
+    return rendered
 
 
 def _derive_discovered(iris_inventory, ctfd_inventory):
@@ -724,7 +743,22 @@ class LocalStack:
                 raise LifecycleError('Wazuh indexer hash tool did not return one bcrypt hash')
             source_users = (self.asset('wazuh_config') / 'wazuh_indexer'
                             / 'internal_users.yml').read_text(encoding='utf-8')
-            users.write_text(render_indexer_admin(source_users, hash_lines[0]),
+            extra_users = []
+            for secret_name, role in (('wazuh_writer', 'silent-ridge-writer'),
+                                      ('wazuh_reader', 'silent-ridge-participant')):
+                username, secret_password = self._secret(secret_name).split(':', 1)
+                if len(secret_password) < 8:
+                    extra_result = self._pipe([
+                        'docker', 'run', '-i', '--rm', '--network', 'none', '--pull', 'never',
+                        '-e', 'OPENSEARCH_JAVA_HOME=/usr/share/wazuh-indexer/jdk',
+                        '--entrypoint', 'bash', 'wazuh/wazuh-indexer:4.9.2', '-lc', command,
+                    ], secret_password + '\n')
+                    extra_hashes = [line.strip() for line in extra_result.splitlines()
+                                    if re.fullmatch(r'\$2[aby]\$12\$[./A-Za-z0-9]{53}', line.strip())]
+                    if len(extra_hashes) != 1:
+                        raise LifecycleError('Wazuh indexer hash tool did not return one bcrypt hash')
+                    extra_users.append((username, extra_hashes[0], role))
+            users.write_text(render_indexer_admin(source_users, hash_lines[0], extra_users),
                              encoding='utf-8')
 
     def _render_specs(self):
