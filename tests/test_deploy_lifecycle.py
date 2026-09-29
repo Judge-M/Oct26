@@ -30,12 +30,45 @@ class WazuhOfflineConfigTests(unittest.TestCase):
         with self.assertRaisesRegex(LifecycleError, 'invalid bcrypt'):
             deploy_local.render_indexer_admin(source, 'not-a-hash')
 
-    def test_disables_existing_update_check_without_changing_other_settings(self):
+    def test_disables_networked_manager_modules_without_changing_other_settings(self):
         source = ('<ossec_config><global><jsonout_output>yes</jsonout_output>'
-                  '<update_check>yes</update_check></global></ossec_config>')
+                  '<update_check>yes</update_check></global>'
+                  '<sca><enabled>yes</enabled></sca>'
+                  '<vulnerability-detection><enabled>yes</enabled>'
+                  '<index-status>yes</index-status></vulnerability-detection>'
+                  '<indexer><enabled>yes</enabled><hosts>'
+                  '<host>https://wazuh.indexer:9200</host></hosts></indexer>'
+                  '</ossec_config>')
         rendered = deploy_local.offline_wazuh_config(source)
         self.assertIn('<update_check>no</update_check>', rendered)
+        self.assertIn('<vulnerability-detection><enabled>no</enabled>'
+                      '<index-status>no</index-status></vulnerability-detection>', rendered)
+        self.assertIn('<indexer><enabled>no</enabled>', rendered)
         self.assertIn('<jsonout_output>yes</jsonout_output>', rendered)
+        self.assertIn('<sca><enabled>yes</enabled></sca>', rendered)
+        self.assertIn('<host>https://wazuh.indexer:9200</host>', rendered)
+        self.assertEqual(deploy_local.offline_wazuh_config(rendered), rendered)
+
+    def test_rejects_missing_or_ambiguous_offline_manager_options(self):
+        complete = ('<ossec_config><global><update_check>yes</update_check></global>'
+                    '<vulnerability-detection><enabled>yes</enabled>'
+                    '<index-status>yes</index-status></vulnerability-detection>'
+                    '<indexer><enabled>yes</enabled></indexer></ossec_config>')
+        with self.assertRaisesRegex(LifecycleError,
+                                    'exactly one <vulnerability-detection> section'):
+            deploy_local.offline_wazuh_config(
+                complete.replace('<vulnerability-detection><enabled>yes</enabled>'
+                                 '<index-status>yes</index-status></vulnerability-detection>', ''))
+        with self.assertRaisesRegex(LifecycleError,
+                                    'exactly one direct <enabled> option'):
+            deploy_local.offline_wazuh_config(
+                complete.replace('<indexer><enabled>yes</enabled></indexer>',
+                                 '<indexer><enabled>yes</enabled><enabled>yes</enabled>'
+                                 '</indexer>'))
+        with self.assertRaisesRegex(LifecycleError, 'exactly one <indexer> section'):
+            deploy_local.offline_wazuh_config(
+                complete.replace('</ossec_config>',
+                                 '<indexer><enabled>yes</enabled></indexer></ossec_config>'))
 
     def test_rejects_invalid_vendored_config(self):
         with self.assertRaisesRegex(LifecycleError, 'invalid XML'):
@@ -282,7 +315,10 @@ def make_runtime(root):
         'admin:\n  hash: "$2y$12$' + 'b' * 53 + '"\n  reserved: true\n')
     (assets / 'wazuh-config' / 'wazuh_cluster').mkdir()
     (assets / 'wazuh-config' / 'wazuh_cluster' / 'wazuh_manager.conf').write_text(
-        '<ossec_config><global><jsonout_output>yes</jsonout_output></global></ossec_config>')
+        '<ossec_config><global><jsonout_output>yes</jsonout_output></global>'
+        '<vulnerability-detection><enabled>yes</enabled>'
+        '<index-status>yes</index-status></vulnerability-detection>'
+        '<indexer><enabled>yes</enabled></indexer></ossec_config>')
     runtime = root / 'runtime'
     runtime.mkdir()
     (runtime / 'local.json').write_text(json.dumps({
@@ -390,8 +426,11 @@ class LifecycleTests(unittest.TestCase):
                          ['silent-ridge-test-central', 'silent-ridge-test-desktop'])
         api_password = (self.runtime / 'secrets' / 'wazuh-api-password').read_text().strip()
         self.assertNotEqual(api_password, self.stack._secret('wazuh_admin').split(':', 1)[1])
-        self.assertIn('<update_check>no</update_check>',
-                      (self.runtime / 'wazuh-config' / 'ossec.conf').read_text())
+        wazuh_config = (self.runtime / 'wazuh-config' / 'ossec.conf').read_text()
+        self.assertIn('<update_check>no</update_check>', wazuh_config)
+        self.assertIn('<vulnerability-detection><enabled>no</enabled>'
+                      '<index-status>no</index-status></vulnerability-detection>', wazuh_config)
+        self.assertIn('<indexer><enabled>no</enabled></indexer>', wazuh_config)
         wazuh_env = (self.runtime / 'env' / 'wazuh.env').read_text()
         self.assertIn('WAZUH_API_PASSWORD=' + api_password, wazuh_env)
         self.assertIn('WAZUH_INDEXER_PORT=19200', wazuh_env)

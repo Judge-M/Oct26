@@ -38,9 +38,13 @@ python -m ridge.deploy verify-build
 Windows wrapper: `./ridge.ps1 build -Component desktop`. Build receipts record
 image IDs and input fingerprints in `work/build-receipts`. Failed builds remove
 the previous success receipt. Changed source or a changed image invalidates it.
-Builds need online dependency access; they are preparation, not an offline event
-installer. Final image digests and a complete offline dependency bundle are later
-release gates. Do not remove `pull_policy: never` to mask a missing runtime image.
+
+Run source builds only on a connected preparation host. `--pull=false` prefers a
+cached base image, but the Dockerfiles still download operating-system packages
+and pinned tool archives, so a warm cache does not make this an offline build.
+The complete release bundle is the sole supported path for an offline event
+host; it loads the already-built images and requires no build step. Do not remove
+`pull_policy: never` to mask a missing runtime image.
 
 ## 3. Smoke test the built desktop
 

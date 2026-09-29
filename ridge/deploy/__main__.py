@@ -81,18 +81,15 @@ def build(component, work):
         receipt = work / (component + '.json')
         receipt.unlink(missing_ok=True)  # A failed rebuild cannot leave a success receipt.
         source = fingerprint()
-        # The build sits on the air-gapped recovery path, so it must not reach a
-        # registry when it does not have to. BuildKit otherwise resolves FROM
-        # against Docker Hub even when the base image is already cached locally,
-        # which turned a cached rebuild into a network-dependent failure (#98).
-        # --pull=false is the spelling both the classic builder and buildx
-        # accept; --pull (bare) would force the pull this path exists to avoid.
-        #
-        # A base that is not cached is NOT an error. On a cold host the first
-        # build legitimately has to fetch it, so refusing there would make a
-        # first build impossible. That case is a preparation-host build, and it
-        # is reported as such rather than silently reaching out. Only the
-        # all-cached case is the offline rebuild #98 is about.
+        # Source builds are preparation-host operations. Even with every base
+        # image cached, Dockerfile RUN steps may download operating-system
+        # packages and pinned tool archives. ``--pull=false`` only prefers a
+        # cached base image; it is not an offline or air-gap control. Event hosts
+        # use the complete offline bundle and do not run this command.
+        print('Note: source builds are online preparation-host operations and may '
+              'download packages or tool archives. --pull=false only prefers cached '
+              'base images; it does not make this build offline. Air-gapped event '
+              'hosts must install the complete offline bundle instead.')
         bases, unresolved = base_images(IMAGES[component])
         uncached = []
         for base in bases:
@@ -105,8 +102,7 @@ def build(component, work):
                   'its cache state cannot be checked before the build.')
         if uncached:
             print('Note: base image(s) not cached locally: ' + ', '.join(uncached)
-                  + '. This build needs registry access and belongs on the '
-                    'preparation host, not the air-gapped event host.')
+                  + '. The online preparation host will also need registry access.')
         docker('build', '--pull=false', '-f', IMAGES[component], '-t', tag, '.')
         identity = docker('image', 'inspect', '--format', '{{.Id}}', tag, capture=True)
         if source != fingerprint():
