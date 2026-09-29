@@ -8,7 +8,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from ridge.deploy import Journal, LockError
-from ridge.deploy.__main__ import verify_build
+from ridge.deploy.__main__ import IMAGES, base_images, build, verify_build
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -42,6 +42,109 @@ class ConsolidationTests(unittest.TestCase):
             self.assertEqual(result.returncode, 0 if action == '--help' else 2)
             if action != '--help':
                 self.assertIn('no event or resources were changed', result.stderr)
+
+    def test_build_never_forces_a_registry_pull(self):
+        """The build is on the air-gapped recovery path (#98).
+
+        BuildKit resolved FROM against Docker Hub even with the base image
+        cached, turning a cached rebuild into a network-dependent failure.
+        The module-level docker() helper is the only egress surface in this
+        path, so asserting on its argv is a real contract test -- but it
+        proves the argv we construct, not that Docker opens no socket. The
+        end-to-end air-gap proof needs a live host and is a manual check.
+        """
+        calls = []
+
+        def recorder(*args, **kwargs):
+            calls.append(list(args))
+            return 'sha256:built'
+
+        with tempfile.TemporaryDirectory() as temp:
+            with patch('ridge.deploy.__main__.docker', side_effect=recorder), \
+                    patch('ridge.deploy.__main__.fingerprint', return_value='fp'):
+                build('ctfd', Path(temp))
+
+        build_argv = next(c for c in calls if c[0] == 'build')
+        self.assertIn('--pull=false', build_argv)
+        # --pull with no value is the spelling that forces the pull this path
+        # exists to avoid, so it must not appear on its own in any argv.
+        for argv in calls:
+            self.assertNotIn('--pull', argv)
+            self.assertNotIn('manifest', argv)
+            self.assertNotIn('search', argv)
+
+    def test_build_warns_but_still_builds_when_a_base_is_not_cached(self):
+        """A first build on a cold host legitimately has to fetch its base.
+
+        An earlier version of this precheck refused instead, which made a
+        first build impossible and turned the desktop-build workflow red on
+        every clean CI runner. The uncached case is a preparation-host build:
+        warn, keep --pull=false, and let it proceed.
+        """
+        cached = 'ctfd/ctfd:3.7.7'
+        calls = []
+        notes = []
+
+        def recorder(*args, **kwargs):
+            argv = list(args)
+            calls.append(argv)
+            if argv[:2] == ['image', 'inspect'] and argv[2] == cached:
+                raise subprocess.CalledProcessError(1, 'docker')
+            return 'sha256:built'
+
+        with tempfile.TemporaryDirectory() as temp:
+            with patch('ridge.deploy.__main__.docker', side_effect=recorder), \
+                    patch('ridge.deploy.__main__.fingerprint', return_value='fp'), \
+                    patch('builtins.print', side_effect=notes.append):
+                result = build('ctfd', Path(temp))
+            built = [c for c in calls if c[0] == 'build']
+            receipt = Path(temp) / 'ctfd.json'
+            receipt_exists = receipt.exists()
+
+        self.assertTrue(built, 'must still build')
+        self.assertEqual(result['image_id'], 'sha256:built')
+        self.assertTrue(receipt_exists, 'writes a receipt')
+        self.assertTrue(any(cached in note for note in notes), notes)
+        self.assertTrue(any('preparation host' in note for note in notes), notes)
+        # The prescribed remedy must not name a bundle that lacks base images.
+        self.assertFalse(any('offline bundle' in note for note in notes), notes)
+
+    def test_base_images_resolves_non_registry_from_forms(self):
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / 'Dockerfile.probe'
+            path.write_text('\n'.join([
+                '# FROM commented:out:should-not-appear',
+                'FROM --platform=linux/amd64 ubuntu:24.04 AS builder',
+                'FROM builder AS middle',
+                'FROM scratch',
+                'ARG BASE',
+                'FROM ${BASE}',
+                'RUN echo "FROM not:a:base"',
+                'FROM debian:bookworm',
+            ]) + '\n', encoding='utf-8')
+            # ROOT-relative is how build() calls it, so probe the parser
+            # directly with the same shape rather than a synthetic path.
+            import ridge.deploy.__main__ as deploy_main
+            original = deploy_main.ROOT
+            deploy_main.ROOT = Path(temp)
+            try:
+                images, unresolved = deploy_main.base_images('Dockerfile.probe')
+            finally:
+                deploy_main.ROOT = original
+        # The --platform flag is not mistaken for an image; the stage alias and
+        # scratch are not registry refs; the build-arg base is reported rather
+        # than silently dropped.
+        self.assertEqual(images, ['ubuntu:24.04', 'debian:bookworm'])
+        self.assertEqual(unresolved, ['${BASE}'])
+
+    def test_base_images_are_read_from_the_dockerfile(self):
+        self.assertEqual(base_images('deployment/expanded/Dockerfile.ctfd'),
+                         (['ctfd/ctfd:3.7.7'], []))
+        # Multi-stage: the repeated base is deduplicated and "AS name" ignored.
+        self.assertEqual(base_images('deployment/expanded/desktop/Dockerfile'),
+                         (['ubuntu:24.04'], []))
+        for component, dockerfile in IMAGES.items():
+            self.assertTrue(base_images(dockerfile)[0], component)
 
     def test_run_requires_successful_build_of_current_inputs_and_image(self):
         with tempfile.TemporaryDirectory() as temp:
