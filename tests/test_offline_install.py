@@ -206,7 +206,14 @@ class InstallTests(unittest.TestCase):
         self.assertTrue((self.dest / 'assets/wazuh-config/manifest.json').is_file())
         self.assertTrue((self.dest / 'assets/release-vault/manifest.json').is_file())
         self.assertTrue((self.dest / 'assets/originals/memory.raw').is_file())
-        self.assertTrue((self.dest / 'runtime-local.example.json').is_file())
+        local_path = self.dest / 'runtime-local.example.json'
+        self.assertTrue(local_path.is_file())
+        local = json.loads(local_path.read_text())
+        self.assertEqual(set(local['assets']),
+                         {'evidence_public', 'release_vault', 'case_template',
+                          'originals', 'wazuh_config'})
+        self.assertEqual(local['assets']['evidence_public'],
+                         str(self.dest / 'assets/evidence-public'))
         for component in ('integration', 'iris', 'ctfd', 'desktop'):
             path = self.dest / 'source/work/build-receipts' / (component + '.json')
             self.assertTrue(path.is_file())

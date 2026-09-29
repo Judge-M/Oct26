@@ -299,9 +299,16 @@ def install(bundle, destination, runner=None, load=True, free_bytes=None,
             build_receipts = True
         local_template = {
             'bind_ip': 'REPLACE_WITH_LAN_IP',
-            'assets': {name: str(destination / 'assets' / name)
-                       for name in ('evidence-public', 'release-vault', 'case-template',
-                                    'originals', 'wazuh-config')},
+            'assets': {
+                key: str(destination / 'assets' / directory)
+                for key, directory in (
+                    ('evidence_public', 'evidence-public'),
+                    ('release_vault', 'release-vault'),
+                    ('case_template', 'case-template'),
+                    ('originals', 'originals'),
+                    ('wazuh_config', 'wazuh-config'),
+                )
+            },
             'ports': {'crl': 8080, 'iris': 8081, 'ctfd': 8083, 'guac': 8082,
                       'wazuh_dashboard': 8443, 'wazuh_indexer': 9200},
             'index_name': 'silent-ridge-oct26',
