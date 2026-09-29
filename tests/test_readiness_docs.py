@@ -4,6 +4,9 @@ import re
 import unittest
 from pathlib import Path
 
+from expanded.author import build as authored_tickets
+from expanded.workload import summary as workload_summary
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -30,10 +33,117 @@ class ReadinessDocumentTests(unittest.TestCase):
 
     def test_native_acquisition_and_connection_claims_are_precise(self):
         text = read('docs/learning-objectives.md')
-        self.assertIn('actual\nacquisition UTC', text)
+        self.assertRegex(text, r'actual\s+acquisition UTC')
         self.assertIn('not a validated memory connection', text)
         self.assertNotIn('exactly-once', text.lower())
         self.assertNotIn('native Windows EVTX and memory sources and\nready-to-open Autopsy cases are still required', text)
+
+    def test_learning_objectives_match_current_ticket_semantics(self):
+        text = read('docs/learning-objectives.md')
+        self.assertIn(
+            '### LO1 — Interpret source time and preserve provenance across records',
+            text,
+        )
+        self.assertIn(
+            '### LO6 — Test scope hypotheses against coverage and uncertainty',
+            text,
+        )
+        self.assertNotIn('Normalize and correlate time across heterogeneous sources', text)
+        self.assertNotIn('Hunt across the enterprise', text)
+        lo1 = text.split('### LO1', 1)[1].split('### LO2', 1)[0]
+        for ticket_id in ('T04', 'T12', 'T13', 'T14'):
+            self.assertIn(f'`{ticket_id}`', lo1)
+        self.assertNotIn('at least two tools', lo1)
+        objectives = text.split('## Objectives', 1)[1].split('## Ticket-to-role crosswalk', 1)[0]
+        mechanisms = '\n'.join(re.findall(
+            r'\*\*Mechanism\.\*\*(.*?)(?=\n\n\*\*Achievement evidence\.\*\*)',
+            objectives,
+            flags=re.DOTALL,
+        ))
+        self.assertEqual(
+            set(re.findall(r'`(T\d{2})`', mechanisms)),
+            {f'T{number:02}' for number in range(1, 21)},
+        )
+
+        self.assertIn('`silent-ridge-timed`', text)
+        self.assertIn('`silent-ridge-timeless`', text)
+        self.assertRegex(
+            text,
+            r'(?s)`T12` reports.*?`silent-ridge-timeless`.*?does not apply the correction',
+        )
+        self.assertNotIn('`T11` and `T20` questions', text)
+
+        tickets = {ticket['id']: ticket for ticket in authored_tickets()}
+        for ticket_id in ('T13', 'T14', 'T15', 'T16'):
+            self.assertIn(tickets[ticket_id]['title'], text)
+        self.assertIn('Case and outer whitespace are ignored.', text)
+        self.assertIn('`/evidence` and `/originals` stay mounted read-only', text)
+        self.assertIn('`original_path`', text)
+        self.assertIn('`original_sha256`', text)
+        native_manifest = json.loads(read('assets/native-windows-v1/manifest.json'))
+        self.assertIn(native_manifest['capture']['capture_time_utc'], text)
+
+        workload = workload_summary(list(tickets.values()), teams=10, target_minutes=270)
+        self.assertIn(f"{workload['makespan_minutes']}-minute simulated makespan", text)
+        self.assertIn(f"{workload['target_minutes']}-minute planning midpoint", text)
+
+    def test_ticket_crosswalk_uses_authoritative_phases_and_explicit_limits(self):
+        text = read('docs/learning-objectives.md')
+        crosswalk = text.split('## Ticket-to-role crosswalk', 1)[1].split(
+            '## How the after-action review', 1
+        )[0]
+        narrative = json.loads(read('ridge/scenario_narrative_v1.json'))
+        expected_phase = {
+            ticket: phase['title']
+            for phase in narrative['phases']
+            for ticket in phase['tickets']
+        }
+        authored = {ticket['id']: ticket for ticket in authored_tickets()}
+        observed = {}
+        for line in crosswalk.splitlines():
+            if not line.startswith('| `T'):
+                continue
+            cells = [cell.strip() for cell in line.strip().strip('|').split('|')]
+            tickets = re.findall(r'`(T\d{2})`', cells[0])
+            self.assertTrue(cells[5], line)
+            authored_limits = {
+                question['finding']['limitation']
+                for ticket in tickets
+                for question in authored[ticket]['questions']
+            }
+            self.assertEqual(len(authored_limits), 1, tickets)
+            self.assertEqual(cells[5], authored_limits.pop(), tickets)
+            for ticket in tickets:
+                self.assertNotIn(ticket, observed, ticket)
+                observed[ticket] = cells[1]
+        self.assertEqual(observed, expected_phase)
+
+    def test_nice_mapping_matches_checked_official_receipt(self):
+        text = read('docs/learning-objectives.md')
+        objective_tables = text.split('## Objectives', 1)[1].split('## Ticket-to-role crosswalk', 1)[0]
+        actual = set()
+        for line in objective_tables.splitlines():
+            if not line.startswith('|'):
+                continue
+            roles = re.findall(r'`([A-Z]{2}-WRL-\d{3})`', line)
+            tasks = re.findall(r'\b(T\d{4})\b', line)
+            for role in roles:
+                actual.update((role, task) for task in tasks)
+
+        receipt = json.loads(read('docs/nice-components-2.2.0-mapping.json'))
+        self.assertEqual(receipt['framework_publication'].split(',', 1)[0], 'NIST SP 800-181 Rev. 1')
+        self.assertEqual(receipt['components_version'], '2.2.0')
+        self.assertEqual(
+            receipt['source_url'],
+            'https://csrc.nist.gov/csrc/media/Projects/cprt/documents/nice/v2-2-0_nf_components.json',
+        )
+        expected = {
+            (role, task)
+            for role, tasks in receipt['validated_role_task_pairs'].items()
+            for task in tasks
+        }
+        self.assertEqual(actual, expected)
+        self.assertNotIn(('PD-WRL-001', 'T1428'), actual)
 
     def test_native_evidence_index_registers_the_archive_manifest(self):
         """versions.json must name the authoritative archive manifest, not just
