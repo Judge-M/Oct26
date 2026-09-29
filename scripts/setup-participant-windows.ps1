@@ -141,7 +141,16 @@ foreach ($key in $endpoints.Keys) { $endpointResults[$key] = Test-TlsEndpoint $e
 $failed = @($endpointResults.GetEnumerator() | Where-Object { -not $_.Value } | ForEach-Object Key)
 if ($failed.Count -gt 0) { Fail "unreachable HTTPS endpoint(s): $($failed -join ', ')" }
 
+ $caAlreadyTrusted = $false
 if ($ImportCertificate -and -not $DryRun) {
+    $caAlreadyTrusted = @(
+        Get-ChildItem -Path 'Cert:\CurrentUser\Root' -ErrorAction SilentlyContinue |
+            Where-Object { $_.Thumbprint -eq $ca.Fingerprint }
+    ).Count -gt 0
+    if ($caAlreadyTrusted) {
+        # Re-running the installer is safe and silent once this exact CA is trusted.
+        Write-Verbose "CA $($ca.Fingerprint) is already trusted for the current user."
+    } else {
     if (-not $PSCmdlet.ShouldProcess('CurrentUser\TrustedRootCertificationAuthorities',
             "Import verified CA $($ca.Fingerprint)")) { Fail 'CA import was not confirmed' }
     $importPath = $caPath
@@ -155,6 +164,7 @@ if ($ImportCertificate -and -not $DryRun) {
         Import-Certificate -FilePath $importPath -CertStoreLocation 'Cert:\CurrentUser\Root' | Out-Null
     } finally {
         if ($temporaryDer -and (Test-Path -LiteralPath $temporaryDer)) { Remove-Item -LiteralPath $temporaryDer -Force }
+    }
     }
 }
 
@@ -171,7 +181,8 @@ if ($OpenTabs -and -not $DryRun -and -not $VerifyOnly) {
     ca_subject = $ca.Subject
     ca_expires_utc = $ca.NotAfter
     endpoints_verified = $endpointResults
-    ca_imported = [bool]($ImportCertificate -and -not $DryRun)
+    ca_imported = [bool]($ImportCertificate -and -not $DryRun -and -not $caAlreadyTrusted)
+    ca_already_trusted = [bool]$caAlreadyTrusted
     handoff_path = $handoff
     tabs_requested = [bool]($OpenTabs -and -not $DryRun -and -not $VerifyOnly)
 } | ConvertTo-Json -Compress
