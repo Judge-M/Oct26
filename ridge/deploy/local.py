@@ -513,7 +513,8 @@ class LocalStack:
         discovered = self._discovered()
         ports = {'crl': self.port('crl', 8080), 'iris': self.port('iris', 8081),
                  'ctfd': self.port('ctfd', 8083), 'guac': self.port('guac', 8082),
-                 'wazuh': self.port('wazuh_dashboard', 8443)}
+                 'wazuh': self.port('wazuh_dashboard', 8443),
+                 'wazuh_indexer': self.port('wazuh_indexer', 9200)}
         # Host-side publish address is a host property, not the profile's container-side
         # central_bind_ip; default loopback, override via local.json "bind_ip".
         bind = self._dashboard_bind_ip()
@@ -524,7 +525,12 @@ class LocalStack:
 
         postgres_pw = self._secret('postgres-password')
         files['iris'] = {
-            'POSTGRES_USER': 'iris', 'POSTGRES_PASSWORD': postgres_pw, 'POSTGRES_DB': 'iris_db',
+            # The pinned IRIS DB image connects as POSTGRES_USER before its
+            # init script creates POSTGRES_ADMIN_USER and switches to iris_db.
+            # POSTGRES_USER therefore must name the built-in postgres database;
+            # the application itself maps POSTGRES_ADMIN_USER to DB_USER.
+            'POSTGRES_USER': 'postgres', 'POSTGRES_PASSWORD': postgres_pw,
+            'POSTGRES_DB': 'iris_db',
             'POSTGRES_ADMIN_USER': 'iris', 'POSTGRES_ADMIN_PASSWORD': postgres_pw,
             'POSTGRES_SERVER': 'iris-db', 'POSTGRES_PORT': '5432',
             'IRIS_SECRET_KEY': self._secret('iris-secret-key'),
@@ -582,7 +588,9 @@ class LocalStack:
             'WAZUH_RUNTIME_CONFIG_DIR': self.runtime / 'wazuh-config',
             'WAZUH_ADMIN_SECRET_FILE': self.secrets_dir / 'wazuh_admin',
             'WAZUH_API_PASSWORD': self._wazuh_api_password(),
-            'BIND_IP': bind, 'WAZUH_DASHBOARD_PORT': str(ports['wazuh']),
+            'BIND_IP': bind,
+            'WAZUH_DASHBOARD_PORT': str(ports['wazuh']),
+            'WAZUH_INDEXER_PORT': str(ports['wazuh_indexer']),
         }
         files['guacamole'] = {
             'RIDGE_PROJECT': self.event,
@@ -769,11 +777,12 @@ class LocalStack:
     def _ensure_networks(self):
         """Create the external networks every compose file references.
 
-        central/desktop/wazuh-backend are declared `external: true` (they span
-        compose projects), so nothing creates them implicitly and a fresh
-        `up` fails without this step. Idempotent.
+        The central and desktop networks are declared ``external: true`` across
+        compose projects, so create those two explicitly. The Wazuh Compose
+        project owns its backend network and marks it internal; pre-creating it
+        here would silently discard that isolation setting.
         """
-        for suffix in ('-central', '-desktop', '-wazuh_wazuh-backend'):
+        for suffix in ('-central', '-desktop'):
             name = self.event + suffix
             try:
                 self._run(['docker', 'network', 'inspect', name])
@@ -811,13 +820,16 @@ class LocalStack:
         if not crl.is_file() or crl.stat().st_size == 0:
             raise LifecycleError('missing signed offline CRL at %s; rotate the event CA '
                                  'and certificates before participant setup' % crl)
-        verified = self._run([
-            'docker', 'run', '--rm', '--network', 'none', '--pull', 'never',
-            '-v', str(certs) + ':/certs:ro', '--entrypoint', 'openssl',
-            'wazuh/wazuh-manager:4.9.2', 'crl', '-in', '/certs/root-ca.crl',
-            '-inform', 'DER', '-noout', '-verify', '-CAfile', '/certs/root-ca.pem',
-        ], check=False)
-        if 'verify OK' not in verified:
+        try:
+            # OpenSSL writes ``verify OK`` to stderr, while CommandRunner returns
+            # stdout. The exit status is the portable verification contract.
+            self._run([
+                'docker', 'run', '--rm', '--network', 'none', '--pull', 'never',
+                '-v', str(certs) + ':/certs:ro', '--entrypoint', 'openssl',
+                'wazuh/wazuh-manager:4.9.2', 'crl', '-in', '/certs/root-ca.crl',
+                '-inform', 'DER', '-noout', '-verify', '-CAfile', '/certs/root-ca.pem',
+            ])
+        except CommandError:
             raise LifecycleError('offline CRL signature verification failed; rotate the '
                                  'event CA and certificates')
         expected = 'http://%s:%d/root-ca.crl' % (bind, self.port('crl', 8080))
@@ -867,9 +879,11 @@ class LocalStack:
             (guac_init / '002-provision.sql').write_text(
                 guac_module.generate(config, credentials), encoding='utf-8')
         for kind, services in INFRA_SERVICES.items():
-            if kind == 'wazuh':
-                # A running manager container can still have no Wazuh daemons.
-                # Wait for its Compose healthcheck before recording readiness.
+            if kind in ('wazuh', 'guacamole'):
+                # A running manager can still have no Wazuh daemons, and the
+                # Guacamole database/guacd need a bounded startup window before
+                # the immediate stage probe. Wait for Compose health rather than
+                # turning normal first-boot timing into a failed lifecycle step.
                 self._compose(kind, 'up', '-d', '--wait', '--wait-timeout', '300', *services)
             else:
                 self._compose(kind, 'up', '-d', *services)
@@ -899,7 +913,7 @@ class LocalStack:
     # S3 ------------------------------------------------------- applications
     def _apply_applications(self):
         for kind, services in APP_SERVICES.items():
-            self._compose(kind, 'up', '-d', *services)
+            self._compose(kind, 'up', '-d', '--wait', '--wait-timeout', '300', *services)
 
     def _probe_applications(self):
         for kind, services in APP_SERVICES.items():
@@ -990,7 +1004,8 @@ class LocalStack:
         return [team_service('team%02d' % (i + 1)) for i in range(len(self.teams))]
 
     def _apply_desktops(self):
-        self._compose('desktops', 'up', '-d', *self._desktop_services())
+        self._compose('desktops', 'up', '-d', '--wait', '--wait-timeout', '300',
+                      *self._desktop_services())
         sql = (self.runtime / 'guac-init' / '002-provision.sql').read_text(encoding='utf-8')
         self._pipe(['docker', 'compose', '--env-file', self.env_dir / 'guacamole.env',
                     '-f', COMPOSE_FILES['guacamole'], 'exec', '-T', 'database',
@@ -1136,7 +1151,7 @@ class LocalStack:
             if not self.state_path.is_file():
                 tickets = self.host.author_tickets(config)
                 self.host.state(self.state_path).initialize(config['teams'], tickets)
-        self._compose('integration', 'up', '-d')
+        self._compose('integration', 'up', '-d', '--wait', '--wait-timeout', '300')
         state = self.host.state(self.state_path)
         with state.transaction(write=False) as con:
             provisioned = con.execute('SELECT provisioned FROM control').fetchone()[0]

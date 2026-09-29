@@ -106,6 +106,7 @@ class FakeRunner:
         self.healthy = True
         self.service_health = {}
         self.certificate_matches = True
+        self.crl_valid = True
         self.connections = 0
         self.up_projects = set()
 
@@ -193,7 +194,11 @@ class FakeRunner:
             (certs / 'participant.pem').write_text('participant')
             return ''
         if argv[:2] == ['docker', 'run'] and 'crl' in argv:
-            return 'verify OK\n'
+            if not self.crl_valid and check:
+                raise deploy_local.CommandError(argv, 1, 'verify failure')
+            # Real OpenSSL writes its success message to stderr. A valid CRL
+            # therefore produces no stdout through SubprocessRunner.
+            return ''
         if argv[:2] == ['docker', 'run'] and 'x509' in argv:
             if '-ext' in argv:
                 return ('X509v3 CRL Distribution Points:\n'
@@ -258,7 +263,7 @@ def make_runtime(root):
                    'case_template': str(assets / 'case-template'),
                    'originals': str(assets / 'originals'),
                    'wazuh_config': str(assets / 'wazuh-config')},
-        'ports': {'iris': 8081, 'ctfd': 8083, 'guac': 8082, 'wazuh_indexer': 9200}}))
+        'ports': {'iris': 8081, 'ctfd': 8083, 'guac': 8082, 'wazuh_indexer': 19200}}))
     receipts = root / 'receipts'
     receipts.mkdir()
     source = 'a' * 64
@@ -333,14 +338,40 @@ class LifecycleTests(unittest.TestCase):
                     and 'up' in call and 'wazuh-manager' in call]
         self.assertEqual(len(wazuh_up), 1)
         self.assertIn('--wait', wazuh_up[0])
+        guac_up = [call for call in self.runner.calls
+                   if 'compose.guacamole.yaml' in ' '.join(call) and 'up' in call
+                   and 'database' in call]
+        self.assertEqual(len(guac_up), 1)
+        self.assertIn('--wait', guac_up[0])
+        central_apps = [call for call in self.runner.calls
+                        if 'compose.central.yaml' in ' '.join(call) and 'up' in call
+                        and 'participant-tls' in call]
+        self.assertEqual(len(central_apps), 1)
+        self.assertIn('--wait', central_apps[0])
+        desktop_up = [call for call in self.runner.calls
+                      if 'compose.desktops.yaml' in ' '.join(call) and 'up' in call]
+        self.assertEqual(len(desktop_up), 1)
+        self.assertIn('--wait', desktop_up[0])
+        integration_up = [call for call in self.runner.calls
+                          if 'compose.integration.yaml' in ' '.join(call) and 'up' in call]
+        self.assertEqual(len(integration_up), 1)
+        self.assertIn('--wait', integration_up[0])
+        network_inspects = [call[-1] for call in self.runner.calls
+                            if call[:3] == ['docker', 'network', 'inspect']]
+        self.assertEqual(network_inspects,
+                         ['silent-ridge-test-central', 'silent-ridge-test-desktop'])
         api_password = (self.runtime / 'secrets' / 'wazuh-api-password').read_text().strip()
         self.assertNotEqual(api_password, self.stack._secret('wazuh_admin').split(':', 1)[1])
         self.assertIn('<update_check>no</update_check>',
                       (self.runtime / 'wazuh-config' / 'ossec.conf').read_text())
         wazuh_env = (self.runtime / 'env' / 'wazuh.env').read_text()
         self.assertIn('WAZUH_API_PASSWORD=' + api_password, wazuh_env)
+        self.assertIn('WAZUH_INDEXER_PORT=19200', wazuh_env)
         self.assertEqual(set(result['stages']), set(LocalStack.STAGES))
         ctfd_env = (self.runtime / 'env' / 'ctfd.env').read_text(encoding='utf-8')
+        iris_env = (self.runtime / 'env' / 'iris.env').read_text(encoding='utf-8')
+        self.assertIn('POSTGRES_USER=postgres', iris_env)
+        self.assertIn('POSTGRES_ADMIN_USER=iris', iris_env)
         central_env = (self.runtime / 'env' / 'central.env').read_text(encoding='utf-8')
         for rendered in (ctfd_env, central_env):
             self.assertIn('CTFD_SESSION_COOKIE_NAME=silent_ridge_ctfd_session', rendered)
@@ -395,6 +426,12 @@ class LifecycleTests(unittest.TestCase):
         self.stack.local['bind_ip'] = '192.168.1.200'
         self.runner.certificate_matches = False
         with self.assertRaisesRegex(LifecycleError, 'certificate does not cover'):
+            self.stack.up(self.source)
+        self.assertFalse(any('up' in c and 'compose' in c for c in self.runner.calls))
+
+    def test_invalid_crl_signature_fails_closed_on_command_status(self):
+        self.runner.crl_valid = False
+        with self.assertRaisesRegex(LifecycleError, 'CRL signature verification failed'):
             self.stack.up(self.source)
         self.assertFalse(any('up' in c and 'compose' in c for c in self.runner.calls))
 

@@ -68,9 +68,10 @@ services:
         : "$${POSTGRES_USER:?Set the actual database superuser}"
         : "$${POSTGRES_PASSWORD:?Set the database password}"
         : "$${POSTGRES_DB:?Set the application database}"
-        test "$${POSTGRES_ADMIN_USER}" = "$${POSTGRES_USER}" || { echo 'POSTGRES_ADMIN_USER must match POSTGRES_USER'; exit 1; }
-        export PGPASSWORD="$${POSTGRES_PASSWORD}"
-        psql -v ON_ERROR_STOP=1 -h iris-db -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}" -c 'CREATE EXTENSION IF NOT EXISTS pgcrypto;'
+        : "$${POSTGRES_ADMIN_USER:?Set the IRIS database role}"
+        : "$${POSTGRES_ADMIN_PASSWORD:?Set the IRIS database role password}"
+        export PGPASSWORD="$${POSTGRES_ADMIN_PASSWORD}"
+        psql -v ON_ERROR_STOP=1 -h iris-db -U "$${POSTGRES_ADMIN_USER}" -d "$${POSTGRES_DB}" -c 'CREATE EXTENSION IF NOT EXISTS pgcrypto;'
     networks: [iris-backend]
     depends_on:
       iris-db: {condition: service_healthy}
