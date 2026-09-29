@@ -1,4 +1,5 @@
 pageType: content
+audience: participant
 background:
   type: solid
   color: "$paper"
@@ -6,7 +7,7 @@ elements:
   - elementId: tag
     elementType: text
     bounds: [64, 40, 400, 20]
-    content: {style: "$tag", wrap: false, text: PART 2 · YOUR SETUP}
+    content: {style: "$tag", wrap: false, text: PART 3 · YOUR SETUP}
   - elementId: title
     elementType: text
     bounds: [64, 66, 832, 40]
@@ -54,11 +55,11 @@ elements:
         - text: Walk the /evidence tree and read files directly — the simplest tool, try it first when unsure
   - elementId: hint-title
     elementType: text
-    bounds: [64, 436, 300, 22]
+    bounds: [64, 426, 300, 22]
     content: {style: "$tag", wrap: false, text: IF A TOOL FEELS FOREIGN}
   - elementId: hint-body
     elementType: text
-    bounds: [64, 460, 832, 40]
+    bounds: [64, 452, 832, 46]
     content:
       style: "$body"
       fontSize: 14
@@ -72,4 +73,4 @@ elements:
   - elementId: pagenum
     elementType: text
     bounds: [880, 505, 40, 18]
-    content: {style: "$small", align: [right, top], wrap: false, text: "10"}
+    content: {style: "$small", align: [right, top], wrap: false, text: "17"}

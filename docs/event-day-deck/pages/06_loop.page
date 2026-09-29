@@ -1,4 +1,5 @@
 pageType: content
+audience: participant
 background:
   type: solid
   color: "$paper"
@@ -6,7 +7,7 @@ elements:
   - elementId: tag
     elementType: text
     bounds: [64, 40, 400, 20]
-    content: {style: "$tag", wrap: false, text: PART 1 · THE STORY}
+    content: {style: "$tag", wrap: false, text: PART 2 · HOW THE DAY WORKS}
   - elementId: title
     elementType: text
     bounds: [64, 66, 832, 40]
@@ -128,4 +129,4 @@ elements:
   - elementId: pagenum
     elementType: text
     bounds: [880, 505, 40, 18]
-    content: {style: "$small", align: [right, top], wrap: false, text: "4"}
+    content: {style: "$small", align: [right, top], wrap: false, text: "6"}

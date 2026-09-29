@@ -1,4 +1,5 @@
 pageType: content
+audience: participant
 background:
   type: solid
   color: "$paper"
@@ -6,10 +7,10 @@ elements:
   - elementId: tag
     elementType: text
     bounds: [64, 40, 400, 20]
-    content: {style: "$tag", wrap: false, text: PART 2 · YOUR SETUP — STEP 3 OF 4}
+    content: {style: "$tag", wrap: false, text: PART 3 · YOUR SETUP — STEP 3 OF 4}
   - elementId: stepnum
     elementType: text
-    bounds: [64, 90, 110, 60]
+    bounds: [64, 90, 100, 60]
     content: {style: "$stepnum", wrap: false, text: "3"}
   - elementId: title
     elementType: text
@@ -76,4 +77,4 @@ elements:
   - elementId: pagenum
     elementType: text
     bounds: [880, 505, 40, 18]
-    content: {style: "$small", align: [right, top], wrap: false, text: "8"}
+    content: {style: "$small", align: [right, top], wrap: false, text: "15"}
