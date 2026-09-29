@@ -37,6 +37,19 @@ python -m ridge.deck_narrative            # exits non-zero on any problem
 python -m ridge.deck_narrative --report   # JSON receipt: audience split, per-phase coverage
 ```
 
+The deck is one of five participant-facing surfaces rendering from the same
+narrative contract. `ridge/narrative_consistency.py` proves the five still agree -
+that the committed slides are byte-for-byte what the contract generates, that
+every name on every surface is canon, and that nothing on the deck is a spoiler:
+
+```bash
+python -m ridge.narrative_consistency --receipt
+```
+
+It also runs inside `python -m ridge.cli preflight`. See
+[`docs/narrative-operations.md`](../narrative-operations.md) for what each failure
+means and what the check cannot see.
+
 The six hand-authored slides — the day loop, the four-tab setup, the tools table
 and the troubleshooting table — are operational instructions, not scenario prose.
 The contract has nothing to say about which button to press, so those stay
@@ -76,7 +89,14 @@ clone reports whatever order the checkout happened to write the files in.
 ### Current state
 
 The PDF in this repository is the artifact that shipped before issue #58. It
-still contains the old 13-slide deck. The narrative changes in this issue are in
+still contains the old 13-slide deck. The narrative changes in that issue are in
 the `.page` sources only, and the PDF must be rebuilt on a host that has
 `kimi-slides` before the deck is projected at an event. Until then, the sources
 are the deck of record.
+
+This is the one thing about the narrative layer that cannot be verified from a
+clean checkout, and `ridge/narrative_consistency.py` does not pretend otherwise:
+it checks the `.page` sources and the generator, and never reads the PDF. It is
+listed under known limits in
+[`docs/narrative-operations.md`](../narrative-operations.md) with the operator
+command.
