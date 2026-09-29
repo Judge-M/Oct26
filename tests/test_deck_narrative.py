@@ -222,7 +222,10 @@ class DeckNarrativeTests(unittest.TestCase):
     def test_the_secret_scan_catches_the_shapes_it_must(self):
         needles = ('password: hunter2', 'file:/etc/silent-ridge/secrets/iris-bridge',
                    '198.51.100.77', 'ctfd.example.invalid', '10.1.2.3',
-                   'ssh-rsaAAAAB3NzaC1yc2E', 'a Wraith cell', 'sponsored by the state')
+                   'ssh-rsaAAAAB3NzaC1yc2E', 'a Wraith cell', 'sponsored by the state',
+                   # A real bcrypt digest. The scan previously used a cost field in
+                   # the version slot, so it could never match one.
+                   '$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy')
         for needle in needles:
             with self.subTest(needle=needle):
                 page = deck_narrative.load_page(DECK_DIR / 'pages' / '19_rules.page')

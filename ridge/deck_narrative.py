@@ -421,7 +421,7 @@ SECRET_PATTERNS = (
     (re.compile(r'\b(?:password|passwd|secret|token|api[_-]?key|passphrase)\b\s*[:=]\s*\S',
                 re.IGNORECASE), 'a credential assignment'),
     (re.compile(r'\b(?:ssh-rsa|ssh-ed25519)AAAA'), 'an embedded public key'),
-    (re.compile(r'\$[2aby]\$\d{2}\$[A-Za-z0-9./]{10,}'), 'a password hash'),
+    (re.compile(r'\$2[abxy]?\$\d{2}\$[./A-Za-z0-9]{20,}'), 'a password hash'),
     (re.compile(r'file:/etc/silent-ridge/'), 'a private secret reference'),
     (re.compile(r'\b(?:192\.0\.2|198\.51\.100|203\.0\.113)\.\d{1,3}\b'),
      'a documentation-range host address'),
