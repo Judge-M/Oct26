@@ -54,7 +54,7 @@ from pathlib import Path
 NONCE = re.compile(r"""csrfNonce['"]?\s*[:=]\s*["']([0-9a-f]+)["']""")
 MAX_429_ATTEMPTS = 5
 MAX_429_WAIT_S = 10.0
-LOGIN_STAGGER_S = 0.5
+CTFD_LOGIN_INTERVAL_S = 6.1  # stock CTFd limit: 10 POST /login requests per 60 seconds/IP
 
 
 class LoadError(RuntimeError):
@@ -152,11 +152,21 @@ def retry_after_seconds(value, attempt):
     return min(MAX_429_WAIT_S, max(fallback, delay))
 
 
-def login_bots(bots, pause=LOGIN_STAGGER_S):
-    """Space preflight logins to avoid a burst before the timed run starts."""
-    for index, bot in enumerate(bots):
-        if index:
-            time.sleep(pause)
+def login_bots(bots):
+    """Pace login routes by their server-side rate-limit identity.
+
+    The local certifying harness originates every synthetic participant from
+    one host IP.  Stock CTFd therefore sees all 30 participant sessions in one
+    10-per-minute bucket even though event desktops would use distinct client
+    addresses.  Pace only that shared bucket before the timed workload; IRIS
+    logins remain independent.
+    """
+    seen_groups = set()
+    for bot in bots:
+        group = getattr(bot, 'login_rate_group', None)
+        interval = getattr(bot, 'login_interval_s', 0)
+        if group in seen_groups:
+            time.sleep(interval)
         try:
             bot.login()
         except urllib.error.HTTPError:
@@ -164,6 +174,8 @@ def login_bots(bots, pause=LOGIN_STAGGER_S):
         except urllib.error.URLError as exc:
             raise LoadError(f'{bot.client.base} login preflight failed; check the URL '
                             'against runtime/local.json bind_ip and published port') from exc
+        if group:
+            seen_groups.add(group)
 
 
 def resolve_target_urls(config):
@@ -226,6 +238,8 @@ class CtfdBot:
     GET /silent-ridge, the 5 s /silent-ridge/status poll, GET
     /api/v1/scoreboard, and POST /silent-ridge answers.
     """
+    login_rate_group = 'ctfd-login-by-source-ip'
+    login_interval_s = CTFD_LOGIN_INTERVAL_S
 
     def __init__(self, base, name, password, samples, ca_file=None):
         self.client = TimedClient(base, samples, ca_file)
@@ -245,7 +259,7 @@ class CtfdBot:
     def act(self, rng):
         page = self.client.request('ctfd:questions', '/silent-ridge',
                                    require_authenticated=True,
-                                   required_marker=b'name="question"')
+                                   required_marker=b'Your questions and completed shared history')
         nonces = PAGE_NONCE.findall(page)
         questions = PAGE_QUESTION.findall(page)
         roll = rng.random()
