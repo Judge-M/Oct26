@@ -104,6 +104,30 @@ participant-time compilation is required. The compiled binary is published with
 compiler/source hashes in `assets/training-binary.json`; Cutter 2.5.0 successfully
 analyzed it in the Ubuntu desktop guest (11 functions and 16 strings).
 
+## Optional breadcrumbs
+
+`assets/breadcrumbs-v1.json` declares seven small traces left across the prepared
+evidence, rendered by `expanded/prepare.py` from that one fixture and validated by
+`ridge/breadcrumbs.py`. They carry no points, no scored question names one, and
+each entry declares what it must not reveal.
+
+Delivery uses the two existing paths. Phase-1 and phase-2 breadcrumbs are written
+into the published evidence tree as `notes/<file>` and are visible at run start,
+which is correct because every ticket in those phases is unlocked at run start.
+Phase-3 and phase-4 breadcrumbs are carried in the release vault beside the
+follow-up evidence for a gated ticket and published by `ridge.evidence_release.py`
+when that ticket is delivered. That gating matters: `State.initialize` enqueues
+every ticket with no prerequisites, so a breadcrumb hung on a root ticket would be
+on the mount before any team had done anything. `ridge.breadcrumbs.check_delivery`
+refuses that, and the breadcrumb tests walk a real state to prove it.
+
+They are unattributed by design. The narrative contract forbids naming an adversary
+group, codename, operator or sponsor and T20-Q4 scores `no` for intent, so a note
+left behind is never the calling card of a named side. `facilitator/breadcrumbs.md`
+lists all seven with their locations, what they point at, and what to do when a
+team finds them. They are `.txt` files and are not ingested into the published
+prepared case or indexed into Wazuh.
+
 ## Workload
 
 20 tickets × 65 estimated team-minutes = 1,300 estimated team-minutes, or 260

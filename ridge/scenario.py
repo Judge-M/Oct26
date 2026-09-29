@@ -1,11 +1,16 @@
 """Shared incident calendar, release contract, and source-specific clock semantics."""
 from datetime import date, datetime, timedelta, timezone
 
+# Every ticket here must have prerequisites: a ticket with none is enqueued for
+# delivery at State.initialize, so its release is published at run start. The
+# phase-3 and phase-4 breadcrumbs (issue 59) ride these gates for that reason;
+# ridge.breadcrumbs.validate refuses a release breadcrumb hung on a root ticket.
 RELEASE_FILES = {
     'T07': ['identity/late-auth.csv'],
-    'T09': ['server/version-comparison.csv'],
-    'T11': ['hunting/late-inventory.csv'],
+    'T09': ['server/version-comparison.csv', 'notes/supersede-note.txt'],
+    'T11': ['hunting/late-inventory.csv', 'notes/third-machine.txt'],
     'T19': ['network/dlp-body.txt', 'network/dlp-metadata.json'],
+    'T20': ['notes/timeline-order.txt'],
 }
 DEVICE_OFFSETS = {'WS-17': 120}
 TIMELESS_SOURCES = {'hunting/coverage.csv', 'server/catalog.csv', 'server/version-comparison.csv'}

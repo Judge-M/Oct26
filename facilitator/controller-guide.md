@@ -22,3 +22,9 @@ Keep the vault, answers, credentials, participant work and full audit exports
 private. Pause and drain synchronization before the combined IRIS/CTFd/core export.
 Run the AAR before preparing a clean run. Full deployment and rehearsal readiness
 must be established using the [acceptance record](../docs/expanded-validation.md).
+
+The evidence also carries seven unscored traces left behind for issue 59. Teams
+may find them; nothing requires them and no finding should rest on one. Do not
+confirm one during the run, and never quote one in a hint. See
+[the breadcrumb note](breadcrumbs.md) for all seven, how they are released, and
+what to do with a team that finds all of them.
