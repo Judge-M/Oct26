@@ -97,8 +97,8 @@ def _require(spec: ProvisionSpec) -> None:
         names.add(user.name)
     if spec.facilitator is not None:
         if (not spec.facilitator.name or not spec.facilitator.email
-                or len(spec.facilitator.password) < 20):
-            raise ProvisionError('facilitator: name, email and strong password required')
+                or not spec.facilitator.password):
+            raise ProvisionError('facilitator: name, email and password required')
         if spec.facilitator.name in names:
             raise ProvisionError('facilitator: name collides with a participant')
 

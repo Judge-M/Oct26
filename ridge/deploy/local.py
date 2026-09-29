@@ -472,7 +472,12 @@ class LocalStack:
     # ------------------------------------------------------------- generation
 
     def _ensure_secrets(self):
-        """Generate secrets once; never rotate. A partial secrets dir is an error."""
+        """Generate event credentials once; never rotate them in place.
+
+        This is an educational exercise, so the credentials participants type
+        are intentionally memorable and consistent across services. Internal
+        API/database secrets remain generated separately.
+        """
         existing = [name for name in SECRET_FILES if (self.secrets_dir / name).is_file()]
         if existing and len(existing) != len(SECRET_FILES):
             missing = sorted(set(SECRET_FILES) - set(existing))
@@ -494,29 +499,35 @@ class LocalStack:
         vnc_dir.mkdir(exist_ok=True)
         for name in SECRET_FILES:
             (self.secrets_dir / name).write_text(self.host.randhex(24) + '\n', encoding='utf-8')
-        # Wazuh credentials are "username:password"; usernames are stable identities.
-        (self.secrets_dir / 'wazuh_admin').write_text('admin:%s' % self.host.randhex(12),
-                                                      encoding='utf-8')
-        (self.secrets_dir / 'wazuh_writer').write_text(
-            'silent-ridge-writer-account:%s' % self.host.randhex(12), encoding='utf-8')
+        # The operator account is intentionally simple for this classroom event.
+        # Keep infrastructure and bridge secrets generated below private.
+        (self.secrets_dir / 'iris-admin-password').write_text('admin\n', encoding='utf-8')
+        # Wazuh credentials are "username:password". These are the accounts
+        # shown to organizers/participants; machine-to-machine API secrets are
+        # still generated independently below.
+        (self.secrets_dir / 'wazuh_admin').write_text('admin:admin', encoding='utf-8')
+        (self.secrets_dir / 'wazuh_writer').write_text('writer:writer', encoding='utf-8')
         (self.secrets_dir / 'wazuh_reader').write_text(
-            'silent-ridge-participant-account:%s' % self.host.randhex(12), encoding='utf-8')
+            'team1:team1', encoding='utf-8')
         credentials = {'teams': {}, 'desktops': {}}
         import string
         import secrets as _secrets
         alphabet = string.ascii_letters + string.digits
         for index, team in enumerate(self.teams):
             tag = 'team%02d' % (index + 1)
+            friendly = 'team%d' % (index + 1)
             vnc = ''.join(_secrets.choice(alphabet) for _ in range(8))  # VncAuth truncates at 8
             (vnc_dir / tag).write_text(vnc + '\n', encoding='utf-8')
             credentials['teams'][team['name']] = {
-                'iris_login': team['name'],
-                'iris_password': self.host.randhex(12),
-                'ctfd_name': team['name'],
-                'ctfd_password': self.host.randhex(12),
-                'guac_username': tag,
-                'guac_password': ''.join(_secrets.choice(alphabet) for _ in range(24)),
-                'accounts': {account: self.host.randhex(12) for account in team['accounts']},
+                'iris_login': friendly,
+                'iris_password': friendly,
+                'ctfd_name': friendly,
+                'ctfd_password': friendly,
+                'guac_username': friendly,
+                'guac_password': friendly,
+                # Keep canonical roster keys for inventory compatibility, but
+                # make every member's password the team's memorable password.
+                'accounts': {account: friendly for account in team['accounts']},
             }
             credentials['desktops'][team['desktop']] = {'password': vnc}
         team_creds.write_text(json.dumps(credentials, indent=2), encoding='utf-8')
@@ -536,7 +547,7 @@ class LocalStack:
             raise LifecycleError('partial facilitator secrets; restore the runtime before '
                                  'continuing')
         for name in missing:
-            (self.secrets_dir / name).write_text(self.host.randhex(24) + '\n', encoding='utf-8')
+            (self.secrets_dir / name).write_text('admin\n', encoding='utf-8')
         marker.write_text('ready\n', encoding='utf-8')
 
     def _team_credentials(self):
@@ -731,23 +742,37 @@ class LocalStack:
                 'service_password': self.host.randhex(12),
                 'open_status': 'To do', 'closed_status': 'Done',
                 'identities': [
-                    {'team': team['name'], 'login': team['name'], 'name': team['name'],
+                    {'team': team['name'],
+                     'login': credentials['teams'][team['name']]['iris_login'],
+                     'name': credentials['teams'][team['name']]['iris_login'],
                      'password': credentials['teams'][team['name']]['iris_password']}
                     for team in self.teams],
             }
             iris_path.write_text(json.dumps(iris_spec, indent=2), encoding='utf-8')
         ctfd_path = self.specs_dir / 'ctfd-provision-spec.json'
         if not ctfd_path.is_file():
+            ctfd_users = []
+            for team in self.teams:
+                friendly = credentials['teams'][team['name']]['ctfd_name']
+                for account_index, account in enumerate(team['accounts']):
+                    # Keep the first participant login as the memorable team
+                    # name; suffix additional roster accounts predictably.
+                    login = friendly if account_index == 0 else '%s-p%02d' % (
+                        friendly, account_index + 1)
+                    ctfd_users.append({
+                        'name': login,
+                        'email': '%s@silent-ridge.invalid' % login,
+                        'team': team['name'],
+                        'password': credentials['teams'][team['name']]['accounts'][account],
+                    })
             ctfd_spec = {
-                'teams': [{'team': team['name'], 'name': team['name'],
+                'teams': [{'team': team['name'],
+                           'name': credentials['teams'][team['name']]['ctfd_name'],
                            'password': credentials['teams'][team['name']]['ctfd_password']}
                           for team in self.teams],
-                'users': [{'name': account, 'email': '%s@silent-ridge.invalid' % account,
-                           'team': team['name'],
-                           'password': credentials['teams'][team['name']]['accounts'][account]}
-                          for team in self.teams for account in team['accounts']],
+                'users': ctfd_users,
                 'user_mode': 'teams', 'registration_visible': False, 'schema': 'ctfd-3.7.7',
-                'facilitator': {'name': 'ridge-facilitator',
+                'facilitator': {'name': 'admin',
                                 'email': 'facilitator@silent-ridge.invalid',
                                 'password': self._secret('ctfd-facilitator-password')},
             }
@@ -772,7 +797,7 @@ class LocalStack:
                           for tag, team in zip((t['id'] for t in guac_config['teams']), self.teams)},
                 'desktops': {name: {'password': credentials['desktops'][name]['password']}
                              for name in credentials['desktops']},
-                'facilitator': {'username': 'ridge-facilitator',
+                'facilitator': {'username': 'admin',
                                 'password': self._secret('guac-facilitator-password')},
             }, indent=2), encoding='utf-8')
 

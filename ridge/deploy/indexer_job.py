@@ -24,8 +24,13 @@ SECRETS = Path('/secrets')
 EVIDENCE = Path('/evidence')
 BASE = os.environ.get('WAZUH_INDEXER_URL', 'https://wazuh-indexer:9200').rstrip('/')
 
-WRITER_ACCOUNT = 'silent-ridge-writer-account'
-READER_ACCOUNT = 'silent-ridge-participant-account'
+def _credential_parts(name):
+    """Read a generated ``username:password`` secret without hard-coded names."""
+    value = (SECRETS / name).read_text(encoding='utf-8').strip()
+    username, separator, password = value.partition(':')
+    if not separator or not username or not password:
+        raise SystemExit('invalid %s credential format' % name)
+    return username, password
 
 
 def _transport(credential):
@@ -60,10 +65,10 @@ def _apply(index_name):
     from ridge.wazuh_provision import (READER_ROLE, WRITER_ROLE, UserSpec,
                                        apply_plan, build_plan)
     admin = (SECRETS / 'wazuh_admin').read_text(encoding='utf-8').strip()
-    writer_pw = (SECRETS / 'wazuh_writer').read_text(encoding='utf-8').strip().split(':', 1)[1]
-    reader_pw = (SECRETS / 'wazuh_reader').read_text(encoding='utf-8').strip().split(':', 1)[1]
-    users = [UserSpec(WRITER_ACCOUNT, writer_pw, WRITER_ROLE),
-             UserSpec(READER_ACCOUNT, reader_pw, READER_ROLE)]
+    writer_name, writer_pw = _credential_parts('wazuh_writer')
+    reader_name, reader_pw = _credential_parts('wazuh_reader')
+    users = [UserSpec(writer_name, writer_pw, WRITER_ROLE),
+             UserSpec(reader_name, reader_pw, READER_ROLE)]
     plan = [r for r in build_plan(index_name, users) if not r.path.startswith('/api/')]
     call = _transport(admin)
 
