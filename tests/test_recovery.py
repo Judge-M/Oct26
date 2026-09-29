@@ -56,6 +56,21 @@ class CipherRuntimeTests(unittest.TestCase):
                         source, Path(folder) / 'output')
 
 
+class VolumeArchiveRuntimeTests(unittest.TestCase):
+    def test_restore_runs_as_root_offline_and_uses_safe_tar_filter(self):
+        calls = []
+        recovery._volume_untar(calls.append, 'event-ctfd-logs',
+                               Path('backup') / 'event-ctfd-logs.tar.gz')
+        self.assertEqual(calls[0], ['docker', 'volume', 'create', 'event-ctfd-logs'])
+        command = calls[1]
+        self.assertIn('--pull', command)
+        self.assertIn('never', command)
+        self.assertIn('--network', command)
+        self.assertIn('none', command)
+        self.assertEqual(command[command.index('--user') + 1], '0:0')
+        self.assertIn("filter='data'", command[command.index('-c') + 1])
+
+
 def make_stack(case):
     runtime, receipts, source = make_runtime(case.tmp.name)
     runner = FakeRunner(runtime, receipts)
@@ -189,6 +204,12 @@ class RestoreRefusalTests(unittest.TestCase):
         self.assertTrue((runtime / 'state' / 'state.sqlite').is_file())
         self.assertTrue((runtime / 'secrets' / 'team-credentials.json').is_file())
         self.assertTrue((runtime / 'specs' / 'iris-bootstrap-spec.json').is_file())
+        self.assertTrue((runtime / 'wazuh-config' / 'internal_users.yml').is_file())
+        self.assertTrue((runtime / 'wazuh-config' / 'ossec.conf').is_file())
+        central_wait_start = [call for call in self.runner.calls
+                              if 'compose.central.yaml' in ' '.join(call)
+                              and call[-4:] == ['up', '-d', 'ctfd-cache', 'rabbitmq']]
+        self.assertEqual(len(central_wait_start), 1)
 
     def test_restore_recreates_effective_team_override_from_manifest(self):
         source_runtime, receipts, source = make_runtime(Path(self.tmp.name) / 'ten-source')
