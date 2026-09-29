@@ -1,8 +1,12 @@
 """N5 semantics: recovery-set completeness (D02), restore refusals and happy path
 (D03), retention pruning of verified sets (D04), and active-site fencing (F01)."""
 import json
+import os
 import sqlite3
+import tempfile
 import unittest
+from types import SimpleNamespace
+from unittest.mock import patch
 
 from pathlib import Path
 
@@ -12,6 +16,44 @@ from ridge.state import Conflict, State
 from test_deploy_lifecycle import (FakeCipher, FakeHost, FakeRunner, fake_export_job,
                                    make_profile, make_runtime)
 from ridge.deploy.local import LocalStack
+
+
+class CipherRuntimeTests(unittest.TestCase):
+    def test_offline_docker_cipher_keeps_key_out_of_command(self):
+        with tempfile.TemporaryDirectory() as folder:
+            source = Path(folder) / 'secrets.tar.gz'
+            destination = Path(folder) / 'secrets.tar.gz.enc'
+            source.write_bytes(b'disposable secret archive')
+            calls = []
+
+            def runner(argv, **kwargs):
+                calls.append((argv, kwargs))
+                return SimpleNamespace(returncode=0, stderr='')
+
+            with patch.dict(os.environ, {'RIDGE_BACKUP_KEY': 'disposable-test-key-12345'}), \
+                    patch('ridge.deploy.recovery.shutil.which', return_value=None):
+                recovery.Cipher(runner=runner).encrypt(source, destination)
+            command, options = calls[0]
+            self.assertEqual(command[:5], ['docker', 'run', '--rm', '--pull', 'never'])
+            self.assertIn('--network', command)
+            self.assertIn('none', command)
+            self.assertIn('--read-only', command)
+            self.assertIn('--env', command)
+            self.assertIn('RIDGE_BACKUP_KEY', command)
+            self.assertIn('silent-ridge-integration:dev', command)
+            self.assertIn('/source/secrets.tar.gz', command)
+            self.assertIn('/destination/secrets.tar.gz.enc', command)
+            self.assertNotIn('disposable-test-key-12345', ' '.join(command))
+            self.assertEqual(options['env']['RIDGE_BACKUP_KEY'], 'disposable-test-key-12345')
+
+    def test_cipher_refuses_missing_key_before_running_docker(self):
+        with tempfile.TemporaryDirectory() as folder:
+            source = Path(folder) / 'input'
+            source.write_bytes(b'x')
+            with patch.dict(os.environ, {'RIDGE_BACKUP_KEY': ''}):
+                with self.assertRaisesRegex(recovery.RecoveryError, 'RIDGE_BACKUP_KEY'):
+                    recovery.Cipher(runner=lambda *args, **kwargs: self.fail('ran Docker')).encrypt(
+                        source, Path(folder) / 'output')
 
 
 def make_stack(case):

@@ -99,6 +99,10 @@ python -m ridge.deploy status --profile event-profile.json --runtime R   # expec
 Before the event, set and securely retain `RIDGE_BACKUP_KEY` (at least 16
 characters). Doctor reports a missing key; backup and restore require the same
 value. Do not put it in `local.json`, the repository or the recovery set.
+On Windows, backup and restore run OpenSSL from the already loaded
+`silent-ridge-integration:dev` image with no network or image pull; a host
+`openssl.exe` installation is not required. Keep the exact image and backup
+key available during recovery.
 Hand out team accounts from `R/secrets/team-credentials.json` and the shared
 Wazuh reader login from `R/secrets/wazuh_reader`.
 
