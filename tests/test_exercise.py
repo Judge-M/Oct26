@@ -16,6 +16,7 @@ import zipfile
 from contextlib import closing
 from datetime import datetime, timedelta
 from pathlib import Path
+from unittest import mock
 
 REPO=Path(__file__).resolve().parents[1]
 sys.path[:0]=[str(REPO/'app'),str(REPO/'scripts')]
@@ -200,6 +201,25 @@ class RuntimeTests(unittest.TestCase):
         ticket=json.loads(self.request('/api/tickets','server')[1])[0]
         self.assertEqual(len(ticket['comments']),6)
         self.assertEqual(ticket['status'],'Assessment sent')
+
+    def test_ticket_reads_do_not_run_schema_initialization(self):
+        with mock.patch.object(server, 'initialize_database',
+                               side_effect=AssertionError('request attempted schema initialization')):
+            self.assertEqual(self.request('/api/tickets')[0], 200)
+            self.assertEqual(self.request('/api/tickets')[0], 200)
+
+    def test_ticket_read_connection_is_read_only(self):
+        with closing(server.connect_database(self.runtime/'state', readonly=True)) as con:
+            self.assertEqual(con.execute('PRAGMA query_only').fetchone()[0], 1)
+            with self.assertRaises(sqlite3.OperationalError):
+                con.execute("UPDATE tickets SET status='Closed'")
+
+    def test_ticket_read_database_error_is_controlled(self):
+        with mock.patch.object(server, 'connect_database',
+                               side_effect=sqlite3.OperationalError('database is busy')):
+            status, body = self.request('/api/tickets')
+        self.assertEqual(status, 503)
+        self.assertEqual(json.loads(body)['error'], 'Ticket data is temporarily busy; retry shortly')
 
     def test_updates_rejected_before_start_and_while_paused(self):
         payload={'ticket':1,'body':'premature','status':'Closed'}
