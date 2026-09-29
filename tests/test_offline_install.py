@@ -212,8 +212,8 @@ class InstallTests(unittest.TestCase):
         self.assertEqual(set(local['assets']),
                          {'evidence_public', 'release_vault', 'case_template',
                           'originals', 'wazuh_config'})
-        self.assertEqual(local['assets']['evidence_public'],
-                         str(self.dest / 'assets/evidence-public'))
+        self.assertTrue(Path(local['assets']['evidence_public']).samefile(
+            self.dest / 'assets/evidence-public'))
         for component in ('integration', 'iris', 'ctfd', 'desktop'):
             path = self.dest / 'source/work/build-receipts' / (component + '.json')
             self.assertTrue(path.is_file())
