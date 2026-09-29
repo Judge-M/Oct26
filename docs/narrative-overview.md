@@ -277,6 +277,18 @@ makes the check exit 1 and name the file and line.
 no six-content-word run is not caught by that guard; the exact provenance checks
 are what cover an inventing surface.
 
+**A second validator covers the learning objectives.**
+`python -m ridge.learning_objectives` checks
+`docs/learning-objectives.md` against the tree: that every ticket is claimed by an
+objective, that T12 is documented against the *timeless* Wazuh view, that only T04
+takes the 120-second device correction, that quoted ticket titles are current, and
+that the two acquisition dates are stated and distinct. The document is rendered
+from `assets/learning-objectives-v1.json`, so it cannot drift the way the three
+participant surfaces previously did. Its NICE Framework mapping is **gated
+closed** — the identifiers could not be verified against NICE 4.0, so the
+document says so rather than asserting them, and the gate is a status a
+facilitator reads in the preflight receipt.
+
 ## 11. Where the answers are
 
 `expanded/author.py` - `SPECS` (question and answer pairs and the unlock graph),
