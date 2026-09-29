@@ -58,10 +58,11 @@ mechanism; there is no report, grading or approval gate.
 
 ## Objectives
 
-### LO1 — Normalize and correlate time across heterogeneous sources
+### LO1 — Interpret source time and preserve provenance across records
 
-Reconstruct a single UTC timeline from sources with different clocks and
-conventions, recording every correction and never editing the source.
+Correlate records while preserving whether each time is a normalized event time,
+a `device_time` that needs correction, an undated coverage fact or an actual
+acquisition time, recording every correction and never editing the source.
 
 | Work role | Tasks |
 |---|---|
@@ -73,9 +74,10 @@ already normalized. Only `T04` applies the documented 120-second WS-17 device
 correction. `T12` reports that offset from an undated coverage record in
 `silent-ridge-timeless`; it does not apply the correction or use an absolute time
 range. `T13`/`T14` instead read the separate native Windows reconstruction captured
-on **2026-09-15**, whose `assets/native-windows-v1/manifest.json` records **actual
-acquisition UTC** rather than the fictional 2026-10-15 scenario time; the historical
-offset must not be applied to those acquisition timestamps. `expanded/guides.md`
+at **2026-09-15T23:22:04.3517080Z**, whose
+`assets/native-windows-v1/manifest.json` records **actual acquisition UTC** rather
+than the fictional 2026-10-15 scenario time; the historical offset must not be
+applied to those acquisition timestamps. `expanded/guides.md`
 instructs participants to correct only `device_time` and never to re-correct
 normalized or acquisition records; the authored findings record the correction or
 its absence.
@@ -172,10 +174,11 @@ adversary intent are established. Each finding's `limitation` records the bounda
 **Achievement evidence.** A scope position that distinguishes disclosed from denied
 objects, names the gaps, and avoids an enterprise-wide all-clear or an intent claim.
 
-### LO6 — Hunt across the enterprise with an explicit coverage model
+### LO6 — Test scope hypotheses against coverage and uncertainty
 
-Test competing hypotheses about scope with reproducible queries and state where no
-conclusion is possible.
+Use reproducible queries to test competing scope hypotheses against the supplied
+collection model, and keep systems unresolved where coverage cannot support a
+conclusion.
 
 | Work role | Tasks |
 |---|---|
@@ -236,20 +239,26 @@ AAR improvement items with an owner, target rehearsal date and success criterion
 
 ## Ticket-to-role crosswalk
 
-Twenty tickets group by tool and theme. The primary role is the strongest match; the
-tool is the analysis mechanism.
+Twenty tickets group by tool and theme. The phase axis comes from the four
+authoritative phases in `ridge/scenario_narrative_v1.json`; each row stays within one
+phase. The primary role is the strongest match, the tool is the analysis mechanism,
+and the final column states the boundary that must survive into the finding.
 
-| Tickets | Tool / theme | Primary work role | Supporting roles |
-|---|---|---|---|
-| `T01`, `T02` | Wireshark — packet and DNS correlation | Defensive Cybersecurity `PD-WRL-001` | Digital Forensics `PD-WRL-002` |
-| `T03`, `T04`, `T05`, `T08` | Autopsy — disk, browser, persistence, access | Digital Forensics `PD-WRL-002` | Defensive Cybersecurity `PD-WRL-001` |
-| `T13`, `T14` | Autopsy — “Inspect acquired process-log records”; “Inspect acquired task-log records” | Digital Forensics `PD-WRL-002` | Incident Response `PD-WRL-003` |
-| `T15`, `T16` | Autopsy — “Inspect the prepared memory process tree”; “Correlate the acquired connection snapshot” (`T16` is not a validated memory connection) | Digital Forensics `PD-WRL-002` | Incident Response `PD-WRL-003` |
-| `T06`, `T07` | Wazuh — session and credential actions | Incident Response `PD-WRL-003` | Insider Threat Analysis `PD-WRL-005`; Defensive Cybersecurity `PD-WRL-001` |
-| `T09`, `T19` | File manager — version and payload comparison | Defensive Cybersecurity `PD-WRL-001` | Vulnerability Analysis `PD-WRL-007` |
-| `T10`, `T11`, `T12` | Wazuh — hunting and coverage | Threat Analysis `PD-WRL-006` | Defensive Cybersecurity `PD-WRL-001`; Insider Threat Analysis `PD-WRL-005` |
-| `T20` | Cross-source synthesis — limits of the overall exposure conclusion | Incident Response `PD-WRL-003` | Defensive Cybersecurity `PD-WRL-001`; Threat Analysis `PD-WRL-006` |
-| `T17`, `T18` | Cutter — static binary inspection | Digital Forensics `PD-WRL-002` | Vulnerability Analysis `PD-WRL-007` |
+| Tickets | Scenario phase | Tool / theme | Primary work role | Supporting roles | Evidence limitation |
+|---|---|---|---|---|---|
+| `T01`, `T02` | Phase 1 — Establish the disclosure path | Wireshark — packet and DNS correlation | Defensive Cybersecurity `PD-WRL-001` | Digital Forensics `PD-WRL-002` | Outer collector addresses are not incident endpoints; packets establish recorded transfer details, not human intent. |
+| `T03`, `T04`, `T05` | Phase 1 — Establish the disclosure path | Autopsy — browser, persistence and deleted cache | Digital Forensics `PD-WRL-002` | Defensive Cybersecurity `PD-WRL-001` | The prepared case supports historical reconstruction, not live acquisition; only `device_time` receives the documented correction. |
+| `T06`, `T07` | Phase 2 — Test identity and access explanations | Wazuh — session and credential actions | Incident Response `PD-WRL-003` | Insider Threat Analysis `PD-WRL-005`; Defensive Cybersecurity `PD-WRL-001` | An IP address is not identity, and a password reset does not revoke an already issued session. |
+| `T08` | Phase 2 — Test identity and access explanations | Autopsy — document and roster access | Digital Forensics `PD-WRL-002` | Defensive Cybersecurity `PD-WRL-001` | HTTP 403 with zero response bytes does not establish roster disclosure. |
+| `T09` | Phase 2 — Test identity and access explanations | File manager — superseding movement information | Defensive Cybersecurity `PD-WRL-001` | Vulnerability Analysis `PD-WRL-007` | A newer v4 supersedes v3 operationally; it does not erase evidence that v3 was transmitted. |
+| `T10` | Phase 2 — Test identity and access explanations | Wazuh — benign comparator | Threat Analysis `PD-WRL-006` | Defensive Cybersecurity `PD-WRL-001`; Insider Threat Analysis `PD-WRL-005` | The approved WS-22 comparator supports a conclusion about WS-22 only. |
+| `T11`, `T12` | Phase 3 — Define scope and collection limits | Wazuh — unresolved lead and coverage | Threat Analysis `PD-WRL-006` | Defensive Cybersecurity `PD-WRL-001`; Insider Threat Analysis `PD-WRL-005` | Coverage gaps keep WS-31 unresolved; `T12` coverage records are timeless facts. |
+| `T13`, `T14` | Phase 3 — Define scope and collection limits | Autopsy — “Inspect acquired process-log records”; “Inspect acquired task-log records” | Digital Forensics `PD-WRL-002` | Incident Response `PD-WRL-003` | Actual native acquisition times are not historical incident times and receive no scenario clock correction. |
+| `T15` | Phase 3 — Define scope and collection limits | Autopsy — “Inspect the prepared memory process tree” | Digital Forensics `PD-WRL-002` | Incident Response `PD-WRL-003` | The prepared memory tree supports process ancestry and arguments, not network activity or execution intent. |
+| `T16` | Phase 4 — Correlate and state the defensible conclusion | Autopsy — “Correlate the acquired connection snapshot” | Digital Forensics `PD-WRL-002` | Incident Response `PD-WRL-003` | This is a guest-loopback live snapshot, not a validated memory connection, Internet traffic or proof of human receipt. |
+| `T17`, `T18` | Phase 4 — Correlate and state the defensible conclusion | Cutter — static binary inspection | Digital Forensics `PD-WRL-002` | Vulnerability Analysis `PD-WRL-007` | Static strings and branches do not establish that network or branch behavior executed. |
+| `T19` | Phase 4 — Correlate and state the defensible conclusion | File manager — payload/hash comparison | Defensive Cybersecurity `PD-WRL-001` | Vulnerability Analysis `PD-WRL-007` | A matching payload hash and HTTP acknowledgment support transmission, not human receipt. |
+| `T20` | Phase 4 — Correlate and state the defensible conclusion | Cross-source synthesis — limits of the overall exposure conclusion | Incident Response `PD-WRL-003` | Defensive Cybersecurity `PD-WRL-001`; Threat Analysis `PD-WRL-006` | The conclusion is bounded by supplied evidence, denied requests and documented collection gaps. |
 
 ## How the after-action review revisits the objectives
 
@@ -258,7 +267,7 @@ IRIS findings for discussion. Each AAR prompt exercises one or more objectives:
 
 | AAR prompt | Objectives most exercised |
 |---|---|
-| How clock normalization or a cross-source correlation changed an assessment | LO1, LO2 |
+| How source-time interpretation or a cross-source correlation changed an assessment | LO1, LO2 |
 | What versions, sessions, denied accesses and collection gaps establish | LO2, LO4, LO5 |
 | Which uncertainties remain and what further evidence would resolve them | LO5, LO6 |
 | Whether shared findings and ownership transfers helped other teams | LO7, LO8 |

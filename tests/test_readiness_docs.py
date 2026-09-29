@@ -33,13 +33,23 @@ class ReadinessDocumentTests(unittest.TestCase):
 
     def test_native_acquisition_and_connection_claims_are_precise(self):
         text = read('docs/learning-objectives.md')
-        self.assertIn('actual\nacquisition UTC', text)
+        self.assertRegex(text, r'actual\s+acquisition UTC')
         self.assertIn('not a validated memory connection', text)
         self.assertNotIn('exactly-once', text.lower())
         self.assertNotIn('native Windows EVTX and memory sources and\nready-to-open Autopsy cases are still required', text)
 
     def test_learning_objectives_match_current_ticket_semantics(self):
         text = read('docs/learning-objectives.md')
+        self.assertIn(
+            '### LO1 — Interpret source time and preserve provenance across records',
+            text,
+        )
+        self.assertIn(
+            '### LO6 — Test scope hypotheses against coverage and uncertainty',
+            text,
+        )
+        self.assertNotIn('Normalize and correlate time across heterogeneous sources', text)
+        self.assertNotIn('Hunt across the enterprise', text)
         objectives = text.split('## Objectives', 1)[1].split('## Ticket-to-role crosswalk', 1)[0]
         mechanisms = '\n'.join(re.findall(
             r'\*\*Mechanism\.\*\*(.*?)(?=\n\n\*\*Achievement evidence\.\*\*)',
@@ -66,10 +76,36 @@ class ReadinessDocumentTests(unittest.TestCase):
         self.assertIn('`/evidence` and `/originals` stay mounted read-only', text)
         self.assertIn('`original_path`', text)
         self.assertIn('`original_sha256`', text)
+        native_manifest = json.loads(read('assets/native-windows-v1/manifest.json'))
+        self.assertIn(native_manifest['capture']['capture_time_utc'], text)
 
         workload = workload_summary(list(tickets.values()), teams=10, target_minutes=270)
         self.assertIn(f"{workload['makespan_minutes']}-minute simulated makespan", text)
         self.assertIn(f"{workload['target_minutes']}-minute planning midpoint", text)
+
+    def test_ticket_crosswalk_uses_authoritative_phases_and_explicit_limits(self):
+        text = read('docs/learning-objectives.md')
+        crosswalk = text.split('## Ticket-to-role crosswalk', 1)[1].split(
+            '## How the after-action review', 1
+        )[0]
+        narrative = json.loads(read('ridge/scenario_narrative_v1.json'))
+        expected_phase = {
+            ticket: phase['title']
+            for phase in narrative['phases']
+            for ticket in phase['tickets']
+        }
+        observed = {}
+        for line in crosswalk.splitlines():
+            if not line.startswith('| `T'):
+                continue
+            cells = [cell.strip() for cell in line.strip().strip('|').split('|')]
+            tickets = re.findall(r'`(T\d{2})`', cells[0])
+            self.assertTrue(cells[5], line)
+            self.assertNotIn('machine-enforced', cells[5].lower())
+            for ticket in tickets:
+                self.assertNotIn(ticket, observed, ticket)
+                observed[ticket] = cells[1]
+        self.assertEqual(observed, expected_phase)
 
     def test_nice_mapping_matches_checked_official_receipt(self):
         text = read('docs/learning-objectives.md')
