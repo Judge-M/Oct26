@@ -142,6 +142,28 @@ class RestoreRefusalTests(unittest.TestCase):
                              self.runner, cipher=FakeCipher(), receipts=self.receipts)
         self.assertIn('still running', str(ctx.exception))
 
+    def test_preexisting_event_volume_refused_before_runtime_materialization(self):
+        stale = 'silent-ridge-test-desktops_team01-workspace'
+        self.runner.volume_names.add(stale)
+        runtime = self.clean_runtime()
+        with self.assertRaisesRegex(recovery.RecoveryError, 'stale data'):
+            recovery.restore(make_profile(), runtime, self.set_dir, self.runner,
+                             cipher=FakeCipher(), receipts=self.receipts)
+        self.assertEqual([p.name for p in runtime.iterdir()], ['local.json'])
+
+    def test_restore_refuses_non_neutral_roster_mismatch(self):
+        manifest_path = self.set_dir / 'manifest.json'
+        manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
+        manifest['teams'] = ['associate-renamed-a', 'associate-renamed-b']
+        manifest_path.write_text(json.dumps(manifest, indent=2), encoding='utf-8')
+        recovery._write_sums(self.set_dir)
+        runtime = self.clean_runtime()
+        self.runner.volume_names.clear()
+        with self.assertRaisesRegex(recovery.RecoveryError, 'original event profile'):
+            recovery.restore(make_profile(), runtime, self.set_dir, self.runner,
+                             cipher=FakeCipher(), receipts=self.receipts)
+        self.assertEqual([p.name for p in runtime.iterdir()], ['local.json'])
+
     def test_wrong_release_refused(self):
         with self.assertRaises(recovery.RecoveryError) as ctx:
             recovery.restore(make_profile(), self.clean_runtime(), self.set_dir,
@@ -159,6 +181,7 @@ class RestoreRefusalTests(unittest.TestCase):
 
     def test_restore_happy_path_leaves_paused(self):
         runtime = self.clean_runtime()
+        self.runner.volume_names.clear()
         result = recovery.restore(make_profile(), runtime, self.set_dir, self.runner,
                                   host=FakeHost(runtime), cipher=FakeCipher(),
                                   receipts=self.receipts, release_fingerprint=self.source)
@@ -166,6 +189,51 @@ class RestoreRefusalTests(unittest.TestCase):
         self.assertTrue((runtime / 'state' / 'state.sqlite').is_file())
         self.assertTrue((runtime / 'secrets' / 'team-credentials.json').is_file())
         self.assertTrue((runtime / 'specs' / 'iris-bootstrap-spec.json').is_file())
+
+    def test_restore_recreates_effective_team_override_from_manifest(self):
+        source_runtime, receipts, source = make_runtime(Path(self.tmp.name) / 'ten-source')
+        (source_runtime / 'overrides.json').write_text(
+            json.dumps({'team_count': 10}), encoding='utf-8')
+        profile = make_profile()
+        profile['capacity']['central']['memory_mib'] = 6144
+        profile['capacity']['desktop'].update(
+            {'vcpus': 1, 'memory_mib': 2048, 'disk_gib': 15})
+        runner = FakeRunner(source_runtime, receipts)
+        source_stack = LocalStack(profile, source_runtime, runner,
+                                  host=FakeHost(source_runtime), receipts=receipts)
+        source_stack.cipher = FakeCipher()
+        source_stack.export_job = fake_export_job
+        source_stack.up(source)
+        drain(source_stack)
+        recovery_set = Path(source_stack.backup()['recovery_set'])
+        runtime = Path(self.tmp.name) / 'ten-restore'
+        runtime.mkdir()
+        (runtime / 'local.json').write_text(
+            (source_runtime / 'local.json').read_text(encoding='utf-8'), encoding='utf-8')
+        runner.volume_names.clear()
+        result = recovery.restore(profile, runtime, recovery_set, runner,
+                                  host=FakeHost(runtime), cipher=FakeCipher(),
+                                  receipts=receipts, release_fingerprint=source)
+        self.assertEqual(result['mode'], 'paused')
+        self.assertEqual(json.loads((runtime / 'overrides.json').read_text()),
+                         {'team_count': 10})
+        restored = LocalStack(profile, runtime, runner,
+                              host=FakeHost(runtime), receipts=receipts)
+        self.assertEqual(len(restored.teams), 10)
+
+    def test_restore_replaces_asset_trees_instead_of_overlaying(self):
+        runtime = self.clean_runtime()
+        local = json.loads((runtime / 'local.json').read_text(encoding='utf-8'))
+        evidence = Path(local['assets']['evidence_public'])
+        vault = Path(local['assets']['release_vault'])
+        (evidence / 'stale-only.txt').write_text('must disappear', encoding='utf-8')
+        (vault / 'stale-only.txt').write_text('must disappear', encoding='utf-8')
+        self.runner.volume_names.clear()
+        recovery.restore(make_profile(), runtime, self.set_dir, self.runner,
+                         host=FakeHost(runtime), cipher=FakeCipher(),
+                         receipts=self.receipts, release_fingerprint=self.source)
+        self.assertFalse((evidence / 'stale-only.txt').exists())
+        self.assertFalse((vault / 'stale-only.txt').exists())
 
 
 class FencingTests(unittest.TestCase):

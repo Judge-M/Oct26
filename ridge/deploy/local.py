@@ -1401,22 +1401,27 @@ class LocalStack:
             for kind in ('integration', 'desktops', 'guacamole', 'central', 'wazuh'):
                 if volumes:
                     # Remove containers and networks so volume removal is possible.
-                    self._compose(kind, 'down', check=False)
+                    self._compose(kind, 'down')
                 else:
                     self._compose(kind, 'stop', check=False)
                 stopped.append(kind)
-            journal.set_state('STOPPED')
             removed = []
             if volumes:
-                names = recovery.data_volumes(self.event) + \
-                    recovery.team_volumes(self.event, self.teams) + [
-                        self.event + '-iris-db', self.event + '-ctfd-db',
-                        self.event + '-guacamole-database',
-                        self.event + '-wazuh_wazuh-indexer-data',
-                        self.event + '-wazuh_wazuh-manager-data']
+                names = recovery.event_volumes(self.event, self.teams)
+                before = set(self._run(
+                    ['docker', 'volume', 'ls', '--format', '{{.Name}}']).splitlines())
                 for name in names:
-                    self._run(['docker', 'volume', 'rm', '-f', name], check=False)
-                    removed.append(name)
+                    if name in before:
+                        self._run(['docker', 'volume', 'rm', '-f', name])
+                after = set(self._run(
+                    ['docker', 'volume', 'ls', '--format', '{{.Name}}']).splitlines())
+                remaining = sorted(after.intersection(names))
+                if remaining:
+                    raise LifecycleError('down --volumes failed: event-owned volumes remain '
+                                         '(%s); restore is unsafe until they are removed'
+                                         % ', '.join(remaining[:3]))
+                removed = [name for name in names if name in before]
+            journal.set_state('STOPPED')
             return {'state': 'STOPPED', 'projects': stopped, 'volumes_removed': removed}
 
     def backup(self):
