@@ -297,22 +297,19 @@ def outbox_depth(state_sqlite):
     writer (observed as integration 503s). Byte-copy first; a mid-write copy
     may fail to read, which reports None rather than touching the writer.
     """
-    for query in ("SELECT COUNT(*) FROM outbox WHERE delivered IS NULL",
-                  'SELECT COUNT(*) FROM outbox'):
+    try:
+        with tempfile.NamedTemporaryFile(suffix='.sqlite', delete=False) as tmp:
+            shutil.copyfile(state_sqlite, tmp.name)
         try:
-            with tempfile.NamedTemporaryFile(suffix='.sqlite', delete=False) as tmp:
-                shutil.copyfile(state_sqlite, tmp.name)
+            db = sqlite3.connect(f'file:{tmp.name}?mode=ro', uri=True, timeout=1)
             try:
-                db = sqlite3.connect(f'file:{tmp.name}?mode=ro', uri=True, timeout=1)
-                try:
-                    return db.execute(query).fetchone()[0]
-                finally:
-                    db.close()
+                return db.execute('SELECT COUNT(*) FROM outbox WHERE done=0').fetchone()[0]
             finally:
-                os.unlink(tmp.name)
-        except (OSError, sqlite3.OperationalError, sqlite3.DatabaseError):
-            continue
-    return None
+                db.close()
+        finally:
+            os.unlink(tmp.name)
+    except (OSError, sqlite3.OperationalError, sqlite3.DatabaseError):
+        return None
 
 
 def sample_containers(containers, stop, out, interval=5.0):
