@@ -146,10 +146,19 @@ unless you set `BIND_IP`):
 
 | What | Where |
 |---|---|
-| Team desktops (Guacamole) | `http://<host>:8082` |
-| IRIS incident case | `http://<host>:8081` |
-| CTFd questions and score | `http://<host>:8083` |
+| Team desktops (Guacamole) | `https://<host>:8082` |
+| IRIS incident case | `https://<host>:8081` |
+| CTFd questions and score | `https://<host>:8083` |
 | Wazuh dashboard | `https://<host>:8443` |
+
+On a fresh event runtime, classroom credentials are intentionally easy to read
+aloud: the organizer uses `admin` / `admin`, and team N uses `teamN` / `teamN`
+across IRIS, CTFd, Guacamole and the Wazuh reader account. The values remain
+private in `R/secrets`; do not commit or publish them.
+Existing runtimes retain their generated credentials when upgraded. Export the
+participant CA after `up` and install it on participant machines using
+[`docs/participant-ca-trust.md`](docs/participant-ca-trust.md) before opening
+these HTTPS URLs.
 
 ## Running the event
 
