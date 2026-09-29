@@ -93,71 +93,55 @@ time python -m ridge.offline_install work/bundle work/install \
 ```
 
 This verifies every hash, loads the manifest's images into Docker, extracts the
-source to `work/install`, and prints a receipt. Any corruption fails here,
+source to `work/install/source`, materializes the five asset trees, creates the
+four custom-image build receipts required by `up`, and prints a receipt. Any corruption fails here,
 before anything is half-installed — re-running is always safe.
 The receipt records the verified source archive SHA-256. Use the installed
 `work/install/source` tree; do not replace it with a loose working copy.
 
-## 5. Extract the content assets (2 min)
+## 5. Enter the installed source tree
 
 ```bash
-cd work/install && mkdir assets && cd assets
-tar -xzf ../../bundle/evidence/evidence-public.tar.gz
-tar -xzf ../../bundle/dependencies/case-and-wazuh-config.tar.gz
-tar -xzf ../../bundle/dependencies/release-vault.tar.gz
-mkdir originals && tar -xzf ../../bundle/memory/WS17-native-v1.tar.gz -C originals
-cd ../../..
+cd work/install/source
 ```
 
-You now have `work/install/assets/{evidence-public,case-template,wazuh-config,release-vault,originals}`.
+The installer already created
+`work/install/assets/{evidence-public,case-template,wazuh-config,release-vault,originals}`
+and the build receipts under `work/install/source/work/build-receipts`.
 
 ## 6. Profile + runtime config (5 min)
 
 Get the machine's LAN IP (`ipconfig` / `ip addr` — the address participant
-laptops will reach). Then, still in the `oct26` checkout:
+laptops will reach). From the installed source tree:
 
 ```bash
-cp deployment/profiles/example-two-team.json event-profile.json
+cp deployment/profiles/example-two-team.json ../event-profile.json
+mkdir -p ../runtime
+cp ../runtime-local.example.json ../runtime/local.json
 ```
 
-Edit `event-profile.json` — **only** these fields:
+Edit `../event-profile.json` — **only** these fields:
 
 - `event.event_start`, `event.duration_minutes`
 - `addresses.central_bind_ip` → the LAN IP
 - the three `*_public_url` values → `https://<LAN-IP>:8081`, `:8083`, `:8082`
 
-Create `work/runtime/local.json` (replace `<LAN-IP>` with the event host's
-LAN address and `<ABS>` with the absolute path to
-`work/install`, e.g. `C:/Users/you/oct26/work/install`):
-
-```json
-{
-  "bind_ip": "<LAN-IP>",
-  "assets": {
-    "evidence_public": "<ABS>/assets/evidence-public",
-    "release_vault": "<ABS>/assets/release-vault",
-    "case_template": "<ABS>/assets/case-template",
-    "originals": "<ABS>/assets/originals",
-    "wazuh_config": "<ABS>/assets/wazuh-config"
-  },
-  "ports": {"crl": 8080, "iris": 8081, "ctfd": 8083, "guac": 8082,
-            "wazuh_dashboard": 8443, "wazuh_indexer": 9200},
-  "index_name": "silent-ridge-oct26"
-}
-```
+Edit `../runtime/local.json` and replace `REPLACE_WITH_LAN_IP` with the event
+host's LAN address. Its asset paths already point at the trees materialized by
+the installer.
 
 ## 7. Bring the stack up (10–20 min)
 
 ```bash
-python -m ridge.deploy doctor --profile event-profile.json --runtime work/runtime
-python -m ridge.deploy up --teams 10 --profile event-profile.json --runtime work/runtime
+python -m ridge.deploy doctor --profile ../event-profile.json --runtime ../runtime
+python -m ridge.deploy up --teams 10 --profile ../event-profile.json --runtime ../runtime
 # "services not ready"? just re-run the same up command — it reconciles
-python -m ridge.deploy status --profile event-profile.json --runtime work/runtime
+python -m ridge.deploy status --profile ../event-profile.json --runtime ../runtime
 # expect: event_ready: true
 ```
 
 `up` stops at a verified, **paused** state — participants see nothing until
-`python -m ridge.deploy start --profile event-profile.json --runtime work/runtime`.
+`python -m ridge.deploy start --profile ../event-profile.json --runtime ../runtime`.
 
 ## Done — record these for the rehearsal evidence
 

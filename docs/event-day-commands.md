@@ -22,22 +22,12 @@ section: `docs/event-machine-cold-start.md` (tailored to the
   download every asset of the latest release, assemble the bundle directory
   exactly as its release notes show, then from a repo checkout run
   `python -m ridge.offline_install <bundle-dir> <install-dir>` — it
-  hash-verifies everything, loads all images, and writes a receipt.
-- Then extract the content assets (once, next to the install):
-
-  ```bash
-  mkdir assets && cd assets
-  tar -xzf <bundle-dir>/evidence/evidence-public.tar.gz
-  tar -xzf <bundle-dir>/dependencies/case-and-wazuh-config.tar.gz
-  tar -xzf <bundle-dir>/dependencies/release-vault.tar.gz
-  mkdir originals && tar -xzf <bundle-dir>/memory/WS17-native-v1.tar.gz -C originals
-  cd ..
-  ```
-
-  This gives you `assets/evidence-public`, `assets/case-template`,
-  `assets/wazuh-config`, `assets/release-vault` and `assets/originals` —
-  the five directories `local.json` points at in step 2. (Windows 10+
-  ships `tar.exe`; any extractor works.)
+  hash-verifies everything, loads all images, materializes all five asset
+  trees, creates the four custom-image build receipts required by `up`, and
+  writes `runtime-local.example.json` plus an install receipt.
+- Run all later commands from `<install-dir>/source`. Copy
+  `<install-dir>/runtime-local.example.json` to the runtime directory and only
+  replace its LAN-IP placeholder; its asset paths are already complete.
   Note: `v0.9.0-drill` predates `release-vault.tar.gz`; on that release copy
   `work/release/controller/releases` from a build host into
   `assets/release-vault`, or the first follow-up ticket fails mid-event.
@@ -51,7 +41,8 @@ should use the bundle.)
 
 ## 1. Profile (once per host)
 
-Copy `deployment/profiles/example-two-team.json` to `event-profile.json` and edit
+From `<install-dir>/source`, copy `deployment/profiles/example-two-team.json`
+to `../event-profile.json` and edit
 **only**:
 
 - `event.event_start` / `duration_minutes`
@@ -62,7 +53,9 @@ Do **not** edit the roster — team count is a start-time switch (`--teams`).
 
 ## 2. Runtime local.json (once per host)
 
-Create `R/local.json` pointing at the asset directories extracted in step 0:
+Copy `<install-dir>/runtime-local.example.json` to `R/local.json`, then replace
+`REPLACE_WITH_LAN_IP` with the event host's LAN address. The generated file
+already points at the asset directories materialized in step 0:
 
 ```json
 {

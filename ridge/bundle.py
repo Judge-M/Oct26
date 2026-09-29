@@ -15,9 +15,17 @@ from ridge.artifacts import safe,sha256,verify
 
 REPO=Path(__file__).resolve().parents[1]
 LAYOUTS={
-    'integration':[('ridge','/opt/silent-ridge/ridge')],
-    'iris':[('ridge','/iriswebapp/ridge'),('integrations/iris_silent_ridge.py','/iriswebapp/iris_silent_ridge.py')],
-    'ctfd':[('ridge','/opt/CTFd/ridge'),('integrations/ctfd_silent_ridge','/opt/CTFd/CTFd/plugins/ctfd_silent_ridge')]}
+    'integration':[('ridge','/opt/silent-ridge/ridge'),
+                   ('bounded_http.py','/opt/silent-ridge/bounded_http.py')],
+    'iris':[('ridge','/iriswebapp/ridge'),
+            ('integrations/iris_silent_ridge.py','/iriswebapp/iris_silent_ridge.py'),
+            ('integrations/iris_bootstrap.py','/iriswebapp/iris_bootstrap.py')],
+    'ctfd':[('ridge','/opt/CTFd/ridge'),
+            ('integrations/ctfd_silent_ridge','/opt/CTFd/CTFd/plugins/ctfd_silent_ridge')],
+    'desktop':[('deployment/expanded/desktop/seed-case.py','/opt/silent-ridge/seed-case.py'),
+               ('deployment/expanded/desktop/helpers','/opt/silent-ridge/helpers'),
+               ('deployment/expanded/desktop/configure-desktop.sh','/opt/silent-ridge/configure-desktop.sh'),
+               ('deployment/expanded/desktop/entrypoint.sh','/usr/local/bin/silent-ridge-entrypoint')]}
 REQUIRED_IMAGES=set(LAYOUTS)|{'iris_db','rabbitmq','ctfd_db','ctfd_cache','wazuh_manager',
     'wazuh_indexer','wazuh_dashboard','guacamole','guacd','guacamole_db'}
 LFS_POINTER = re.compile(rb'\Aversion https://git-lfs.github.com/spec/v1\r?\n'
@@ -181,7 +189,10 @@ def pack(store,manifest,destination,allow_incomplete=False,max_part_bytes=None):
         target.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(source,target)
     subprocess.run(['docker','image','save','--output',str(destination/'validated-images.tar'),
                     *save_refs(manifest)],check=True)
-    manifest=dict(manifest,artifacts=[a for a in manifest['artifacts'] if a['kind']!='containers'])
+    from ridge.deploy.__main__ import fingerprint
+    manifest=dict(manifest,
+                  source_fingerprint=fingerprint(),
+                  artifacts=[a for a in manifest['artifacts'] if a['kind']!='containers'])
     if allow_incomplete:
         manifest['certification']='drill-uncertified'
     image_archive=destination/'validated-images.tar'
