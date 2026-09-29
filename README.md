@@ -227,6 +227,7 @@ late-October event, the remaining work is tracked in `docs/handoff/NEXT.md`:
 | `docs/` | Architecture, operations, and planning documents |
 | `docs/event-day-commands.md` | **Run the event**: cold-machine → teardown checklist |
 | `docs/event-day-deck/` | **Brief participants**: 22-slide incident brief + setup deck, with a separate facilitator appendix |
+| `docs/narrative-overview.md` | **Start here for the story**: scenario, cast, canon, four phases, 20 tickets, surfaces, known limits |
 | `docs/narrative-operations.md` | **Update, reset or validate the participant narrative** across all five surfaces, and how a facilitator verifies it is present |
 | `docs/handoff/` | **Start here when picking up work**: `NEXT.md` (current position), receipts, evidence, and task cards |
 | `tests/` | Automated test suite (`python -m unittest discover -s tests`) |

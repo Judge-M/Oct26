@@ -1,5 +1,9 @@
 # Participant narrative: updating, resetting and validating it for a run
 
+> Looking for the story, cast, evidence map and current state in one read?
+> See [`docs/narrative-overview.md`](narrative-overview.md). This document is the
+> operational runbook: how to change, reset and verify the narrative for a run.
+
 The CTFd question page and the IRIS queue are one Jinja template,
 `ridge/web.py` `PAGE`, rendered twice with a `lane` variable. Everything a
 participant reads about the scenario comes from a versioned narrative fixture
