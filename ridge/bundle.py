@@ -16,13 +16,22 @@ from ridge.artifacts import safe,sha256,verify
 REPO=Path(__file__).resolve().parents[1]
 LAYOUTS={
     'integration':[('ridge','/opt/silent-ridge/ridge'),
+                   ('bounded_http.py','/opt/silent-ridge/bounded_http.py'),
                    ('assets/scenario-narrative-v1.json','/opt/silent-ridge/assets/scenario-narrative-v1.json')],
-    'iris':[('ridge','/iriswebapp/ridge'),('integrations/iris_silent_ridge.py','/iriswebapp/iris_silent_ridge.py'),
+    'iris':[('ridge','/iriswebapp/ridge'),
+            ('integrations/iris_silent_ridge.py','/iriswebapp/iris_silent_ridge.py'),
+            ('integrations/iris_bootstrap.py','/iriswebapp/iris_bootstrap.py'),
             ('assets/scenario-narrative-v1.json','/iriswebapp/assets/scenario-narrative-v1.json')],
-    'ctfd':[('ridge','/opt/CTFd/ridge'),('integrations/ctfd_silent_ridge','/opt/CTFd/CTFd/plugins/ctfd_silent_ridge'),
-            ('assets/scenario-narrative-v1.json','/opt/CTFd/assets/scenario-narrative-v1.json')]}
+    'ctfd':[('ridge','/opt/CTFd/ridge'),
+            ('integrations/ctfd_silent_ridge','/opt/CTFd/CTFd/plugins/ctfd_silent_ridge'),
+            ('assets/scenario-narrative-v1.json','/opt/CTFd/assets/scenario-narrative-v1.json')],
+    'desktop':[('deployment/expanded/desktop/seed-case.py','/opt/silent-ridge/seed-case.py'),
+               ('deployment/expanded/desktop/helpers','/opt/silent-ridge/helpers'),
+               ('deployment/expanded/desktop/configure-desktop.sh','/opt/silent-ridge/configure-desktop.sh'),
+               ('deployment/expanded/desktop/entrypoint.sh','/usr/local/bin/silent-ridge-entrypoint')]}
 REQUIRED_IMAGES=set(LAYOUTS)|{'iris_db','rabbitmq','ctfd_db','ctfd_cache','wazuh_manager',
     'wazuh_indexer','wazuh_dashboard','guacamole','guacd','guacamole_db'}
+PROBE_PYTHON={'desktop':'python3'}
 LFS_POINTER = re.compile(rb'\Aversion https://git-lfs.github.com/spec/v1\r?\n'
                          rb'oid sha256:([0-9a-f]{64})\r?\nsize ([0-9]+)\r?\n?\Z')
 
@@ -77,7 +86,8 @@ for name in json.loads(sys.argv[1]):
 print(json.dumps(out))
 '''
     actual=json.loads(command('docker','run','--rm','--network','none','--read-only',
-                              '--entrypoint','python',image,'-c',script,json.dumps(paths)))
+                              '--entrypoint',PROBE_PYTHON.get(kind,'python'),image,
+                              '-c',script,json.dumps(paths)))
     if actual!=expected:raise ValueError('Source/image mismatch: '+kind)
     return expected
 
@@ -158,7 +168,7 @@ def pack(store,manifest,destination,allow_incomplete=False,max_part_bytes=None):
         raise ValueError('--allow-incomplete is only for uncertified drill bundles')
     if not allow_incomplete and not manifest.get('compatibility_verified'):
         raise ValueError('Uncertified manifest; pass --allow-incomplete to build a drill bundle')
-    verify(store,manifest,complete=not allow_incomplete)
+    verify(store,manifest,complete=not allow_incomplete,require_containers=False)
     if not REQUIRED_IMAGES<=set(manifest.get('images',{})):
         raise ValueError('Record every central application and dependency image identity')
     reserved={'source.zip','release-manifest.json','source-image-checks.json','SHA256SUMS.json','validated-images.tar'}
@@ -184,7 +194,10 @@ def pack(store,manifest,destination,allow_incomplete=False,max_part_bytes=None):
         target.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(source,target)
     subprocess.run(['docker','image','save','--output',str(destination/'validated-images.tar'),
                     *save_refs(manifest)],check=True)
-    manifest=dict(manifest,artifacts=[a for a in manifest['artifacts'] if a['kind']!='containers'])
+    from ridge.deploy.__main__ import fingerprint
+    manifest=dict(manifest,
+                  source_fingerprint=fingerprint(),
+                  artifacts=[a for a in manifest['artifacts'] if a['kind']!='containers'])
     if allow_incomplete:
         manifest['certification']='drill-uncertified'
     image_archive=destination/'validated-images.tar'

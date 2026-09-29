@@ -108,7 +108,8 @@ class FakeCtfd(BaseHTTPRequestHandler):
             # Real CTFd emits the single-quoted dict form:
             self._send(b"""'csrfNonce': "aaaabbbb",""")
         elif self.path == '/silent-ridge':
-            self._send(b'<form method="post"><input type="hidden" name="nonce" '
+            self._send(b'<h2>Your questions and completed shared history</h2>'
+                       b'<form method="post"><input type="hidden" name="nonce" '
                        b'value="eeeeffff"><input type="hidden" name="question" '
                        b'value="q1"><input name="answer"></form>')
         elif self.path == '/silent-ridge/status':
@@ -173,6 +174,29 @@ class CtfdBotTests(unittest.TestCase):
         finally:
             server.shutdown()
 
+    def test_authenticated_empty_question_queue_is_valid_before_ticket_claim(self):
+        class EmptyQueue(FakeCtfd):
+            def do_GET(self):
+                if self.path == '/silent-ridge':
+                    self._send(b'<h2>Your questions and completed shared history</h2>'
+                               b'<p>Shared progress: 0 of 20 ticket stages complete.</p>')
+                else:
+                    super().do_GET()
+        server = HTTPServer(('127.0.0.1', 0), EmptyQueue)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        try:
+            samples = []
+            bot = CtfdBot(f'http://127.0.0.1:{server.server_port}', 'u', 'p', samples)
+            bot.login()
+            import random
+            bot.act(random.Random(7))
+            self.assertTrue(all(sample['ok'] for sample in samples))
+            self.assertEqual([sample['endpoint'] for sample in samples].count(
+                'ctfd:questions'), 1)
+        finally:
+            server.shutdown()
+            server.server_close()
+
 
 class RateLimitTests(unittest.TestCase):
     def test_retries_429_and_records_both_attempts(self):
@@ -224,17 +248,35 @@ class RateLimitTests(unittest.TestCase):
             server.shutdown()
             server.server_close()
 
-    def test_retry_after_is_bounded_and_login_burst_is_paced(self):
+    def test_retry_after_is_bounded_and_ctfd_login_bucket_is_paced(self):
         self.assertEqual(retry_after_seconds('3', 0), 3.0)
         self.assertEqual(retry_after_seconds('999', 0), 10.0)
         self.assertEqual(retry_after_seconds('bad-header', 2), 2.0)
         calls = []
         class Bot:
+            login_rate_group = 'ctfd-login-by-source-ip'
+            login_interval_s = 6.1
+
             def login(self):
                 calls.append('login')
         with mock.patch('expanded.load.time.sleep', side_effect=lambda seconds: calls.append(seconds)):
             login_bots([Bot(), Bot(), Bot()])
-        self.assertEqual(calls, ['login', 0.5, 'login', 0.5, 'login'])
+        self.assertEqual(calls, ['login', 6.1, 'login', 6.1, 'login'])
+
+    def test_unlimited_login_does_not_consume_ctfd_spacing(self):
+        calls = []
+        class Limited:
+            login_rate_group = 'ctfd-login-by-source-ip'
+            login_interval_s = 6.1
+
+            def login(self):
+                calls.append('ctfd')
+        class Unlimited:
+            def login(self):
+                calls.append('iris')
+        with mock.patch('expanded.load.time.sleep', side_effect=lambda seconds: calls.append(seconds)):
+            login_bots([Limited(), Unlimited(), Limited()])
+        self.assertEqual(calls, ['ctfd', 'iris', 6.1, 'ctfd'])
 
 
 class TargetUrlTests(unittest.TestCase):

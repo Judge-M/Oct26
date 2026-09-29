@@ -17,10 +17,6 @@ import tarfile
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
-STORE = REPO / 'work' / 'offline-store'
-EVIDENCE = REPO / 'work' / 'evidence-public'
-
-
 def sha256(path):
     import hashlib
     d = hashlib.sha256()
@@ -44,17 +40,51 @@ def main():
                         help='also pack the parked Hyper-V QCOW2 desktop when its parts '
                              'are materialized. Excluded by default: container desktops '
                              'are the event path and the VM is dropped from releases.')
+    parser.add_argument('--store', type=Path, required=True,
+                        help='empty output directory for the assembled artifact store')
+    parser.add_argument('--manifest', type=Path, required=True,
+                        help='output path for the offline bundle manifest')
+    parser.add_argument('--evidence', type=Path, required=True,
+                        help='generated evidence-public directory')
+    parser.add_argument('--case-template', type=Path, required=True,
+                        help='generated Autopsy case-template directory')
+    parser.add_argument('--wazuh-config', type=Path, required=True,
+                        help='generated Wazuh configuration directory')
+    parser.add_argument('--release-vault', type=Path, required=True,
+                        help='generated controller release-vault directory')
+    parser.add_argument('--release', default='silent-ridge-expanded-1',
+                        help='release identifier recorded in the manifest')
+    parser.add_argument('--compatibility-verified', action='store_true',
+                        help='mark compatibility verified only after the release gate passed')
     args = parser.parse_args()
-    if STORE.exists():
-        shutil.rmtree(STORE)
-    STORE.mkdir(parents=True)
+    store = args.store.resolve()
+    manifest_path = args.manifest.resolve()
+    evidence = args.evidence.resolve()
+    case_template = args.case_template.resolve()
+    wazuh_config = args.wazuh_config.resolve()
+    release_vault = args.release_vault.resolve()
+    for label, path in {
+        'evidence': evidence, 'case template': case_template,
+        'Wazuh config': wazuh_config, 'release vault': release_vault,
+    }.items():
+        if not path.is_dir():
+            raise SystemExit(f'{label} directory does not exist: {path}')
+    if manifest_path == store or manifest_path.is_relative_to(store):
+        raise SystemExit('manifest must be outside the artifact store: ' + str(manifest_path))
+    inputs = (evidence, case_template, wazuh_config, release_vault)
+    if any(store == path or store.is_relative_to(path) or path.is_relative_to(store)
+           for path in inputs):
+        raise SystemExit('store must not contain or be contained by an input directory')
+    if store.exists() and (not store.is_dir() or any(store.iterdir())):
+        raise SystemExit('store must be a new or empty directory: ' + str(store))
+    store.mkdir(parents=True, exist_ok=True)
     artifacts = []
 
     def put(src, dest, kind):
-        src, dest = Path(src), STORE / dest
+        src, dest = Path(src), store / dest
         dest.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(src, dest)
-        artifacts.append({'path': dest.relative_to(STORE).as_posix(), 'kind': kind,
+        artifacts.append({'path': dest.relative_to(store).as_posix(), 'kind': kind,
                           'bytes': dest.stat().st_size, 'sha256': sha256(dest)})
 
     # Large published artifacts (native memory capture, prepared case).
@@ -71,39 +101,39 @@ def main():
         'memory/WS17-native-v1.tar.gz', 'memory')
     put(REPO / 'assets/large/autopsy/WS17-prepared-case-v2.tar.gz',
         'autopsy/WS17-prepared-case-v2.tar.gz', 'autopsy')
-    put(EVIDENCE / 'disk/WS17-fat16.img', 'disk/WS17-fat16.img', 'disk')
+    put(evidence / 'disk/WS17-fat16.img', 'disk/WS17-fat16.img', 'disk')
 
     # Trees -> single-file artifacts.
-    tar_tree(STORE / 'evidence/evidence-public.tar.gz', [(EVIDENCE, 'evidence-public')])
+    tar_tree(store / 'evidence/evidence-public.tar.gz', [(evidence, 'evidence-public')])
     artifacts.append({'path': 'evidence/evidence-public.tar.gz', 'kind': 'evidence',
-                      'bytes': (STORE / 'evidence/evidence-public.tar.gz').stat().st_size,
-                      'sha256': sha256(STORE / 'evidence/evidence-public.tar.gz')})
-    tar_tree(STORE / 'dependencies/case-and-wazuh-config.tar.gz',
-             [(REPO / 'work/case-template', 'case-template'),
-              (REPO / 'work/n1-run/wazuh-config', 'wazuh-config')])
+                      'bytes': (store / 'evidence/evidence-public.tar.gz').stat().st_size,
+                      'sha256': sha256(store / 'evidence/evidence-public.tar.gz')})
+    tar_tree(store / 'dependencies/case-and-wazuh-config.tar.gz',
+             [(case_template, 'case-template'),
+              (wazuh_config, 'wazuh-config')])
     artifacts.append({'path': 'dependencies/case-and-wazuh-config.tar.gz', 'kind': 'dependencies',
-                      'bytes': (STORE / 'dependencies/case-and-wazuh-config.tar.gz').stat().st_size,
-                      'sha256': sha256(STORE / 'dependencies/case-and-wazuh-config.tar.gz')})
+                      'bytes': (store / 'dependencies/case-and-wazuh-config.tar.gz').stat().st_size,
+                      'sha256': sha256(store / 'dependencies/case-and-wazuh-config.tar.gz')})
     # The release vault (follow-up evidence + manifest.json) is required by
     # local.json's release_vault; without it the first follow-up ticket fails
     # mid-event on a cold install.
-    tar_tree(STORE / 'dependencies/release-vault.tar.gz',
-             [(REPO / 'work/release/controller/releases', 'release-vault')])
+    tar_tree(store / 'dependencies/release-vault.tar.gz',
+             [(release_vault, 'release-vault')])
     artifacts.append({'path': 'dependencies/release-vault.tar.gz', 'kind': 'dependencies',
-                      'bytes': (STORE / 'dependencies/release-vault.tar.gz').stat().st_size,
-                      'sha256': sha256(STORE / 'dependencies/release-vault.tar.gz')})
-    tar_tree(STORE / 'guides/guides.tar.gz',
-             [(EVIDENCE / 'guides', 'getting-started'),
+                      'bytes': (store / 'dependencies/release-vault.tar.gz').stat().st_size,
+                      'sha256': sha256(store / 'dependencies/release-vault.tar.gz')})
+    tar_tree(store / 'guides/guides.tar.gz',
+             [(evidence / 'guides', 'getting-started'),
               (REPO / 'expanded/guides.md', 'beginner-guide.md'),
               (REPO / 'participants', 'participants')])
     artifacts.append({'path': 'guides/guides.tar.gz', 'kind': 'guides',
-                      'bytes': (STORE / 'guides/guides.tar.gz').stat().st_size,
-                      'sha256': sha256(STORE / 'guides/guides.tar.gz')})
+                      'bytes': (store / 'guides/guides.tar.gz').stat().st_size,
+                      'sha256': sha256(store / 'guides/guides.tar.gz')})
 
     commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=REPO, text=True).strip()
     for a in artifacts:
         a['version'] = commit
-        a['release'] = 'silent-ridge-expanded-1'
+        a['release'] = args.release
     # Resolve immutable image IDs from the local daemon at assembly time.
     tags = {
         'integration': 'silent-ridge-integration:dev', 'iris': 'silent-ridge-iris:dev',
@@ -125,15 +155,20 @@ def main():
     if missing:
         raise SystemExit('images not loaded locally: ' + ', '.join(missing))
     images = {name: by_tag[tag] for name, tag in tags.items()}
-    manifest = {'schema': 1, 'release': 'silent-ridge-expanded-1',
-                'source_commit': commit, 'compatibility_verified': False,
+    missing_gates = [] if args.compatibility_verified else [
+        'ten-team capacity gate (F03)', 'dress rehearsal (F06)',
+        'GHCR image publishing',
+    ]
+    manifest = {'schema': 1, 'release': args.release,
+                'source_commit': commit,
+                'compatibility_verified': args.compatibility_verified,
                 'images': images, 'image_tags': dict(tags),
                 'artifacts': artifacts,
-                'missing': ['ten-team capacity gate (F03)', 'dress rehearsal (F06)',
-                            'GHCR image publishing']}
-    out = REPO / 'work' / 'offline-manifest.json'
-    out.write_text(json.dumps(manifest, indent=2))
-    print('store:', STORE)
+                'missing': missing_gates}
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    manifest_path.write_text(json.dumps(manifest, indent=2))
+    print('store:', store)
+    print('manifest:', manifest_path)
     print('artifacts:', len(artifacts), 'commit:', commit[:12])
 
 

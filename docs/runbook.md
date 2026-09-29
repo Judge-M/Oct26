@@ -122,7 +122,9 @@ python -m ridge.offline_install <bundle-dir> <install-dir>
 
 Every part is hashed before anything changes; missing/corrupt parts, LFS
 pointer stubs, low disk, or interruption fail cleanly and leave no partial
-install. Load results and the exact next commands are in
+install. The installer materializes all five asset trees, creates build
+receipts for the four custom images, and writes `runtime-local.example.json`.
+Run deployment commands from `<install-dir>/source`; load results and the exact next commands are in
 `<install-dir>/install-receipt.json`. A bundle whose `install-receipt` shows
 `certified_complete: false` is drill material, not a certified release.
 

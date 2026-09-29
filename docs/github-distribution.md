@@ -24,9 +24,9 @@ Extract `source.zip` and `fixtures.zip` into separate directories. Copy each
 `asset-*.bin` file to its relative source-tree path in the manifest's `assets`
 mapping (creating parent directories). These files retain their original bytes;
 the `.bin` release name is only a transport name. Read
-`distribution.json` for the exact three custom image references and pull each
+`distribution.json` for the exact four custom image references and pull each
 with `docker pull REFERENCE`. Set the corresponding `RIDGE_IMAGE`, `IRIS_IMAGE`
-and `CTFD_IMAGE` values to those digest references. Other upstream containers and
+`CTFD_IMAGE` and `RIDGE_DESKTOP_IMAGE` values to those digest references. Other upstream containers and
 configuration still follow [the deployment procedure](expanded-deployment.md).
 The fetch command retrieves assets; it does not create AWS resources, initialize
 accounts or start an event. Full local/AWS one-command deployment remains separate
@@ -36,18 +36,19 @@ work. The same release can be used on either Linux amd64 host.
 
 After merging and validating a release commit, a maintainer pushes a new `vX.Y.Z`
 or `vX.Y.Z-rc.N` tag. `publish.yml` checks main ancestry and version format, runs
-unit tests and the actual CTFd adapter smoke, publishes three images, then packages
+unit tests and the actual CTFd adapter smoke, publishes four images, then packages
 source and fixtures. The release is always a prerelease while integration and
 artifact acceptance remain incomplete. No `latest` image is published. Do not move
 or reuse version tags; a correction receives a new version. Partial image builds
 may exist in Packages after failure, but no release manifest is published until
-all three image jobs and bundle verification succeed.
+all four image jobs and bundle verification succeed.
 
 Expected package names:
 
 - `ghcr.io/judge-m/oct26-integration`
 - `ghcr.io/judge-m/oct26-iris`
 - `ghcr.io/judge-m/oct26-ctfd`
+- `ghcr.io/judge-m/oct26-desktop`
 
 OCI source labels connect these packages to the repository. GitHub initially
 creates packages privately; configure visibility/access in package settings as

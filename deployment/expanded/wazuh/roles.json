@@ -41,7 +41,11 @@
           ".kibana*"
         ],
         "allowed_actions": [
-          "read"
+          "get",
+          "read",
+          "indices:admin/aliases/get",
+          "indices:admin/mappings/get",
+          "indices:monitor/*"
         ]
       }
     ],
