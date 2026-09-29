@@ -188,10 +188,17 @@ class FakeRunner:
             certs = Path(next(a for a in argv if a.endswith(':/certs')).rsplit(':/', 1)[0])
             certs.mkdir(parents=True, exist_ok=True)
             (certs / 'root-ca.pem').write_text('ca')
+            (certs / 'root-ca.crl').write_bytes(b'crl')
             (certs / 'dashboard.pem').write_text('dashboard')
             (certs / 'participant.pem').write_text('participant')
             return ''
+        if argv[:2] == ['docker', 'run'] and 'crl' in argv:
+            return 'verify OK\n'
         if argv[:2] == ['docker', 'run'] and 'x509' in argv:
+            if '-ext' in argv:
+                return ('X509v3 CRL Distribution Points:\n'
+                        '  URI:http://127.0.0.1:8080/root-ca.crl\n'
+                        '  URI:http://192.168.1.200:8080/root-ca.crl\n')
             result = 'does match' if self.certificate_matches else 'does NOT match'
             return 'IP %s %s certificate\n' % (argv[-1], result)
         return ''
@@ -374,6 +381,7 @@ class LifecycleTests(unittest.TestCase):
         self.assertTrue(any(c[:2] == ['docker', 'run'] and '/generate-certs.sh' in c
                             and c[-1] == '192.168.1.200'
                             for c in self.runner.calls))
+        self.assertTrue(any('RIDGE_CRL_PORT=8080' in c for c in self.runner.calls))
         self.assertTrue(any(c[:2] == ['docker', 'run'] and 'x509' in c
                             and c[-1] == '192.168.1.200'
                             for c in self.runner.calls))

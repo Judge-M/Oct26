@@ -511,12 +511,14 @@ class LocalStack:
         """Deterministically render every Compose env file (idempotent)."""
         self.env_dir.mkdir(parents=True, exist_ok=True)
         discovered = self._discovered()
-        ports = {'iris': self.port('iris', 8081), 'ctfd': self.port('ctfd', 8083),
-                 'guac': self.port('guac', 8082), 'wazuh': self.port('wazuh_dashboard', 8443)}
+        ports = {'crl': self.port('crl', 8080), 'iris': self.port('iris', 8081),
+                 'ctfd': self.port('ctfd', 8083), 'guac': self.port('guac', 8082),
+                 'wazuh': self.port('wazuh_dashboard', 8443)}
         # Host-side publish address is a host property, not the profile's container-side
         # central_bind_ip; default loopback, override via local.json "bind_ip".
         bind = self._dashboard_bind_ip()
-        public = {name: 'https://%s:%d' % (bind, port) for name, port in ports.items()}
+        public = {name: 'https://%s:%d' % (bind, ports[name])
+                  for name in ('iris', 'ctfd', 'guac', 'wazuh')}
         secrets = self.secrets_dir
         files = {}
 
@@ -557,6 +559,7 @@ class LocalStack:
             'RIDGE_CTFD_SECRET_FILE': secrets / 'ridge-ctfd-bridge',
             'PARTICIPANT_CERTS_DIR': self.runtime / 'wazuh-certs',
             'BIND_IP': bind,
+            'CRL_PORT': str(ports['crl']),
             'IRIS_PORT': str(ports['iris']), 'CTFD_PORT': str(ports['ctfd']),
             'GUAC_PORT': str(ports['guac']),
             'IRIS_PUBLIC_URL': public['iris'],
@@ -803,6 +806,33 @@ class LocalStack:
                                  'bind_ip %s; preserve the current CA and certificates, '
                                  'then plan a certificate rotation for this address' % (name, bind))
 
+    def _verify_revocation_material(self, certs, bind):
+        crl = certs / 'root-ca.crl'
+        if not crl.is_file() or crl.stat().st_size == 0:
+            raise LifecycleError('missing signed offline CRL at %s; rotate the event CA '
+                                 'and certificates before participant setup' % crl)
+        verified = self._run([
+            'docker', 'run', '--rm', '--network', 'none', '--pull', 'never',
+            '-v', str(certs) + ':/certs:ro', '--entrypoint', 'openssl',
+            'wazuh/wazuh-manager:4.9.2', 'crl', '-in', '/certs/root-ca.crl',
+            '-inform', 'DER', '-noout', '-verify', '-CAfile', '/certs/root-ca.pem',
+        ], check=False)
+        if 'verify OK' not in verified:
+            raise LifecycleError('offline CRL signature verification failed; rotate the '
+                                 'event CA and certificates')
+        expected = 'http://%s:%d/root-ca.crl' % (bind, self.port('crl', 8080))
+        for name in ('dashboard', 'participant'):
+            points = self._run([
+                'docker', 'run', '--rm', '--network', 'none', '--pull', 'never',
+                '-v', str(certs) + ':/certs:ro', '--entrypoint', 'openssl',
+                'wazuh/wazuh-manager:4.9.2', 'x509', '-in', '/certs/' + name + '.pem',
+                '-noout', '-ext', 'crlDistributionPoints',
+            ], check=False)
+            if expected not in points:
+                raise LifecycleError('%s certificate does not publish expected offline CRL '
+                                     'URL %s; rotate the event CA and certificates'
+                                     % (name, expected))
+
     def _apply_infrastructure(self):
         self._ensure_secrets()
         self._render_specs()
@@ -814,12 +844,14 @@ class LocalStack:
         certs.mkdir(parents=True, exist_ok=True)
         self._run([
             'docker', 'run', '--rm', '--network', 'none', '--pull', 'never',
+            '-e', 'RIDGE_CRL_PORT=%d' % self.port('crl', 8080),
             '-v', str(WAZUH_DIR / 'generate-certs.sh') + ':/generate-certs.sh:ro',
             '-v', str(certs) + ':/certs', '--entrypoint', 'bash',
             'wazuh/wazuh-manager:4.9.2', '/generate-certs.sh', '/certs', bind,
         ])
         self._verify_public_certificate(certs, bind, 'dashboard')
         self._verify_public_certificate(certs, bind, 'participant')
+        self._verify_revocation_material(certs, bind)
         guac_init = self.runtime / 'guac-init'
         guac_init.mkdir(parents=True, exist_ok=True)
         if not (guac_init / '001-initdb.sql').is_file():
@@ -857,6 +889,8 @@ class LocalStack:
         for name in ('dashboard', 'participant'):
             self._verify_public_certificate(self.runtime / 'wazuh-certs',
                                             self._dashboard_bind_ip(), name)
+        self._verify_revocation_material(self.runtime / 'wazuh-certs',
+                                         self._dashboard_bind_ip())
         for kind, services in INFRA_SERVICES.items():
             self._require_services(kind, services,
                                    allow_exit0=INFRA_ONE_SHOT.get(kind, ()))

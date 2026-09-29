@@ -126,8 +126,11 @@ class ComposeAuditTests(unittest.TestCase):
             self.assertNotIn('ports', central['services'][service])
         self.assertNotIn('ports', guac['services']['guacamole'])
         proxy = central['services']['participant-tls']
-        self.assertEqual(len(proxy['ports']), 3)
+        self.assertEqual(len(proxy['ports']), 4)
         self.assertIn('participant.pem', ' '.join(proxy['volumes']))
+        self.assertIn('root-ca.crl', ' '.join(proxy['volumes']))
+        self.assertTrue(any(':${CRL_PORT:-8080}:8080' in port for port in proxy['ports']))
+        self.assertIn('root-ca.crl', ' '.join(proxy['healthcheck']['test']))
         self.assertIn('central', guac['services']['guacamole']['networks'])
 
     def test_tls_proxy_preserves_the_external_host_port(self):
@@ -135,6 +138,17 @@ class ComposeAuditTests(unittest.TestCase):
         self.assertIn('proxy_set_header Host $http_host;', proxy)
         self.assertIn('proxy_set_header X-Forwarded-Host $http_host;', proxy)
         self.assertNotRegex(proxy, r'(?m)^\s*proxy_set_header X-Forwarded-Port ')
+        self.assertIn('listen 8080;', proxy)
+        self.assertIn('location = /root-ca.crl', proxy)
+        self.assertIn('application/pkix-crl', proxy)
+
+    def test_certificate_generator_publishes_and_verifies_signed_crl(self):
+        generator = (COMPOSE / 'wazuh/generate-certs.sh').read_text(encoding='utf-8')
+        self.assertIn('crlDistributionPoints=URI:$CRL_URL', generator)
+        self.assertIn('keyCertSign,cRLSign', generator)
+        self.assertIn('openssl ca -batch -gencrl', generator)
+        self.assertIn('openssl crl -in "$OUT/root-ca.crl" -inform DER', generator)
+        self.assertIn('Existing certificates have no published CRL', generator)
 
     def test_audit_flags_private_port_and_missing_logging(self):
         bad = {'name': '${RIDGE_PROJECT}-x', 'services': {
@@ -158,6 +172,7 @@ class RenderTests(unittest.TestCase):
         self.assertEqual(env['RIDGE_CENTRAL_NETWORK'], 'ridge-oct26-central')
         self.assertEqual(env['RIDGE_DESKTOP_NETWORK'], 'ridge-oct26-desktop')
         self.assertEqual(env['BIND_IP'], '127.0.0.1')
+        self.assertEqual(env['CRL_PORT'], '8080')
         for key, value in env.items():
             self.assertNotIn('PASSWORD', key.upper())
             self.assertNotIn('SECRET', key.upper())

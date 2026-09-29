@@ -23,6 +23,10 @@ class ParticipantSetupTests(unittest.TestCase):
         self.assertIn('Test-TlsEndpoint', self.text)
         self.assertIn('SslStream', self.text)
         self.assertIn('RemoteCertificateNameMismatch', self.text)
+        self.assertIn('X509RevocationMode]::Online', self.text)
+        self.assertIn('X509RevocationFlag]::EndCertificateOnly', self.text)
+        self.assertIn('UrlRetrievalTimeout', self.text)
+        self.assertIn('$state.chain_ok = $built -and', self.text)
 
     def test_trust_change_is_explicit_and_current_user_scoped(self):
         self.assertIn('ShouldProcess', self.text)

@@ -34,7 +34,11 @@ from a rebuilt air-gapped kit on the event host before this release is ready.
   certificate covers its LAN URL. The deployer runs this inside the pinned
   manager image, avoiding Windows-to-Bash path conversion. It rejects an existing certificate
   that does not cover `local.json`'s `bind_ip`; changing that address requires
-  a planned certificate rotation and client CA trust update.
+  a planned certificate rotation and client CA trust update. It also signs a
+  DER CRL and embeds `http://<bind-ip>:<crl-port>/root-ca.crl` in every leaf
+  certificate. `crl-port` defaults to 8080 and can be set with
+  `local.json`'s `ports.crl`; the participant TLS proxy publishes only that
+  CRL on the port and fails health if it cannot serve it.
 
 After first boot, `internal_users.yml` is not the live credential store. Do
 not try to rotate `admin` by editing its hash and restarting the indexer; see
