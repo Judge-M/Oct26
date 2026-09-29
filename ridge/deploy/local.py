@@ -794,6 +794,7 @@ class LocalStack:
             ctfd_users = []
             for team in self.teams:
                 friendly = credentials['teams'][team['name']]['ctfd_name']
+                account_passwords = list(credentials['teams'][team['name']]['accounts'].values())
                 for account_index, account in enumerate(team['accounts']):
                     # Keep the first participant login as the memorable team
                     # name; suffix additional roster accounts predictably.
@@ -803,7 +804,9 @@ class LocalStack:
                         'name': login,
                         'email': '%s@silent-ridge.invalid' % login,
                         'team': team['name'],
-                        'password': credentials['teams'][team['name']]['accounts'][account],
+                        # Match by roster position so inventories written by
+                        # older releases (legacy keys) remain restorable.
+                        'password': account_passwords[account_index],
                     })
             ctfd_spec = {
                 'teams': [{'team': team['name'],
