@@ -64,17 +64,44 @@ function Get-CertificateFingerprint([string]$Path) {
             Issuer = $cert.Issuer
             NotAfter = $cert.NotAfter.ToUniversalTime().ToString('o')
         }
-    } finally { $cert.Dispose() }
+    } finally { }
 }
-function Test-TcpEndpoint([string]$Url) {
+function Test-TlsEndpoint([string]$Url, [hashtable]$Ca) {
     $uri = [Uri]$Url
     $port = if ($uri.Port -gt 0) { $uri.Port } else { 443 }
     $client = [Net.Sockets.TcpClient]::new()
+    $stream = $null
     try {
         $task = $client.ConnectAsync($uri.DnsSafeHost, $port)
         if (-not $task.Wait(5000) -or -not $client.Connected) { return $false }
-        return $true
-    } catch { return $false } finally { $client.Dispose() }
+        $state = @{ observed = $null; chain_ok = $false }
+        $callback = [Net.Security.RemoteCertificateValidationCallback]{
+            param($sender, $certificate, $chain, $errors)
+            if (-not $certificate) { return $false }
+            $state.observed = [Security.Cryptography.X509Certificates.X509Certificate2]::new($certificate)
+            $custom = [Security.Cryptography.X509Certificates.X509Chain]::new()
+            try {
+                $custom.ChainPolicy.ExtraStore.Add($Ca.Certificate) | Out-Null
+                $custom.ChainPolicy.VerificationFlags = [Security.Cryptography.X509Certificates.X509VerificationFlags]::AllowUnknownCertificateAuthority
+                $custom.Build($state.observed) | Out-Null
+                $state.chain_ok = $custom.ChainElements.Count -gt 1
+                if ($state.chain_ok) {
+                    $root = $custom.ChainElements[$custom.ChainElements.Count - 1].Certificate
+                    $state.chain_ok = $root.Thumbprint -eq $Ca.Fingerprint
+                }
+                # SslStream performs SAN/hostname validation; only the trust-root
+                # error may be replaced by the explicit CA check above.
+                return $state.chain_ok -and (($errors -band [Net.Security.SslPolicyErrors]::RemoteCertificateNameMismatch) -eq 0) -and (($errors -band [Net.Security.SslPolicyErrors]::RemoteCertificateNotAvailable) -eq 0)
+            } finally { $custom.Dispose() }
+        }
+        $stream = [Net.Security.SslStream]::new($client.GetStream(), $false, $callback)
+        $stream.AuthenticateAsClient($uri.DnsSafeHost)
+        if (-not $state.observed -or -not $state.chain_ok) { return $false }
+        return [ordered]@{ subject = $state.observed.Subject; issuer = $state.observed.Issuer; expires_utc = $state.observed.NotAfter.ToUniversalTime().ToString('o') }
+    } catch { return $false } finally {
+        if ($stream) { $stream.Dispose() }
+        $client.Dispose()
+    }
 }
 function Write-Handoff([string]$Source, [string]$Destination, [hashtable]$Endpoints, [hashtable]$Ca) {
     New-Item -ItemType Directory -Force -Path $Destination | Out-Null
@@ -107,7 +134,7 @@ $ca = Get-CertificateFingerprint $caPath
 
 if ((Get-Item -LiteralPath $credentialPath).Length -eq 0) { Fail 'credential file is empty' }
 $endpointResults = [ordered]@{}
-foreach ($key in $endpoints.Keys) { $endpointResults[$key] = Test-TcpEndpoint $endpoints[$key] }
+foreach ($key in $endpoints.Keys) { $endpointResults[$key] = Test-TlsEndpoint $endpoints[$key] $ca }
 $failed = @($endpointResults.GetEnumerator() | Where-Object { -not $_.Value } | ForEach-Object Key)
 if ($failed.Count -gt 0) { Fail "unreachable HTTPS endpoint(s): $($failed -join ', ')" }
 
@@ -140,7 +167,7 @@ if ($OpenTabs -and -not $DryRun -and -not $VerifyOnly) {
     ca_fingerprint = $ca.Fingerprint
     ca_subject = $ca.Subject
     ca_expires_utc = $ca.NotAfter
-    endpoints_reachable = $true
+    endpoints_verified = $endpointResults
     ca_imported = [bool]($ImportCertificate -and -not $DryRun)
     handoff_path = $handoff
     tabs_requested = [bool]($OpenTabs -and -not $DryRun -and -not $VerifyOnly)

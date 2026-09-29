@@ -20,7 +20,9 @@ class ParticipantSetupTests(unittest.TestCase):
     def test_requires_https_and_validates_all_services(self):
         self.assertIn("$name in 'ctfd','iris','wazuh','guacamole'", self.text)
         self.assertIn("$value -notmatch '^https://", self.text)
-        self.assertIn('Test-TcpEndpoint', self.text)
+        self.assertIn('Test-TlsEndpoint', self.text)
+        self.assertIn('SslStream', self.text)
+        self.assertIn('RemoteCertificateNameMismatch', self.text)
 
     def test_trust_change_is_explicit_and_current_user_scoped(self):
         self.assertIn('ShouldProcess', self.text)
@@ -36,7 +38,7 @@ class ParticipantSetupTests(unittest.TestCase):
 
     def test_outputs_sanitized_results_and_opens_https_tabs(self):
         self.assertIn('ca_fingerprint', self.text)
-        self.assertIn('endpoints_reachable', self.text)
+        self.assertIn('endpoints_verified', self.text)
         self.assertIn('Start-Process $url', self.text)
         self.assertNotIn('http://', self.text)
 
