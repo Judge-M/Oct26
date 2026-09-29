@@ -76,8 +76,36 @@ SECRET_FILES = (
 WAZUH_API_SECRET = 'wazuh-api-password'
 
 
+def _set_unique_wazuh_option(source, section_name, option_name, value):
+    """Replace one direct option in one Wazuh section without reformatting XML."""
+    section_tag = re.escape(section_name)
+    section_pattern = re.compile(
+        r'(<%s(?:\s[^>]*)?>)(.*?)(</%s\s*>)' % (section_tag, section_tag),
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    sections = list(section_pattern.finditer(source))
+    if len(sections) != 1:
+        raise LifecycleError('vendored Wazuh manager config must contain exactly one '
+                             '<%s> section' % section_name)
+    section = sections[0]
+    option_tag = re.escape(option_name)
+    option_pattern = re.compile(
+        r'(<%s(?:\s[^>]*)?>\s*)([^<]*?)(\s*</%s\s*>)' % (option_tag, option_tag),
+        flags=re.IGNORECASE,
+    )
+    body = section.group(2)
+    replaced_body, count = option_pattern.subn(
+        lambda match: match.group(1) + value + match.group(3), body,
+    )
+    if count != 1:
+        raise LifecycleError('vendored Wazuh <%s> section must contain exactly one '
+                             'direct <%s> option' % (section_name, option_name))
+    replacement = section.group(1) + replaced_body + section.group(3)
+    return source[:section.start()] + replacement + source[section.end():]
+
+
 def offline_wazuh_config(source):
-    """Keep the vendored manager config intact except for disabling update checks."""
+    """Render the manager config for the bundle's deliberately offline runtime."""
     try:
         root = ET.fromstring('<ridge>' + source + '</ridge>')
     except ET.ParseError as exc:
@@ -97,11 +125,34 @@ def offline_wazuh_config(source):
                                   r'\1\n    <update_check>no</update_check>', source, count=1)
         if count != 1:
             raise LifecycleError('vendored Wazuh manager config has no usable <global> tag')
+    # The exercise consumes a separately provisioned historical index through
+    # Filebeat and the dashboard. It has no monitored endpoint agents and does
+    # not ship an offline CTI feed. Disable the manager's unrelated vulnerability
+    # inventory path and its indexer connector rather than leaving retry loops
+    # that require Internet access, manager keystore credentials, and client
+    # certificates. This does not change Filebeat's independent output.
+    rendered = _set_unique_wazuh_option(
+        rendered, 'vulnerability-detection', 'enabled', 'no')
+    rendered = _set_unique_wazuh_option(
+        rendered, 'vulnerability-detection', 'index-status', 'no')
+    rendered = _set_unique_wazuh_option(rendered, 'indexer', 'enabled', 'no')
     verified = ET.fromstring('<ridge>' + rendered + '</ridge>')
     if any((entry.text or '').strip().lower() != 'no'
            for section in verified.findall('.//global')
            for entry in section.findall('update_check')):
         raise LifecycleError('Wazuh update check must be disabled for the offline kit')
+    expected_disabled = (
+        ('vulnerability-detection', 'enabled'),
+        ('vulnerability-detection', 'index-status'),
+        ('indexer', 'enabled'),
+    )
+    for section_name, option_name in expected_disabled:
+        sections = verified.findall('.//' + section_name)
+        options = [entry for section in sections for entry in section.findall(option_name)]
+        if (len(sections) != 1 or len(options) != 1
+                or (options[0].text or '').strip().lower() != 'no'):
+            raise LifecycleError('Wazuh <%s>/<%s> must be uniquely disabled for the '
+                                 'offline kit' % (section_name, option_name))
     return rendered
 
 

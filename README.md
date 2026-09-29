@@ -97,7 +97,11 @@ whole stack with two desktops, one under Autopsy load).
 [command sheet](docs/event-day-commands.md) — it covers install, content
 assets, and bring-up with exact commands.
 
-Building from source is the **developer path**. Note that
+Building from source is the **online preparation/developer path**. It may
+download base images, operating-system packages, and pinned tool archives even
+when Docker already has the base image cached. Cache preference does not make a
+source build suitable for an air-gapped event host; the complete release bundle
+above is the sole supported offline event path. Note that
 `build --component all` produces only the container images — the content
 assets (evidence tree, Autopsy case template, Wazuh config, release vault)
 come from the release bundle or the content pipeline documented in

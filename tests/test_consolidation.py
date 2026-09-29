@@ -43,17 +43,15 @@ class ConsolidationTests(unittest.TestCase):
             if action != '--help':
                 self.assertIn('no event or resources were changed', result.stderr)
 
-    def test_build_never_forces_a_registry_pull(self):
-        """The build is on the air-gapped recovery path (#98).
+    def test_online_build_prefers_cached_base_without_claiming_offline(self):
+        """Cache preference must not be presented as an air-gap control.
 
-        BuildKit resolved FROM against Docker Hub even with the base image
-        cached, turning a cached rebuild into a network-dependent failure.
-        The module-level docker() helper is the only egress surface in this
-        path, so asserting on its argv is a real contract test -- but it
-        proves the argv we construct, not that Docker opens no socket. The
-        end-to-end air-gap proof needs a live host and is a manual check.
+        Dockerfiles download packages and tool archives in RUN steps even when
+        their base images are cached. The build command therefore describes the
+        online preparation-host contract and directs event hosts to the bundle.
         """
         calls = []
+        notes = []
 
         def recorder(*args, **kwargs):
             calls.append(list(args))
@@ -61,7 +59,8 @@ class ConsolidationTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as temp:
             with patch('ridge.deploy.__main__.docker', side_effect=recorder), \
-                    patch('ridge.deploy.__main__.fingerprint', return_value='fp'):
+                    patch('ridge.deploy.__main__.fingerprint', return_value='fp'), \
+                    patch('builtins.print', side_effect=notes.append):
                 build('ctfd', Path(temp))
 
         build_argv = next(c for c in calls if c[0] == 'build')
@@ -72,6 +71,10 @@ class ConsolidationTests(unittest.TestCase):
             self.assertNotIn('--pull', argv)
             self.assertNotIn('manifest', argv)
             self.assertNotIn('search', argv)
+        self.assertTrue(any('online preparation-host' in note for note in notes), notes)
+        self.assertTrue(any('does not make this build offline' in note for note in notes),
+                        notes)
+        self.assertTrue(any('complete offline bundle' in note for note in notes), notes)
 
     def test_build_warns_but_still_builds_when_a_base_is_not_cached(self):
         """A first build on a cold host legitimately has to fetch its base.
@@ -106,8 +109,7 @@ class ConsolidationTests(unittest.TestCase):
         self.assertTrue(receipt_exists, 'writes a receipt')
         self.assertTrue(any(cached in note for note in notes), notes)
         self.assertTrue(any('preparation host' in note for note in notes), notes)
-        # The prescribed remedy must not name a bundle that lacks base images.
-        self.assertFalse(any('offline bundle' in note for note in notes), notes)
+        self.assertTrue(any('complete offline bundle' in note for note in notes), notes)
 
     def test_base_images_resolves_non_registry_from_forms(self):
         with tempfile.TemporaryDirectory() as temp:

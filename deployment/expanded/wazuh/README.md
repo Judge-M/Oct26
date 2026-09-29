@@ -58,12 +58,17 @@ not assume Elasticsearch/OpenSearch API interchangeability.
 
 `ridge.deploy up` generates a separate Wazuh API password in the private
 runtime, configures both manager and dashboard from it, and renders an
-`ossec.conf` with `<update_check>no</update_check>` for offline use. Existing
-runtime secrets are preserved. A missing API secret after initialization stops
-readiness; restore that runtime instead of resetting its credentials. The
-manager healthcheck authenticates to the API using the local CA before the
-infrastructure stage verifies. Do not mount the stock `wazuh.yml` read-only:
-the pinned dashboard image needs to write its API entry at startup.
+`ossec.conf` for offline use. The renderer disables the update check, the
+vulnerability detector and its inventory indexing, and the manager's indexer
+connector. This exercise has no monitored endpoint agents or bundled offline
+CTI feed; participants query the separately provisioned `silent-ridge-*`
+historical index. Filebeat remains enabled and independently sends manager
+alerts to the indexer. Existing runtime secrets are preserved. A missing API
+secret after initialization stops readiness; restore that runtime instead of
+resetting its credentials. The manager healthcheck authenticates to the API
+using the local CA before the infrastructure stage verifies. Do not mount the
+stock `wazuh.yml` read-only: the pinned dashboard image needs to write its API
+entry at startup.
 
 The deployment also renders a private copy of `internal_users.yml` with a hash
 of the generated indexer admin password. The plaintext remains only in the
