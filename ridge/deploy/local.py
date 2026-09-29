@@ -544,9 +544,15 @@ class LocalStack:
                 'ctfd_password': friendly,
                 'guac_username': friendly,
                 'guac_password': friendly,
-                # Keep canonical roster keys for inventory compatibility, but
-                # make every member's password the team's memorable password.
-                'accounts': {account: friendly for account in team['accounts']},
+                # Publish the actual CTFd usernames.  The first seat uses the
+                # memorable team name; additional seats receive predictable
+                # suffixes.  The roster's internal team-XX-pNN names are not
+                # CTFd logins and must not leak into the participant inventory.
+                'accounts': {
+                    (friendly if account_index == 0 else '%s-p%02d' %
+                     (friendly, account_index + 1)): friendly
+                    for account_index, _account in enumerate(team['accounts'])
+                },
             }
             credentials['desktops'][team['desktop']] = {'password': vnc}
         team_creds.write_text(json.dumps(credentials, indent=2), encoding='utf-8')
