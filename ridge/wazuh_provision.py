@@ -23,6 +23,9 @@ WRITER_ROLE = 'silent-ridge-writer'
 READER_ROLE = 'silent-ridge-participant'
 TIMED_VIEW = 'silent-ridge-timed'
 TIMELESS_VIEW = 'silent-ridge-timeless'
+WAZUH_ALERTS_VIEW = 'wazuh-alerts-*'
+WAZUH_MONITORING_VIEW = 'wazuh-monitoring-*'
+WAZUH_STATISTICS_VIEW = 'wazuh-statistics-*'
 
 WRITER_ACTIONS = (
     'create_index',
@@ -152,7 +155,7 @@ def saved_objects(field_caps: dict[str, Any] | None = None) -> list[dict[str, An
     date filter or those facts would disappear.
     """
     fields = discover_fields(field_caps)
-    return [
+    views = [
         {'type': 'index-pattern', 'id': TIMED_VIEW,
          'attributes': {'title': INDEX_PATTERN, 'timeFieldName': 'timestamp',
                         'fields': fields}},
@@ -160,6 +163,15 @@ def saved_objects(field_caps: dict[str, Any] | None = None) -> list[dict[str, An
          'attributes': {'title': INDEX_PATTERN, 'timeFieldName': None,
                         'fields': fields}},
     ]
+    # Wazuh's health check attempts to create these three objects on first
+    # participant login. Provision them with the facilitator account so the
+    # participant role stays read-only and the health check never needs a
+    # write grant on .kibana*.
+    for view_id in (WAZUH_ALERTS_VIEW, WAZUH_MONITORING_VIEW, WAZUH_STATISTICS_VIEW):
+        views.append({'type': 'index-pattern', 'id': view_id,
+                      'attributes': {'title': view_id, 'timeFieldName': None,
+                                     'fields': fields}})
+    return views
 
 
 @dataclass(frozen=True)
