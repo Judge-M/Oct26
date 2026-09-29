@@ -44,3 +44,18 @@ event-ready release.
 Git LFS has plan-dependent object limits and storage/bandwidth costs. For objects
 that exceed those limits, use appropriately sized GitHub Release assets and record
 every part and checksum in the manifest. Never commit a giant blob to ordinary Git.
+
+## Small versioned fixtures
+
+`scenario-narrative-v1.json` is the single approved source for the participant
+narrative shared by the CTFd question page, the IRIS case and the event-day deck.
+
+`t01-network-map-v1.json` is the source for the T01 exfiltration network map, an
+additional analytical view of evidence T01 has already exposed. `ridge.network_map`
+renders it into a single self-contained offline HTML document and
+`python -m ridge.network_map <path>` writes that file; the CTFd plugin serves the
+identical document at `/silent-ridge/network-map` once T01 is closed. It is not
+released evidence and is never placed on the `/evidence` share, because it names
+the destination T01 scores. See
+[evidence preparation and release gates](../docs/expanded-evidence.md) and
+[the facilitator capture point](../facilitator/network-map-capture.md).

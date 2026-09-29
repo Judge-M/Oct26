@@ -27,6 +27,31 @@ ticket unlocks and indexes released CSV records with stable document IDs.
 Repeated publication accepts identical files and rejects conflicting content.
 The controller preparation fixtures and source manifests are not desktop shares.
 
+## The T01 network map is a view, not evidence
+
+`assets/t01-network-map-v1.json` describes a directed graph over records the
+completed T01 task has already exposed. `ridge/network_map.py` renders it into a
+single self-contained offline HTML document and `python -m ridge.network_map
+<path>` writes that file; the CTFd plugin serves the identical document at
+`/silent-ridge/network-map` once the controller confirms T01 is closed.
+
+It is deliberately not a released evidence file. Release publication happens
+when a ticket unlocks, T01 unlocks at run start, and the map names
+`198.51.100.77` — so a released map would answer T01-Q4 for the room. The gate
+is `State.ticket_complete('T01')`, checked in `ridge.service`; the link appears
+in the T01 completion state on the participant question page.
+
+Two invariants are enforced, not reviewed. Every edge is `observed` (stated in
+full by one published record) or `inferred` (a join across records, with its own
+basis and caveat), and the document carries a boundary statement that a status
+code, a byte count and an address say nothing about human receipt, intent or
+attribution. `offline_report` refuses to render a document that references any
+external resource or that could make the browser contact the documentation-space
+address. Records are joined on `request`, `path` and `time_utc` only, because
+the published `id` column is a rewritten hash and is not a usable key. Rehearsal
+steps and the screenshot moment are in
+[the facilitator capture point](../facilitator/network-map-capture.md).
+
 ## Native Windows and memory sources
 
 The JSON under `controller/preparation-fixtures/` is explicitly synthetic. It is

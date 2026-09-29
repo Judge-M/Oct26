@@ -7,6 +7,12 @@ RELEASE_FILES = {
     'T11': ['hunting/late-inventory.csv'],
     'T19': ['network/dlp-body.txt', 'network/dlp-metadata.json'],
 }
+# The T01 network map is deliberately absent from RELEASE_FILES. Transport publishes a
+# ticket's release files when the ticket unlocks, and T01 unlocks at run start, so a
+# released map would name the external address before the ticket that scores it was
+# answered. It is served from the question page instead, gated on the same condition.
+NETWORK_MAP = '/silent-ridge/network-map'
+NETWORK_MAP_UNLOCKS_AFTER = 'T01'
 DEVICE_OFFSETS = {'WS-17': 120}
 TIMELESS_SOURCES = {'hunting/coverage.csv', 'server/catalog.csv', 'server/version-comparison.csv'}
 

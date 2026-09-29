@@ -1,4 +1,6 @@
 """Small server-rendered, escaped queue and coached question interfaces."""
+from ridge.scenario import NETWORK_MAP, NETWORK_MAP_UNLOCKS_AFTER
+
 PAGE = '''<!doctype html><html lang="en"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Operation Silent Ridge</title><style>
@@ -21,7 +23,28 @@ button,input{font:inherit;padding:.6rem;margin:.4rem}button{cursor:pointer}summa
 {% if q.solved_by %}<p>Answered by {{q.solved_by}} at {{q.answered_at}}.</p><p>{{q.finding.text}}</p><p>{{q.finding.limitation}}</p><pre>{{q.finding.evidence|join('\n')}}</pre>
 {% else %}<p>{{q.purpose}}</p><p>Tool: {{q.tool}} · Evidence: {{q.evidence}}</p><pre>{{q.steps|join('\n')}}</pre><p>Answer format: {{q.format}}</p><p>Recovery: {{q.recovery}}</p>
 {% for hint in q.hints %}<details><summary>Help level {{loop.index}}{% if loop.last %} — explicit walkthrough{% endif %}</summary><p>{{hint}}</p></details>{% endfor %}
-<form method="post"><input type="hidden" name="nonce" value="{{csrf}}"><input type="hidden" name="question" value="{{q.id}}"><label>Answer <input name="answer" maxlength="1024" required></label><button>Check answer</button></form>{% endif %}</article>{% endfor %}{% endif %}
+<form method="post"><input type="hidden" name="nonce" value="{{csrf}}"><input type="hidden" name="question" value="{{q.id}}"><label>Answer <input name="answer" maxlength="1024" required></label><button>Check answer</button></form>{% endif %}</article>{% endfor %}
+{% if network_map %}<article id="t01-network-map"><h3>{{network_map.headline}}</h3><p>{{network_map.brief}}</p><p><a href="{{network_map.path}}">{{network_map.action}}</a></p></article>{% endif %}{% endif %}
 <script>let previous=null,seconds={{snapshot.elapsed_seconds}},running={{(snapshot.mode=='running')|tojson}},anchor=performance.now();
 setInterval(()=>{document.getElementById('clock').textContent=Math.floor(seconds+(running?(performance.now()-anchor)/1000:0));},250);
 setInterval(async()=>{try{const r=await fetch('/silent-ridge/status',{cache:'no-store'});if(!r.ok)return;const s=await r.json();document.getElementById('pending').textContent=s.pending;seconds=s.elapsed_seconds;running=s.mode==='running';anchor=performance.now();delete s.server_time;delete s.elapsed_seconds;const v=JSON.stringify(s);if(previous&&previous!==v){document.getElementById('notice').textContent='Progress changed. Reload to see new tasks and findings.';if(![...document.querySelectorAll('input[name=answer]')].some(i=>i.value))location.reload();}previous=v;}catch(e){document.getElementById('notice').textContent='Connection interrupted. Accepted answers are retained. Retrying…';}},5000);</script></html>'''
+
+
+def network_map_link(snapshot, document=None):
+    """The T01 network map, offered from the T01 completion state and nowhere else.
+
+    Placement is deliberate. A released evidence file would be published when its
+    ticket unlocks, and T01 unlocks at run start, so the map would name the
+    destination before the ticket that scores it was answered. Deriving the link
+    from the same condition the controller enforces (``State.ticket_complete``)
+    keeps the page from offering something the controller would refuse to serve.
+    The prose lives in the map fixture, not here, so the map has one source.
+    """
+    complete = any(ticket.get('id') == NETWORK_MAP_UNLOCKS_AFTER
+                   and ticket.get('status') == 'complete' for ticket in snapshot.get('tickets', []))
+    if not complete:
+        return None
+    from ridge.network_map import build
+    link = (document or build())['link']
+    return dict(path=NETWORK_MAP, headline=link['headline'], brief=link['brief'],
+                action=link['action'])

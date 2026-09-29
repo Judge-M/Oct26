@@ -6,13 +6,14 @@ import hmac
 import os
 from urllib.parse import urlsplit
 from urllib.error import HTTPError, URLError
-from flask import abort, jsonify, redirect, render_template_string, request, session
+from flask import abort, jsonify, redirect, render_template_string, request, session, Response
 from sqlalchemy.exc import IntegrityError
 from CTFd.models import db, Awards
 from CTFd.utils.decorators import authed_only
 from CTFd.utils.user import get_current_user, is_admin
+from ridge.network_map import render as render_network_map
 from ridge.transport import bridge, secret, TRANSPORT_ERRORS
-from ridge.web import PAGE
+from ridge.web import PAGE, network_map_link
 
 
 class RidgeCredit(db.Model):
@@ -79,11 +80,25 @@ def load(app):
             snapshot=bridge('ctfd',team,'snapshot')
             questions=bridge('ctfd',team,'questions',question=request.args.get('question'))
             return render_template_string(PAGE,lane='ctfd',snapshot=snapshot,questions=questions,
+                network_map=network_map_link(snapshot),
                 iris=os.environ['IRIS_PUBLIC_URL'],ctfd=os.environ['CTFD_PUBLIC_URL'],csrf=session['nonce'],message=message)
         except HTTPError as exc:
             return 'Question unavailable or exercise paused. Return to the incident queue.',exc.code
         except TRANSPORT_ERRORS:
             return 'Connection interrupted. Accepted answers are retained; retry shortly.',503
+
+    @app.route('/silent-ridge/network-map')
+    @authed_only
+    def ridge_network_map():
+        # The controller refuses this until T01 is closed, so the page cannot link
+        # to a view that would hand over the destination before the ticket is answered.
+        try:
+            bridge('ctfd',identity(),'network_map')
+        except HTTPError as exc:
+            return 'The network map unlocks once T01 is closed.',exc.code
+        except TRANSPORT_ERRORS:
+            return 'Network map temporarily unavailable. Accepted answers are retained; retry shortly.',503
+        return Response(render_network_map(),mimetype='text/html')
 
     @app.route('/silent-ridge/status')
     @authed_only
