@@ -1,0 +1,169 @@
+{
+  "schema": 1,
+  "contract": "silent-ridge-narrative",
+  "revision": 1,
+  "status": "proposed",
+  "authority": "Single approved source for the Operation Silent Ridge participant narrative. The CTFd question page, the IRIS case and the event-day deck all render from this file. No surface may restate the scenario independently; that is how the three surfaces drifted apart.",
+  "public_terms": ["AMBER", "LANTERN", "S-41", "WS-22"],
+  "public_terms_note": "Terms that are already participant-visible in published material (ridge/web.py, participants/, expanded/guides.md, the event-day deck) and are therefore exempt from the answer-leak guard. Each entry is verified to already appear in a participant-facing surface by tests/test_scenario_contract.py, so this list cannot be used to smuggle in a new answer.",
+
+  "exercise": {
+    "codename": "Operation Silent Ridge",
+    "fiction_notice": "Operation Silent Ridge is a defensive exercise. Every organisation, account, host, address, patrol, document and technical event in it is fictional. Nothing here represents a real unit, person, route, coordinate or adversary, and no part of it describes how to carry out an intrusion.",
+    "classification_line": "FICTIONAL EXERCISE MATERIAL - NOT AN OPERATIONAL ASSESSMENT",
+    "premise": "A fictional internal document service holds the movement briefs for patrol LANTERN, a fictional field unit. Those briefs are the kind of document an organisation genuinely protects: a sector, a movement window and a check-in word. At 09:30 UTC the outgoing shift hands your team an unfinished problem rather than an incident that has already been solved.",
+    "discovery": "It was not the document service that raised the alarm. An access review after a routine credential change noticed that one document had been fetched and re-used outside its normal pattern on the same morning, while the same session was refreshed from an address that appears in no approved remote-access list. Two colleagues both acted on the same weak signal at once, and neither escalated it. You inherit the gap between what they saw and what they never checked.",
+    "stakes": "A superseded brief is still a real disclosure. Even after the service issued a replacement, the earlier version had already left the building, and nothing in the evidence can tell you who held it afterwards. If you stop at the first convincing answer you will hand the next shift a conclusion they cannot defend. If you overstate it, you will accuse an organisation of something the records do not show.",
+    "exposure": "One movement brief is the supported exposure. A second, larger document was requested from the same session and refused. A third workstation showed a similar tool name and was never collected from. All three of those are different kinds of unknown, and the difference between them is the whole exercise.",
+    "escalation": "The response moved in three steps and it moved badly. First a credential was reset, which is the correct instinct and does not end a session. Then a network review started, which is the correct second step. Neither step asked what the session could still reach, so the investigation is still open when your team takes it.",
+    "adversary": {
+      "handle": "the other side",
+      "rule": "No participant-facing text names an adversary group, a codename, an operator or a sponsor. The evidence supports an unauthorised session-stealing tool and an outbound transfer. It does not support an identity, and an investigation that invents one has failed regardless of how much else it gets right.",
+      "rationale": "The scenario is a defensive disclosure exercise. Naming a fictional adversary group buys atmosphere and costs rigor: it invites participants to pattern-match instead of reading records, and it contradicts the scored conclusion that the evidence does not establish intent."
+    },
+    "outcome": "By the end, your team should be able to say precisely what is supported, precisely what is not, and what you would need in order to close the gap. A correct boundary is a result, not a failure to find one."
+  },
+
+  "roles": [
+    {
+      "id": "soc-analyst",
+      "name": "Investigation analyst",
+      "duty": "Claim a ticket, work the evidence named in it, and answer that ticket's questions in CTFd.",
+      "authority": "You decide what the records support. You do not decide what happened in the real world.",
+      "not": "You do not contain, isolate or disable anything, and you do not reset anything. Every change in this exercise is already made by someone else and documented as such."
+    },
+    {
+      "id": "record-keeper",
+      "name": "Shared-record keeper",
+      "duty": "Make sure every answer your team posts is legible to the teams who read it afterwards.",
+      "authority": "A correct answer becomes a shared finding in the IRIS case automatically. Teams build on each other here; that is deliberate.",
+      "not": "You do not edit another team's finding, and you do not post an answer you have not actually verified from the evidence."
+    },
+    {
+      "id": "boundary-keeper",
+      "name": "Boundary keeper",
+      "duty": "Say out loud what a result does not prove, every time.",
+      "authority": "This is the single most valuable thing your team can do.",
+      "not": "You do not soften a finding to make it sound cautious, and you do not stop a finding to make it sound conclusive."
+    }
+  ],
+
+  "tool_map": [
+    {"surface": "Wireshark", "lane": "The network record", "text": "Replayed capture and name resolution. Shows what was sent where, and when. It does not show who was reading."},
+    {"surface": "Autopsy", "lane": "The host and the document service", "text": "The prepared case, recovered files and published exports. Shows what is present on a system, not what was done everywhere."},
+    {"surface": "Wazuh", "lane": "The enterprise view", "text": "Identity, session and SIEM telemetry across hosts. Shows patterns, and shows its own blind spots."},
+    {"surface": "Cutter", "lane": "The suspicious binary", "text": "Static inspection of a harmless training surrogate. Shows what a program is configured to do, not what it did."},
+    {"surface": "Linux file manager", "lane": "Plain comparisons", "text": "Opening released CSV and JSON exports. Where a claim is only a comparison, this is where you make it."}
+  ],
+
+  "phases": [
+    {
+      "id": "phase-1",
+      "title": "What actually left the network",
+      "timeframe": "Orientation, then the first look at the network record",
+      "purpose": "Establish the outbound path before worrying about cause. Your team decides here whether this is a document leaving a network, or a document leaving a network and continuing somewhere you cannot see.",
+      "urgency": "High and bounded. Nothing downstream is worth doing until you can describe the transfer in one sentence that a stranger could check.",
+      "tickets": ["T01", "T02", "T03"],
+      "action": "Claim one of the three network tickets. Work the capture and the name lookups. Write down the path you can actually support.",
+      "transition": "Once the path is on the record, the question moves from the wire to the machine that sent it. The same team that described the transfer now has to explain it."
+    },
+    {
+      "id": "phase-2",
+      "title": "The workstation that sent it",
+      "timeframe": "The longest phase, and the one that rewards patience",
+      "purpose": "Establish what was on the host: what arrived, what persisted, what was cached, and what the prepared records and the training surrogate can and cannot tell you.",
+      "urgency": "Steady. This is the phase where teams either build a coherent account or collect isolated facts. Slow is fine; scattershot is not.",
+      "tickets": ["T04", "T05", "T13", "T14", "T15", "T16", "T17", "T18"],
+      "action": "Recover the cache, read the prepared native records with their provenance, and inspect the surrogate statically. Keep static findings labelled as static.",
+      "transition": "A program is on the host and something left the network. The remaining question is whether the account that was used was ever really locked down."
+    },
+    {
+      "id": "phase-3",
+      "title": "The account and its session",
+      "timeframe": "After the host account is understood",
+      "purpose": "Separate authentication from session validity, test what the credential change actually achieved, and use a benign comparator and the collection-coverage record to stop yourself over-reading the rest.",
+      "urgency": "This phase contains the most tempting wrong answer in the exercise. A reset was performed and it feels like a fix. Establishing that it was not is the real work.",
+      "tickets": ["T06", "T07", "T10", "T11", "T12"],
+      "action": "Read the identity records and the supplied policy. Check the similar tool name on the second workstation, then check the lead that cannot be cleared, then check what was never collected.",
+      "transition": "You now know the account story and the limits of the collection. The final phase turns to the document service and to what you are actually able to conclude."
+    },
+    {
+      "id": "phase-4",
+      "title": "The document, and the limit of the claim",
+      "timeframe": "The converging phase",
+      "purpose": "Confirm which version left, check what was requested and refused, and then state the boundary of the whole investigation as precisely as the evidence allows.",
+      "urgency": "Convergent. These tickets unlock late and deliberately depend on the earlier ones. Do not shortcut them.",
+      "tickets": ["T08", "T09", "T19", "T20"],
+      "action": "Compare the released version history, verify the transmitted payload against the service catalogue, and write the closing statement with its limits attached.",
+      "transition": "The investigation is complete. What follows is the handoff."
+    }
+  ],
+
+  "tickets": {
+    "T01": {"headline": "Describe the outbound path", "brief": "The sensor capture carries the proxy's own records. Start here and learn the shape of the whole incident: one workstation, one document, one destination, one acknowledgement.", "stakes": "Every later claim rests on this. If the path is wrong, the rest is decoration.", "why_now": "This ticket has no prerequisites and everything else does.", "transition": "You have a path. Now find out what that destination was called."},
+    "T02": {"headline": "Put a name to the destination", "brief": "An address on its own means little. Name resolution is how you tell a documented example range from a real remote-access point, and how you find who asked for it.", "stakes": "This is the check that keeps the exercise from being read as a live external incident.", "why_now": "Answers the obvious question the path raises immediately.", "transition": "The destination has a name and a client. Now establish what arrived on that workstation."},
+    "T03": {"headline": "Reconstruct the first download", "brief": "The browser history shows an unsigned tool arriving in the morning. Reconstructing it tells you the sequence the rest of the evidence has to fit inside.", "stakes": "It fixes the start of the timeline. Evidence with no anchor floats.", "why_now": "Cheap, and it gives every later timestamp something to be measured against.", "transition": "A tool arrived. The next ticket asks what it left behind."},
+    "T04": {"headline": "Find what persisted", "brief": "A tool that runs once is an incident. A tool that runs at every logon is a foothold. Establish which one this was.", "stakes": "Persistence changes the response, because it means the access outlives the session you are looking at.", "why_now": "It converts a one-time event into something with a duration.", "transition": "Something runs automatically now. The next ticket shows what it was caching."},
+    "T05": {"headline": "Recover the cached content", "brief": "A deleted file can still tell you what the tool was carrying. Recovering it links the host to the document without relying on the network record at all.", "stakes": "An independent second line of evidence. One source can be wrong; two agreeing sources are an argument.", "why_now": "Directly follows the persistence question and uses a different source.", "transition": "The host held the document. The network says it also sent it. The account is the open question."},
+    "T06": {"headline": "Separate login from session", "brief": "A successful sign-in and a refreshed session are different events with different weaknesses. Reading them as one thing is the most common error in this exercise.", "stakes": "It is the difference between an attacker guessing a password and an attacker holding a token.", "why_now": "Everything in phase 3 depends on getting this distinction right first.", "transition": "Now test what the credential change actually achieved."},
+    "T07": {"headline": "Test the effect of the reset", "brief": "Someone reset the credential at 09:20 and the outgoing shift believed the problem was handled. The late telemetry record is the answer to whether it was.", "stakes": "This is the ticket that decides whether your team reports containment or reports an assumption.", "why_now": "It requires the authentication model from T06, and a late record that is not there before it.", "transition": "The account story is settled, including what it did not fix. Now check what else in the estate looks similar."},
+    "T08": {"headline": "Audit the document service", "brief": "The service's own audit shows what was fetched, what was refused and how many bytes came back. A denied request with zero bytes is a specific and useful fact.", "stakes": "It is the difference between one exposed document and an exposed personnel roster.", "why_now": "Needed by the version comparison and by the closing statement.", "transition": "You know one document left and another was refused. The next ticket asks which version, and what replaced it."},
+    "T09": {"headline": "Compare the superseding version", "brief": "A replacement was issued at 09:10, after the transfer. Work out what changed and what deliberately did not.", "stakes": "It explains why a superseded brief is still a disclosure, and why an unchanged word is worth noticing.", "why_now": "The comparison is released after T08 is closed.", "transition": "The document side is understood. Before you read the other workstation as a lead, test it against a benign one."},
+    "T10": {"headline": "Test a benign comparator", "brief": "A second workstation carries a similarly named approved task. Establishing that it is benign is worth more than another suspicious finding; it is what makes your findings credible.", "stakes": "Teams that skip this over-claim. It is the cheapest way to lose the room.", "why_now": "It is available early on purpose, so the negative result informs everything after it.", "transition": "One similar name is explained away. The next one cannot be."},
+    "T11": {"headline": "Work the unresolved lead", "brief": "A third workstation shows the same task name, and endpoint collection on it stopped partway through the morning. You will not be able to close this one.", "stakes": "Learning to report an open lead honestly is the point. Do not resolve it by inference.", "why_now": "Unlocks after the comparator, so you attempt it already knowing what a benign match looks like.", "transition": "This lead stays open. The next ticket explains why nothing here is ever complete."},
+    "T12": {"headline": "Map what was never collected", "brief": "Coverage records list where collection ran, where it stopped, and which host has no network collection at all. Absence of telemetry is not absence of activity.", "stakes": "This is the record that stops you from writing a conclusion the collection cannot support.", "why_now": "Read it before the closing statement, not after.", "transition": "You know the shape of the blind spot. The final phase returns to the document and the conclusion."},
+    "T13": {"headline": "Read the prepared process record", "brief": "The native process log is a real acquisition, not a reconstruction. Read it with its provenance and its actual acquisition time.", "stakes": "Mixing acquisition time into the historical timeline is the classic error this ticket exists to catch.", "why_now": "Phase two, where the host is being assembled from independent sources.", "transition": "The process is established. The next record covers what it registered."},
+    "T14": {"headline": "Read the prepared task record", "brief": "The task record agrees with the reconstructed persistence finding. Note that its timestamp is already normalised and must not be corrected a second time.", "stakes": "Double-correcting a clock is a real, common, and completely wrong analytical error.", "why_now": "Directly follows the process record.", "transition": "Process and task agree. The memory process view adds the command line."},
+    "T15": {"headline": "Read the prepared process tree", "brief": "The process view shows the parent relationship and the cache path passed on the command line, which is how the recovered file and the running program are tied together.", "stakes": "It is the link that turns two separate findings into one account.", "why_now": "Builds on the process record.", "transition": "The process tree is established. The connection view that follows is a live snapshot with its own limits."},
+    "T16": {"headline": "Read the prepared connection snapshot", "brief": "This is an acquired live connection snapshot taken in an isolated training reconstruction. It is not a validated memory-derived connection finding, and the record says so.", "stakes": "Overstating a snapshot as forensic validation is exactly the failure the exercise is built to catch.", "why_now": "It is the last of the four prepared native records.", "transition": "The host evidence is complete. The surrogate is inspected statically next."},
+    "T17": {"headline": "Inspect the surrogate's configuration", "brief": "The training binary is harmless by construction and exists to be read, not run. Its embedded strings match the destination and path seen on the wire.", "stakes": "Matching configuration to observed behaviour is the strongest form this evidence can take, and it is still not proof the program ran.", "why_now": "It only means something once the network path is already on the record.", "transition": "Configuration matches. The next ticket shows why that still is not execution."},
+    "T18": {"headline": "Read the static code example", "brief": "A small function branches on the version number. It illustrates static analysis on a benign sample and does not execute anything.", "stakes": "Teaches the distinction between what code could do and what happened, which is the last thing teams get wrong.", "why_now": "Follows the string inspection, using the same tool.", "transition": "The host and the binary are both understood. Phase three turns to the account."},
+    "T19": {"headline": "Verify the transmitted payload", "brief": "The DLP reconstruction of the upload body becomes available late. Comparing its hash with the service catalogue is what turns an equal byte count into an identified document.", "stakes": "Equal size and a successful response are not identification. This ticket is the difference between a guess and a finding.", "why_now": "It unlocks only after the network ticket and the cache ticket, because it needs both to mean anything.", "transition": "You have identified what left. The closing ticket asks what you may conclude."},
+    "T20": {"headline": "State the limit of the conclusion", "brief": "The final ticket asks four questions, and three of them are answered no. That is the intended result, not a failure to find something.", "stakes": "A defensible boundary is the deliverable. Overstating here undoes everything the other nineteen tickets established.", "why_now": "It unlocks last, after the identity, version, coverage and payload findings exist to support it.", "transition": "The investigation is closed and the finding is on the shared record."}
+  },
+
+  "hints": {
+    "policy": "All help is free and none of it costs a point. Hints are written to point at a source, not at a value.",
+    "level_one": "Nudge: a source, a tool and a place to start looking.",
+    "level_two": "Method: what to compare and which field carries the answer.",
+    "level_three": "Walkthrough: the reasoning, not the verdict. Reading the walkthrough still requires you to find it in the record yourself."
+  },
+
+  "accepted": {
+    "lead": "Recorded. The finding is on the shared case now, and any team still working can use it.",
+    "credit": "One point. Points are per team and survive a ticket changing hands.",
+    "shared": "This finding is visible to every team. That is the design: a correct answer should make the next team faster, not the same amount of work twice."
+  },
+
+  "ticket_complete": {
+    "generic": "Ticket closed. Completed answers and their findings stay on the shared record even if another team takes the ticket next.",
+    "handoff": "Hand the question and the evidence path to whoever picks up the shared case next, and say plainly what you could not establish."
+  },
+
+  "exercise_complete": {
+    "brief": "You are done. The supported exposure is one movement brief, transmitted once, to a documented example address, by a session that was never revoked.",
+    "handoff": "A complete handoff has three parts: what the records support, what they explicitly do not support, and what you would need in order to close the difference. Teams that hand over all three are the ones the next shift can actually work from.",
+    "residual": "Open at ENDEX: the original delivery path, the token contents, human attribution, activity inside the document-service collection gap, the uncollected workstation, and whether the exposed information was ever used.",
+    "scoring_note": "Score reflects questions answered, not how dramatic your conclusion was. The three no-answers in the closing ticket are correct answers."
+  },
+
+  "boundaries": {
+    "read_only": "Everything in this exercise is read-only. You will not be asked to change a system, and nothing you do should touch one.",
+    "no_credentials": "No credential, address, key or infrastructure detail is displayed to participants at any point. If a screen appears to show one, that is a defect: report it to the operator.",
+    "no_operational_detail": "The exercise contains no procedure for gaining access to anything, and none will be provided. The tools are used to read records, not to act on them.",
+    "fiction_repeat": "Operation Silent Ridge is fictional. No real organisation, patrol, person, address or adversary is represented.",
+    "attribution": "The evidence supports an unauthorised tool and an outbound transfer. It does not support naming a person, a group or a sponsor. Do not supply one in a finding."
+  },
+
+  "aar": {
+    "intro": "Thirty minutes, whole team, led by the operator. The point is the reasoning, not the score.",
+    "prompts": [
+      "Which single finding most changed your assessment, and what changed it?",
+      "Where did you find yourself inferring beyond the record, and did the evidence catch it?",
+      "What did the collection gap cost you, and how would you have closed it earlier?",
+      "The closing ticket wanted three no-answers. Which surprised your team most, and why?",
+      "What will the next shift inherit from you that they could actually use?"
+    ],
+    "close": "Success is a defensible handoff, not a complete story. A team that knows precisely what it does not know has done the job."
+  }
+}
