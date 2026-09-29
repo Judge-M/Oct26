@@ -1,0 +1,197 @@
+{
+  "schema": 1,
+  "contract": "silent-ridge-breadcrumbs",
+  "revision": 1,
+  "status": "proposed",
+  "authority": "Small, believable traces left across the prepared evidence (issue 59). Every breadcrumb is rendered from this file by expanded/prepare.py into the same deterministic release as the rest of the evidence, so a reset or a reseed rebuilds every one of them byte for byte. Nothing here is added at run time by hand and nothing is held only in facilitator material. The fixture carries participant-facing text only; what each breadcrumb points at is a legitimate piece of released evidence or a real ticket in expanded/author.py, never host infrastructure, and no facilitator solution mapping lives in this file.",
+
+  "framing": {
+    "rule": "No breadcrumb names an adversary group, a codename, an operator or a sponsor. Breadcrumbs read as traces left by someone using the access, not as the calling card of a named side.",
+    "rationale": "The approved narrative contract forbids naming an adversary group, codename, operator or sponsor (assets/scenario-narrative-v1.json, exercise.adversary), and T20-Q4 scores 'no' for whether the evidence establishes adversary intent. A named adversary would contradict a scored answer and would push participants toward pattern-matching instead of reading records. Issue 59 asks for a fictional adversary framing; the defensible reading is a fictional, unattributed one, and that conflict is flagged for the organizer rather than resolved by inventing canon."
+  },
+
+  "scoring": {
+    "bonus": false,
+    "rule": "Every breadcrumb is optional and none is bonus. Optional means a team may ignore it entirely and still close every scored question; the fixture is never named by a question, a hint or a required evidence path.",
+    "rationale": "CTFd stock challenges are deliberately locked down in this deployment (integrations/ctfd_silent_ridge 403s /api/v1/* except the scoreboard GET), scoring is one Awards row per answered question, and IRIS findings are created from answers rather than from events. There is no surface that can carry a bonus award and reconcile it reliably against both systems without inventing one, so no breadcrumb is scored."
+  },
+
+  "delivery": {
+    "initial": "Rendered into the published evidence tree as notes/<file> and readable at /evidence/notes/<file> from the start of the run. Used only for phases whose tickets are all available at run start, which is phase-1 and phase-2.",
+    "release": "Carried in the controller release vault and published on unlock by ridge/evidence_release.py, exactly like the existing follow-up evidence. Used for phase-3 and phase-4 so a breadcrumb belonging to a phase that is still locked is not on the mount at all.",
+    "note": "Every ticket with no prerequisites is enqueued for delivery at State.initialize, so anything hung on a root ticket's release is published at run start. validate() therefore refuses any release breadcrumb whose ticket has no prerequisites, and a test covers that specific trap."
+  },
+
+  "breadcrumbs": [
+    {
+      "id": "BC-01",
+      "phase": "phase-1",
+      "delivery": "initial",
+      "gate": null,
+      "path": "notes/collector-handover.txt",
+      "surface": "evidence",
+      "iris_ticket": "T01",
+      "text": "Handover, unsigned.\n\nThe sensor capture carries the collector's own records. The address on the outer\npacket is the collector; the record you want is the one embedded inside it. The\nname lookup in the other capture in this folder answers a different question from\nthe same morning and you will need both. Set the display format to UTC before you\nread either of them.\n",
+      "points_to": [
+        {"kind": "evidence", "ref": "network/sensor.pcap"},
+        {"kind": "evidence", "ref": "network/dns.pcap"},
+        {"kind": "ticket", "ref": "T02"}
+      ],
+      "cross_task": true,
+      "optional": true,
+      "bonus": false,
+      "reveals": "That the sensor capture and the name lookup are two independent views of the same window, and that the outer collector addresses are not incident endpoints.",
+      "must_not_reveal": [
+        "the workstation, the account or the session that made the lookups",
+        "the external address or the name it resolved from",
+        "any request identifier, byte count or transfer time",
+        "which version of the brief was involved"
+      ]
+    },
+    {
+      "id": "BC-02",
+      "phase": "phase-1",
+      "delivery": "initial",
+      "gate": null,
+      "path": "notes/length-is-not-identity.txt",
+      "surface": "evidence",
+      "iris_ticket": "T01",
+      "text": "Left here so that it is not lost. Unsigned.\n\nThe transfer record and the access record agree on a length. A length is not an\nidentity, and two records agreeing on a length is not two sources. The only place\neither of them turns into which document is the object catalogue on the same\nshare. Compare there, not here.\n",
+      "points_to": [
+        {"kind": "evidence", "ref": "server/catalog.csv"},
+        {"kind": "ticket", "ref": "T19"}
+      ],
+      "cross_task": true,
+      "optional": true,
+      "bonus": false,
+      "reveals": "That an equal byte count between the wire record and the access record is not identification, and that the catalogue is the place the comparison belongs.",
+      "must_not_reveal": [
+        "the catalogue hash, the document size or the object name",
+        "which brief version was transmitted",
+        "the request identifier that links the two records",
+        "whether the identification succeeded"
+      ]
+    },
+    {
+      "id": "BC-03",
+      "phase": "phase-2",
+      "delivery": "initial",
+      "gate": null,
+      "path": "notes/same-string.txt",
+      "surface": "evidence",
+      "iris_ticket": "T05",
+      "text": "Working note, unsigned, left in the same folder.\n\nThe recovered file and the path the program was started with are the same string.\nOne of them is on the disk image. The other is only in the process view. If you\nhave one of them, the other is the check on it. They are not two pieces of\nevidence and they should not be written up as two.\n",
+      "points_to": [
+        {"kind": "evidence", "ref": "disk/WS17-fat16.img"},
+        {"kind": "evidence", "ref": "prepared/memory-processes.json"},
+        {"kind": "ticket", "ref": "T15"}
+      ],
+      "cross_task": true,
+      "optional": true,
+      "bonus": false,
+      "reveals": "That the recovered cache and the process view's command line argument are the same value, so one corroborates the other rather than duplicating it.",
+      "must_not_reveal": [
+        "the recovered string itself, its directory or its name",
+        "any process id, parent process or device time",
+        "the contents of the recovered cache",
+        "the sector, movement window or check-in word"
+      ]
+    },
+    {
+      "id": "BC-04",
+      "phase": "phase-2",
+      "delivery": "initial",
+      "gate": null,
+      "path": "notes/two-handles.txt",
+      "surface": "evidence",
+      "iris_ticket": "T05",
+      "text": "Fragment recovered with the collection, quoted exactly as found.\n\n  > the second fetch is the one that matters, the first is just the portal\n  > the portal one still counts. it came from the same place\n\nTwo handles and no further context. Nothing in the collection resolves either\nhandle to an account, a host or a directory entry, so there is nothing to expand\nthem into. Log it as an artefact of the collection and do not build on it.\n",
+      "points_to": [
+        {"kind": "evidence", "ref": "server/access.csv"},
+        {"kind": "ticket", "ref": "T08"}
+      ],
+      "cross_task": true,
+      "optional": true,
+      "bonus": false,
+      "reveals": "That something was fetched twice from the same place, and that the quoted handles are unresolvable in every collected source.",
+      "must_not_reveal": [
+        "the object names, request identifiers or status codes of either fetch",
+        "which of the two fetches returned content and which did not",
+        "any account, host, address, sector or document version",
+        "who wrote it, or whether either handle belongs to a person"
+      ]
+    },
+    {
+      "id": "BC-05",
+      "phase": "phase-3",
+      "delivery": "release",
+      "gate": "T11",
+      "path": "notes/third-machine.txt",
+      "surface": "evidence",
+      "iris_ticket": "T11",
+      "text": "Note to whoever picks this up. Not from the queue, not signed.\n\nThe name you are chasing is not unique to one machine in this estate. Two of them\nyou can settle by reading an inventory row. The third you cannot, and the reason\nyou cannot is written down in the coverage record rather than in the inventory.\nRead the coverage record before you write a sentence about the third one.\n",
+      "points_to": [
+        {"kind": "evidence", "ref": "hunting/coverage.csv"},
+        {"kind": "ticket", "ref": "T12"}
+      ],
+      "cross_task": false,
+      "optional": true,
+      "bonus": false,
+      "reveals": "That the same tool name appears on more than one workstation, that two of them can be settled from inventory, and that the coverage record is the authority on why the third cannot.",
+      "must_not_reveal": [
+        "the workstation names, the publishers, the install paths or the artifact name",
+        "the observation time or the collection stop time",
+        "which workstation has no network collection",
+        "whether the third workstation is compromised"
+      ]
+    },
+    {
+      "id": "BC-06",
+      "phase": "phase-4",
+      "delivery": "release",
+      "gate": "T09",
+      "path": "notes/supersede-note.txt",
+      "surface": "evidence",
+      "iris_ticket": "T09",
+      "text": "Found in the same export as the version comparison. Unsigned, no author field.\n\n  > superseding the old copy does not un-send the old copy\n\nThat is the whole of it. It is an opinion in a text box, not a finding, and it does\nnot change what the comparison shows. Compare the fields; do not quote this back\nas if it were one of them.\n",
+      "points_to": [
+        {"kind": "evidence", "ref": "server/version-comparison.csv"},
+        {"kind": "ticket", "ref": "T09"}
+      ],
+      "cross_task": false,
+      "optional": true,
+      "bonus": false,
+      "reveals": "That someone believed a superseding version neutralised what had already left, which is the reasoning error the exercise turns on.",
+      "must_not_reveal": [
+        "the sector, the movement window or the check-in word, in either version",
+        "the supersession time",
+        "which version was transmitted",
+        "whether the exposed information was ever used"
+      ]
+    },
+    {
+      "id": "BC-07",
+      "phase": "phase-4",
+      "delivery": "release",
+      "gate": "T20",
+      "path": "notes/timeline-order.txt",
+      "surface": "evidence",
+      "iris_ticket": "T20",
+      "text": "Closing note, unsigned, found in the same directory as the last release.\n\nIt is not an answer to anything in T20 and it is not trying to be. It is a\nreminder about order. The things this exercise asks about were recorded by three\ndifferent systems on three different clocks, and one of those clocks is\ndocumented as wrong. Put the timeline in the order the systems recorded it before\nyou put it in the order you expect it to be in.\n",
+      "points_to": [
+        {"kind": "evidence", "ref": "hunting/coverage.csv"},
+        {"kind": "ticket", "ref": "T12"}
+      ],
+      "cross_task": true,
+      "optional": true,
+      "bonus": false,
+      "reveals": "That three independent systems produced the timeline and that at least one device clock is documented as inaccurate, so ordering has to come from the records.",
+      "must_not_reveal": [
+        "any clock offset, corrected time, event time or ordering of the events themselves",
+        "the workstation or account behind any of the records",
+        "the answer to any of the four closing questions",
+        "whether the session was or was not contained"
+      ]
+    }
+  ]
+}

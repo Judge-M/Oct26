@@ -26,6 +26,7 @@ sys.path.insert(0,str(REPO))
 import generate
 from ridge.scenario import incident_day, telemetry_record
 from ridge.artifacts import sha256
+from ridge import breadcrumbs
 from expanded.native import records as native_records, ROOT as NATIVE_ROOT
 
 
@@ -118,6 +119,17 @@ def build(output,config=None):
     if output.exists():raise ValueError('Use a new artifact release directory')
     public=output/'initial';vault=output/'controller'
     public.mkdir(parents=True);vault.mkdir()
+    # Optional traces (issue 59) are rendered from their own fixture, not restated
+    # here, and validated against the authored tickets before anything is written.
+    # A release breadcrumb lands in the vault beside the follow-up evidence for its
+    # gated ticket, so it cannot appear on the mount before that ticket unlocks.
+    from expanded.author import build as author
+    from ridge import scenario_contract
+    authored=author({'exercise_date':day})
+    traces=breadcrumbs.build(tickets=authored,contract=scenario_contract.build(tickets=authored))
+    for entry in breadcrumbs.entries(traces):
+        target=(public if entry['delivery']=='initial' else vault/'releases'/entry['gate'])/entry['path']
+        write(target,breadcrumbs.text_of(entry))
     with tempfile.TemporaryDirectory() as tmp:
         old=generate.generate(Path(tmp)/'baseline',baseline)
         # Preserve incident facts, not the obsolete handouts, prompts or specialist IDs.
