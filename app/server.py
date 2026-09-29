@@ -36,22 +36,32 @@ def participant_events(events):
     return result
 
 
-def database(state):
-    con = sqlite3.connect(state / 'tickets.sqlite', timeout=15)
+def connect_database(state, readonly=False):
+    path = (Path(state) / 'tickets.sqlite').resolve()
+    if readonly:
+        con = sqlite3.connect(path.as_uri() + '?mode=ro', uri=True, timeout=1)
+        con.execute('PRAGMA query_only=ON')
+        con.execute('PRAGMA busy_timeout=1000')
+    else:
+        con = sqlite3.connect(path, timeout=15)
     con.execute('PRAGMA foreign_keys=ON')
-    con.executescript('''
-        CREATE TABLE IF NOT EXISTS tickets(id INTEGER PRIMARY KEY, owner TEXT, status TEXT);
-        CREATE TABLE IF NOT EXISTS comments(id INTEGER PRIMARY KEY, ticket INTEGER REFERENCES tickets(id),
-          author TEXT, created TEXT, body TEXT);
-    ''')
-    columns={row[1] for row in con.execute('PRAGMA table_info(comments)')}
-    for name,kind in [('elapsed_seconds','REAL'),('clock_event','TEXT')]:
-        if name not in columns:
-            con.execute(f'ALTER TABLE comments ADD COLUMN {name} {kind}')
-    for i, cell in enumerate(CELLS, 1):
-        con.execute('INSERT OR IGNORE INTO tickets VALUES (?, ?, ?)', (i, cell, 'Investigating'))
-    con.commit()
     return con
+
+
+def initialize_database(state):
+    """Apply the ticket schema and seed rows once, before serving requests."""
+    with closing(connect_database(state)) as con, con:
+        con.executescript('''
+            CREATE TABLE IF NOT EXISTS tickets(id INTEGER PRIMARY KEY, owner TEXT, status TEXT);
+            CREATE TABLE IF NOT EXISTS comments(id INTEGER PRIMARY KEY, ticket INTEGER REFERENCES tickets(id),
+              author TEXT, created TEXT, body TEXT);
+        ''')
+        columns={row[1] for row in con.execute('PRAGMA table_info(comments)')}
+        for name,kind in [('elapsed_seconds','REAL'),('clock_event','TEXT')]:
+            if name not in columns:
+                con.execute(f'ALTER TABLE comments ADD COLUMN {name} {kind}')
+        for i, cell in enumerate(CELLS, 1):
+            con.execute('INSERT OR IGNORE INTO tickets VALUES (?, ?, ?)', (i, cell, 'Investigating'))
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -110,11 +120,14 @@ class Handler(BaseHTTPRequestHandler):
         if path == '/api/control':
             return self.send(200, participant_events(self.control_events()))
         if path == '/api/tickets':
-            with closing(database(self.server.state)) as con, con:
-                tickets = [dict(zip(('id', 'owner', 'status'), row)) for row in con.execute('SELECT * FROM tickets ORDER BY id')]
-                for ticket in tickets:
-                    ticket['comments'] = [dict(zip(('id', 'author', 'created', 'body', 'elapsed_seconds', 'clock_event'), row)) for row in con.execute(
-                        'SELECT id,author,created,body,elapsed_seconds,clock_event FROM comments WHERE ticket=? ORDER BY id', (ticket['id'],))]
+            try:
+                with closing(connect_database(self.server.state, readonly=True)) as con:
+                    tickets = [dict(zip(('id', 'owner', 'status'), row)) for row in con.execute('SELECT * FROM tickets ORDER BY id')]
+                    for ticket in tickets:
+                        ticket['comments'] = [dict(zip(('id', 'author', 'created', 'body', 'elapsed_seconds', 'clock_event'), row)) for row in con.execute(
+                            'SELECT id,author,created,body,elapsed_seconds,clock_event FROM comments WHERE ticket=? ORDER BY id', (ticket['id'],))]
+            except sqlite3.Error:
+                return self.send(503, {'error': 'Ticket data is temporarily busy; retry shortly'})
             return self.send(200, tickets)
         if path == '/api/files':
             return self.send(200, sorted(p.relative_to(self.server.root).as_posix() for p in self.server.root.rglob('*') if p.is_file() and not p.is_symlink()))
@@ -190,7 +203,7 @@ class Handler(BaseHTTPRequestHandler):
                 raise ValueError()
             if status not in (None, 'Investigating', 'Assessment sent', 'Closed'):
                 raise ValueError()
-            with closing(database(self.server.state)) as con, con:
+            with closing(connect_database(self.server.state)) as con, con:
                 con.execute('BEGIN IMMEDIATE')
                 events=self.control_events()
                 transitions=[event['kind'] for event in events if event['kind'] in ('start','pause','resume')]
@@ -226,7 +239,7 @@ def serve(host, port, root, state, credentials, control=None):
     server.session_lock = threading.Lock()
     if set(server.credentials) != set(CELLS):
         raise ValueError('Expected five cell credentials')
-    database(state).close()
+    initialize_database(state)
     return server
 
 
