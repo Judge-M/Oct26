@@ -12,6 +12,7 @@ from expanded.load import (CtfdBot, IrisBot, LoadError, TimedClient, build_repor
                            login_bots, markdown, mib, outbox_depth, percentile,
                            resolve_iris_case_path, resolve_target_urls,
                            retry_after_seconds)
+from ridge.state import State
 
 
 class PercentileTests(unittest.TestCase):
@@ -359,17 +360,18 @@ class OutboxTests(unittest.TestCase):
         self.assertIsNone(outbox_depth('definitely/not/here.sqlite'))
 
     def test_counts_pending_rows_from_a_copy(self):
-        import sqlite3
-        import tempfile
         with tempfile.TemporaryDirectory() as tmp:
             path = os.path.join(tmp, 'state.sqlite')
-            db = sqlite3.connect(path)
-            db.execute('CREATE TABLE outbox (id INTEGER, delivered INTEGER)')
-            db.executemany('INSERT INTO outbox VALUES (?, ?)',
-                           [(1, None), (2, 'yes'), (3, None)])
-            db.commit()
-            db.close()
-            self.assertEqual(outbox_depth(path), 2)
+            state = State(path)
+            state.initialize(
+                [dict(id='team-01', iris='1', ctfd=1, name='Team 01')],
+                [dict(id='T01', title='Ticket 01', subject='Subject', questions=[
+                    dict(id='Q01', answer='answer', finding=dict(
+                        text='Finding', evidence=['artifact'], limitation='scope'))])])
+            self.assertEqual(outbox_depth(path), 1)
+            with state.transaction() as db:
+                db.execute('UPDATE outbox SET done=1')
+            self.assertEqual(outbox_depth(path), 0)
 
 
 if __name__ == '__main__':
