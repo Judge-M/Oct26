@@ -154,7 +154,8 @@ def _volume_tar(runner, volume, destination):
     """Tar a named volume read-only through the integration image (no new pulls).
     The tarfile is closed inside the container and the archive is re-opened for
     readability before the set can be marked complete."""
-    runner(['docker', 'run', '--rm', '-v', volume + ':/data:ro',
+    runner(['docker', 'run', '--rm', '--pull', 'never', '--network', 'none',
+            '--user', '0:0', '-v', volume + ':/data:ro',
             '-v', str(destination.parent.resolve()) + ':/backup',
             '--entrypoint', 'python', 'silent-ridge-integration:dev', '-c',
             "import tarfile,sys\n"
@@ -171,11 +172,23 @@ def _volume_tar(runner, volume, destination):
 
 def _volume_untar(runner, volume, archive):
     runner(['docker', 'volume', 'create', volume])
-    runner(['docker', 'run', '--rm', '-v', volume + ':/data',
+    # The integration image intentionally runs as uid 10001. Recovery archives
+    # preserve each application's native ownership (for example CTFd logs are
+    # uid 1001), so extraction must run as root or it cannot populate a fresh
+    # root-owned volume. Python's data filter validates paths, links and file
+    # types but deliberately clears ownership. Restore only those four owner
+    # fields after validation so the archive remains traversal-safe and useful.
+    runner(['docker', 'run', '--rm', '--pull', 'never', '--network', 'none',
+            '--user', '0:0', '-v', volume + ':/data',
             '-v', str(archive.parent.resolve()) + ':/backup:ro',
             '--entrypoint', 'python', 'silent-ridge-integration:dev', '-c',
             "import tarfile,sys\n"
-            "with tarfile.open(sys.argv[1]) as tar: tar.extractall(sys.argv[2])",
+            "def owned_data(member,path):\n"
+            " safe=tarfile.data_filter(member,path)\n"
+            " return safe.replace(uid=member.uid,gid=member.gid,uname=member.uname,"
+            "gname=member.gname,deep=False)\n"
+            "with tarfile.open(sys.argv[1]) as tar: tar.extractall(sys.argv[2],"
+            "filter=owned_data)",
             '/backup/' + archive.name, '/data'])
 
 
@@ -481,7 +494,7 @@ def restore(profile, runtime, backup, runner, host=None, operator='deploy',
         archive = Path(staging) / 'secrets.tar.gz'
         cipher.decrypt(backup / 'secrets.tar.gz.enc', archive)
         with tarfile.open(archive) as tar:
-            tar.extractall(staging)
+            tar.extractall(staging, filter='data')
         shutil.copytree(Path(staging) / 'secrets', stack.secrets_dir)
         if (Path(staging) / 'specs').is_dir():
             shutil.copytree(Path(staging) / 'specs', stack.specs_dir)
@@ -504,6 +517,10 @@ def restore(profile, runtime, backup, runner, host=None, operator='deploy',
     # loaded before the applications boot against them. On any failure, containers
     # this restore started are stopped so a retry does not trip the live check.
     try:
+        # These private bind-mounted files are derived from the restored secrets and
+        # the vendored Wazuh configuration. They are deliberately outside Docker
+        # volumes, so a clean destination must render them before Compose starts.
+        stack._render_wazuh_config()
         stack._render_env()
         stack._compose('central', 'up', '-d', 'iris-db', 'ctfd-db')
         stack._compose('guacamole', 'up', '-d', 'database')
@@ -537,6 +554,13 @@ def restore(profile, runtime, backup, runner, host=None, operator='deploy',
         # Public evidence and release vault return to the host asset directories.
         _restore_tree(backup / 'evidence', stack.asset('evidence_public'))
         _restore_tree(backup / 'release-vault', stack.asset('release_vault'))
+
+        # The restored lifecycle journal starts from a clean destination, while
+        # RabbitMQ and the CTFd cache still need their normal health window. Start
+        # and bound that wait here so the stage probe cannot race Compose startup.
+        stack._compose('central', 'up', '-d', 'ctfd-cache', 'rabbitmq')
+        _wait_healthy(stack, 'central', 'ctfd-cache')
+        _wait_healthy(stack, 'central', 'rabbitmq')
 
         # Reconcile everything else through the normal stage machine; restores are
         # idempotent, so a retried restore repeats without duplicates.
