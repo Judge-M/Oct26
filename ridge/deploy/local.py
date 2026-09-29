@@ -544,9 +544,15 @@ class LocalStack:
                 'ctfd_password': friendly,
                 'guac_username': friendly,
                 'guac_password': friendly,
-                # Keep canonical roster keys for inventory compatibility, but
-                # make every member's password the team's memorable password.
-                'accounts': {account: friendly for account in team['accounts']},
+                # Publish the actual CTFd usernames.  The first seat uses the
+                # memorable team name; additional seats receive predictable
+                # suffixes.  The roster's internal team-XX-pNN names are not
+                # CTFd logins and must not leak into the participant inventory.
+                'accounts': {
+                    (friendly if account_index == 0 else '%s-p%02d' %
+                     (friendly, account_index + 1)): friendly
+                    for account_index, _account in enumerate(team['accounts'])
+                },
             }
             credentials['desktops'][team['desktop']] = {'password': vnc}
         team_creds.write_text(json.dumps(credentials, indent=2), encoding='utf-8')
@@ -788,6 +794,7 @@ class LocalStack:
             ctfd_users = []
             for team in self.teams:
                 friendly = credentials['teams'][team['name']]['ctfd_name']
+                account_passwords = list(credentials['teams'][team['name']]['accounts'].values())
                 for account_index, account in enumerate(team['accounts']):
                     # Keep the first participant login as the memorable team
                     # name; suffix additional roster accounts predictably.
@@ -797,7 +804,9 @@ class LocalStack:
                         'name': login,
                         'email': '%s@silent-ridge.invalid' % login,
                         'team': team['name'],
-                        'password': credentials['teams'][team['name']]['accounts'][account],
+                        # Match by roster position so inventories written by
+                        # older releases (legacy keys) remain restorable.
+                        'password': account_passwords[account_index],
                     })
             ctfd_spec = {
                 'teams': [{'team': team['name'],

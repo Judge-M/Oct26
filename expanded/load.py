@@ -460,9 +460,12 @@ def run(config, duration, output):
     for team in sorted(creds['teams'])[: config['teams']]:
         entry = creds['teams'][team]
         accounts = entry.get('accounts', {})
-        for seat in range(1, config['sessions_per_team'] + 1):
-            user = f'{team}-p{seat:02d}'
-            password = accounts.get(user)
+        # The inventory is authoritative: classroom defaults use ``team1``
+        # for seat one and ``team1-p02``/``team1-p03`` for the others, while
+        # older runtimes used ``team-01-p01`` style names.  Constructing names
+        # from the internal team id made the harness reject valid fresh
+        # installs before the clock started.
+        for user, password in list(accounts.items())[: config['sessions_per_team']]:
             if password:
                 bots.append(CtfdBot(config['ctfd_url'], user, password, samples, ca_file))
         bots.append(IrisBot(config['iris_url'], entry['iris_login'],
