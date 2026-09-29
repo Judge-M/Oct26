@@ -1,4 +1,9 @@
-"""Host-only facilitator service. Never expose this port on participant networks."""
+"""Host-only facilitator service. Never expose this port on participant networks.
+
+Operator URL is http://127.0.0.1:8084/ by default (see DEFAULT_PORT). This
+panel is host-only and is not part of the documented event-day runbook; the
+retired operator guide is docs/admin-panel.md.
+"""
 import argparse
 import hashlib
 import hmac
@@ -114,12 +119,18 @@ class Handler(BaseHTTPRequestHandler):
             self.send(200,{'message':'Recorded '+action})
         except (ValueError,TypeError,KeyError,OSError,sqlite3.Error) as error:self.send(400,{'error':str(error)})
 
-def serve(port=8082):
+# 8084 is deliberately outside the participant-published range (8080 CRL,
+# 8081 IRIS, 8082 Guacamole, 8083 CTFd). The previous default of 8082 collided
+# with Guacamole's loopback publish in deployment/expanded/compose.central.yaml
+# whenever BIND_IP is left at its 127.0.0.1 default.
+DEFAULT_PORT = 8084
+
+def serve(port=DEFAULT_PORT):
     server=ThreadingHTTPServer(('127.0.0.1',port),Handler)
     server.sessions={};server.lock=threading.Lock();server.attempts=[]
     return server
 
 if __name__=='__main__':
-    parser=argparse.ArgumentParser();parser.add_argument('--add-user');parser.add_argument('--port',type=int,default=8082);args=parser.parse_args()
+    parser=argparse.ArgumentParser();parser.add_argument('--add-user');parser.add_argument('--port',type=int,default=DEFAULT_PORT);args=parser.parse_args()
     if args.add_user:provision(args.add_user)
     else:serve(args.port).serve_forever()

@@ -97,8 +97,10 @@ python -m ridge.deploy status --profile event-profile.json --runtime R   # expec
 
 `up` stops at a verified, **paused** state — participants see nothing yet.
 Before the event, set and securely retain `RIDGE_BACKUP_KEY` (at least 16
-characters). Doctor reports a missing key; backup and restore require the same
-value. Do not put it in `local.json`, the repository or the recovery set.
+characters). Doctor reports a missing key under `recovery_ready` rather than in
+`ready_for_up`: the key is not an input to `up`, so a first deployment is
+legitimately ready without it. Backup and restore require the same value.
+Do not put it in `local.json`, the repository or the recovery set.
 On Windows, backup and restore run OpenSSL from the already loaded
 `silent-ridge-integration:dev` image with no network or image pull; a host
 `openssl.exe` installation is not required. Keep the exact image and backup

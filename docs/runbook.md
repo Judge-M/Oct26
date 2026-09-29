@@ -46,7 +46,10 @@ to participants). Windows operators may use `.\ridge.ps1 <action> -Profile P
    Set `RIDGE_BACKUP_KEY` to a private, persistent value of at least 16
    characters **before the event**. Keep the same value available for restore;
    it is never saved in the runtime or recovery set. Doctor reports whether it
-   is present without printing it. A missing key refuses backup before export.
+   is present without printing it, as `recovery_ready` — deliberately separate
+   from `ready_for_up`, because the key is not an input to `up` and a missing
+   key is not a reason to hold off on the first deployment. A missing key
+   refuses backup before export.
 9. **Shut down** — `python -m ridge.deploy down --profile P --runtime R`
    (data kept). Add `--volumes` only when you mean it: it wipes all event data
    and **refuses unless a verified backup exists**.
