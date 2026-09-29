@@ -40,6 +40,38 @@ def docker(*args, capture=False):
     return result.stdout.strip() if capture else None
 
 
+def base_images(dockerfile):
+    """Base images a Dockerfile builds FROM, in order, deduplicated.
+
+    Read from the Dockerfile rather than a hardcoded list so a new base image
+    cannot silently escape the check in build(). Resolves the FROM forms that
+    are not a registry reference: a leading ``--flag=value``, a build stage
+    alias, and the reserved empty ``scratch``. A base built from a build
+    argument cannot be resolved statically and comes back as unresolved.
+    """
+    images = []
+    stages = set()
+    unresolved = []
+    for line in (ROOT / dockerfile).read_text(encoding='utf-8').splitlines():
+        parts = line.strip().split()
+        if not parts or parts[0].upper() != 'FROM':
+            continue
+        parts = [p for p in parts[1:] if not p.startswith('--')]
+        if not parts:
+            continue
+        image = parts[0]
+        if len(parts) > 2 and parts[1].upper() == 'AS':
+            stages.add(parts[2])
+        if image == 'scratch' or image in stages:
+            continue
+        if '$' in image:
+            unresolved.append(image)
+            continue
+        if image not in images:
+            images.append(image)
+    return images, unresolved
+
+
 def build(component, work):
     work = Path(work)
     work.mkdir(parents=True, exist_ok=True)
@@ -49,7 +81,33 @@ def build(component, work):
         receipt = work / (component + '.json')
         receipt.unlink(missing_ok=True)  # A failed rebuild cannot leave a success receipt.
         source = fingerprint()
-        docker('build', '-f', IMAGES[component], '-t', tag, '.')
+        # The build sits on the air-gapped recovery path, so it must not reach a
+        # registry when it does not have to. BuildKit otherwise resolves FROM
+        # against Docker Hub even when the base image is already cached locally,
+        # which turned a cached rebuild into a network-dependent failure (#98).
+        # --pull=false is the spelling both the classic builder and buildx
+        # accept; --pull (bare) would force the pull this path exists to avoid.
+        #
+        # A base that is not cached is NOT an error. On a cold host the first
+        # build legitimately has to fetch it, so refusing there would make a
+        # first build impossible. That case is a preparation-host build, and it
+        # is reported as such rather than silently reaching out. Only the
+        # all-cached case is the offline rebuild #98 is about.
+        bases, unresolved = base_images(IMAGES[component])
+        uncached = []
+        for base in bases:
+            try:
+                docker('image', 'inspect', base, capture=True)
+            except (OSError, subprocess.SubprocessError):
+                uncached.append(base)
+        for base in unresolved:
+            print('Note: base image ' + base + ' comes from a build argument; '
+                  'its cache state cannot be checked before the build.')
+        if uncached:
+            print('Note: base image(s) not cached locally: ' + ', '.join(uncached)
+                  + '. This build needs registry access and belongs on the '
+                    'preparation host, not the air-gapped event host.')
+        docker('build', '--pull=false', '-f', IMAGES[component], '-t', tag, '.')
         identity = docker('image', 'inspect', '--format', '{{.Id}}', tag, capture=True)
         if source != fingerprint():
             raise ValueError('Build inputs changed during build; rebuild before running')
