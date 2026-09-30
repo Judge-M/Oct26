@@ -8,6 +8,30 @@ Read [Consolidation](CONSOLIDATION.md), [Build first](BUILD-FIRST.md), and
 [Next bounded work](NEXT.md). Give a new agent [this starter prompt](STARTER-PROMPT.md).
 The dated assessment below is historical; source additions do not complete live gates.
 
+## Latest: full-system verification, all 80 questions (2026-09-30)
+
+[Full-verification receipt](FULL-VERIFICATION-RECEIPT.md) — all 80 questions
+answered, 0 wrong, 20/20 tickets closed, and the effects read back from the
+native stores: 80 finding comments and 20 closed tasks in IRIS's own database,
+80 `Awards` rows correctly attributed to team-01 in CTFd, outbox drained. Load
+check: 2 teams x 3 sessions, 0 failures on all 9 endpoints. **Not event
+certification** — every session was scripted HTTP, so the desktop-usability gate
+(N2/F03) is still open, and no restart, redelivery, takeover or backup/restore
+test was performed. Also records that `expanded/tickets.json` is gitignored and
+absent, so the documented walkthrough cannot run on a clean clone.
+
+## Latest: two-team pilot bring-up (2026-09-29)
+
+[Pilot receipt](PILOT-2TEAM-RECEIPT.md) — first successful local bring-up on a
+cleanly rebuilt host. `PROVISIONED_PAUSED` with all seven stages verified, 2
+teams, 505 evidence documents, 20 tickets. Four real defects were fixed on the
+way, all invisible to the unit suite: two Wazuh certificate-filename mismatches
+that crash-looped the indexer and dashboard, a service rename that broke the
+indexer DNS name, and a hardcoded `127.0.0.1` that made `up` fail on any host
+bound to a LAN address. **Paused, not started** — no participant session, ticket
+claim, answer or point is claimed. Also records that a source build cannot
+obtain the upstream Wazuh config without the release bundle.
+
 ## Start here
 
 Moving computers? Read [Continue elsewhere](CONTINUE-ELSEWHERE.md) first. The handoff and preserved build recipes are in this repository; no previous chat or original workstation is required.
