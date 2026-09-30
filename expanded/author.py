@@ -84,6 +84,39 @@ LIMITS = {
  'Cutter':'This harmless training surrogate demonstrates static inspection, not behavior of an acquired incident executable.',
  'Linux file manager':'The supplied document or export supports only the stated comparison, not human receipt or adversary intent.'}
 
+#
+# Per-question step supplements. A question whose answer is NOT in the file its
+# `evidence` field names needs the cross-source hop stated explicitly, or a
+# participant following the taught route cannot reach the answer. Verified
+# against the released evidence (see docs/handoff/CONTENT-AUDIT-RECEIPT.md).
+EXTRA_STEPS = {
+    # sensor.pcap carries the requester's address 10.26.10.17 and no hostname at
+    # all (zero WS-* strings in the capture). The workstation name requires two
+    # further hops, neither of which the ticket named.
+    'T01-Q1': ['The capture carries the requester\'s address, not a workstation name. '
+               'Note 10.26.10.17 from the plan-v3 record, then open /evidence/identity/auth.csv '
+               'and find that address to identify the account (m.ellis, session S-41).',
+               'Open /evidence/endpoint/events.csv and find rows for that account to read its '
+               'workstation name (WS-17). The address column in that file is not the same '
+               'address, so correlate by account rather than by address.'],
+    # The single session_refresh record in wazuh/telemetry.jsonl is timestamped
+    # 09:03 (the T06 answer), not 09:26. The later refresh is in the identity
+    # evidence, which the Wazuh-only steps never named.
+    'T07-Q2': ['The session_refresh record in the Wazuh data view is timestamped 09:03, which is '
+               'the earlier refresh from the previous ticket, not the late one. This question asks '
+               'for the LATE successful refresh.',
+               'Open /evidence/identity/late-auth.csv and find the session_refresh row for S-41; '
+               'its time field is 09:26:00 and its result is success.'],
+    # The phrase is a policy statement, not a telemetry field. "revocation" does
+    # not appear anywhere in the Wazuh index.
+    'T07-Q4': ['This question asks which SEPARATE policy action invalidates issued sessions; it is '
+               'not a field in the Wazuh data view. "Revocation" appears nowhere in the telemetry.',
+               'Open /evidence/identity/policy.txt and read the stated identity-provider behaviour: '
+               'a password reset does not invalidate already-issued sessions, and explicit session '
+               'revocation is the separate mechanism.'],
+}
+
+
 FINDINGS = [
 ['WS-17 is the workstation associated with the plan-v3 request.', 'The plan download is correlated by request identifier req-71.', 'Request req-72 identifies the outbound upload.', 'The upload record identifies 198.51.100.77 as its external destination.'],
 ['The DNS record maps relay.archive.example to an address.', 'The DNS answer is 198.51.100.77.', 'The recorded DNS client is WS-17 at 10.26.10.17.', 'The DNS response records a 60-second TTL.'],
@@ -148,10 +181,13 @@ def build(config=None):
         questions=[]
         for i,(prompt,answer) in enumerate(pairs,1):
             qid=f'{tid}-Q{i}'
+            # Copy the shared opening list: a per-question supplement must not
+            # leak into the other questions of the same ticket.
+            steps=list(opening)+list(EXTRA_STEPS.get(qid,[]))
             question=dict(id=qid,prompt=prompt,answer=answer,tool=tool,evidence='/evidence/'+evidence,
                 selection=selection,source_record=evidence,
                 purpose='Use '+title.lower()+' to answer this specific question and identify the limits of the evidence.',
-                steps=opening,format='Enter only the requested value; times use HH:MM:SS UTC. Case and outer whitespace are ignored.',
+                steps=steps,format='Enter only the requested value; times use HH:MM:SS UTC. Case and outer whitespace are ignored.',
                 recovery='If no results appear, clear filters, check the evidence release and absolute UTC range, and reopen your writable case. Never re-ingest a large image during the activity.',
                 hints=['Start with '+selection+' and read the fields named in the question.',
                        'Compare the selected record with adjacent events; apply clock correction only to device_time.',
