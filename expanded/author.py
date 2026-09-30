@@ -114,6 +114,17 @@ EXTRA_STEPS = {
                'Open /evidence/identity/policy.txt and read the stated identity-provider behaviour: '
                'a password reset does not invalidate already-issued sessions, and explicit session '
                'revocation is the separate mechanism.'],
+    # The ticket-level selection is data.action:session_refresh, but the reset is
+    # a DIFFERENT action, so following the stated search never surfaces it.
+    'T07-Q1': ['The reset is not a session_refresh: the selection above only matches the refresh '
+               'record. Search the data view again for action data.action:password_reset, which is '
+               'the record this question asks about.'],
+    # The coverage records carry no gap boundaries; the window is stated as text.
+    'T12-Q2': ['The coverage records say DOCS-1 was "not collected" but do not give the start or '
+               'end of the gap. Open /evidence/server/collection.txt, which states the audit window '
+               'and the unavailable interval in text.'],
+    'T12-Q3': ['Open /evidence/server/collection.txt and read the end of the unavailable interval '
+               'for the DOCS-1 audit; the coverage records do not carry the boundary.'],
 }
 
 

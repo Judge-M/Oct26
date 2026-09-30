@@ -80,17 +80,38 @@ T07-Q4 in detail: the string "revocation" appears **nowhere** in
 `telemetry.jsonl`. The answer is a policy statement in `identity/policy.txt`,
 not a telemetry field.
 
-### The 3 that could not be confirmed
+### The 3 that could not be confirmed — CORRECTED, all three are reachable
 
-- **T11-Q3** `08:50:00` — evidence says `"offline since 08:50"`, so this is
-  reachable at minute precision; the `:00` is an answer-format artifact.
-  Probably fine.
-- **T12-Q2** `09:14:00` and **T12-Q3** `09:18:00` — the DOCS-1 collection gap
-  boundaries. `09:14`/`09:18` appear in `telemetry.jsonl` only as unrelated
-  `health_check` timestamps (`09:14:02Z`, `09:18:22Z`). `coverage.csv` says
-  DOCS-1 is `"not collected"` with no start or end time. **I could not find the
-  gap boundaries anywhere in the released evidence.** These two look genuinely
-  unreachable and need an author, not a mechanical fix.
+**Corrected 2026-09-30 after a 5-team stress test.** I originally reported
+T12-Q2/Q3 as "genuinely unreachable, needs an author". **That was wrong.**
+`/evidence/server/collection.txt` states:
+
+```
+DOCS-1 audit: 08:00–09:30 UTC; collection unavailable 09:14–09:18 UTC. Other servers were not collected.
+```
+
+The gap boundaries are right there. My audit searched for the literal string
+`09:14:00` and the file says `09:14–09:18` — an en-dash and no seconds — so my
+exact-substring test reported a false absence. A fourth measurement error of
+mine, and the most consequential: I escalated two questions to a maintainer as
+needing an author when they needed only a step pointing at a file already
+published.
+
+- **T12-Q2** `09:14:00` and **T12-Q3** `09:18:00` — answerable from
+  `server/collection.txt`. Both now carry a step naming that file. Fixed.
+- **T11-Q3** `08:50:00` — reachable at minute precision from
+  `"offline since 08:50"`; the `:00` is an answer-format artifact. Judged fine,
+  left unchanged.
+
+### A defect the audit structurally could not find
+
+The audit asked "is the answer present in the file this question names?". That
+misses a second failure mode: the answer *is* in the named file, but the stated
+`selection` does not surface it. team-04 hit this live on T07-Q1: the ticket's
+selection is `data.action:session_refresh`, but the question asks about the
+**password reset**, which is a separate `action` value. Following the stated
+procedure returns nothing. Now fixed with a step telling the participant to
+search `data.action:password_reset`.
 
 ## 3. Three corrections I made to my own work
 
