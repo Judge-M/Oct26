@@ -37,9 +37,17 @@ taken.
 | Walkthrough fixes | **None applied.** The review is read-only on the subject. |
 | Issue #188 (empty scoreboard as a defect) | Correctly never filed. The stress-receipt rendering did not reproduce in the 4-team run. |
 
-Known gap in the handoff docs themselves: `docs/handoff/AI-START-HERE.md` and
-`docs/handoff/ISSUE-INDEX.md` still say nothing has been pushed. That is stale, not
-wrong-by-design; if you touch them, refresh rather than trust them.
+Known gaps in the handoff docs themselves, found while writing this file:
+
+- `docs/handoff/README.md` links to `CLEAN-BASELINE-RECEIPT.md`,
+  `DESKTOP-USABILITY-RECEIPT.md`, `FULL-VERIFICATION-RECEIPT.md` and
+  `PILOT-2TEAM-RECEIPT.md`. **None of the four is tracked on this branch**, so those
+  links are dead here. They live on other branches; do not assume a missing receipt is
+  a deleted receipt.
+- `docs/handoff/AI-START-HERE.md` and `docs/handoff/ISSUE-INDEX.md` are **not in the
+  repository at all** on this branch. If they appear on a checkout, they are untracked
+  leftovers and their "nothing has been pushed" status is stale - refresh rather than
+  trust them.
 
 ---
 
