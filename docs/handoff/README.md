@@ -8,6 +8,20 @@ Read [Consolidation](CONSOLIDATION.md), [Build first](BUILD-FIRST.md), and
 [Next bounded work](NEXT.md). Give a new agent [this starter prompt](STARTER-PROMPT.md).
 The dated assessment below is historical; source additions do not complete live gates.
 
+## Latest: walkthrough review (2026-10-01)
+
+[Handoff](WALKTHROUGH-REVIEW.md) and [full review](../reviews/walkthrough-review-2026-10-01.md)
+— an independent content review of `docs/walkthrough/CTF-WALKTHROUGH.md` (PR #196,
+`dd46a18`), with every claim re-derived from the repository. **14 findings: 7
+contradict a source of truth, 4 are internal inconsistencies, 2 are unverified claims,
+1 is a PR-structure problem.** The largest is section 7's phase tables: boundaries are
+shifted by one ticket from T11 on, and 5 of 20 tool entries are wrong. Two findings are
+not prose fixes — `silent-ridge-timed`/`-timeless` are both titled `silent-ridge-*` so
+neither is selectable by the name the document uses, and the "verbatim" coached route
+quotes content that exists only on PR #192's branch. **Fixes not applied**; five
+decisions are waiting on the organizer. Nothing here certifies the event: no human has
+played.
+
 ## Latest: 5-team AI stress test (2026-09-30)
 
 [Stress report](STRESS-5TEAM-REPORT.md) and
