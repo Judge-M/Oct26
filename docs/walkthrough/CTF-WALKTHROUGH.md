@@ -9,6 +9,18 @@ run rather than a mock-up.
 **Run captured here:** runtime `work/runtime-play`, 4 teams, brand new — 0 answers
 and 0 tickets claimed at the start. Team `team-01`.
 
+### Screenshots in this document
+
+| # | Image | Shows |
+|---|---|---|
+| 01 | `images/01-ctfd-scenario-brief.png` | CTFd login → scenario brief, the Triage/Investigation/Handoff loop |
+| 02 | `images/02-iris-queue-empty.jpeg` | IRIS incident queue, all 20 tickets unclaimed (full page) |
+| 03 | `images/03-ctfd-first-answer-correct.png` | First answer accepted + the published finding text |
+| 04 | `images/04-guacamole-team-desktop.png` | The team desktop — Cutter, Autopsy, Wireshark, Evidence |
+| 05 | `images/05-wazuh-discover-497-hits.png` | Wazuh Discover with an absolute range — **497 hits** |
+| 06 | `images/06-iris-published-finding.png` | The finding inside IRIS, with evidence + limitation + receipt UUID |
+| 07 | `images/07-ctfd-scoreboard.png` | Scoreboard rendering `team1 = 1` |
+
 ---
 
 ## 0. What this exercise is
@@ -339,6 +351,53 @@ Also from LO3, and worth internalising early:
 | `hunting/coverage.csv` | Which hosts were collected — and which were not |
 | `binary/brief-viewer-training` | The Cutter target |
 
+### 5.1 Querying the SIEM — Wazuh Discover
+
+The fourth tab (`:8443`) is the Wazuh Dashboard. Log in with the read-only
+account the organizer hands out from `secrets/wazuh_reader`, then open
+**Discover**.
+
+Here is what a participant sees on **first open**, and it is the single sharpest
+edge in the whole event:
+
+- The data view defaults to `silent-ridge-*`.
+- The time picker defaults to **Last 15 minutes**.
+- The scenario data is dated **2026-10-15**.
+
+Result: **"No results match your search criteria" / "Expand your time range."**
+
+A new participant can easily read that as *"the evidence wasn't loaded."* It
+was — 505 documents were indexed at provision. The fix is to set an **absolute**
+UTC range covering the incident. Once you do:
+
+![Wazuh Discover with an absolute time range — 497 hits](images/05-wazuh-discover-497-hits.png)
+
+> **497 hits** over `Oct 15, 2026 @ 04:00 → 06:30` (local rendering of
+> `08:00 → 10:30 UTC`), bucketed `timestamp per 5 minutes`, on index
+> `silent-ridge-oct26`.
+>
+> Fields exposed: `data.device_time`, `data.observed`, `data.start_time_utc`,
+> `data.time`, `observation`, `record_id`, `timestamp`.
+>
+> Sample rows: `data: {action: service_status, host: WS-17, ...}` with
+> `observation: synthetic historical replay`.
+
+**Learning objective — LO6** *(Test scope hypotheses against coverage and
+uncertainty)* rests entirely on this two-index split:
+
+| Data view | Contains | Time range you must use |
+|---|---|---|
+| `silent-ridge-timed` | Dated events | **Absolute scenario-date UTC range** |
+| `silent-ridge-timeless` | Undated coverage/catalog records | **No time range at all** |
+
+Using the timed view with the default relative window returns nothing — which is
+precisely the lesson: *scope your query to the collection model.* If your query
+comes back empty, check the data view **and** the time picker before concluding
+the data is missing.
+
+> 🔑 **Set the time range first, every time.** This is the first thing to try
+> whenever Discover shows zero results.
+
 ---
 
 ## 6. Handoff — submit the answer
@@ -411,6 +470,50 @@ It is really there. The outbox had drained to `0` undelivered rows:
 **Learning objective — LO8** *(Reconcile findings across teams)*: that finding is
 now visible to **every team**. A team that claims T01 later inherits your work
 rather than redoing it.
+
+### 6.4 Finding your finding in the IRIS UI (the path is not obvious)
+
+`ridge/web.py` links participants straight to it:
+
+```html
+{% if t.iris_id %}<a href="{{iris}}/case/tasks?cid={{case}}">Open IRIS tasks and shared findings</a>{% endif %}
+```
+
+But that link lands on the **DIM Tasks grid**, which shows only
+Title / Description / Status / Assigned to / Open date / Tags — **no findings**.
+The comments live four interactions deeper:
+
+1. Open `/case/tasks?cid=2` (the "shared findings" link).
+2. Click the task's row expander — the small control on **T01**, or its
+   `a.task_details_link`.
+3. A modal opens titled **`Task ID #1`** with the ticket description. *Still no
+   findings.*
+4. Click the **speech-bubble icon in the modal header** — it carries a red count
+   badge. For this run it read **`2`**.
+
+Only then does the panel appear:
+
+![The published finding, visible in IRIS](images/06-iris-published-finding.png)
+
+> **Comments on T01 · Trace document traffic**
+>
+> `SRI  2026-10-01T16:45:26.684435` — Ownership: team-01
+>
+> `SRI  2026-10-01T16:46:37.480312` — WS-17 is the workstation associated with
+> the plan-v3 request. Evidence: network/sensor.pcap (udp.port == 514)
+> Limitation: Replayed or reconstructed evidence; transmission metadata does not
+> establish human receipt, reading, or intent. Question: T01-Q1 Solved by: team-01
+> UTC: 2026-10-01T16:46:36.715954+00:00 Answer event: 57261cf3-2a25-4607-9470-abe4e580d534
+
+The **`Answer event:` UUID** is the transactional receipt — it ties this
+published finding back to the exact accepted answer. That is the durability LO7
+is graded on, and it is genuinely there.
+
+**Why this took a while to find** — worth knowing before event day, because
+participants will hit exactly this: the landing link promises "tasks and shared
+findings", but the findings are behind an unlabelled icon inside a modal. If a
+team reports *"our findings aren't syncing"*, walk them to step 4 before
+suspecting the bridge.
 
 ---
 
@@ -583,9 +686,24 @@ follow-ups globally — for every team.
   mechanism.
 - **Verify native state, not the outbox.** For IRIS check the `comments` table;
   for CTFd check the `Awards` rows. Local `done=1` alone proves nothing.
-- **`/scoreboard` is worth checking before event day.** During a recorded run it
-  rendered *"Scoreboard is empty"* while native `Awards` held rows. A leaderboard
-  that reads empty to participants is a visible failure.
+- **`/scoreboard` — a prior receipt does not reproduce here.** The 5-team stress
+  receipt recorded the scoreboard rendering *"Scoreboard is empty"* while native
+  `Awards` held 80 rows. In this fresh 4-team run the same page renders
+  correctly:
+
+  ```
+  Place   Team     Score
+  1       team1    1
+  ```
+
+  ![CTFd scoreboard](images/07-ctfd-scoreboard.png)
+
+  Three independent sources agree on the value `1`: `state.sqlite` shows 1
+  answer, the outbox shows `1 point` with `done=1`, and the UI shows `team1 = 1`.
+  **The earlier "empty scoreboard" condition did not reproduce.** Do not treat it
+  as a confirmed defect — it still needs a check against a full multi-team event
+  before anyone files it. This is the usual lesson: a single observed rendering
+  is not yet a reproduced bug.
 
 ---
 
@@ -617,6 +735,18 @@ Observed during live play — documented so they are not mistaken for breakage.
    one page design; participants can lose track of which one they are in.
 7. **Mojibake in rendered pages** — em-dashes appear as `�` in some participant
    strings.
+8. **Shared findings are four clicks deep.** The landing link says *"Open IRIS
+   tasks and shared findings"*, but that opens a grid with no findings column.
+   You must expand the task row, then click an **unlabelled speech-bubble icon**
+   in the modal header to reveal them (§6.4). The data was never missing — the
+   bridge wrote it correctly — but two independent testers would have called it
+   unsynced. An inline "3 findings" affordance on the task row would fix it.
+9. **Sessions expire mid-session.** After the machine was locked for several
+   minutes, all three web apps (CTFd, IRIS, Wazuh) had dropped back to their
+   login screens. Expected behaviour, but on event day a team returning from a
+   break will hit it simultaneously — and CTFd's `10 logins per 60s per IP`
+   rate limit (§12.2) means a whole team re-authenticating at once can trip
+   `HTTP 429`.
 
 ---
 
