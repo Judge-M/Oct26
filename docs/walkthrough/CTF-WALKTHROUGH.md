@@ -204,7 +204,7 @@ questions is a card. T01-Q1:
 >
 > **Tool: Wireshark · Evidence: `/evidence/network/sensor.pcap`**
 
-Every card has the same seven parts. Knowing the anatomy makes the whole exercise
+Every card has the same eight parts. Knowing the anatomy makes the whole exercise
 legible:
 
 | Part | What it is | Why it exists |
@@ -212,6 +212,7 @@ legible:
 | **Heading** | The exact question | States what "correct" means |
 | **Phase** | Which of the 4 investigation phases | Keeps the team oriented in the story |
 | **Why this question matters** | The pedagogical justification | Tells you what skill is being exercised |
+| **Purpose** | What you are asked to do, in one line | Scopes the question to a specific, bounded claim |
 | **Route** | `Tool:` + `Evidence:` | The starting point — you never have to hunt for the file |
 | **Coached steps** | Click-by-click instructions | The tool teaching itself |
 | **Answer format** | e.g. *"times use HH:MM:SS UTC"* | Grading is exact; this is the contract |
@@ -313,8 +314,10 @@ Desktop icons, and what each is for:
 | **Cutter** | Static analysis of a harmless training binary | LO3 |
 | **Wazuh** | SIEM shortcut — telemetry queries | LO5, LO6 |
 | **Evidence** | `/evidence` — the released evidence tree | LO3 |
-| **File system** | CSVs you would otherwise open in a spreadsheet | — |
-| **Incident queue** / **Questions and help** / **How-to guides** | Shortcuts back to IRIS and CTFd | — |
+| **Incident queue** / **Questions and help** | Shortcuts back to IRIS and CTFd | — |
+| **How-to guides** | `/evidence/guides` — the written guides, opened as a folder | — |
+| **Home** | The participant's home directory | — |
+| **File system** | Stock Xfce root-filesystem icon | — |
 
 ### The single most important rule on this desktop
 
@@ -551,16 +554,15 @@ Reconstruct what moved, where it went, and what was cached.
 > T13/T14 answers that preserve actual acquisition UTC and explicitly refuse the
 > historical correction."*
 
-### Phase 2 — Test identity and access explanations (T06–T11)
+### Phase 2 — Test identity and access explanations (T06–T10)
 
 | Ticket | Tool | Core objective |
 |---|---|---|
 | T06 Separate password and session authentication | Wazuh | **LO4** — session `S-41`, `previous_claim` refresh vs failed login |
-| T07 Audit document and roster access | Autopsy | **LO4** — *does the 09:20 password reset contain the incident?* |
-| T08 Audit document and roster access | — | **LO5** — HTTP 200 *with* bytes vs HTTP 403 *with zero* bytes (`req-75`) |
-| T09 Superseding brief | — | **LO5** — compare v3 vs v4 |
+| T07 Test the effect of the password reset | Wazuh | **LO4** — *does the 09:20 password reset contain the incident?* |
+| T08 Audit document and roster access | Autopsy | **LO5** — HTTP 200 *with* bytes vs HTTP 403 *with zero* bytes (`req-75`) |
+| T09 Compare superseding movement information | Linux file manager | **LO5** — compare v3 vs v4 |
 | T10 Test a benign comparator | Wazuh | **LO5, LO6** — establish a benign host |
-| T11 Unresolved host lead | Wazuh | **LO6** — **keep it unresolved** |
 
 **LO4** is the interesting one. The exercise's finding is that a password reset
 *does not contain the incident*:
@@ -572,20 +574,20 @@ Reconstruct what moved, where it went, and what was cached.
 Note the second clause: **an IP address is not an identity.** That is a real
 discipline, drilled via a fake scenario.
 
+### Phase 3 — Define scope and collection limits (T11–T15)
+
+| Ticket | Tool | Core objective |
+|---|---|---|
+| T11 Investigate the unresolved host lead | Wazuh | **LO5, LO6** — **keep it unresolved** |
+| T12 Map collection coverage | Wazuh (`silent-ridge-timeless`) | **LO1, LO5, LO6** — undated coverage facts |
+| T13 Inspect acquired process-log records | Autopsy | **LO1** — preserve acquisition UTC |
+| T14 Inspect acquired task-log records | Autopsy | **LO1** |
+| T15 Inspect the prepared memory process tree | Autopsy | **LO2** — viewer PID → parent → cache argument |
+
 **T11 is a trap you must not fall into.** The correct answer is to leave the host
 **unresolved**, because coverage cannot support a conclusion. Clearing it would
 be wrong. LO6: *"keep systems unresolved where coverage cannot support a
 conclusion."*
-
-### Phase 3 — Define scope and collection limits (T12–T16)
-
-| Ticket | Tool | Core objective |
-|---|---|---|
-| T12 Map collection coverage | Wazuh (`silent-ridge-timeless`) | **LO1, LO6** — undated coverage facts |
-| T13 Inspect acquired process-log records | Autopsy | **LO1** — preserve acquisition UTC |
-| T14 Inspect acquired task-log records | Autopsy | **LO1, LO5** |
-| T15 Prepared memory process tree | Autopsy | **LO2** — viewer PID → parent → cache argument |
-| T16 Correlate the acquired connection snapshot | Autopsy | **LO2** — *explicitly not validated memory evidence* |
 
 **LO6** works through the two-index split:
 
@@ -596,14 +598,15 @@ conclusion."*
 Using the timed index with a default relative window returns nothing, which is
 the lesson: *scope your query to the collection model*.
 
-### Phase 4 — Corroborate and state the conclusion (T17–T20)
+### Phase 4 — Correlate and state the defensible conclusion (T16–T20)
 
 | Ticket | Tool | Core objective |
 |---|---|---|
-| T17 Inspect the harmless training binary | Cutter | **LO3** — static only, never execute |
+| T16 Correlate the acquired connection snapshot | Autopsy | **LO2** — *explicitly not validated memory evidence* |
+| T17 Inspect the harmless training binary configuration | Cutter | **LO3** — static only, never execute |
 | T18 Follow a small static code example | Cutter | **LO3** |
-| T19 Compare DLP body hash with catalog | — | **LO2, LO5** — payload identity by hash |
-| T20 Exposure limits | — | **LO2, LO5** — synthesis; **requires T07, T09, T11, T19** |
+| T19 Verify the transmitted payload | Linux file manager | **LO2, LO5** — payload identity by hash |
+| T20 Test the limits of the overall exposure conclusion | Wazuh | **LO2, LO5** — synthesis; **requires T07, T09, T11, T19** |
 
 **T20 is the capstone** and it only unlocks once four other tickets are complete.
 Its questions ask directly whether roster disclosure, WS-31 clearance or
@@ -648,16 +651,17 @@ examples:
 Tickets are not all open from the start. Authored dependencies gate follow-ups:
 
 ```
-T06 ──► T07
-T07 ─┐
-T09 ─┼──► T20
-T11 ─┤
-T19 ─┘
+T06 ──► T07 ──┐
+T08 ──► T09 ──┼──► T20
+T10 ──► T11 ──┤
+T01 ──► T19 ──┘
+T05 ──► T19
 ```
 
-At the start of this run **12 of 20** tickets had a claim button; the rest were
-locked pending prerequisites. This is what makes the exercise a *sequence* rather
-than 20 independent lookups.
+Fifteen of the twenty tickets declare no prerequisite and are claimable as soon
+as they are delivered to IRIS; five are gated by a `requires` dependency (T07,
+T09, T11, T19 and T20). The dependency chain is what makes the exercise a
+*sequence* rather than 20 independent lookups.
 
 Closing the last answer on a ticket marks it `complete` and unlocks its
 follow-ups globally — for every team.
@@ -669,7 +673,7 @@ follow-ups globally — for every team.
 | # | Objective | Where you prove it | How it is graded |
 |---|---|---|---|
 | **LO1** | Interpret source time and preserve provenance | T01–T04, T12–T14 | Correct T04 correction; T13/T14 *refuse* the correction |
-| **LO2** | Reconstruct the chain; separate observation from inference | T15, T16, T19, T20 | Answers cite the joining identifier / process ancestry / hash |
+| **LO2** | Reconstruct the chain; separate observation from inference | T01, T05, T06, T15, T16, T19, T20 | Answers cite the joining identifier / process ancestry / hash |
 | **LO3** | Preserve and handle evidence defensibly | T03, T05, T17, T18 | Writable case copy, read-only evidence, no execution |
 | **LO4** | Assess identity and session activity; judge control efficacy | T06, T07 | Reset deemed insufficient without explicit revocation; IP not an identity |
 | **LO5** | Bound disclosure; avoid absence-of-evidence fallacies | T08–T12, T19, T20 | Distinguishes disclosed from denied; names gaps; no intent claim |
