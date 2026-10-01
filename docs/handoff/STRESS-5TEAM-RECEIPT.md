@@ -1,7 +1,13 @@
 # 5-team AI stress test — findings
 
 Date: 2026-09-30. Host: `DESKTOP-T5PF26O`, Windows, Docker Desktop 29.8.0,
-20 cores / 31.7 GiB RAM / 238 GB free. Runtime: `work/runtime-stress`, 5 teams.
+20 cores / **63.7 GiB RAM** / 238 GB free. Runtime: `work/runtime-stress`, 5 teams.
+
+> **Correction (2026-09-30).** Earlier receipts in this series recorded the host
+> as 31.7 GiB RAM. That was a measurement error: `Win32_ComputerSystem` and
+> `GlobalMemoryStatusEx` both report **63.7 GiB**. The host is already at the
+> README's "64 GB is comfortable" tier, so the ten-team rehearsal is limited by
+> the **Docker memory cap**, not by the machine. See §5.
 Committed alongside the receipts on branch `fix/bounded-http-503-reset`.
 
 **Headline: the infrastructure held. The most serious failure was in my own
@@ -142,9 +148,22 @@ model, and both refusals were the model being correct:
 The memory refusal is the more interesting one. **Earlier in this session the
 Docker engine reported a 15.5 GiB cap, which made 5 teams impossible.** After
 Docker Desktop's backend crashed and I relaunched it, the engine reported
-**31.2 GiB** and 5 teams came up comfortably. The 10-team rehearsal host sizing
-depends on that cap, and **nothing in the repository records what the cap
-actually was.** This is a reproducibility hazard for the rehearsal.
+**31.2 GiB** and 5 teams came up comfortably.
+
+**Ten-team implication, now that the host RAM is corrected to 63.7 GiB.** The
+capacity model needs `(6144 + N*2048) * 1.2` MiB:
+
+| Teams | Required | vs 15.5 GiB cap | vs 31.2 GiB cap |
+|---|---|---|---|
+| 2 | 12.3 GiB | fits | fits |
+| 5 | 19.2 GiB | **refused** | fits |
+| 10 | 31.2 GiB | **refused** | exactly at the limit — no headroom |
+
+So the host hardware can do ten teams, but **only if the Docker cap is raised**,
+and at the current 31.2 GiB cap ten teams sits *exactly* on the model's own
+requirement with zero reserve. Nothing in the repository records what the cap
+should be, so this is a reproducibility hazard for the rehearsal: two hosts with
+the same RAM behave differently depending on a Docker Desktop setting.
 
 ## 6. What this test does not establish
 
