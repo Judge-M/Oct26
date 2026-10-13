@@ -1,4 +1,5 @@
 """Tests for ridge.bundle.split_file and its contract with offline_install."""
+import ast
 import shutil
 import tempfile
 import unittest
@@ -6,8 +7,10 @@ import hashlib
 import zipfile
 from pathlib import Path
 
-from ridge.bundle import LAYOUTS, materialize_lfs_source, save_refs, split_file
+from ridge.bundle import LAYOUTS, REQUIRED_IMAGES, materialize_lfs_source, save_refs, split_file
 from ridge.offline_install import image_parts
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 class SplitFileTests(unittest.TestCase):
@@ -88,6 +91,34 @@ class ImageLayoutTests(unittest.TestCase):
                        '/usr/local/bin/silent-ridge-entrypoint'), LAYOUTS['desktop'])
         self.assertIn(('deployment/expanded/desktop/helpers',
                        '/opt/silent-ridge/helpers'), LAYOUTS['desktop'])
+
+
+class RequiredImagesTests(unittest.TestCase):
+    """pack() refuses a bundle whose manifest misses any REQUIRED_IMAGES entry;
+    every image a central service needs with pull_policy: never must be in the
+    set, or a cold air-gapped host fails at up instead of at assembly."""
+
+    def assembler_tags(self):
+        """Extract the image-name -> tag map from the offline store assembler."""
+        source = (REPO_ROOT / 'scripts' / 'assemble_offline_store.py').read_text()
+        for node in ast.walk(ast.parse(source)):
+            if isinstance(node, ast.Assign) and \
+                    any(getattr(t, 'id', None) == 'tags' for t in node.targets):
+                return ast.literal_eval(node.value)
+        self.fail('assemble_offline_store.py no longer defines its image tags map')
+
+    def test_participant_tls_image_is_required(self):
+        # compose.central.yaml's participant-tls proxy serves nginx:alpine on
+        # every participant-facing port; omitting it from the requirement is
+        # the exact passes-preflight-fails-mid-event defect class.
+        self.assertIn('participant_tls', REQUIRED_IMAGES)
+
+    def test_assembler_and_required_image_sets_stay_in_lockstep(self):
+        tags = self.assembler_tags()
+        self.assertEqual(set(tags), REQUIRED_IMAGES,
+                         'assembler packs images pack() does not require, or '
+                         'requires images the assembler does not pack')
+        self.assertEqual(tags['participant_tls'], 'nginx:alpine')
 
 
 class MaterializeSourceTests(unittest.TestCase):
