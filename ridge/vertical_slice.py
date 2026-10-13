@@ -76,7 +76,8 @@ def run(state, config, client, sink, operator, ticket, question, answer, start=F
     teams = [team['id'] for team in config['teams']]
     if len(teams) < 2:
         raise SliceError('teams: a two-team slice requires at least two teams')
-    for attempt in (lambda: state.claim(teams[0], ticket),
+    observed_generation = state.ticket_state(ticket)['generation']
+    for attempt in (lambda: state.claim(teams[0], ticket, observed_generation),
                     lambda: state.answer(teams[0], question, answer)):
         try:
             attempt()

@@ -37,26 +37,26 @@ class WorkflowTests(unittest.TestCase):
     def test_simultaneous_claim_one_winner(self):
         def claim(team):
             try:
-                self.state.claim(team,'A');return True
+                self.state.claim(team,'A',0);return True
             except Conflict:
                 return False
         with concurrent.futures.ThreadPoolExecutor(3) as pool:
             self.assertEqual(sum(pool.map(claim,['0','1','2'])),1)
         owner=self.state.snapshot()['tickets'][0]['owner']
         with self.assertRaises(Conflict):
-            self.state.claim(owner,'B')
+            self.state.claim(owner,'B',0)
 
     def test_same_team_simultaneous_different_tickets(self):
         def claim(ticket):
             try:
-                self.state.claim('0',ticket);return True
+                self.state.claim('0',ticket,0);return True
             except Conflict:
                 return False
         with concurrent.futures.ThreadPoolExecutor(2) as pool:
             self.assertEqual(sum(pool.map(claim,['A','B'])),1)
 
     def test_transfer_global_close_history_followup(self):
-        self.state.claim('0','A')
+        self.state.claim('0','A',0)
         self.assertTrue(self.state.answer('0','A0',' ANSWER ')['correct'])
         self.state.release('0','A',1)
         self.state.claim('1','A',1)
@@ -67,13 +67,13 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(len(self.state.questions('2')),2)
         self.assertTrue(all(not q['answerable'] for q in self.state.questions('2')))
         self.assertEqual({r['id']:r['points'] for r in self.state.snapshot()['scores']},{'0':1,'1':1,'2':0})
-        self.drain();self.state.claim('1','C')
+        self.drain();self.state.claim('1','C',0)
         self.assertEqual(sum(v[0]=='ticket' for v in self.deliveries.values()),3)
         self.assertEqual(sum(v[0]=='finding' for v in self.deliveries.values()),2)
         self.assertEqual(sum(v[0]=='close' for v in self.deliveries.values()),1)
 
     def test_unrelated_direct_read_submission_and_wrong_owner(self):
-        self.state.claim('0','A')
+        self.state.claim('0','A',0)
         for team,q in [('0','B0'),('0','C0'),('1','A0'),('0','missing')]:
             with self.subTest(team=team,q=q):
                 with self.assertRaises(PermissionError):self.state.questions(team,q)
@@ -84,7 +84,7 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(self.state.answer('0','A0','wrong'),{'correct':False})
 
     def test_concurrent_duplicate_submissions(self):
-        self.state.claim('0','A')
+        self.state.claim('0','A',0)
         def answer(_):
             try:return self.state.answer('0','A0','answer')['correct']
             except Conflict:return False
@@ -94,7 +94,7 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(sum(v[0]=='point' for v in self.deliveries.values()),1)
 
     def test_ambiguous_remote_success_retry_restart(self):
-        self.state.claim('0','A');self.drain()
+        self.state.claim('0','A',0);self.drain()
         self.state.answer('0','A0','answer')
         def lost_response(kind,key,payload,con):
             self.sink(kind,key,payload,con)
@@ -108,7 +108,7 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(self.state.snapshot()['pending'],0)
 
     def test_pause_recovery_export_and_no_destructive_reinit(self):
-        self.state.claim('0','A');self.state.answer('0','A0','answer')
+        self.state.claim('0','A',0);self.state.answer('0','A0','answer')
         self.state.mode('controller','paused')
         with self.assertRaises(Conflict):self.state.answer('0','A1','answer')
         self.state.release(None,'A',1,recovery_actor='controller',reason='Absent team')
@@ -122,14 +122,14 @@ class WorkflowTests(unittest.TestCase):
         with self.assertRaises(PermissionError):self.state.identity('iris','unknown')
 
     def test_no_claim_before_iris_creation(self):
-        self.state.claim('0','A')
+        self.state.claim('0','A',0)
         self.state.answer('0','A0','answer');self.state.answer('0','A1','answer')
         with self.assertRaises(Conflict) as ctx:
-            self.state.claim('0','C')
+            self.state.claim('0','C',0)
         # The unlocked-but-undelivered window is transient; the message must
         # tell API callers to retry rather than implying the ticket is gone.
         self.assertIn('retry shortly', str(ctx.exception))
-        self.drain();self.state.claim('0','C')
+        self.drain();self.state.claim('0','C',0)
 
     def test_clock_advances_without_events_and_freezes_when_paused(self):
         self.state.mode('controller','paused')

@@ -56,7 +56,7 @@ class StateTests(unittest.TestCase):
 
     def test_slow_remote_does_not_block_reads_writes_or_pause(self):
         self.ready()
-        self.state.claim('a','T01')
+        self.state.claim('a','T01',0)
         entered=threading.Event();finish=threading.Event()
         def slow(*args):
             entered.set()
@@ -123,7 +123,7 @@ class StateTests(unittest.TestCase):
         self.assertNotEqual(self.state.snapshot()['tickets'][0]['iris_id'],999)
 
     def test_two_workers_and_causal_followups(self):
-        self.ready();self.state.claim('a','T01');self.state.answer('a','T01q','yes')
+        self.ready();self.state.claim('a','T01',0);self.state.answer('a','T01q','yes')
         from concurrent.futures import ThreadPoolExecutor
         with ThreadPoolExecutor(2) as pool:
             for _ in range(6):
@@ -136,7 +136,7 @@ class StateTests(unittest.TestCase):
         self.assertLess(position('close:T01'),position('ticket:T03'))
 
     def test_export_blocks_resume_recovery_and_announcements(self):
-        self.ready();self.state.claim('a','T01')
+        self.ready();self.state.claim('a','T01',0)
         while self.state.sync_once(self.sink):pass
         self.state.mode('operator','paused')
         def remote(url,*args,**kwargs):
