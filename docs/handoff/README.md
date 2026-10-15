@@ -8,6 +8,52 @@ Read [Consolidation](CONSOLIDATION.md), [Build first](BUILD-FIRST.md), and
 [Next bounded work](NEXT.md). Give a new agent [this starter prompt](STARTER-PROMPT.md).
 The dated assessment below is historical; source additions do not complete live gates.
 
+## Latest: 5-team AI stress test (2026-09-30)
+
+[Stress report](STRESS-5TEAM-REPORT.md) and
+[metrics](STRESS-5TEAM-METRICS.md) — five AI teams played the full exercise
+concurrently and **completed it: 80/80 questions, 20/20 tickets, 80 IRIS
+findings, 80 CTFd awards, outbox 100% drained.** The serving layer was never the
+bottleneck: p95 under 50 ms, zero non-2xx across 444 probes, 4.77 GiB peak
+across 19 containers, 67.5% host reserve. Every problem was in the participant
+write path or content design. Two teams scored zero and both concluded the
+product was broken — in both cases the first diagnosis was wrong, and the cause
+was partly the test harness. **No human has played**; the desktop-usability
+gate is still open. Corrects an earlier claim: the host has 63.7 GiB RAM, not
+31.7, so ten teams is limited by the Docker memory cap rather than the hardware.
+
+## Latest: content audit, all 80 taught paths (2026-09-30)
+
+[Content audit receipt](CONTENT-AUDIT-RECEIPT.md) — every question's taught
+investigation route checked against the evidence actually released to
+participants. **77 of 80 are sound; 3 point at a file that does not contain
+their answer** (T01-Q1, T07-Q2, T07-Q4), and 3 more need an author's judgement.
+Every answer was digest-verified before use, so these are provably the intended
+answers. Six of 80 questions now carry route supplements; all 80 answers are
+unchanged. Includes three self-corrections, all measurement errors of mine that
+first looked like product defects: an over-report of 11 broken questions caused by
+byte-grepping length-prefixed DNS names, then by converting `10.26.10.17` to the
+wrong hex — **T02 is sound** and a proper Ethernet/IPv4/UDP/DNS decode shows all
+four answers in `dns.pcap` where the ticket says — and finally T12-Q2/Q3, which I
+escalated as unfixable but which `server/collection.txt` states as
+`09:14–09:18` in text my exact-substring search missed. Live 5-team play then
+found a fourth class the static audit could not detect by construction: T07-Q1's
+answer is in the named file but not surfaced by the ticket's stated selection.
+
+## Latest: desktop usability pass (2026-09-30)
+
+[Desktop usability receipt](DESKTOP-USABILITY-RECEIPT.md) — the N2/F03 gate,
+partially closed. Verified **inside** the running team desktop: Xfce and
+TigerVNC up, the real WS17 case seeded, Wireshark 4.2.2 / Firefox 140.16 /
+Cutter / Autopsy all runnable, and all 45 Sleuthkit native libraries resolving.
+Completed a full VncAuth handshake through the Guacamole-provisioned password
+and got a real 1440x900 framebuffer, while the *other* team's password was
+rejected — so team isolation holds at the VNC layer, not just in the database.
+Found one real content defect: **T01-Q1's taught evidence path does not reach
+its own answer**, because `WS-17` appears nowhere in the `sensor.pcap` the
+ticket sends you to. No human has yet investigated a ticket, so the gate is
+still open for actual usability.
+
 ## Latest: full-system verification, all 80 questions (2026-09-30)
 
 [Full-verification receipt](FULL-VERIFICATION-RECEIPT.md) — all 80 questions
