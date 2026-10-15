@@ -44,6 +44,12 @@ availability, image availability and an actually running healthy application.
 6. A failed build blocks runtime work. Fix the build; do not substitute a stub,
    skip the failing layer, weaken a checksum or claim a syntax check built it.
 
+Preparation also includes generated content inputs. `expanded/tickets.json` is
+deterministic output of `python expanded/author.py` and is gitignored, so it is
+absent from a fresh checkout; regenerate it before running tools that require
+it (the F04 `expanded/walkthrough.py`, `ridge.cli init`/`migrate`). See
+BUILD-FIRST.md section 1.
+
 `docker compose config`, `docker build --check`, unit tests, and image URL
 reachability are useful but none proves an image exists or starts. Run
 `python -m ridge.deploy build` followed by `verify-build`; see BUILD-FIRST.md.
