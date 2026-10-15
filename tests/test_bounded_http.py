@@ -42,6 +42,38 @@ class BoundedServerTests(unittest.TestCase):
     def connect(self):
         return socket.create_connection(('127.0.0.1', self.server.server_port), timeout=2)
 
+    def test_rejection_survives_a_request_still_in_flight(self):
+        # Regression: a rejected connection must receive the 503, never a TCP
+        # reset. The rejecting server used to sample the peer's request bytes
+        # with one non-blocking recv; when the request was still in flight that
+        # read nothing, the socket was closed with data unread, and Windows
+        # answered with an RST that discarded the 503. The drain is retried
+        # until the request is consumed, so the peer's own timing cannot decide
+        # whether it gets a response or a reset.
+        for attempt in range(25):
+            with self.subTest(attempt=attempt):
+                first = self.connect()
+                try:
+                    first.sendall(
+                        b'POST / HTTP/1.1\r\nHost: test\r\nContent-Length: 10\r\n\r\nx')
+                    self.assertTrue(SlowHandler.entered.wait(1))
+                    second = self.connect()
+                    try:
+                        second.sendall(
+                            b'POST / HTTP/1.1\r\nHost: test\r\nContent-Length: 1\r\n\r\nx')
+                        try:
+                            response = second.recv(4096)
+                        except ConnectionAbortedError as exc:
+                            self.fail('connection reset instead of 503: %r' % (exc,))
+                        self.assertIn(b'503 Service Unavailable', response)
+                    finally:
+                        second.close()
+                    # The in-flight handler must time out and free its slot, or
+                    # the next attempt would be rejected for the wrong reason.
+                    self.assertIn(b'408 Request Timeout', first.recv(4096))
+                finally:
+                    first.close()
+
     def test_slow_body_times_out_and_handler_cap_rejects_excess(self):
         first = self.connect()
         try:

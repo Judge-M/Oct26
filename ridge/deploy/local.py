@@ -67,6 +67,23 @@ APP_SERVICES = {
     'guacamole': ['guacamole'],
 }
 IMAGE_COMPONENTS = ('iris', 'ctfd', 'integration', 'desktop')
+
+# Upstream Wazuh single-node config files that compose.wazuh.yaml bind-mounts
+# out of the wazuh_config asset, with the format each must parse as. Issue #187:
+# a missing or malformed tree must fail preflight with its remedy, not surface
+# late as an indexer/dashboard crash inside the Wazuh compose project.
+WAZUH_CONFIG_ASSET_FILES = (
+    ('wazuh_indexer/wazuh.indexer.yml', 'yaml'),
+    ('wazuh_indexer/internal_users.yml', 'yaml'),
+    ('wazuh_cluster/wazuh_manager.conf', 'xml'),
+    ('wazuh_dashboard/opensearch_dashboards.yml', 'yaml'),
+)
+
+try:  # asset validation uses PyYAML when the host has it (issue #187)
+    import yaml as _yaml
+except ImportError:  # pragma: no cover - hosts without PyYAML get weaker checks
+    _yaml = None
+
 SECRET_FILES = (
     'postgres-password', 'iris-secret-key', 'iris-password-salt', 'iris-admin-password',
     'ctfd-secret-key', 'mariadb-root-password', 'mariadb-ctfd-password',
@@ -877,12 +894,7 @@ class LocalStack:
         if self.asset('case_template').is_dir() and not case.is_file():
             problems.append('prepared case %s is missing; extract the published case template'
                             % case)
-        wazuh_config = self.asset('wazuh_config')
-        for rel in ('wazuh_indexer/wazuh.indexer.yml', 'wazuh_indexer/internal_users.yml',
-                    'wazuh_cluster/wazuh_manager.conf'):
-            if wazuh_config.is_dir() and not (wazuh_config / rel).is_file():
-                problems.append('vendored Wazuh config %s missing under %s: vendor the pinned '
-                                'upstream single-node config' % (rel, wazuh_config))
+        problems.extend(self._probe_wazuh_config_assets())
         from ridge.wazuh_provision import validate_manifest, load_vendored
         try:
             validate_manifest(load_vendored(WAZUH_DIR)['manifest'], require_digests=True)
@@ -891,6 +903,62 @@ class LocalStack:
         if problems:
             raise LifecycleError('; '.join(problems))
         return {'images': len(IMAGE_COMPONENTS)}
+
+    @staticmethod
+    def _wazuh_config_remedy(wazuh_config):
+        """Actionable remedy for a missing or broken Wazuh config tree (issue #187).
+
+        Names the source-path fetcher from scripts/ when the repo ships one
+        (PR #185's fetch_wazuh_config.py); otherwise names the pinned upstream
+        commit recorded in the vendored manifest so the operator can vendor the
+        four mounted files by hand. Either way the message carries the exact
+        destination directory, not just expected file paths.
+        """
+        fetch = ROOT / 'scripts' / 'fetch_wazuh_config.py'
+        if fetch.is_file():
+            return 'produce it with `python scripts/fetch_wazuh_config.py %s`' % wazuh_config
+        manifest = WAZUH_DIR / 'manifest.json'
+        commit = json.loads(manifest.read_text(encoding='utf-8'))['source']['commit']
+        return ('vendor the upstream single-node config from wazuh/wazuh-docker commit %s '
+                '(pinned in %s) into %s' % (commit, manifest, wazuh_config))
+
+    def _probe_wazuh_config_assets(self):
+        """Fail closed when required Wazuh config assets are missing or malformed.
+
+        The previous check only fired when the asset directory already existed
+        and covered three of the four files the Wazuh compose project mounts,
+        so an absent tree, the dashboard config, or a corrupt file passed
+        preflight and surfaced late as a crash inside the Wazuh project.
+        """
+        wazuh_config = self.asset('wazuh_config')
+        if not wazuh_config.is_dir():
+            return ['Wazuh config asset missing at %s: %s'
+                    % (wazuh_config, self._wazuh_config_remedy(wazuh_config))]
+        problems = []
+        for rel, fmt in WAZUH_CONFIG_ASSET_FILES:
+            path = wazuh_config / rel
+            if not path.is_file():
+                problems.append('Wazuh config %s missing under %s: %s'
+                                % (rel, wazuh_config, self._wazuh_config_remedy(wazuh_config)))
+                continue
+            try:
+                text = path.read_text(encoding='utf-8')
+            except (OSError, UnicodeDecodeError) as exc:
+                problems.append('Wazuh config %s under %s is unreadable: %s' % (rel, wazuh_config, exc))
+                continue
+            if not text.strip():
+                problems.append('Wazuh config %s under %s is empty: %s'
+                                % (rel, wazuh_config, self._wazuh_config_remedy(wazuh_config)))
+                continue
+            try:
+                if fmt == 'xml':
+                    offline_wazuh_config(text)  # reuses the renderer's own XML checks
+                elif _yaml is not None:
+                    _yaml.safe_load(text)
+            except Exception as exc:
+                problems.append('Wazuh config %s under %s is not valid %s: %s'
+                                % (rel, wazuh_config, fmt, exc))
+        return problems
 
     # S2 ------------------------------------------------------ infrastructure
     def _ensure_networks(self):
@@ -1197,7 +1265,11 @@ class LocalStack:
         from ridge.wazuh_provision import saved_objects
         index_name = self._index_name()
         applied = self._indexer_job('apply')
-        dashboard = 'https://127.0.0.1:%d' % self.port('wazuh_dashboard', 8443)
+        # Reach the dashboard on the address it is actually published on. It is
+        # bound to local.json's bind_ip, not necessarily loopback, so a hardcoded
+        # 127.0.0.1 fails with ECONNREFUSED on a host that binds a LAN address.
+        dashboard = 'https://%s:%d' % (self._dashboard_bind_ip(),
+                                       self.port('wazuh_dashboard', 8443))
         admin = self._secret('wazuh_admin')
         for view in saved_objects(applied['field_caps']):
             status, payload = self._wazuh(

@@ -329,6 +329,10 @@ def make_runtime(root):
         '<vulnerability-detection><enabled>yes</enabled>'
         '<index-status>yes</index-status></vulnerability-detection>'
         '<indexer><enabled>yes</enabled></indexer></ossec_config>')
+    # Issue #187 made preflight require every file compose.wazuh.yaml mounts.
+    (assets / 'wazuh-config' / 'wazuh_dashboard').mkdir()
+    (assets / 'wazuh-config' / 'wazuh_dashboard' / 'opensearch_dashboards.yml').write_text(
+        'opensearch.hosts: https://wazuh-indexer:9200\n')
     runtime = root / 'runtime'
     runtime.mkdir()
     (runtime / 'local.json').write_text(json.dumps({
