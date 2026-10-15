@@ -6,6 +6,7 @@ separately name the writable prepared case on the desktop; see
 ``ridge.scenario.AUTOPSY_CASE_ENTRYPOINT``.
 """
 import json
+import re
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -152,6 +153,24 @@ FINDINGS = [
 ]
 
 
+def answer_format(prompt, answer):
+    """Per-question format guidance (issue #195): name the surface form this
+    specific answer expects instead of relying on one global footer, so a
+    version number, a clock time, and a path-versus-directory distinction are
+    each stated with the question they constrain."""
+    value = answer.strip()
+    base = 'Enter only the requested value. Case and outer whitespace are ignored. '
+    if re.fullmatch(r'\d{1,2}:\d{2}(:\d{2})?', value):
+        return base + 'Times use HH:MM:SS UTC; enter the time only, without a date.'
+    if '/' in value:
+        if 'director' in prompt.lower():
+            return base + 'Enter the directory path only, with forward slashes, without the filename or a trailing slash.'
+        return base + 'Enter the full path with forward slashes, exactly as shown in the evidence.'
+    if value.isdigit() and 'version' in prompt.lower():
+        return base + 'Enter the version as a number only (for example 3, not v3).'
+    return base + 'Times use HH:MM:SS UTC.'
+
+
 def build(config=None):
     config = config or json.loads(Path(__file__).with_name('config.json').read_text(encoding='utf-8'))
     day = incident_day(config['exercise_date'])
@@ -198,7 +217,7 @@ def build(config=None):
             question=dict(id=qid,prompt=prompt,answer=answer,tool=tool,evidence='/evidence/'+evidence,
                 selection=selection,source_record=evidence,
                 purpose='Use '+title.lower()+' to answer this specific question and identify the limits of the evidence.',
-                steps=steps,format='Enter only the requested value; times use HH:MM:SS UTC. Case and outer whitespace are ignored.',
+                steps=steps,format=answer_format(prompt, answer),
                 recovery='If no results appear, clear filters, check the evidence release and absolute UTC range, and reopen your writable case. Never re-ingest a large image during the activity.',
                 hints=['Start with '+selection+' and read the fields named in the question.',
                        'Compare the selected record with adjacent events; apply clock correction only to device_time.',

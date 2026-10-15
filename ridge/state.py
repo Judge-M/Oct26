@@ -8,6 +8,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import re
 import sqlite3
 import threading
 import time
@@ -26,6 +27,33 @@ def now():
 
 class Conflict(ValueError):
     pass
+
+
+# Submission-side relaxations for the answer-format failures observed in the
+# 5-team run (issue #195): a version prefix, a bare clock where HH:MM:SS is
+# expected, Windows path separators, a full path where a parent directory is
+# wanted, and a leading qualifier word in front of the requested phrase.
+_ANSWER_QUALIFIERS = frozenset(('explicit', 'separate', 'actual'))
+_VERSION_ANSWER = re.compile(r'^(?:[a-z]+-v|v|version[ -]?)(\d+)$')
+_ISO_STAMP = re.compile(r'^\d{4}-\d{2}-\d{2}[t ](\d{1,2}):(\d{2})(?::(\d{2}))?(?:z|[+-]\d{2}:?\d{2})?$')
+_CLOCK_ONLY = re.compile(r'^(\d{1,2}):(\d{2})(?::(\d{2}))?(?: ?utc)?$')
+
+
+def normalize_answer(text):
+    """Canonical answer form shared by stored digests and submissions: case
+    and outer whitespace are ignored (as the question format field promises),
+    internal whitespace runs collapse, Windows path separators and trailing
+    slashes unify, and any full ISO timestamp or bare HH:MM collapses to the
+    canonical HH:MM:SS clock time. Range answers such as 10:30-11:30Z do not
+    match the anchored clock patterns and are left intact."""
+    form = ' '.join(str(text).split()).casefold().replace('\\', '/')
+    while len(form) > 1 and form.endswith('/'):
+        form = form[:-1]
+    stamp = _ISO_STAMP.fullmatch(form) or _CLOCK_ONLY.fullmatch(form)
+    if stamp:
+        hour, minute, second = stamp.groups()
+        form = '%02d:%s:%s' % (int(hour), minute, second or '00')
+    return form
 
 
 class DeliveryContext(TypedDict):
@@ -125,7 +153,33 @@ class State:
 
     @staticmethod
     def digest(answer):
-        return hashlib.sha256(answer.strip().casefold().encode()).hexdigest()
+        return hashlib.sha256(normalize_answer(answer).encode()).hexdigest()
+
+    @staticmethod
+    def answer_digests(answer):
+        """Digests accepted for a submission: the canonical digest plus
+        submission-only relaxations for the surface forms reported in issue
+        #195 — a version prefix (``v3``/``plan-v3`` for a numeric version), a
+        full path where its parent directory is the expected value, and a
+        leading qualifier word (``explicit session revocation`` for ``session
+        revocation``). The stored expected-answer digest is never relaxed, so
+        these forms only widen a submission; ``3`` never becomes correct for a
+        question whose answer is ``plan-v3``, and a directory never satisfies
+        a full-path question."""
+        forms = {normalize_answer(answer)}
+        for form in list(forms):
+            version = _VERSION_ANSWER.match(form)
+            if version:
+                forms.add(version.group(1))
+            if '/' in form:
+                parent = form.rsplit('/', 1)[0]
+                if parent:
+                    forms.add(parent)
+            words = form.split(' ')
+            while len(words) > 1 and words[0] in _ANSWER_QUALIFIERS:
+                words = words[1:]
+                forms.add(' '.join(words))
+        return [hashlib.sha256(form.encode()).hexdigest() for form in forms]
 
     @staticmethod
     def record(con, actor, action, detail):
@@ -370,7 +424,8 @@ class State:
                 raise PermissionError('Claim the corresponding IRIS ticket first')
             if con.execute('SELECT 1 FROM answers WHERE question=?', (question,)).fetchone():
                 raise Conflict('Question already answered; points are preserved')
-            if not hmac.compare_digest(self.digest(answer), row['digest']):
+            if not any(hmac.compare_digest(candidate, row['digest'])
+                       for candidate in self.answer_digests(answer)):
                 return {'correct':False}
             stamp = now()
             event = str(uuid.uuid4())
