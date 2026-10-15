@@ -13,13 +13,14 @@ button,input{font:inherit;padding:.6rem;margin:.4rem}button{cursor:pointer}summa
 <p><strong>Operating rule:</strong> {{story.operating_rule}}</p>
 <p>Team: {{snapshot.team}} · Exercise: {{snapshot.mode}} · <span id="pending">{{snapshot.pending}}</span> updates awaiting synchronization.</p>
 <p id="notice" role="status">{{message}}</p>
+<p id="queue-status" role="status">{{queue.status}}</p>
 <p>Activity elapsed: <span id="clock">{{snapshot.elapsed_seconds|round|int}}</span> seconds.</p>
 {% for a in snapshot.announcements %}<article><strong>Published announcement · {{a.timestamp}}</strong><p>{{a.text}}</p></article>{% endfor %}
-{% if lane=='iris' %}<h2>Choose one available ticket</h2>
+{% if lane=='iris' %}<h2>{{'Choose one available ticket' if queue.claimable else 'Ticket queue'}}</h2>
 {% for t in snapshot.tickets %}{% set context=story.ticket_context.get(t.id) %}<article><h3>{{t.id}} · {{t.title}}</h3><p>{{t.subject}} · {{t.status}} · Owner: {{t.owner or 'available'}}</p>
 {% if context %}<p class="phase">{{context.phase_title}}</p><p>{{context.briefing}}</p><p class="why"><strong>Why now:</strong> {{context.stakes}}</p><p><strong>Handoff:</strong> {{context.handoff}}</p>{% endif %}
 {% if t.iris_id %}<a href="{{iris}}/case/tasks?cid={{case}}">Open IRIS tasks and shared findings</a>{% endif %}
-{% if snapshot.mode=='running' and t.status=='available' and t.iris_id %}<form method="post"><input type="hidden" name="csrf_token" value="{{csrf}}"><input type="hidden" name="nonce" value="{{csrf}}"><input type="hidden" name="ticket" value="{{t.id}}"><input type="hidden" name="generation" value="{{t.generation}}"><button name="action" value="claim">Claim ticket</button></form>{% endif %}
+{% if snapshot.mode=='running' and t.status=='available' and t.iris_id %}<form method="post"><input type="hidden" name="csrf_token" value="{{csrf}}"><input type="hidden" name="nonce" value="{{csrf}}"><input type="hidden" name="ticket" value="{{t.id}}"><input type="hidden" name="generation" value="{{t.generation}}"><button name="action" value="claim">Claim ticket</button></form>{% else %}<p class="why"><strong>Claiming:</strong> {{ queue.notes.get(t.id,'Claiming is not open for this ticket right now.') }}</p>{% endif %}
 {% if snapshot.mode=='running' and t.owner==snapshot.team %}<form method="post"><input type="hidden" name="csrf_token" value="{{csrf}}"><input type="hidden" name="nonce" value="{{csrf}}"><input type="hidden" name="ticket" value="{{t.id}}"><input type="hidden" name="generation" value="{{t.generation}}"><button name="action" value="release">Relinquish — keep completed answers</button></form><a href="{{ctfd}}/silent-ridge">Start this ticket's questions</a>{% endif %}</article>{% endfor %}
 {% else %}<h2>Your questions and completed shared history</h2><p>One point per correct answer. All help is free. No report or approval is needed.</p>
 {% for q in questions %}{% set context=story.ticket_context.get(q.ticket) %}<article id="{{q.id}}"><h3>{{q.id}} · {{q.prompt}}</h3>
@@ -32,3 +33,67 @@ button,input{font:inherit;padding:.6rem;margin:.4rem}button{cursor:pointer}summa
 <script>let previous=null,seconds={{snapshot.elapsed_seconds}},running={{(snapshot.mode=='running')|tojson}},anchor=performance.now();
 setInterval(()=>{document.getElementById('clock').textContent=Math.floor(seconds+(running?(performance.now()-anchor)/1000:0));},250);
 setInterval(async()=>{try{const r=await fetch('/silent-ridge/status',{cache:'no-store'});if(!r.ok)return;const s=await r.json();document.getElementById('pending').textContent=s.pending;seconds=s.elapsed_seconds;running=s.mode==='running';anchor=performance.now();delete s.server_time;delete s.elapsed_seconds;const v=JSON.stringify(s);if(previous&&previous!==v){document.getElementById('notice').textContent='Progress changed. Reload to see new tasks and findings.';if(![...document.querySelectorAll('input[name=answer]')].some(i=>i.value))location.reload();}previous=v;}catch(e){document.getElementById('notice').textContent='Connection interrupted. Accepted answers are retained. Retrying…';}},5000);</script></html>'''
+
+
+def queue_state(snapshot):
+    """Explain the queue in plain language so a page with no controls still says why.
+
+    The claim form renders only when the exercise is running, the ticket is
+    available, and its IRIS case tasks exist. Every other combination is a
+    normal queue state, so each one gets an explicit reason — paused, claimed
+    by another team, still being prepared in IRIS, or exercise complete —
+    instead of a silently missing form (issue #194).
+    """
+    snapshot=snapshot or {}
+    tickets=list(snapshot.get('tickets') or [])
+    team=str(snapshot.get('team') or '')
+    mode=snapshot.get('mode') or 'paused'
+    running=mode=='running'
+    def same(owner):
+        return str(owner or '')==team
+    held=[t['id'] for t in tickets if t.get('owner') and same(t.get('owner'))]
+    claimable=[t['id'] for t in tickets if running and t.get('status')=='available' and t.get('iris_id')]
+    preparing=[t['id'] for t in tickets if t.get('status')=='available' and not t.get('iris_id')]
+    others=[(t['id'],t.get('owner')) for t in tickets if t.get('status')=='active' and not same(t.get('owner'))]
+    complete=[t['id'] for t in tickets if t.get('status')=='complete']
+    notes={}
+    for t in tickets:
+        if t['id'] in claimable:
+            continue
+        if t.get('status')=='complete':
+            notes[t['id']]='Complete — every stage is answered and its findings are published. Nothing left to claim.'
+        elif same(t.get('owner')):
+            notes[t['id']]='You hold this ticket. Work its questions on the Questions page, or relinquish it below.' if running else 'You hold this ticket. Relinquishing and new claims resume when the exercise is running again.'
+        elif t.get('status')=='active':
+            notes[t['id']]='Claimed by %s. It returns to the queue only if that team relinquishes it.' % (t.get('owner') or 'another team')
+        elif t.get('status')=='available' and not t.get('iris_id'):
+            notes[t['id']]='Being prepared in IRIS — the Claim button appears as soon as its case tasks exist. This is normal for the first minutes after a ticket unlocks.'
+        elif not running:
+            notes[t['id']]='Claiming is closed while the exercise is %s. It reopens automatically when the organizer resumes the exercise.' % mode
+        else:
+            notes[t['id']]='Claiming is not open for this ticket right now (status: %s).' % t.get('status')
+    if tickets and len(complete)==len(tickets):
+        status=('Exercise complete — every ticket in the queue is closed and its findings are published. '
+                'Nothing further can be claimed. This is the expected end state, not an outage.')
+    else:
+        parts=[]
+        if not running:
+            parts.append('Exercise %s: claiming is paused until the organizer resumes it.' % mode)
+        parts.append('You hold: %s.' % ', '.join(held) if held else 'You hold no ticket.')
+        if claimable:
+            parts.append('Available to claim: %s.' % ', '.join(claimable))
+        else:
+            reasons=[]
+            if others:
+                reasons.append('claimed by others: '+', '.join('%s (%s)' % (tid,owner or 'another team') for tid,owner in others))
+            if preparing:
+                reasons.append('preparing in IRIS: '+', '.join(preparing))
+            if complete:
+                reasons.append('complete: '+', '.join(complete))
+            parts.append('Nothing is available to claim right now'+(' — '+ '; '.join(reasons)+'.' if reasons else '.'))
+        if not held and not claimable:
+            parts.append('This is a normal queue state; the page refreshes itself when something changes.')
+        status=' '.join(parts)
+    return {'status':status,'notes':notes,'held':held,'claimable':claimable,
+            'preparing':preparing,'paused':not running,
+            'complete':bool(tickets) and len(complete)==len(tickets)}
