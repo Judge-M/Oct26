@@ -51,7 +51,10 @@ class WazuhConfigPreflightTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
-        self.assets = Path(self.tmp.name) / 'wazuh-config'
+        # LocalStack.asset() reports the resolved path; on Windows CI the raw
+        # tempdir name carries an 8.3 short form (C:\Users\RUNNER~1\...), so
+        # every expected-path comparison must use the same resolved spelling.
+        self.assets = (Path(self.tmp.name) / 'wazuh-config').resolve()
 
     def problems(self):
         return stack_for(self.assets)._probe_wazuh_config_assets()
