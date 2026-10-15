@@ -32,6 +32,16 @@ bound to a LAN address. **Paused, not started** — no participant session, tick
 claim, answer or point is claimed. Also records that a source build cannot
 obtain the upstream Wazuh config without the release bundle.
 
+## Latest: clean-baseline reproduction (2026-09-29)
+
+[Clean-baseline receipt](CLEAN-BASELINE-RECEIPT.md) — fresh clone on a cleaned
+Windows host, baseline `4203239`. LFS, case template, all four images and
+`verify-build` pass; 395 tests green. It documents one real defect found and fixed
+(`bounded_http` returned a TCP reset instead of a 503 for a rejected connection on
+Windows, now covered by a regression test) and one failure that was host
+contamination rather than a repository bug (a `ubuntu:24.04` base tag overwritten
+by a previous build). No event was started and no readiness is claimed.
+
 ## Start here
 
 Moving computers? Read [Continue elsewhere](CONTINUE-ELSEWHERE.md) first. The handoff and preserved build recipes are in this repository; no previous chat or original workstation is required.
