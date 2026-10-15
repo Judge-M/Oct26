@@ -73,7 +73,7 @@ class VerticalSliceTests(unittest.TestCase):
         self.assertIn('paused', report.phases)
         self.assertGreaterEqual(report.receipts['initial_deliveries'], 2)
         with self.assertRaises(Conflict):
-            self.state.claim('a', 'T01')
+            self.state.claim('a', 'T01', 0)
 
     def test_start_slice_runs_phases_in_order(self):
         with patch.dict(os.environ, ENV):
