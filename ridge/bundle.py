@@ -27,7 +27,7 @@ LAYOUTS={
                ('deployment/expanded/desktop/configure-desktop.sh','/opt/silent-ridge/configure-desktop.sh'),
                ('deployment/expanded/desktop/entrypoint.sh','/usr/local/bin/silent-ridge-entrypoint')]}
 REQUIRED_IMAGES=set(LAYOUTS)|{'iris_db','rabbitmq','ctfd_db','ctfd_cache','wazuh_manager',
-    'wazuh_indexer','wazuh_dashboard','guacamole','guacd','guacamole_db'}
+    'wazuh_indexer','wazuh_dashboard','guacamole','guacd','guacamole_db','participant_tls'}
 PROBE_PYTHON={'desktop':'python3'}
 LFS_POINTER = re.compile(rb'\Aversion https://git-lfs.github.com/spec/v1\r?\n'
                          rb'oid sha256:([0-9a-f]{64})\r?\nsize ([0-9]+)\r?\n?\Z')
