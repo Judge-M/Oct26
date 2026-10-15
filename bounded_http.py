@@ -1,6 +1,7 @@
 """Small HTTP server guardrails shared by the offline Python services."""
 import socket
 import threading
+import time
 from http.server import ThreadingHTTPServer
 
 
@@ -63,10 +64,23 @@ class BoundedThreadingHTTPServer(ThreadingHTTPServer):
         try:
             # Drain bytes already queued by the peer. Closing a Windows socket
             # with unread request data can turn the intended 503 into a reset.
-            request.setblocking(False)
-            while request.recv(4096):
-                pass
-        except (BlockingIOError, OSError):
+            #
+            # A single non-blocking recv is not enough: the peer may not have
+            # finished sending its request line yet when we get here, and a
+            # drain that observes nothing still leaves the socket with unread
+            # data by the time it is closed, which Windows answers with an RST
+            # that discards the 503 the peer never got to read. Drain with a
+            # short bounded blocking budget so a request that is merely in
+            # flight is still consumed before the response is written.
+            deadline = time.monotonic() + min(self.request_timeout, 0.25)
+            request.settimeout(0.05)
+            while time.monotonic() < deadline:
+                try:
+                    if not request.recv(4096):
+                        break
+                except socket.timeout:
+                    continue
+        except OSError:
             pass
         try:
             request.setblocking(True)

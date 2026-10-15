@@ -54,16 +54,6 @@ its own answer**, because `WS-17` appears nowhere in the `sensor.pcap` the
 ticket sends you to. No human has yet investigated a ticket, so the gate is
 still open for actual usability.
 
-## Latest: clean-baseline reproduction (2026-09-29)
-
-[Clean-baseline receipt](CLEAN-BASELINE-RECEIPT.md) — fresh clone on a cleaned
-Windows host, baseline `4203239`. LFS, case template, all four images and
-`verify-build` pass; 395 tests green. It documents one real defect found and fixed
-(`bounded_http` returned a TCP reset instead of a 503 for a rejected connection on
-Windows, now covered by a regression test) and one failure that was host
-contamination rather than a repository bug (a `ubuntu:24.04` base tag overwritten
-by a previous build). No event was started and no readiness is claimed.
-
 ## Latest: full-system verification, all 80 questions (2026-09-30)
 
 [Full-verification receipt](FULL-VERIFICATION-RECEIPT.md) — all 80 questions

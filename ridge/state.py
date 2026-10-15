@@ -272,7 +272,31 @@ class State:
             self.mutable(con)
             self.record(con, actor, 'announcement', {'text':text})
 
-    def claim(self, team, ticket, generation=0):
+    def ticket_state(self, ticket):
+        """Read a ticket's id, status, owner, generation and iris_id.
+
+        The supported way to observe the generation that ``claim`` and
+        ``release`` require, without reaching into the SQLite schema.
+        """
+        with self.transaction(write=False) as con:
+            row = con.execute('SELECT id,status,owner,generation,iris_id FROM tickets WHERE id=?',
+                              (ticket,)).fetchone()
+            if row is None:
+                raise PermissionError('Unknown ticket')
+            return dict(row)
+
+    def claim(self, team, ticket, generation):
+        """Claim an available ticket for ``team`` using optimistic concurrency.
+
+        ``generation`` is required and must be the ticket's currently
+        observed generation: 0 for a never-claimed ticket, otherwise the
+        value from ``ticket_state``. There is deliberately no default —
+        the old ``generation=0`` default silently stranded every ticket
+        that had ever been claimed, because a successful claim increments
+        the stored generation and a re-claim with the stale default always
+        failed. A stale (or non-integer) generation raises Conflict;
+        re-read the ticket and pass the fresh value.
+        """
         with self.transaction() as con:
             self.running(con)
             if not con.execute('SELECT 1 FROM teams WHERE id=?', (team,)).fetchone():
@@ -289,12 +313,21 @@ class State:
                 # until iris_id is set. API callers should retry shortly.
                 raise Conflict('Ticket is still being prepared in IRIS; retry shortly')
             if type(generation) is not int or generation != row['generation']:
-                raise Conflict('Ticket changed; reload before claiming')
+                raise Conflict('Ticket changed: expected generation %s, got %r;'
+                               ' re-read the ticket before claiming' % (row['generation'], generation))
             con.execute("UPDATE tickets SET owner=?,status='active',generation=generation+1 WHERE id=?", (team, ticket))
             self.record(con, team, 'claim', {'ticket':ticket})
             self.enqueue(con, 'ownership:'+str(uuid.uuid4()), 'ownership', {'ticket':ticket, 'team':team})
 
     def release(self, team, ticket, generation, recovery_actor=None, reason=None):
+        """Relinquish an owned ticket using optimistic concurrency.
+
+        ``generation`` is required and must be the ticket's currently
+        observed generation (read it with ``ticket_state``). Releasing
+        does not rewind the generation, so the next claim must pass the
+        value observed after this call. A stale generation raises
+        Conflict rather than silently failing.
+        """
         if recovery_actor and not reason:
             raise ValueError('Recovery requires a reason')
         with self.transaction() as con:
@@ -305,7 +338,8 @@ class State:
             if row is None or row['status'] != 'active' or (not recovery_actor and row['owner'] != team):
                 raise PermissionError('Only the owner can relinquish this ticket')
             if type(generation) is not int or generation != row['generation']:
-                raise Conflict('Ownership changed; reload before relinquishing')
+                raise Conflict('Ownership changed: expected generation %s, got %r;'
+                               ' re-read the ticket before relinquishing' % (row['generation'], generation))
             con.execute("UPDATE tickets SET owner=NULL,status='available' WHERE id=?", (ticket,))
             self.record(con, recovery_actor or team, 'recover' if recovery_actor else 'release',
                         {'ticket':ticket, 'previous_owner':row['owner'], 'reason':reason})

@@ -8,6 +8,12 @@ services:
     read_only: true
     restart: "no"
     entrypoint: ["/bin/sh", "-ec"]
+    # The pinned upstream wazuh.indexer.yml addresses its TLS material as
+    # wazuh.indexer.pem / wazuh.indexer.key, but generate-certs.sh emits
+    # indexer.pem / indexer-key.pem. The last three statements publish the
+    # upstream names as copies so the digest-pinned vendored config is used
+    # unmodified. Keep this a folded scalar without shell comments: `>-` joins
+    # lines with spaces, so a `#` here would comment out everything after it.
     command:
       - >-
         umask 077;
@@ -16,7 +22,11 @@ services:
           cp "/source/$$name" "/target/$$name";
           chown 1000:1000 "/target/$$name";
           chmod 600 "/target/$$name";
-        done
+        done;
+        cp /source/indexer.pem /target/wazuh.indexer.pem;
+        cp /source/indexer-key.pem /target/wazuh.indexer.key;
+        chown 1000:1000 /target/wazuh.indexer.pem /target/wazuh.indexer.key;
+        chmod 600 /target/wazuh.indexer.pem /target/wazuh.indexer.key
     volumes:
       - ${WAZUH_CERTS_DIR:?Set generated local certificate directory}:/source:ro
       - wazuh-indexer-certs:/target
@@ -31,6 +41,9 @@ services:
     read_only: true
     restart: "no"
     entrypoint: ["/bin/sh", "-ec"]
+    # Same upstream-naming mismatch as the indexer: the dashboard reads
+    # wazuh-dashboard*.pem, generate-certs.sh emits dashboard*.pem. Keep this a
+    # folded scalar without shell comments; a `#` would comment out the rest.
     command:
       - >-
         umask 077;
@@ -39,7 +52,11 @@ services:
           cp "/source/$$name" "/target/$$name";
           chown 1000:1000 "/target/$$name";
           chmod 600 "/target/$$name";
-        done
+        done;
+        cp /source/dashboard.pem /target/wazuh-dashboard.pem;
+        cp /source/dashboard-key.pem /target/wazuh-dashboard-key.pem;
+        chown 1000:1000 /target/wazuh-dashboard.pem /target/wazuh-dashboard-key.pem;
+        chmod 600 /target/wazuh-dashboard.pem /target/wazuh-dashboard-key.pem
     volumes:
       - ${WAZUH_CERTS_DIR:?Set generated local certificate directory}:/source:ro
       - wazuh-dashboard-certs:/target
@@ -47,6 +64,14 @@ services:
       driver: json-file
       options: {max-size: "10m", max-file: "3"}
   wazuh-indexer:
+    # The pinned upstream opensearch_dashboards.yml and wazuh.indexer.yml both
+    # address the indexer as `wazuh.indexer` (upstream's service name and
+    # hostname). This service was renamed to `wazuh-indexer`, so the upstream
+    # name must be published explicitly or the dashboard fails with
+    # `getaddrinfo ENOTFOUND wazuh.indexer` and never becomes healthy.
+    # hostname: sets the container hostname; the alias below is what actually
+    # makes the name resolvable on the shared wazuh-backend network.
+    hostname: wazuh.indexer
     image: ${WAZUH_INDEXER_IMAGE:?Set pinned immutable Wazuh indexer image}
     pull_policy: never
     restart: unless-stopped
@@ -60,7 +85,9 @@ services:
     ports:
       # Loopback-only: controller provisioning/queries; participants use the dashboard.
       - ${BIND_IP:-127.0.0.1}:${WAZUH_INDEXER_PORT:-9200}:9200
-    networks: [wazuh-backend]
+    networks:
+      wazuh-backend:
+        aliases: [wazuh.indexer]
     depends_on:
       wazuh-indexer-certs-init: {condition: service_completed_successfully}
     logging:
