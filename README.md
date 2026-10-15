@@ -162,6 +162,10 @@ these HTTPS URLs.
 
 ## Running the event
 
+On event day, the [presenter landing page](docs/presenter-landing.html) is
+the single entry point on the presenter PC: deck, participant URLs, operator
+docs, run-of-show, and runbook quick reference — one offline file.
+
 The [event-day command sheet](docs/event-day-commands.md) is the
 cold-machine → running-event → teardown checklist with exact commands.
 The [participant briefing deck](docs/event-day-deck/event-day-deck.pdf)
@@ -236,6 +240,7 @@ late-October event, the remaining work is tracked in `docs/handoff/NEXT.md`:
 | `docs/` | Architecture, operations, and planning documents |
 | `docs/event-day-commands.md` | **Run the event**: cold-machine → teardown checklist |
 | `docs/event-day-deck/` | **Brief participants**: 13-slide setup + story deck |
+| `docs/presenter-landing.html` | **Event-day hub on the presenter PC**: deck + URLs + operator docs, offline |
 | `docs/handoff/` | **Start here when picking up work**: `NEXT.md` (current position), receipts, evidence, and task cards |
 | `tests/` | Automated test suite (`python -m unittest discover -s tests`) |
 | `app/`, `admin/`, root `Dockerfile` | Retired rehearsal portal, kept only as a test fixture — not part of the event |

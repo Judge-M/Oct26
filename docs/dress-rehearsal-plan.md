@@ -32,9 +32,10 @@ Hard rules (from the F06 card, non-negotiable):
       and publish as a new pre-release (e.g. `v0.10.0-rehearsal`).
 - [ ] Event profile prepared (`docs/event-day-commands.md` §1) with the
       real `<LAN-IP>`; runtime directory chosen (referred to as `R` below).
-- [ ] Participant deck PDF and facilitator runbook copied to the
-      facilitator's laptop; projector/screen available for the briefing
-      walkthrough.
+- [ ] Presenter landing page open on the facilitator's laptop — open
+      `docs/presenter-landing.html` (offline, single file; deck, participant
+      URLs, operator docs, run-of-show, runbook quick reference in one place).
+      Projector/screen available for the briefing walkthrough.
 - [ ] A stopwatch/notes doc open — measured times are acceptance evidence.
 
 ## Phase 0 — Cold install (timed)
@@ -77,9 +78,12 @@ hold. Failure → capacity model or tuning task, rerun.
 All on the same stack, still offline:
 
 - [ ] **Briefing walkthrough**: a facilitator who has not run the system
-      projects `docs/event-day-deck/event-day-deck.pdf` and follows the
-      four setup slides against the real stack; every step must work as the
-      slide says. Any mismatch is a deck bug or a stack bug — file it.
+      opens the presenter landing page (`docs/presenter-landing.html`),
+      projects `docs/event-day-deck/event-day-deck.pdf` from it, and follows
+      the four setup slides against the real stack; every step must work as
+      the slide says. Confirm the page's substituted participant URLs match
+      the deck's `<event-address>`. Any mismatch is a deck bug or a stack
+      bug — file it.
 - [ ] **Handout dry-run**: print/copy team credentials from
       `R/secrets/team-credentials.json`; confirm a cold reader can find
       every login kind from the handout + deck alone
