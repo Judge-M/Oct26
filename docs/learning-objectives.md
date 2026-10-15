@@ -209,9 +209,12 @@ evidence and limits are explicit, without a manual report.
 | Incident Response `PD-WRL-003` | T1332 Produce incident findings reports; T1333 Communicate incident findings; T1316 Document incidents; T1251 Recommend remediation strategies |
 | Defensive Cybersecurity `PD-WRL-001` | T1241 Document cybersecurity incidents; T1603 Recommend threat and vulnerability risk mitigation strategies |
 
-**Mechanism.** Each CTFd question states a format ("Enter only the requested value;
-times use HH:MM:SS UTC. Case and outer whitespace are ignored.") and is graded using
-that exact rule. A correct answer queues an authored IRIS finding that includes
+**Mechanism.** Each CTFd question states a format naming the exact surface form it
+expects ("Enter only the requested value. Case and outer whitespace are ignored. "
+plus a per-question instruction, such as entering a version as a number only or a
+time as HH:MM:SS UTC without a date) and is graded using that rule, with
+normalisation for factually correct submissions in the wrong surface form).
+A correct answer queues an authored IRIS finding that includes
 `text`, `evidence` and `limitation`.
 The queue's one-ticket-at-a-time gating and the dependency chain pace the work; the
 durable outbox and application-side receipts keep accepted findings from duplicating
