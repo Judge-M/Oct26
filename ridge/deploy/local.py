@@ -1197,7 +1197,11 @@ class LocalStack:
         from ridge.wazuh_provision import saved_objects
         index_name = self._index_name()
         applied = self._indexer_job('apply')
-        dashboard = 'https://127.0.0.1:%d' % self.port('wazuh_dashboard', 8443)
+        # Reach the dashboard on the address it is actually published on. It is
+        # bound to local.json's bind_ip, not necessarily loopback, so a hardcoded
+        # 127.0.0.1 fails with ECONNREFUSED on a host that binds a LAN address.
+        dashboard = 'https://%s:%d' % (self._dashboard_bind_ip(),
+                                       self.port('wazuh_dashboard', 8443))
         admin = self._secret('wazuh_admin')
         for view in saved_objects(applied['field_caps']):
             status, payload = self._wazuh(
