@@ -1,6 +1,7 @@
 """Tests for expanded.load (F03 tooling); no live services required."""
 import json
 import os
+import socket
 import tempfile
 import threading
 import unittest
@@ -13,6 +14,40 @@ from expanded.load import (CtfdBot, IrisBot, LoadError, TimedClient, build_repor
                            resolve_iris_case_path, resolve_target_urls,
                            retry_after_seconds)
 from ridge.state import State
+
+
+def start_test_server(handler):
+    """Serve ``handler`` on an ephemeral loopback port; return (server, thread).
+
+    The serve_forever thread handle must be kept so teardown can join the
+    thread before releasing the socket; see ``stop_test_server`` and issue #191.
+    """
+    server = HTTPServer(('127.0.0.1', 0), handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    return server, thread
+
+
+def stop_test_server(server, thread, timeout=5.0):
+    """Tear down a test server without the Windows close race (issue #191).
+
+    Order matters: ``shutdown()`` stops the accept loop, ``join()`` waits for
+    the serve_forever thread to leave the socket entirely, and only then
+    ``server_close()`` releases the listening socket. Closing the socket while
+    the serve thread is still parked in ``select()`` on that handle races with
+    the close on Windows (WinError 10038) and surfaces as flaky teardown.
+    The OSError guard around ``server_close()`` is deliberately narrow: it
+    absorbs only the already-invalidated-handle case, any other exception
+    still propagates so real teardown bugs stay visible.
+    """
+    server.shutdown()
+    thread.join(timeout)
+    if thread.is_alive():
+        raise AssertionError('serve_forever thread did not stop within timeout')
+    try:
+        server.server_close()
+    except OSError:
+        pass
 
 
 class PercentileTests(unittest.TestCase):
@@ -138,13 +173,12 @@ class FakeCtfd(BaseHTTPRequestHandler):
 class CtfdBotTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.server = HTTPServer(('127.0.0.1', 0), FakeCtfd)
-        threading.Thread(target=cls.server.serve_forever, daemon=True).start()
+        cls.server, cls.thread = start_test_server(FakeCtfd)
         cls.base = f'http://127.0.0.1:{cls.server.server_port}'
 
     @classmethod
     def tearDownClass(cls):
-        cls.server.shutdown()
+        stop_test_server(cls.server, cls.thread)
 
     def test_login_and_answer_records_samples(self):
         samples = []
@@ -165,14 +199,13 @@ class CtfdBotTests(unittest.TestCase):
         class NoNonce(FakeCtfd):
             def do_GET(self):
                 self._send(b'<html>no nonce here</html>')
-        server = HTTPServer(('127.0.0.1', 0), NoNonce)
-        threading.Thread(target=server.serve_forever, daemon=True).start()
+        server, thread = start_test_server(NoNonce)
         try:
             bot = CtfdBot(f'http://127.0.0.1:{server.server_port}', 'u', 'p', [])
             with self.assertRaises(LoadError):
                 bot.login()
         finally:
-            server.shutdown()
+            stop_test_server(server, thread)
 
     def test_authenticated_empty_question_queue_is_valid_before_ticket_claim(self):
         class EmptyQueue(FakeCtfd):
@@ -182,8 +215,7 @@ class CtfdBotTests(unittest.TestCase):
                                b'<p>Shared progress: 0 of 20 ticket stages complete.</p>')
                 else:
                     super().do_GET()
-        server = HTTPServer(('127.0.0.1', 0), EmptyQueue)
-        threading.Thread(target=server.serve_forever, daemon=True).start()
+        server, thread = start_test_server(EmptyQueue)
         try:
             samples = []
             bot = CtfdBot(f'http://127.0.0.1:{server.server_port}', 'u', 'p', samples)
@@ -194,8 +226,7 @@ class CtfdBotTests(unittest.TestCase):
             self.assertEqual([sample['endpoint'] for sample in samples].count(
                 'ctfd:questions'), 1)
         finally:
-            server.shutdown()
-            server.server_close()
+            stop_test_server(server, thread)
 
 
 class RateLimitTests(unittest.TestCase):
@@ -212,8 +243,7 @@ class RateLimitTests(unittest.TestCase):
                 else:
                     self._send(b'ok')
 
-        server = HTTPServer(('127.0.0.1', 0), OnceLimited)
-        threading.Thread(target=server.serve_forever, daemon=True).start()
+        server, thread = start_test_server(OnceLimited)
         try:
             samples = []
             with mock.patch('expanded.load.time.sleep') as sleeper:
@@ -224,8 +254,7 @@ class RateLimitTests(unittest.TestCase):
             self.assertEqual(samples[0]['detail'], 'http 429')
             sleeper.assert_called_once_with(0.5)
         finally:
-            server.shutdown()
-            server.server_close()
+            stop_test_server(server, thread)
 
     def test_persistent_429_stops_after_five_attempts(self):
         class AlwaysLimited(FakeCtfd):
@@ -233,8 +262,7 @@ class RateLimitTests(unittest.TestCase):
                 self.send_response(429)
                 self.end_headers()
 
-        server = HTTPServer(('127.0.0.1', 0), AlwaysLimited)
-        threading.Thread(target=server.serve_forever, daemon=True).start()
+        server, thread = start_test_server(AlwaysLimited)
         try:
             samples = []
             with mock.patch('expanded.load.time.sleep') as sleeper:
@@ -245,8 +273,7 @@ class RateLimitTests(unittest.TestCase):
             self.assertTrue(all(s['detail'] == 'http 429' for s in samples))
             self.assertEqual(sleeper.call_count, 4)
         finally:
-            server.shutdown()
-            server.server_close()
+            stop_test_server(server, thread)
 
     def test_retry_after_is_bounded_and_ctfd_login_bucket_is_paced(self):
         self.assertEqual(retry_after_seconds('3', 0), 3.0)
@@ -330,8 +357,7 @@ class AuthPageTests(unittest.TestCase):
                 self.end_headers()
                 self.wfile.write(body)
 
-        server = HTTPServer(('127.0.0.1', 0), LoginHtml)
-        threading.Thread(target=server.serve_forever, daemon=True).start()
+        server, thread = start_test_server(LoginHtml)
         try:
             samples = []
             with self.assertRaisesRegex(LoadError, 'expected authenticated page'):
@@ -340,8 +366,7 @@ class AuthPageTests(unittest.TestCase):
                     required_marker=b'Logout')
             self.assertFalse(samples[-1]['ok'])
         finally:
-            server.shutdown()
-            server.server_close()
+            stop_test_server(server, thread)
 
     def test_ctfd_login_redirect_back_to_login_is_failure(self):
         class Bounce(FakeCtfd):
@@ -350,8 +375,7 @@ class AuthPageTests(unittest.TestCase):
                 self.send_header('Location', '/login')
                 self.end_headers()
 
-        server = HTTPServer(('127.0.0.1', 0), Bounce)
-        threading.Thread(target=server.serve_forever, daemon=True).start()
+        server, thread = start_test_server(Bounce)
         try:
             samples = []
             with self.assertRaisesRegex(LoadError, 'ended on the login page'):
@@ -359,8 +383,7 @@ class AuthPageTests(unittest.TestCase):
             self.assertFalse(samples[-1]['ok'])
             self.assertEqual(samples[-1]['endpoint'], 'ctfd:login')
         finally:
-            server.shutdown()
-            server.server_close()
+            stop_test_server(server, thread)
 
     def test_iris_dashboard_bounce_is_failure_even_when_final_status_is_200(self):
         class Bounce(BaseHTTPRequestHandler):
@@ -384,8 +407,7 @@ class AuthPageTests(unittest.TestCase):
                 self.send_header('Location', '/dashboard')
                 self.end_headers()
 
-        server = HTTPServer(('127.0.0.1', 0), Bounce)
-        threading.Thread(target=server.serve_forever, daemon=True).start()
+        server, thread = start_test_server(Bounce)
         try:
             samples = []
             with self.assertRaisesRegex(LoadError, 'ended on the login page'):
@@ -393,8 +415,7 @@ class AuthPageTests(unittest.TestCase):
             self.assertFalse(samples[-1]['ok'])
             self.assertEqual(samples[-1]['endpoint'], 'iris:login')
         finally:
-            server.shutdown()
-            server.server_close()
+            stop_test_server(server, thread)
 
 
 class OutboxTests(unittest.TestCase):
@@ -414,6 +435,52 @@ class OutboxTests(unittest.TestCase):
             with state.transaction() as db:
                 db.execute('UPDATE outbox SET done=1')
             self.assertEqual(outbox_depth(path), 0)
+
+
+class ServerTeardownTests(unittest.TestCase):
+    """Regression coverage for the Windows HTTPServer teardown race (#191)."""
+
+    def test_stop_joins_serve_thread_and_releases_socket(self):
+        server, thread = start_test_server(FakeCtfd)
+        self.assertTrue(thread.is_alive())
+        stop_test_server(server, thread)
+        self.assertFalse(thread.is_alive())
+        with socket.socket() as probe:
+            with self.assertRaises(ConnectionRefusedError):
+                probe.connect(server.server_address)
+
+    def test_socket_is_closed_only_after_the_thread_has_joined(self):
+        server, thread = start_test_server(FakeCtfd)
+        real_close = server.server_close
+        observed = {}
+
+        def spy_close():
+            observed['thread_alive_at_close'] = thread.is_alive()
+            real_close()
+
+        with mock.patch.object(server, 'server_close', side_effect=spy_close):
+            stop_test_server(server, thread)
+        self.assertIs(observed['thread_alive_at_close'], False)
+
+    def test_windows_close_socket_oserror_is_tolerated(self):
+        server, thread = start_test_server(FakeCtfd)
+        real_close = server.server_close
+        with mock.patch.object(
+                server, 'server_close',
+                side_effect=OSError(10038, 'An operation was attempted on '
+                                           'something that is not a socket')):
+            stop_test_server(server, thread)  # must not raise
+        self.assertFalse(thread.is_alive())
+        real_close()  # the patched close never ran; free the port for real
+
+    def test_unrelated_close_failure_is_not_swallowed(self):
+        server, thread = start_test_server(FakeCtfd)
+        with mock.patch.object(server, 'server_close',
+                               side_effect=RuntimeError('boom')):
+            with self.assertRaises(RuntimeError):
+                stop_test_server(server, thread)
+        self.assertFalse(thread.is_alive())
+        HTTPServer.server_close(server)
 
 
 if __name__ == '__main__':
