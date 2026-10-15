@@ -178,8 +178,22 @@ class ReadinessDocumentTests(unittest.TestCase):
         desktop = json.loads(read('assets/desktop-v1.json'))
         self.assertEqual(desktop['native_capture'], archive_path)
 
+    def test_build_docs_document_generated_tickets_prerequisite(self):
+        """#188: expanded/tickets.json is gitignored, so the build documents
+        must name the command that regenerates it on a fresh clone."""
+        self.assertIn('/expanded/tickets.json', read('.gitignore'))
+        for name in ('AGENTS.md', 'docs/handoff/BUILD-FIRST.md'):
+            text = read(name)
+            self.assertIn('python expanded/author.py', text, name)
+            self.assertIn('expanded/tickets.json', text, name)
+        # BUILD-FIRST.md is the command reference: it must tie the generated
+        # file to the tools that consume it.
+        build_first = read('docs/handoff/BUILD-FIRST.md')
+        self.assertIn('walkthrough', build_first)
+
     def test_local_links_resolve(self):
-        files = ['README.md', 'docs/learning-objectives.md', 'docs/expanded-validation.md',
+        files = ['README.md', 'AGENTS.md', 'docs/handoff/BUILD-FIRST.md',
+                 'docs/learning-objectives.md', 'docs/expanded-validation.md',
                  'docs/expanded-deployment.md', 'docs/expanded-evidence.md']
         missing = []
         for name in files:

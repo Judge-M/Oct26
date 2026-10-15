@@ -14,6 +14,7 @@ python --version
 python -m ridge.deploy doctor
 git lfs pull --include="assets/large/binary/**,assets/large/autopsy/**" --exclude=""
 python -m unittest discover -s tests
+python expanded/author.py
 python -m ridge.case_template --destination work/case-template
 ```
 
@@ -24,6 +25,15 @@ native originals are fetched separately with `git lfs pull
 `python -m expanded.materialize_native --destination work/native-preparation`.
 The published VM can still be assembled using `ridge.desktop_image`; it is not
 needed to build the additional Docker desktop image.
+
+`python expanded/author.py` deterministically generates `expanded/tickets.json`
+(20 tickets, 80 questions). That file is gitignored and not committed, so it is
+absent from a fresh clone; regenerate it before running any tool that takes it
+as input: the F04 scripted walkthrough `expanded/walkthrough.py`
+(`--tickets expanded/tickets.json`), `ridge.cli init`/`migrate` (whose
+`--content` defaults to that path), and `ridge.preflight`, which rejects
+tickets generated before the current Autopsy path contract. See also
+[expanded-deployment.md](../expanded-deployment.md) step 7.
 
 ## 2. Actually build the images
 
