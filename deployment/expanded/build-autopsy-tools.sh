@@ -10,7 +10,7 @@ apt-get install -y openjdk-17-jdk openjfx xvfb curl unzip git build-essential te
   autoconf automake libtool ant libsqlite3-dev libpq-dev libssl-dev \
   libafflib-dev libewf-dev libvhdi-dev libvmdk-dev zlib1g-dev \
   libgtk-3-0 libgstreamer1.0-0 libgstreamer-plugins-base1.0-0
-export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+export JAVA_HOME="$(dirname "$(dirname "$(readlink -f "$(command -v java)")")")"
 if [[ ! -d "$BUILD_ROOT/sleuthkit/.git" ]]; then
   git clone --depth 1 --branch sleuthkit-4.13.0 https://github.com/sleuthkit/sleuthkit.git "$BUILD_ROOT/sleuthkit"
 fi

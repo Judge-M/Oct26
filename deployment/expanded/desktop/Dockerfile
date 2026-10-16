@@ -11,7 +11,6 @@
 FROM ubuntu:24.04 AS builder
 
 ENV DEBIAN_FRONTEND=noninteractive
-ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
 
 ARG SLEUTHKIT_VERSION=4.13.0
 ARG SLEUTHKIT_URL=https://github.com/sleuthkit/sleuthkit/releases/download/sleuthkit-4.13.0/sleuthkit-4.13.0.tar.gz
@@ -33,7 +32,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       openjdk-17-jdk-headless \
       libsqlite3-dev libpq-dev libssl-dev zlib1g-dev \
       libafflib-dev libewf-dev libvhdi-dev libvmdk-dev \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && ln -sfn "$(dirname "$(dirname "$(readlink -f "$(command -v java)")")")" /opt/jdk17 \
+    && test -x /opt/jdk17/bin/java
+# Debian/Ubuntu install the JDK under /usr/lib/jvm/java-17-openjdk-<dpkg arch>
+# (suffix amd64 on x86_64, arm64 on Graviton/Apple Silicon). Resolve it from
+# the installed java binary behind one architecture-neutral symlink so
+# unix_setup.sh -j "$JAVA_HOME" below works on every build architecture.
+ENV JAVA_HOME=/opt/jdk17
 
 RUN set -eux; \
     curl -fsSL "$SLEUTHKIT_URL" -o /tmp/sleuthkit.tar.gz; \
@@ -63,7 +69,6 @@ RUN set -eux; \
 FROM ubuntu:24.04 AS runtime
 
 ENV DEBIAN_FRONTEND=noninteractive
-ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
 ENV HOME=/home/participant
 ENV DISPLAY=:1
 ENV VNC_PASSWORD_FILE=/etc/silent-ridge/vnc-password
@@ -86,7 +91,13 @@ RUN echo "wireshark-common wireshark-common/install-setuid boolean false" | debc
       adwaita-icon-theme tini ca-certificates curl xz-utils python3 \
       testdisk libafflib0t64 libewf2 libvhdi1 libvmdk1 libpq5 libgstreamer1.0-0 libgstreamer-plugins-base1.0-0 \
       libgtk-3-0 libdbus-glib-1-2 libasound2t64 libxtst6 \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && ln -sfn "$(dirname "$(dirname "$(readlink -f "$(command -v java)")")")" /opt/jdk17 \
+    && test -x /opt/jdk17/bin/java
+# Same architecture-neutral JAVA_HOME as the builder stage: the java.location
+# baked into /opt/autopsy/etc/autopsy.conf points at /opt/jdk17/bin/java, so
+# the symlink must resolve to this stage's JRE on every build architecture.
+ENV JAVA_HOME=/opt/jdk17
 
 COPY --from=builder /opt/autopsy /opt/autopsy
 COPY --from=builder /usr/local /usr/local
