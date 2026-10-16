@@ -72,6 +72,94 @@ def base_images(dockerfile):
     return images, unresolved
 
 
+def _registry_repository(image):
+    """Canonical registry repository of a FROM reference, without tag or digest.
+
+    Mirrors Docker's own normalization: an unqualified name lives under
+    ``docker.io/library``, a single-path name under ``docker.io``, and only a
+    first component containing a dot or a port counts as an explicit registry.
+    ``docker image inspect`` reports RepoDigests only in canonical form, so
+    matching without normalizing would reject every legitimately cached base.
+    """
+    ref = image.split('@', 1)[0]
+    last = ref.rsplit('/', 1)[-1]
+    if ':' in last:
+        ref = ref.rsplit(':', 1)[0]
+    if '/' not in ref:
+        return 'docker.io/library/' + ref
+    head = ref.split('/', 1)[0]
+    if '.' not in head and ':' not in head:
+        return 'docker.io/' + ref
+    return ref
+
+
+def registry_digest_for(image, details):
+    """The recorded registry pull digest of ``image``'s repository, or None.
+
+    An image pulled from a registry carries a ``<repo>@sha256:...`` RepoDigest.
+    A locally built image has none at all, and a foreign image re-tagged over
+    the base name carries only the foreign repository's digest — so a missing
+    digest for this exact repository means the tag no longer points at a pulled
+    image. That is the overwrite failure mode of issue #184. A digest-pinned
+    FROM cannot be re-tagged over (docker refuses digest targets), so it is
+    exempt from the check.
+    """
+    if '@' in image:
+        return ''
+    prefix = _registry_repository(image) + '@'
+    for digest in details.get('RepoDigests') or []:
+        if digest.startswith(prefix):
+            return digest
+    return None
+
+
+def verify_base_cache(bases):
+    """Inspect the local Docker cache for each base; return (problems, uncached).
+
+    ``problems`` names every cached base whose image is not a registry pull of
+    that repository, with the cached image id and the ``docker rmi`` remedy.
+    Issue #184: a previous build that saved its finished image over a base tag
+    made ``--pull=false`` start from a polluted base; the real cause surfaced
+    hundreds of build steps later as a misleading Dockerfile error. An
+    unparseable inspect output is reported loudly but does not block the
+    build: it points at broken tooling, not at a polluted cache.
+    """
+    problems = []
+    uncached = []
+    unverifiable = []
+    for base in bases:
+        try:
+            details = json.loads(docker('image', 'inspect', base, capture=True))
+        except (OSError, subprocess.SubprocessError):
+            uncached.append(base)
+            continue
+        except ValueError:
+            unverifiable.append(base)
+            continue
+        detail = details[0] if isinstance(details, list) and details else None
+        if not isinstance(detail, dict):
+            unverifiable.append(base)
+            continue
+        if registry_digest_for(base, detail) is None:
+            image_id = str(detail.get('Id', '?'))
+            short_id = image_id[:19] if image_id.startswith('sha256:') else image_id[:12]
+            carried = sorted(detail.get('RepoDigests') or [])
+            carried = ('it carries registry digests ' + ', '.join(carried)) if carried \
+                else 'it carries no registry digests at all'
+            problems.append(
+                'cached base image %s is not a registry pull: it resolves to local '
+                'image %s, and %s, so the tag %s was overwritten by a local build or '
+                'retag (issue #184). Building on it would silently bake the wrong base '
+                'into the result; the Dockerfile is not at fault. Fix: `docker rmi %s` '
+                'then re-run the build so Docker re-pulls the pristine base'
+                % (base, short_id, carried, base, base))
+    if unverifiable:
+        print('Note: could not verify cache provenance for cached base image(s): '
+              + ', '.join(unverifiable) + '. The docker inspect output was unreadable; '
+              'the build will proceed, but a polluted base tag would not be detected.')
+    return problems, uncached
+
+
 def build(component, work):
     work = Path(work)
     work.mkdir(parents=True, exist_ok=True)
@@ -91,18 +179,15 @@ def build(component, work):
               'base images; it does not make this build offline. Air-gapped event '
               'hosts must install the complete offline bundle instead.')
         bases, unresolved = base_images(IMAGES[component])
-        uncached = []
-        for base in bases:
-            try:
-                docker('image', 'inspect', base, capture=True)
-            except (OSError, subprocess.SubprocessError):
-                uncached.append(base)
+        problems, uncached = verify_base_cache(bases)
         for base in unresolved:
             print('Note: base image ' + base + ' comes from a build argument; '
                   'its cache state cannot be checked before the build.')
         if uncached:
             print('Note: base image(s) not cached locally: ' + ', '.join(uncached)
                   + '. The online preparation host will also need registry access.')
+        if problems:
+            raise ValueError('; '.join(problems))
         docker('build', '--pull=false', '-f', IMAGES[component], '-t', tag, '.')
         identity = docker('image', 'inspect', '--format', '{{.Id}}', tag, capture=True)
         if source != fingerprint():
