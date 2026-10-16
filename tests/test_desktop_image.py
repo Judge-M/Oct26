@@ -1,7 +1,6 @@
 import hashlib
 import importlib.util
 import json
-import re
 from pathlib import Path
 import tempfile
 import unittest
@@ -83,18 +82,25 @@ class DesktopContainerTests(unittest.TestCase):
         <dpkg arch> (suffix amd64 on x86_64, arm64 on Graviton/Apple
         Silicon), so ARM64 desktop builds died at
         `bash unix_setup.sh -j "$JAVA_HOME" -n autopsy` with "Java not
-        found". JAVA_HOME must be an architecture-neutral fixed path
-        resolved from the installed java binary, in the Dockerfile and in
-        the pinned toolchain script alike.
+        found". The JVM directory must be composed from the build arch via
+        `dpkg --print-architecture`, never suffixed by hand. Resolving
+        from the PATH java binary is also wrong: `ant` pulls a
+        default-jre whose update-alternatives priority outranks the
+        pinned JDK 17, silently pointing JAVA_HOME at another JDK/JRE
+        without jni.h, which kills Sleuth Kit `--enable-java` and the
+        Autopsy Sleuth Kit Java bindings prerequisite.
         """
         script = (REPO / 'deployment/expanded/build-autopsy-tools.sh').read_text(encoding='utf-8')
-        resolve = 'readlink -f "$(command -v java)"'
+        arch = '$(dpkg --print-architecture)'
+        jvm_dir = '/usr/lib/jvm/java-17-openjdk-' + arch
         for name, text in (('desktop Dockerfile', self.dockerfile),
                            ('build-autopsy-tools.sh', script)):
             with self.subTest(name):
                 self.assertNotIn('java-17-openjdk-amd64', text)
-                self.assertIn(resolve, text,
-                              'JAVA_HOME must be derived from the installed java binary')
+                self.assertIn(jvm_dir, text,
+                              'JAVA_HOME must be the arch-suffixed JDK 17 directory')
+                self.assertNotIn('command -v java', text,
+                                 'PATH java can be another JDK via update-alternatives')
         env_lines = [line.strip() for line in self.dockerfile.splitlines()
                      if line.strip().startswith('ENV JAVA_HOME=')]
         self.assertEqual(len(env_lines), 2, 'builder and runtime stages each set JAVA_HOME')
@@ -103,8 +109,13 @@ class DesktopContainerTests(unittest.TestCase):
         value = values.pop()
         self.assertNotIn('amd64', value, value)
         self.assertNotIn('$', value, 'ENV cannot expand a command; point at a fixed symlink')
-        self.assertRegex(self.dockerfile,
-                         r'ln -sfn +"?\$\(.*readlink -f.*\)+"?\s+' + re.escape(value))
+        self.assertEqual(
+            self.dockerfile.count(f'ln -sfn "{jvm_dir}" {value}'), 2,
+            'both stages must symlink the arch-suffixed JDK 17 directory')
+        self.assertIn(f'test -x {value}/bin/javac', self.dockerfile,
+                      'builder stage must prove JAVA_HOME is a JDK, not a JRE')
+        self.assertIn(f'test -f {value}/include/jni.h', self.dockerfile,
+                      'builder stage must prove the JNI headers are present')
 
     def test_entrypoint_fails_fast_without_a_password(self):
         self.assertIn('/run/secrets/vnc_password', self.entrypoint)

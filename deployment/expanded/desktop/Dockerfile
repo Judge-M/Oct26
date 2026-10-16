@@ -33,12 +33,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       libsqlite3-dev libpq-dev libssl-dev zlib1g-dev \
       libafflib-dev libewf-dev libvhdi-dev libvmdk-dev \
     && rm -rf /var/lib/apt/lists/* \
-    && ln -sfn "$(dirname "$(dirname "$(readlink -f "$(command -v java)")")")" /opt/jdk17 \
+    && ln -sfn "/usr/lib/jvm/java-17-openjdk-$(dpkg --print-architecture)" /opt/jdk17 \
+    && test -x /opt/jdk17/bin/javac \
+    && test -f /opt/jdk17/include/jni.h \
     && test -x /opt/jdk17/bin/java
-# Debian/Ubuntu install the JDK under /usr/lib/jvm/java-17-openjdk-<dpkg arch>
-# (suffix amd64 on x86_64, arm64 on Graviton/Apple Silicon). Resolve it from
-# the installed java binary behind one architecture-neutral symlink so
-# unix_setup.sh -j "$JAVA_HOME" below works on every build architecture.
+# Debian/Ubuntu install OpenJDK under /usr/lib/jvm/java-17-openjdk-<dpkg
+# arch> (suffix amd64 on x86_64, arm64 on Graviton/Apple Silicon), so the
+# JVM directory must be composed from dpkg --print-architecture, never
+# pinned to one architecture. It must not be resolved from the PATH java
+# either: `ant` pulls a default-jre whose update-alternatives priority
+# outranks this pinned JDK 17, and a JRE without jni.h silently disables
+# Sleuth Kit --enable-java and fails the Autopsy bindings prerequisite.
+# The javac and jni.h guards below pin JAVA_HOME to a full JDK 17.
 ENV JAVA_HOME=/opt/jdk17
 
 RUN set -eux; \
@@ -92,11 +98,12 @@ RUN echo "wireshark-common wireshark-common/install-setuid boolean false" | debc
       testdisk libafflib0t64 libewf2 libvhdi1 libvmdk1 libpq5 libgstreamer1.0-0 libgstreamer-plugins-base1.0-0 \
       libgtk-3-0 libdbus-glib-1-2 libasound2t64 libxtst6 \
     && rm -rf /var/lib/apt/lists/* \
-    && ln -sfn "$(dirname "$(dirname "$(readlink -f "$(command -v java)")")")" /opt/jdk17 \
+    && ln -sfn "/usr/lib/jvm/java-17-openjdk-$(dpkg --print-architecture)" /opt/jdk17 \
     && test -x /opt/jdk17/bin/java
-# Same architecture-neutral JAVA_HOME as the builder stage: the java.location
-# baked into /opt/autopsy/etc/autopsy.conf points at /opt/jdk17/bin/java, so
-# the symlink must resolve to this stage's JRE on every build architecture.
+# Same architecture-neutral JDK 17 directory as the builder stage: the
+# java.location baked into /opt/autopsy/etc/autopsy.conf points at
+# /opt/jdk17/bin/java, so the symlink must resolve to the pinned
+# openjdk-17 package directory on every build architecture.
 ENV JAVA_HOME=/opt/jdk17
 
 COPY --from=builder /opt/autopsy /opt/autopsy
