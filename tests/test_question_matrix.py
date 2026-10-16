@@ -63,6 +63,17 @@ class QuestionMatrixTests(unittest.TestCase):
         self.assertEqual(len(inventory['guides_sha256']), 64)
         self.assertEqual(len(inventory['matrix_sha256']), 64)
 
+    def test_guide_documents_the_ctfd_login_rate_limit(self):
+        # Issue #193: CTFd returns HTTP 429 on POST /login (stock limit: 10 per
+        # 60s per IP, see expanded/load.py CTFD_LOGIN_INTERVAL_S). Two stress-run
+        # teams misread the 429 as product breakage because the participant
+        # getting-started guide never mentioned it.
+        guide = (ROOT / 'expanded/guides.md').read_text(encoding='utf-8')
+        self.assertIn('429', guide)
+        self.assertRegex(guide, r'(?i)rate.?limit')
+        self.assertRegex(guide, r'(?i)sign[ -]?in')
+        self.assertRegex(guide, r'(?i)\b10\b.{0,60}(per minute|attempts)|(?:per minute|attempts).{0,60}\b10\b')
+
     def test_validate_rejects_incomplete_or_missing_evidence(self):
         with self.assertRaisesRegex(MatrixError, 'expected 80'):
             validate(self.rows[:-1])

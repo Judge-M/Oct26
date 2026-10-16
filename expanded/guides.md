@@ -6,6 +6,16 @@ correct answer earns one point and automatically records a finding. There is no
 report to write. Use any help level, including the final walkthrough, without a
 point penalty. If you relinquish a ticket, its completed answers are preserved.
 
+Sign in to CTFd with your team's credentials and **stay signed in**. CTFd
+accepts at most **10 sign-in attempts per minute per network address**, and the
+whole team shares that budget when signing in from the same machine or
+network. If a sign-in returns `HTTP 429` (*Too Many Requests*), the password is
+not the problem: it is a temporary login rate limit, not a broken deployment.
+Wait at least 10 seconds — honour any wait the page asks for — then try once.
+Repeated sign-out/sign-in cycles, or the whole team re-authenticating at the
+same time after a break, are the usual causes. Answer submissions are not
+rate-limited this way; only signing in is.
+
 ## Evidence and working files
 
 Open **Evidence** to browse the released read-only files. Save working notes and
