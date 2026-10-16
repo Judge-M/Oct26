@@ -1,6 +1,7 @@
 import hashlib
 import importlib.util
 import json
+import re
 from pathlib import Path
 import tempfile
 import unittest
@@ -74,6 +75,36 @@ class DesktopContainerTests(unittest.TestCase):
                       self.dockerfile)
         self.assertIn('ENTRYPOINT ["/usr/bin/tini", "--"]', self.dockerfile)
         self.assertIn('CMD ["/usr/local/bin/silent-ridge-entrypoint"]', self.dockerfile)
+
+    def test_java_home_follows_the_build_architecture(self):
+        """Regression: JAVA_HOME was pinned to the amd64-only JVM directory.
+
+        Debian/Ubuntu install OpenJDK under /usr/lib/jvm/java-17-openjdk-
+        <dpkg arch> (suffix amd64 on x86_64, arm64 on Graviton/Apple
+        Silicon), so ARM64 desktop builds died at
+        `bash unix_setup.sh -j "$JAVA_HOME" -n autopsy` with "Java not
+        found". JAVA_HOME must be an architecture-neutral fixed path
+        resolved from the installed java binary, in the Dockerfile and in
+        the pinned toolchain script alike.
+        """
+        script = (REPO / 'deployment/expanded/build-autopsy-tools.sh').read_text(encoding='utf-8')
+        resolve = 'readlink -f "$(command -v java)"'
+        for name, text in (('desktop Dockerfile', self.dockerfile),
+                           ('build-autopsy-tools.sh', script)):
+            with self.subTest(name):
+                self.assertNotIn('java-17-openjdk-amd64', text)
+                self.assertIn(resolve, text,
+                              'JAVA_HOME must be derived from the installed java binary')
+        env_lines = [line.strip() for line in self.dockerfile.splitlines()
+                     if line.strip().startswith('ENV JAVA_HOME=')]
+        self.assertEqual(len(env_lines), 2, 'builder and runtime stages each set JAVA_HOME')
+        values = {line.split('=', 1)[1] for line in env_lines}
+        self.assertEqual(len(values), 1, 'both stages must agree on one JAVA_HOME')
+        value = values.pop()
+        self.assertNotIn('amd64', value, value)
+        self.assertNotIn('$', value, 'ENV cannot expand a command; point at a fixed symlink')
+        self.assertRegex(self.dockerfile,
+                         r'ln -sfn +"?\$\(.*readlink -f.*\)+"?\s+' + re.escape(value))
 
     def test_entrypoint_fails_fast_without_a_password(self):
         self.assertIn('/run/secrets/vnc_password', self.entrypoint)
