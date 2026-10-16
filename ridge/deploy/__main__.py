@@ -103,12 +103,18 @@ def registry_digest_for(image, details):
     image. That is the overwrite failure mode of issue #184. A digest-pinned
     FROM cannot be re-tagged over (docker refuses digest targets), so it is
     exempt from the check.
+
+    The digest's repository is normalized the same way as the FROM reference:
+    some docker/containerd versions record Docker Hub official images under
+    their short repository (``ubuntu@sha256:...`` instead of
+    ``docker.io/library/ubuntu@sha256:...``), and comparing raw strings
+    falsely reported that genuine pull as an overwritten tag.
     """
     if '@' in image:
         return ''
-    prefix = _registry_repository(image) + '@'
+    repository = _registry_repository(image)
     for digest in details.get('RepoDigests') or []:
-        if digest.startswith(prefix):
+        if _registry_repository(digest) == repository:
             return digest
     return None
 
