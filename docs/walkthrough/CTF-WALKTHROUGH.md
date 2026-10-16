@@ -722,8 +722,11 @@ Observed during live play — documented so they are not mistaken for breakage.
    `silent-ridge-timed`. This is correct behaviour but a sharp edge on first use.
 2. **CTFd rate-limits *login*, not answers** — `HTTP 429` on `POST /login`. Any
    client that re-authenticates per action trips it quickly. The repo already
-   knows the limit (`load.py` hardcodes `CTFD_LOGIN_INTERVAL_S = 6.1`) but it is
-   not mentioned in `getting-started.md`.
+   knows the limit (`load.py` hardcodes `CTFD_LOGIN_INTERVAL_S = 6.1`), and the
+   participant guide now states it: `expanded/guides.md` (published as
+   `guides/getting-started.md`) tells teams to stay signed in, explains the
+   `10 sign-ins per minute per address` budget, and says to wait out a 429
+   instead of concluding the deployment is broken.
 3. **One opaque 409 for four conditions.** *"Ticket unavailable, another team
    claimed it, or exercise paused"* covers: you already hold a ticket, the ticket
    is taken, it is not yet prepared in IRIS, and your generation is stale. The
