@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Presenter landing page — Operation Silent Ridge</title>
+<!--
+  Issue #197: single offline entry point for the day-of deck and operator
+  material on the presenter PC. This file is fully self-contained: no CDN,
+  no build step, no network. Open it from a checkout via file:// or serve it
+  from any static listener on the presenter machine. It works BEFORE the
+  event stack is up.
+
+  Operator-only material. Never expose this page on a participant-reachable
+  listener (see the constraint in issue #197): the participant-facing nginx
+  on :8080 serves only the signed CRL and must stay that way. This page
+  intentionally contains no operator credential, no team credential, and no
+  runtime secrets path — consult the linked runbook/command sheet for where
+  those live. The linked markdown documents stay authoritative; this page
+  only aggregates and links.
+-->
+<style>
+  :root {
+    --ink: #1c2330; --muted: #5b6572; --line: #d8dee7; --bg: #f5f7fa;
+    --card: #ffffff; --accent: #0b5fff; --warn-bg: #fff4e5; --warn-line: #e8a33d;
+    --ok: #1a7f37;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  main { max-width: 1060px; margin: 0 auto; padding: 24px 20px 64px; }
+  header.page { border-bottom: 3px solid var(--ink); margin-bottom: 20px; padding-bottom: 12px; }
+  h1 { margin: 0 0 4px; font-size: 26px; }
+  h2 { font-size: 20px; margin: 0 0 10px; }
+  .sub { color: var(--muted); margin: 0; }
+  section { background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+            padding: 18px 20px; margin: 18px 0; }
+  .grid { display: grid; gap: 12px; }
+  @media (min-width: 760px) { .grid.two { grid-template-columns: 1fr 1fr; } }
+  a { color: var(--accent); }
+  code { background: #eef1f6; border-radius: 4px; padding: 1px 5px;
+         font-family: ui-monospace, Consolas, monospace; font-size: 0.92em;
+         word-break: break-all; }
+  .deck-cta { display: inline-block; background: var(--ink); color: #fff; text-decoration: none;
+              padding: 14px 22px; border-radius: 8px; font-weight: 600; font-size: 18px; }
+  .deck-cta:hover { background: #000; }
+  .note { color: var(--muted); font-size: 14px; }
+  .warn { background: var(--warn-bg); border-left: 4px solid var(--warn-line);
+          padding: 10px 14px; border-radius: 6px; font-size: 14px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14.5px; }
+  th, td { border: 1px solid var(--line); padding: 7px 10px; text-align: left; vertical-align: top; }
+  th { background: #eef1f6; }
+  .url-row { display: flex; align-items: center; gap: 10px; margin: 8px 0; flex-wrap: wrap; }
+  .url-row .label { min-width: 210px; font-weight: 600; }
+  .url-row code { flex: 1 1 260px; }
+  button.copy { border: 1px solid var(--line); background: #fff; border-radius: 6px;
+                padding: 4px 12px; cursor: pointer; font-size: 13px; }
+  button.copy.copied { border-color: var(--ok); color: var(--ok); }
+  input[type=text], input[type=time] {
+    border: 1px solid var(--line); border-radius: 6px; padding: 7px 10px;
+    font: inherit; font-family: ui-monospace, Consolas, monospace;
+  }
+  .cmds { list-style: none; margin: 0; padding: 0; }
+  .cmds li { display: flex; gap: 10px; align-items: center; margin: 8px 0; flex-wrap: wrap; }
+  .cmds .name { font-weight: 600; min-width: 90px; }
+  .cmds code { flex: 1 1 320px; }
+  .seg-total td { font-weight: 700; }
+  footer { color: var(--muted); font-size: 13px; margin-top: 28px; }
+  @media print { .no-print { display: none; } body { background: #fff; } }
+</style>
+</head>
+<body>
+<main>
+
+<header class="page">
+  <h1>Operation Silent Ridge — presenter landing page</h1>
+  <p class="sub">One entry point on the presenter PC: deck, participant URLs, operator docs,
+  run-of-show, runbook quick reference. Fully offline; works before <code>up</code> completes.</p>
+</header>
+
+<section class="no-print" id="lan-ip-section">
+  <h2>Event LAN address</h2>
+  <p class="note">Type or paste the event machine's LAN address once; it fills every
+  participant URL below. This is the same address the deck shows as
+  <code>&lt;event-address&gt;</code> (command sheet §4) — the deck and these links must
+  never disagree in front of the room.</p>
+  <div class="url-row">
+    <label class="label" for="lan-ip">LAN IP</label>
+    <input type="text" id="lan-ip" placeholder="192.168.1.20" autocomplete="off" spellcheck="false">
+    <span class="note" id="lan-ip-status"></span>
+  </div>
+</section>
+
+<section id="deck">
+  <h2>1. Day-of deck (project this)</h2>
+  <p><a class="deck-cta" href="event-day-deck/event-day-deck.pdf" target="_blank" rel="noopener">
+  Open event-day-deck.pdf (13 slides)</a></p>
+  <p class="note">Opens full-screen in its own window alongside this page. Plays anywhere —
+  no software needed. Editable source: <a href="event-day-deck/event-day-deck.pptd">event-day-deck.pptd</a>.
+  The <code>&lt;event-address&gt;</code> slide uses the LAN IP entered above.</p>
+</section>
+
+<section id="participant-urls">
+  <h2>2. Participant URLs (read these aloud / put on the slide)</h2>
+  <p class="note">All four HTTPS URLs open in each participant's own laptop browser and
+  require the event CA to be trusted first — follow
+  <a href="participant-ca-trust.md">participant-ca-trust.md</a> before any participant login.</p>
+  <div class="url-row"><span class="label">Guacamole desktops</span>
+    <code data-url-host="https://" data-url-port="8082">https://&lt;LAN-IP&gt;:8082</code>
+    <button class="copy" type="button">Copy</button></div>
+  <div class="url-row"><span class="label">IRIS case</span>
+    <code data-url-host="https://" data-url-port="8081">https://&lt;LAN-IP&gt;:8081</code>
+    <button class="copy" type="button">Copy</button></div>
+  <div class="url-row"><span class="label">CTFd</span>
+    <code data-url-host="https://" data-url-port="8083">https://&lt;LAN-IP&gt;:8083</code>
+    <button class="copy" type="button">Copy</button></div>
+  <div class="url-row"><span class="label">Wazuh dashboard</span>
+    <code data-url-host="https://" data-url-port="8443">https://&lt;LAN-IP&gt;:8443</code>
+    <button class="copy" type="button">Copy</button></div>
+  <div class="url-row"><span class="label">Signed CRL (must stay reachable)</span>
+    <code data-url-host="http://" data-url-port="8080" data-url-path="/root-ca.crl">http://&lt;LAN-IP&gt;:8080/root-ca.crl</code>
+    <button class="copy" type="button">Copy</button></div>
+  <p class="warn">Never point participants at anything else on this machine. Port 8080
+  serves the signed CRL only; the operator material on this page must never reach a
+  participant-reachable listener.</p>
+</section>
+
+<section id="operator-docs">
+  <h2>3. Operator docs (one click each; these stay authoritative)</h2>
+  <div class="grid two">
+    <div><a href="event-day-commands.md"><strong>Event-day command sheet</strong></a>
+      — cold machine → running event → teardown; up/start/pause/backup commands.</div>
+    <div><a href="runbook.md"><strong>Operator runbook</strong></a>
+      — symptom → action table plus recovery appendices.</div>
+    <div><a href="participant-ca-trust.md"><strong>Participant CA trust</strong></a>
+      — distribute the CA, verify the SHA-256 fingerprint, no TLS click-throughs.</div>
+    <div><a href="event-machine-cold-start.md"><strong>Cold-machine install sheet</strong></a>
+      — fully spelled-out copy-paste version of command sheet §0.</div>
+    <div><a href="dress-rehearsal-plan.md"><strong>Dress rehearsal plan</strong></a>
+      — the chronological checklist this page feeds into.</div>
+    <div><a href="schedule-model.md"><strong>Schedule model (F04)</strong></a>
+      — the arithmetic behind the run-of-show below.</div>
+  </div>
+  <p class="warn">Team logins and the Wazuh reader login are handed out from the private
+  runtime directory per the runbook, event-day step 4. This page deliberately contains
+  no operator or team credentials.</p>
+</section>
+
+<section id="run-of-show">
+  <h2>4. Run-of-show (authored pace, 275 minutes)</h2>
+  <p class="no-print">Set the start time to put wall-clock bounds on every segment.
+  Times derive from <a href="schedule-model.md">docs/schedule-model.md</a> (authored
+  multiplier 1.0); do not improvise the agenda under time pressure — see its pace
+  sensitivity table before cutting or stretching anything.</p>
+  <div class="url-row no-print"><span class="label">Event starts at</span>
+    <input type="time" id="start-time" value="09:00"></div>
+  <table id="schedule-table">
+    <thead><tr><th>Segment</th><th>Kind</th><th>Minutes</th><th>From</th><th>To</th></tr></thead>
+    <tbody>
+      <tr><td>Orientation and tool familiarization</td><td>facilitated</td>
+          <td data-minutes="25">25</td><td class="clock-from"></td><td class="clock-to"></td></tr>
+      <tr><td>Investigation block (ticket work)</td><td>investigation</td>
+          <td data-minutes="195">195</td><td class="clock-from"></td><td class="clock-to"></td></tr>
+      <tr><td>Inject briefing: late evidence release</td><td>facilitated</td>
+          <td data-minutes="10">10</td><td class="clock-from"></td><td class="clock-to"></td></tr>
+      <tr><td>Break</td><td>break</td>
+          <td data-minutes="15">15</td><td class="clock-from"></td><td class="clock-to"></td></tr>
+      <tr><td>After-action review</td><td>aar</td>
+          <td data-minutes="30">30</td><td class="clock-from"></td><td class="clock-to"></td></tr>
+      <tr class="seg-total"><td>Total</td><td></td><td>275</td><td></td><td class="clock-to"></td></tr>
+    </tbody>
+  </table>
+  <p class="note">After the AAR: <code>backup</code>, then <code>down</code> — teardown
+  commands in <a href="event-day-commands.md">§7 of the command sheet</a>.</p>
+</section>
+
+<section id="quick-reference">
+  <h2>5. Runbook quick reference</h2>
+  <p class="note">Condensed from <a href="runbook.md">docs/runbook.md</a> — the runbook
+  is authoritative; consult its appendices for recovery and offline-install detail.</p>
+  <table>
+    <thead><tr><th>Symptom</th><th>Diagnostic</th><th>Action</th></tr></thead>
+    <tbody>
+      <tr><td><code>up</code> reports a stage probe error</td><td><code>status</code> names the stage and cause</td>
+          <td>Re-run <code>up</code>; it reconciles that stage only, never resets state</td></tr>
+      <tr><td><code>start</code> refuses</td><td>A stage is unverified or preflight failed</td>
+          <td><code>status</code> shows which gate; fix, re-run <code>up</code>, then <code>start</code></td></tr>
+      <tr><td>Team can't claim a fresh ticket</td><td>"still being prepared in IRIS; retry shortly"</td>
+          <td>Transient — the IRIS task is being created; retry in a few seconds</td></tr>
+      <tr><td>Answers accepted but no points showing</td><td>Outbox backlog in integration worker logs</td>
+          <td>Fix connectivity; the worker retries — do <strong>not</strong> re-award points or edit receipts</td></tr>
+      <tr><td>A team disconnects mid-ticket</td><td><code>status</code> shows the ticket active with an absent owner</td>
+          <td><code>recover &lt;ticket&gt; --generation N --reason "..."</code> releases it</td></tr>
+      <tr><td>Desktop sluggish</td><td>Host CPU/RAM saturated (<code>docker stats</code>)</td>
+          <td>Pause non-critical team work; stagger Autopsy ingests; do not restart containers mid-event</td></tr>
+      <tr><td>Anything feels lost</td><td>Don't improvise</td>
+          <td><code>backup</code>, then Appendix B of the runbook</td></tr>
+    </tbody>
+  </table>
+
+  <h2 style="margin-top:18px">Commands actually typed during play</h2>
+  <p class="note">From <a href="event-day-commands.md">event-day-commands.md</a> §3–§7.
+  <code>event-profile.json</code> and <code>R</code> are your profile and private runtime directory.</p>
+  <ul class="cmds">
+    <li><span class="name">status</span>
+      <code data-copy="python -m ridge.deploy status --profile event-profile.json --runtime R">python -m ridge.deploy status --profile event-profile.json --runtime R</code>
+      <button class="copy" type="button">Copy</button></li>
+    <li><span class="name">up</span>
+      <code data-copy="python -m ridge.deploy up --teams 10 --profile event-profile.json --runtime R">python -m ridge.deploy up --teams 10 --profile event-profile.json --runtime R</code>
+      <button class="copy" type="button">Copy</button></li>
+    <li><span class="name">start</span>
+      <code data-copy="python -m ridge.deploy start --profile event-profile.json --runtime R">python -m ridge.deploy start --profile event-profile.json --runtime R</code>
+      <button class="copy" type="button">Copy</button></li>
+    <li><span class="name">pause</span>
+      <code data-copy="python -m ridge.deploy pause --profile event-profile.json --runtime R">python -m ridge.deploy pause --profile event-profile.json --runtime R</code>
+      <button class="copy" type="button">Copy</button></li>
+    <li><span class="name">announce</span>
+      <code data-copy="python -m ridge.cli announce --operator EXCON --text &quot;...&quot;">python -m ridge.cli announce --operator EXCON --text "..."</code>
+      <button class="copy" type="button">Copy</button></li>
+    <li><span class="name">recover</span>
+      <code data-copy="python -m ridge.cli recover T03 --generation 1 --operator EXCON --reason &quot;...&quot;">python -m ridge.cli recover T03 --generation 1 --operator EXCON --reason "..."</code>
+      <button class="copy" type="button">Copy</button></li>
+    <li><span class="name">backup</span>
+      <code data-copy="python -m ridge.deploy backup --profile event-profile.json --runtime R">python -m ridge.deploy backup --profile event-profile.json --runtime R</code>
+      <button class="copy" type="button">Copy</button></li>
+  </ul>
+</section>
+
+<footer>
+  Issue #197. Single self-contained file: no CDN, no build step, no network — verified by
+  <code>tests/test_presenter_landing.py</code>. The linked markdown documents remain the
+  authoritative sources; update them, not this page, when procedure changes.
+</footer>
+
+</main>
+<script>
+(function () {
+  "use strict";
+  var PLACEHOLDER = "<LAN-IP>";
+
+  function readLanIp() {
+    var v = document.getElementById("lan-ip").value.trim();
+    return v && v.indexOf("/") === -1 && /\S/.test(v) ? v : PLACEHOLDER;
+  }
+  function renderUrls() {
+    var ip = readLanIp();
+    var nodes = document.querySelectorAll("code[data-url-port]");
+    for (var i = 0; i < nodes.length; i++) {
+      var n = nodes[i];
+      var path = n.getAttribute("data-url-path") || "";
+      n.textContent = n.getAttribute("data-url-host") + ip + ":" +
+                      n.getAttribute("data-url-port") + path;
+    }
+    document.getElementById("lan-ip-status").textContent =
+      ip === PLACEHOLDER ? "placeholder — type the real LAN address" : "using " + ip;
+    try { localStorage.setItem("sr-lan-ip", ip === PLACEHOLDER ? "" : ip); } catch (e) {}
+  }
+  function copyText(text, btn) {
+    function done() {
+      btn.classList.add("copied"); btn.textContent = "Copied";
+      setTimeout(function () { btn.classList.remove("copied"); btn.textContent = "Copy"; }, 1200);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, function () { legacyCopy(text); done(); });
+    } else { legacyCopy(text); done(); }
+  }
+  function legacyCopy(text) {
+    var t = document.createElement("textarea");
+    t.value = text; document.body.appendChild(t); t.select();
+    try { document.execCommand("copy"); } catch (e) {}
+    document.body.removeChild(t);
+  }
+  document.addEventListener("click", function (ev) {
+    var btn = ev.target;
+    if (!btn.classList || !btn.classList.contains("copy")) { return; }
+    var target = btn.previousElementSibling;
+    var text = target.getAttribute("data-copy") || target.textContent;
+    copyText(text, btn);
+  });
+
+  function fmt(totalMinutes) {
+    var h = Math.floor(totalMinutes / 60) % 24, m = totalMinutes % 60;
+    return (h < 10 ? "0" : "") + h + ":" + (m < 10 ? "0" : "") + m;
+  }
+  function renderClock() {
+    var raw = document.getElementById("start-time").value;
+    var cells = document.querySelectorAll("#schedule-table .clock-from, #schedule-table .clock-to");
+    if (!/^\d{2}:\d{2}$/.test(raw)) {
+      for (var k = 0; k < cells.length; k++) { cells[k].textContent = ""; }
+      return;
+    }
+    var cursor = parseInt(raw.slice(0, 2), 10) * 60 + parseInt(raw.slice(3, 5), 10);
+    var rows = document.querySelectorAll("#schedule-table tbody tr");
+    for (var r = 0; r < rows.length; r++) {
+      var mins = rows[r].querySelector("td[data-minutes]");
+      if (!mins && !rows[r].querySelector(".seg-total, .clock-to")) { continue; }
+      var from = rows[r].querySelector(".clock-from");
+      var to = rows[r].querySelector(".clock-to");
+      if (from) { from.textContent = fmt(cursor); }
+      var dur = mins ? parseInt(mins.getAttribute("data-minutes"), 10) : 0;
+      if (to) { to.textContent = fmt(cursor + dur); }
+      cursor += dur;
+    }
+  }
+  document.getElementById("lan-ip").addEventListener("input", renderUrls);
+  document.getElementById("start-time").addEventListener("input", renderClock);
+  try {
+    var saved = localStorage.getItem("sr-lan-ip");
+    if (saved) { document.getElementById("lan-ip").value = saved; }
+  } catch (e) {}
+  renderUrls();
+  renderClock();
+})();
+</script>
+</body>
+</html>
