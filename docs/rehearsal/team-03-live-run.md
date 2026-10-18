@@ -10,15 +10,17 @@ TLS endpoint
 **Team accounts tested:** CTFd `team-03-p01`; IRIS `team-03`  
 **Reference:** [`question-matrix.md`](../acceptance/question-matrix.md)
 
-## Result at the time of capture
+## Result
 
-Team 3 completed 64 live submissions across T03 and T04 through T18. Every
-submission returned the CTFd success message and earned a point. The remaining
-ticket stages were shared-state dependent: T01 was still owned by Team 1, T02
-was already complete, and T19/T20 were locked behind the shared dependency
-chain. Those tickets are included below with their complete walkthrough values;
-they must not be stolen or reset while another team is using the cooperative
-queue.
+Team 3 completed 76 live submissions: T01, T03 through T18, T19, and T20.
+Every submission returned the CTFd success message and earned a point. T02
+was already complete from the shared Team 2 run, so the shared ledger contains
+all 80 completed questions across the three teams.
+
+T01 was reclaimed only after explicit rehearsal authorization, using the
+supported recovery path with an operator reason. The IRIS queue then released
+T19 and T20 in order. The final live ledger showed every ticket complete, no
+remaining owner, 76 Team 3 answers, and 80 answers total.
 
 The Team 3 accounts were tested with fresh browser sign-ins after the rehearsal
 runtime had drifted from the supplied handout. Both logins succeeded. No
@@ -45,7 +47,7 @@ credential value is recorded here.
 
 | Ticket | Shared status | Team 3 evidence |
 |---|---|---|
-| T01 | Active, owned by Team 1 at capture | Shared dependency; no Team 3 claim |
+| T01 | Complete by Team 3 after authorized reclaim | 4 screenshots plus claim evidence |
 | T02 | Complete before Team 3 run | Shared completion; no Team 3 claim |
 | T03 | Complete by Team 3 | 4 screenshots |
 | T04 | Complete by Team 3 | 4 screenshots |
@@ -63,8 +65,8 @@ credential value is recorded here.
 | T16 | Complete by Team 3 | 4 screenshots |
 | T17 | Complete by Team 3 | 4 screenshots |
 | T18 | Complete by Team 3 | 4 screenshots |
-| T19 | Locked at capture; waits for T01 | Pending shared dependency |
-| T20 | Locked at capture; waits for T19 | Pending shared dependency |
+| T19 | Complete by Team 3 after T01 | 4 screenshots plus claim evidence |
+| T20 | Complete by Team 3 after T19 | 4 screenshots plus claim evidence |
 
 ## Complete 80-question walkthrough
 
@@ -80,10 +82,10 @@ does not prove human receipt, reading, or intent.
 
 | Question | Answer | Explanation / evidence |
 |---|---|---|
-| T01-Q1 | `WS-17` | The filtered sensor record identifies the source host as WS-17. |
-| T01-Q2 | `req-71` | The same filtered exchange carries request identifier req-71. |
-| T01-Q3 | `req-72` | The adjacent matching exchange carries request identifier req-72. |
-| T01-Q4 | `198.51.100.77` | The destination field is the documented training address. |
+| T01-Q1 | `WS-17` | The filtered sensor record identifies the source host as WS-17. [Live evidence](evidence/T01-Q1-correct.jpg) |
+| T01-Q2 | `req-71` | The same filtered exchange carries request identifier req-71. [Live evidence](evidence/T01-Q2-correct.jpg) |
+| T01-Q3 | `req-72` | The adjacent matching exchange carries request identifier req-72. [Live evidence](evidence/T01-Q3-correct.jpg) |
+| T01-Q4 | `198.51.100.77` | The destination field is the documented training address. [Live evidence](evidence/T01-Q4-correct.jpg) |
 
 ### T02 — Wireshark / DNS capture
 
@@ -302,10 +304,10 @@ the Linux file manager's text viewer and compare its sha256 with
 
 | Question | Answer | Explanation / evidence |
 |---|---|---|
-| T19-Q1 | `req-72` | The metadata record is keyed to req-72. |
-| T19-Q2 | `3` | The metadata records version 3. |
-| T19-Q3 | `09:06:00` | The metadata timestamp is 09:06:00. |
-| T19-Q4 | `no` | The comparison does not establish human receipt or intent. |
+| T19-Q1 | `req-72` | The metadata record is keyed to req-72. [Live evidence](evidence/T19-Q1-correct.jpg) |
+| T19-Q2 | `3` | The metadata records version 3. [Live evidence](evidence/T19-Q2-correct.jpg) |
+| T19-Q3 | `09:06:00` | The metadata timestamp is 09:06:00. [Live evidence](evidence/T19-Q3-correct.jpg) |
+| T19-Q4 | `no` | The comparison does not establish human receipt or intent. [Live evidence](evidence/T19-Q4-correct.jpg) |
 
 ### T20 — Wazuh / request correlation
 
@@ -314,10 +316,10 @@ supports the listed correlation only; missing telemetry is not proof of absence.
 
 | Question | Answer | Explanation / evidence |
 |---|---|---|
-| T20-Q1 | `3` | The req-72 telemetry record attributes version 3. |
-| T20-Q2 | `no` | No positive receipt flag is present in the selected record. |
-| T20-Q3 | `no` | No additional transfer flag is present in the selected record. |
-| T20-Q4 | `no` | The record does not establish human intent. |
+| T20-Q1 | `3` | The req-72 telemetry record attributes version 3. [Live evidence](evidence/T20-Q1-correct.jpg) |
+| T20-Q2 | `no` | No positive receipt flag is present in the selected record. [Live evidence](evidence/T20-Q2-correct.jpg) |
+| T20-Q3 | `no` | No additional transfer flag is present in the selected record. [Live evidence](evidence/T20-Q3-correct.jpg) |
+| T20-Q4 | `no` | The record does not establish human intent. [Live evidence](evidence/T20-Q4-correct.jpg) |
 
 ## Issues found during the rehearsal
 
@@ -352,8 +354,8 @@ The SSH administrator credential was not changed.
 
 ### Service health
 
-The live answer flow returned CTFd success responses for all 64 Team 3
-submissions captured here. The integration and CTFd logs showed successful
-requests and no answer-processing error during the pass. The shared state must
-still be rechecked after Team 1 completes T01 and before claiming T19/T20.
+The live answer flow returned CTFd success responses for all 76 Team 3
+submissions. The integration and CTFd logs showed successful requests and no
+answer-processing error during the pass. The final shared-state check confirmed
+all 20 tickets complete and 80 answers in the ledger.
 
