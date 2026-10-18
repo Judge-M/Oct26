@@ -34,6 +34,9 @@ roughly 25 minutes of slack. Actual duration must be validated with beginners.
 
 ## Ownership recovery and outages
 
+See [facilitator-evidence-release.md](facilitator-evidence-release.md) for the
+follow-up evidence dependency chain, release verification, and operator steps.
+
 ```text
 python -m ridge.cli recover T03 --generation 1 --operator EXCON-A --reason "Team disconnected; release remaining questions for another team"
 ```

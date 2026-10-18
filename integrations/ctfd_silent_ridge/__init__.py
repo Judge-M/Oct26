@@ -6,7 +6,7 @@ import hmac
 import os
 from urllib.parse import urlsplit
 from urllib.error import HTTPError, URLError
-from flask import abort, jsonify, redirect, render_template_string, request, session
+from flask import abort, jsonify, make_response, redirect, render_template_string, request, session
 from sqlalchemy.exc import IntegrityError
 from CTFd.models import db, Awards
 from CTFd.utils.decorators import authed_only
@@ -71,6 +71,12 @@ def load(app):
     def ridge_questions():
         message = ''
         try:
+            # CTFd's stock CSRF session does not guarantee a value for this
+            # event-specific nonce on every authenticated session.  Generate
+            # one before rendering or validating the form so a fresh team
+            # browser never receives an empty hidden nonce and then gets a
+            # misleading 403 on its first answer.
+            session.setdefault('nonce', os.urandom(24).hex())
             team = identity()
             if request.method == 'POST':
                 if not hmac.compare_digest(request.form.get('nonce', ''), session.get('nonce', '!')):
@@ -79,10 +85,11 @@ def load(app):
                 message = 'Correct — one point earned. Findings synchronization pending.' if result['correct'] else 'Not yet. Try the next help level.'
             snapshot = bridge('ctfd', team, 'snapshot')
             questions = bridge('ctfd', team, 'questions', question=request.args.get('question'))
-            response = render_template_string(PAGE, lane='ctfd', snapshot=snapshot, questions=questions,
+            response = make_response(render_template_string(
+                PAGE, lane='ctfd', snapshot=snapshot, questions=questions,
                 queue=queue_state(snapshot),
                 iris=os.environ['IRIS_PUBLIC_URL'], ctfd=os.environ['CTFD_PUBLIC_URL'], csrf=session['nonce'],
-                message=message, story=participant_context(snapshot, questions))
+                message=message, story=participant_context(snapshot, questions)))
             # Claim and answer state is shared and changes outside the CTFd
             # process. Prevent a cached pre-claim page from hiding the current
             # ticket's question forms; the status poll already uses no-store.
