@@ -135,6 +135,15 @@ choice is recorded in the runtime and reused by every later command; use
 a fresh runtime directory to change it. The profile's declared host
 capacity is still checked against the requested count.
 
+For the event-day self-service roster, copy
+`deployment/profiles/example-dynamic.json` instead. Do not pass `--teams`.
+After `start`, send teams to `https://<host>:8083/silent-ridge/register`.
+The landing page contains the initial brief; each registration reserves five
+seats and three GUI-only desktops, starts those three slots through the
+host-side allocator, creates the CTFd/IRIS/Guacamole identities, and returns a
+bookmarkable handout with all URLs and credentials. The runtime registration
+database is private and is not part of the repository.
+
 `up` builds out the entire stack and stops at a verified, paused state —
 nothing is visible to participants until you explicitly `start`. The `runtime`
 directory is private: it holds the event's secrets, state, and the team

@@ -30,10 +30,12 @@ from __future__ import annotations
 import hashlib
 import ipaddress
 import json
+import logging
 import re
 import shutil
 import sqlite3
 import subprocess
+import sys
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from pathlib import Path
@@ -409,6 +411,11 @@ class LocalStack:
         return self.state_dir / 'state.sqlite'
 
     @property
+    def registration_dir(self):
+        """Private bind mount shared by the landing page and host allocator."""
+        return self.runtime / 'registration'
+
+    @property
     def discovered_path(self):
         return self.runtime / 'discovered.json'
 
@@ -522,8 +529,11 @@ class LocalStack:
                                  'in place' % (self.secrets_dir, ', '.join(missing)))
         team_creds = self.secrets_dir / 'team-credentials.json'
         vnc_dir = self.secrets_dir / 'vnc'
+        dynamic = self.profile.get('registration', {}).get('enabled', False)
+        vnc_names = ([desktop['name'] for desktop in self.profile['desktops']]
+                     if dynamic else ['team%02d' % (i + 1) for i in range(len(self.teams))])
         vnc_ok = vnc_dir.is_dir() and all(
-            (vnc_dir / ('team%02d' % (i + 1))).is_file() for i in range(len(self.teams)))
+            (vnc_dir / name).is_file() for name in vnc_names)
         if existing and team_creds.is_file() and vnc_ok:
             self._ensure_wazuh_api_secret()
             self._ensure_facilitator_secrets()
@@ -549,29 +559,32 @@ class LocalStack:
         import string
         import secrets as _secrets
         alphabet = string.ascii_letters + string.digits
-        for index, team in enumerate(self.teams):
-            tag = 'team%02d' % (index + 1)
+        for index, desktop in enumerate(self.profile['desktops']):
+            tag = desktop['name'] if dynamic else 'team%02d' % (index + 1)
             friendly = 'team%d' % (index + 1)
             vnc = ''.join(_secrets.choice(alphabet) for _ in range(8))  # VncAuth truncates at 8
             (vnc_dir / tag).write_text(vnc + '\n', encoding='utf-8')
-            credentials['teams'][team['name']] = {
-                'iris_login': friendly,
-                'iris_password': friendly,
-                'ctfd_name': friendly,
-                'ctfd_password': friendly,
-                'guac_username': friendly,
-                'guac_password': friendly,
-                # Publish the actual CTFd usernames.  The first seat uses the
-                # memorable team name; additional seats receive predictable
-                # suffixes.  The roster's internal team-XX-pNN names are not
-                # CTFd logins and must not leak into the participant inventory.
-                'accounts': {
-                    (friendly if account_index == 0 else '%s-p%02d' %
-                     (friendly, account_index + 1)): friendly
-                    for account_index, _account in enumerate(team['accounts'])
-                },
-            }
-            credentials['desktops'][team['desktop']] = {'password': vnc}
+            credentials['desktops'][desktop['name']] = {'password': vnc}
+        if not dynamic:
+            for index, team in enumerate(self.teams):
+                friendly = 'team%d' % (index + 1)
+                credentials['teams'][team['name']] = {
+                    'iris_login': friendly,
+                    'iris_password': friendly,
+                    'ctfd_name': friendly,
+                    'ctfd_password': friendly,
+                    'guac_username': friendly,
+                    'guac_password': friendly,
+                    # Publish the actual CTFd usernames.  The first seat uses the
+                    # memorable team name; additional seats receive predictable
+                    # suffixes.  The roster's internal team-XX-pNN names are not
+                    # CTFd logins and must not leak into the participant inventory.
+                    'accounts': {
+                        (friendly if account_index == 0 else '%s-p%02d' %
+                         (friendly, account_index + 1)): friendly
+                        for account_index, _account in enumerate(team['accounts'])
+                    },
+                }
         team_creds.write_text(json.dumps(credentials, indent=2), encoding='utf-8')
         self._ensure_wazuh_api_secret()
         self._ensure_facilitator_secrets()
@@ -643,6 +656,7 @@ class LocalStack:
             'IRIS_AUTHENTICATION_TYPE': 'local',
         }
         mariadb_pw = self._secret('mariadb-ctfd-password')
+        self.registration_dir.mkdir(parents=True, exist_ok=True)
         files['ctfd'] = {
             'DATABASE_URL': 'mysql+pymysql://ctfd:%s@ctfd-db/ctfd' % mariadb_pw,
             'SECRET_KEY': self._secret('ctfd-secret-key'),
@@ -651,6 +665,9 @@ class LocalStack:
             'CTFD_SESSION_COOKIE_NAME': 'silent_ridge_ctfd_session',
             'CTFD_SESSION_COOKIE_SECURE': 'true',
             'REVERSE_PROXY': 'true',
+            'RIDGE_REGISTRATION_DB': '/registration/registrations.sqlite',
+            'RIDGE_REGISTRATION_MAX_TEAMS': str(self.profile.get('registration', {}).get('max_teams', 10)),
+            'RIDGE_REGISTRATION_MEMBERS': str(self.profile.get('registration', {}).get('members_per_team', 5)),
         }
         files['ctfd-db'] = {
             'MARIADB_ROOT_PASSWORD': self._secret('mariadb-root-password'),
@@ -674,8 +691,12 @@ class LocalStack:
             'GUAC_PORT': str(ports['guac']),
             'IRIS_PUBLIC_URL': public['iris'],
             'CTFD_PUBLIC_URL': public['ctfd'],
+            'GUACAMOLE_PUBLIC_URL': public['guac'],
             'CTFD_SESSION_COOKIE_NAME': 'silent_ridge_ctfd_session',
             'CTFD_SESSION_COOKIE_SECURE': 'true',
+            'RIDGE_REGISTRATION_MAX_TEAMS': str(self.profile.get('registration', {}).get('max_teams', 10)),
+            'RIDGE_REGISTRATION_MEMBERS': str(self.profile.get('registration', {}).get('members_per_team', 5)),
+            'RIDGE_REGISTRATION_DIR': self.registration_dir,
         }
         # Placeholder IDs on first boot: IRIS services start before identities exist and
         # are recreated with the discovered IDs at the end of the identities stage.
@@ -712,6 +733,12 @@ class LocalStack:
             'RIDGE_CASE_DIR': self.asset('case_template'),
             'RIDGE_EVIDENCE_DIR': self.asset('evidence_public'),
             'RIDGE_ORIGINALS_DIR': self.asset('originals'),
+            # Keep the Compose resource limits aligned with the profile.  The
+            # dynamic pool is deliberately one-lightweight desktop per slot;
+            # leaving the compose defaults at 2 CPU / 4 GiB would make the
+            # advertised 30-slot capacity impossible on the example host.
+            'RIDGE_DESKTOP_CPUS': str(self.profile['capacity']['desktop']['vcpus']),
+            'RIDGE_DESKTOP_MEMORY': '%dm' % self.profile['capacity']['desktop']['memory_mib'],
             'IRIS_PUBLIC_URL': public['iris'],
             'CTFD_PUBLIC_URL': public['ctfd'],
             'WAZUH_PUBLIC_URL': public['wazuh'],
@@ -789,6 +816,7 @@ class LocalStack:
         Existing specs are preserved byte-for-byte: credentials are never rotated."""
         self.specs_dir.mkdir(parents=True, exist_ok=True)
         credentials = self._team_credentials()
+        dynamic = self.profile.get('registration', {}).get('enabled', False)
         iris_path = self.specs_dir / 'iris-bootstrap-spec.json'
         if not iris_path.is_file():
             iris_spec = {
@@ -798,6 +826,7 @@ class LocalStack:
                 'service_name': 'Silent Ridge Integration',
                 'service_password': self.host.randhex(12),
                 'open_status': 'To do', 'closed_status': 'Done',
+                'registration_enabled': dynamic,
                 'identities': [
                     {'team': team['name'],
                      'login': credentials['teams'][team['name']]['iris_login'],
@@ -831,7 +860,7 @@ class LocalStack:
                            'password': credentials['teams'][team['name']]['ctfd_password']}
                           for team in self.teams],
                 'users': ctfd_users,
-                'user_mode': 'teams', 'registration_visible': False, 'schema': 'ctfd-3.7.7',
+                'user_mode': 'teams', 'registration_visible': dynamic, 'schema': 'ctfd-3.7.7',
                 'facilitator': {'name': 'admin',
                                 'email': 'facilitator@silent-ridge.invalid',
                                 'password': self._secret('ctfd-facilitator-password')},
@@ -845,16 +874,18 @@ class LocalStack:
                               'max_connections': desktop.get('max_connections',
                                                              4 if desktop.get('shared', True) else 1)}
                              for desktop in self.profile['desktops']],
-                'teams': [{'id': 'team%02d' % (i + 1), 'desktop': team['desktop']}
-                          for i, team in enumerate(self.teams)],
+                'teams': ([{'id': 'team%02d' % (i + 1), 'desktop': team['desktop']}
+                           for i, team in enumerate(self.teams)]
+                          if not dynamic else []),
             }, indent=2), encoding='utf-8')
         guac_creds_path = self.specs_dir / 'guac-credentials.json'
         if not guac_creds_path.is_file():
             guac_config = json.loads(guac_config_path.read_text(encoding='utf-8'))
             guac_creds_path.write_text(json.dumps({
-                'teams': {tag: {'username': credentials['teams'][team['name']]['guac_username'],
-                                'password': credentials['teams'][team['name']]['guac_password']}
-                          for tag, team in zip((t['id'] for t in guac_config['teams']), self.teams)},
+                'teams': ({tag: {'username': credentials['teams'][team['name']]['guac_username'],
+                                 'password': credentials['teams'][team['name']]['guac_password']}
+                           for tag, team in zip((t['id'] for t in guac_config['teams']), self.teams)}
+                          if not dynamic else {}),
                 'desktops': {name: {'password': credentials['desktops'][name]['password']}
                              for name in credentials['desktops']},
                 'facilitator': {'username': 'admin',
@@ -1188,11 +1219,14 @@ class LocalStack:
     # S5 ----------------------------------------------------------- desktops
     def _desktop_services(self):
         from ridge.docker_provider import team_service
+        if self.profile.get('registration', {}).get('enabled', False):
+            return []
         return [team_service('team%02d' % (i + 1)) for i in range(len(self.teams))]
 
     def _apply_desktops(self):
-        self._compose('desktops', 'up', '-d', '--wait', '--wait-timeout', '300',
-                      *self._desktop_services())
+        if not self.profile.get('registration', {}).get('enabled', False):
+            self._compose('desktops', 'up', '-d', '--wait', '--wait-timeout', '300',
+                          *self._desktop_services())
         sql = (self.runtime / 'guac-init' / '002-provision.sql').read_text(encoding='utf-8')
         self._pipe(['docker', 'compose', '--env-file', self.env_dir / 'guacamole.env',
                     '-f', COMPOSE_FILES['guacamole'], 'exec', '-T', 'database',
@@ -1209,6 +1243,150 @@ class LocalStack:
             raise LifecycleError('provisioning SQL failed: %s' % completed.stderr.strip()[:300])
         return completed.stdout.strip()
 
+    def register_once(self):
+        """Provision one pending self-service registration.
+
+        This method runs on the event host, outside participant containers. It
+        is intentionally the only path that can start a new desktop service or
+        apply Guacamole SQL. The public CTFd registration page only writes the
+        allocator's SQLite row.
+        """
+        from ridge.registration import (RegistrationConfig, RegistrationStore,
+                                        desktop_handout)
+        registration = RegistrationStore(
+            str(self.registration_dir / 'registrations.sqlite'),
+            RegistrationConfig(
+                max_teams=self.profile['registration']['max_teams'],
+                members_per_team=self.profile['registration']['members_per_team']))
+        claimed = registration.claim_pending()
+        if claimed is None:
+            return None
+        credentials = registration.activate_credentials(claimed['id'])
+        services = list(claimed['slots'])
+        try:
+            self._compose('desktops', 'up', '-d', '--wait', '--wait-timeout', '300', *services)
+            ctfd = self._compose('central', 'exec', '-T', 'ctfd', 'flask',
+                                 'silent-ridge-register', '--registration-id', str(claimed['id']))
+            iris = self._compose('central', 'exec', '-T', 'iris', 'flask',
+                                 'silent-ridge-register', '--registration-id', str(claimed['id']))
+            ctfd_row = self._last_json(ctfd, 'CTFd registration')
+            iris_row = self._last_json(iris, 'IRIS registration')
+            team_id = 'team-%02d' % claimed['id']
+            self._apply_registration_guacamole(team_id, services, credentials)
+            self._register_controller_team(team_id, claimed['team_name'],
+                                           iris_row['iris_id'], ctfd_row['team_id'],
+                                           credentials)
+            result = {'desktop_urls': desktop_handout(
+                services, self.profile['addresses']['guacamole_public_url'])}
+            registration.complete(claimed['id'], result, credentials=credentials)
+            return {'id': claimed['id'], 'team': team_id, 'desktops': services}
+        except Exception as exc:
+            registration.requeue(claimed['id'], str(exc))
+            self._compose('desktops', 'stop', *services, check=False)
+            raise
+
+    @staticmethod
+    def _last_json(output, label):
+        for line in reversed(str(output).splitlines()):
+            try:
+                value = json.loads(line)
+            except ValueError:
+                continue
+            if isinstance(value, dict):
+                return value
+        raise LifecycleError('%s returned no JSON result' % label)
+
+    def _register_controller_team(self, team_id, name, iris_id, ctfd_id, credentials):
+        config_path = self.state_dir / 'config.json'
+        config = json.loads(config_path.read_text(encoding='utf-8'))
+        existing = {team['id']: team for team in config.get('teams', [])}
+        row = {'id': team_id, 'name': name, 'iris': str(iris_id), 'ctfd': int(ctfd_id),
+               'iris_login': credentials['iris']['username'],
+               'ctfd_name': name}
+        if team_id in existing and existing[team_id] != row:
+            raise LifecycleError('registration team mapping differs from controller config')
+        if team_id not in existing:
+            config.setdefault('teams', []).append(row)
+            config_path.write_text(json.dumps(config, indent=2), encoding='utf-8')
+        self.host.state(self.state_path).register_team({
+            'id': team_id, 'name': name, 'iris': str(iris_id), 'ctfd': int(ctfd_id)})
+
+    def _apply_registration_guacamole(self, team_id, services, credentials):
+        import sys
+        sys.path.insert(0, str(COMPOSE_DIR))
+        import guacamole as guac_module
+        all_credentials = self._team_credentials()
+        config = {'desktops': [
+            {'id': slot, 'container': True, 'shared': True, 'max_connections': 5}
+            for slot in services],
+            'teams': [{'id': team_id, 'desktops': services}]}
+        guac_credentials = {
+            'teams': {team_id: {'username': credentials['guacamole']['username'],
+                                'password': credentials['guacamole']['password']}},
+            'desktops': {slot: {'password': all_credentials['desktops'][slot]['password']}
+                         for slot in services},
+            'facilitator': {'username': 'admin',
+                            'password': self._secret('guac-facilitator-password')},
+        }
+        sql = guac_module.generate(config, guac_credentials)
+        self._pipe(['docker', 'compose', '--env-file', self.env_dir / 'guacamole.env',
+                    '-f', COMPOSE_FILES['guacamole'], 'exec', '-T', 'database',
+                    'psql', '-U', 'guacamole', '-d', 'guacamole', '-v', 'ON_ERROR_STOP=1'], sql)
+
+    def registration_loop(self, interval=1.0):
+        """Run the host allocator until interrupted; no participant code runs here."""
+        import time
+        while True:
+            try:
+                self.register_once()
+            except Exception as exc:
+                # Keep the service alive for later registrations; the failed
+                # row is visible through its retrieval page and in host logs.
+                logging.error('registration provisioning failed: %s', exc)
+            time.sleep(interval)
+
+    @property
+    def registration_pid_path(self):
+        return self.runtime / 'registration-worker.pid'
+
+    def _start_registration_worker(self):
+        if not self.profile.get('registration', {}).get('enabled', False):
+            return None
+        if self.registration_pid_path.is_file():
+            try:
+                pid = int(self.registration_pid_path.read_text(encoding='utf-8').strip())
+                if pid > 0 and subprocess.run(['tasklist', '/FI', 'PID eq %d' % pid],
+                                              capture_output=True, text=True,
+                                              timeout=5).returncode == 0:
+                    return pid
+            except (OSError, ValueError, subprocess.SubprocessError):
+                pass
+            self.registration_pid_path.unlink(missing_ok=True)
+        log_path = self.runtime / 'registration-worker.log'
+        log = log_path.open('a', encoding='utf-8')
+        command = [sys.executable, '-m', 'ridge.deploy.registration_worker',
+                   '--profile', str(self.runtime / 'registration-profile.json'),
+                   '--runtime', str(self.runtime)]
+        (self.runtime / 'registration-profile.json').write_text(
+            json.dumps(self.profile, indent=2), encoding='utf-8')
+        process = subprocess.Popen(command, cwd=str(ROOT), stdout=log, stderr=log,
+                                   creationflags=getattr(subprocess, 'CREATE_NEW_PROCESS_GROUP', 0))
+        log.close()
+        self.registration_pid_path.write_text(str(process.pid) + '\n', encoding='utf-8')
+        return process.pid
+
+    def _stop_registration_worker(self):
+        if not self.registration_pid_path.is_file():
+            return False
+        try:
+            pid = int(self.registration_pid_path.read_text(encoding='utf-8').strip())
+            subprocess.run(['taskkill', '/PID', str(pid), '/T', '/F'],
+                           capture_output=True, timeout=10)
+        except (OSError, ValueError, subprocess.SubprocessError):
+            pass
+        self.registration_pid_path.unlink(missing_ok=True)
+        return True
+
     def _probe_desktops(self):
         self._require_services('desktops', self._desktop_services())
         out = self._compose('guacamole', 'exec', '-T', 'database', 'psql', '-U', 'guacamole',
@@ -1218,10 +1396,13 @@ class LocalStack:
             count = int(out.strip().splitlines()[-1])
         except (ValueError, IndexError):
             raise LifecycleError('could not read guacamole_connection count: %r' % out[:200])
-        if count < len(self.teams):
-            raise LifecycleError('guacamole has %d connections for %d teams; provisioning SQL '
-                                 'was not applied' % (count, len(self.teams)))
-        return {'desktops': len(self.teams), 'connections': count}
+        expected = (len(self.profile['desktops'])
+                    if self.profile.get('registration', {}).get('enabled', False)
+                    else len(self.teams))
+        if count < expected:
+            raise LifecycleError('guacamole has %d connections for %d desktop slots; provisioning SQL '
+                                 'was not applied' % (count, expected))
+        return {'desktops': expected, 'connections': count}
 
     # S6 ----------------------------------------------------------- evidence
     def _index_name(self):
@@ -1307,6 +1488,8 @@ class LocalStack:
                 raise LifecycleError('historical index has %d documents; expected at least %d '
                                      'from %s' % (payload.get('count', 0), expected, telemetry))
         from ridge.docker_provider import team_service
+        if self.profile.get('registration', {}).get('enabled', False):
+            return {'deferred': 'desktop evidence probe runs after each team registration'}
         for i in range(len(self.teams)):
             service = team_service('team%02d' % (i + 1))
             out = self._compose('desktops', 'exec', '-T', service, 'bash', '-c',
@@ -1319,6 +1502,17 @@ class LocalStack:
 
     # S7 -------------------------------------------------- provisioned-paused
     def _controller_config(self):
+        if self.profile.get('registration', {}).get('enabled', False):
+            registration = self.profile['registration']
+            return {
+                'exercise_date': self.profile['event']['incident_date'],
+                'teams': [],
+                'registration': {
+                    'enabled': True, 'max_teams': registration['max_teams'],
+                    'members_per_team': registration['members_per_team'],
+                    'desktops_per_team': registration['desktops_per_team'],
+                },
+            }
         discovered = json.loads(self.discovered_path.read_text(encoding='utf-8'))
         credentials = self._team_credentials()
         teams = []
@@ -1341,7 +1535,9 @@ class LocalStack:
             config_path.write_text(json.dumps(config, indent=2), encoding='utf-8')
             if not self.state_path.is_file():
                 tickets = self.host.author_tickets(config)
-                self.host.state(self.state_path).initialize(config['teams'], tickets)
+                self.host.state(self.state_path).initialize(
+                    config['teams'], tickets,
+                    allow_empty=self.profile.get('registration', {}).get('enabled', False))
         self._compose('integration', 'up', '-d', '--wait', '--wait-timeout', '300')
         state = self.host.state(self.state_path)
         with state.transaction(write=False) as con:
@@ -1503,11 +1699,14 @@ class LocalStack:
             if actual != 'running':
                 raise LifecycleError("mode transition did not persist (found %r)" % actual)
             journal.set_state('RUNNING')
-            return {'state': 'RUNNING', 'mode': actual}
+            worker = self._start_registration_worker()
+            return {'state': 'RUNNING', 'mode': actual, **({'registration_worker_pid': worker}
+                                                            if worker else {})}
 
     def pause(self):
         journal = Journal.open(self.runtime / 'deploy-journal.sqlite')
         with journal.lock(self.operator):
+            self._stop_registration_worker()
             state = self.host.state(self.state_path)
             before = self._state_mode(state)
             state.mode(self.operator, 'paused')
@@ -1561,6 +1760,7 @@ class LocalStack:
         wipe must never take the event offline."""
         journal = Journal.open(self.runtime / 'deploy-journal.sqlite')
         with journal.lock(self.operator):
+            self._stop_registration_worker()
             verified = None
             if volumes:
                 from ridge.deploy import recovery

@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 COMPOSE = ROOT / 'deployment/expanded/compose.desktops.yaml'
 GUACAMOLE = ROOT / 'deployment/expanded/guacamole.py'
 TEAMS = ['team%02d' % number for number in range(1, 11)]
+SLOTS = ['slot%02d' % number for number in range(1, 31)]
 
 
 @unittest.skipIf(yaml is None, 'PyYAML is not installed')
@@ -24,12 +25,14 @@ class ComposeDesktopTests(unittest.TestCase):
         self.assertEqual(self.document['name'], '${RIDGE_PROJECT:?Set event-scoped project}-desktops')
 
     def test_ten_team_services_share_the_anchor(self):
-        self.assertEqual(set(self.services), {'desktop-' + team for team in TEAMS})
+        self.assertEqual(set(self.services),
+                         {'desktop-' + team for team in TEAMS}
+                         | {'desktop-' + slot for slot in SLOTS})
         self.assertIn('x-desktop', self.document)
 
     def test_common_service_contract(self):
-        for team in TEAMS:
-            service = self.services['desktop-' + team]
+        for name in TEAMS + SLOTS:
+            service = self.services['desktop-' + name]
             self.assertEqual(service['image'], '${RIDGE_DESKTOP_IMAGE:-silent-ridge-desktop:dev}')
             self.assertEqual(service['pull_policy'], 'never')
             self.assertEqual(service['shm_size'], '2g')
@@ -41,13 +44,13 @@ class ComposeDesktopTests(unittest.TestCase):
             self.assertNotIn('ports', service)
 
     def test_healthcheck_probes_the_vnc_port(self):
-        for team in TEAMS:
-            healthcheck = self.services['desktop-' + team]['healthcheck']
+        for name in TEAMS + SLOTS:
+            healthcheck = self.services['desktop-' + name]['healthcheck']
             self.assertIn('5901', ' '.join(str(part) for part in healthcheck['test']))
 
     def test_evidence_and_originals_are_read_only(self):
-        for team in TEAMS:
-            volumes = self.services['desktop-' + team]['volumes']
+        for name in TEAMS + SLOTS:
+            volumes = self.services['desktop-' + name]['volumes']
             self.assertTrue(any(entry.startswith('${RIDGE_EVIDENCE_DIR:?') and entry.endswith(':/evidence:ro')
                                 for entry in volumes), volumes)
             self.assertTrue(any(entry.startswith('${RIDGE_ORIGINALS_DIR:?') and entry.endswith(':/originals:ro')
@@ -62,7 +65,7 @@ class ComposeDesktopTests(unittest.TestCase):
                 self.assertIn('%s:/home/participant/%s' % (name, folder), volumes)
                 self.assertIn(name, declared)
         self.assertEqual(len(declared), len(set(declared)))
-        self.assertEqual(len(declared), 30)
+        self.assertEqual(len(declared), 120)
 
     def test_vnc_password_secret_per_team(self):
         secrets = self.document['secrets']
@@ -70,6 +73,10 @@ class ComposeDesktopTests(unittest.TestCase):
             entries = self.services['desktop-' + team]['secrets']
             self.assertEqual(entries, [{'source': 'vnc_password_' + team, 'target': 'vnc_password'}])
             self.assertTrue(secrets['vnc_password_' + team]['file'].endswith('/' + team))
+        for slot in SLOTS:
+            entries = self.services['desktop-' + slot]['secrets']
+            self.assertEqual(entries, [{'source': 'vnc_password_desktop-' + slot,
+                                        'target': 'vnc_password'}])
 
     def test_external_desktop_network_matches_guacamole(self):
         network = self.document['networks']['desktop']
@@ -89,6 +96,7 @@ class GuacamoleContainerAddressTests(unittest.TestCase):
         module = _guacamole()
         self.assertEqual(module.container_address('team-01'), 'desktop-team01')
         self.assertEqual(module.container_address('desktop-10'), 'desktop-team10')
+        self.assertEqual(module.container_address('desktop-slot03'), 'desktop-slot03')
         self.assertTrue(module.is_container_address('desktop-team07'))
         self.assertFalse(module.is_container_address('192.0.2.11'))
         with self.assertRaises(ValueError):
@@ -105,6 +113,16 @@ class GuacamoleContainerAddressTests(unittest.TestCase):
         sql = module.generate(config, credentials)
         self.assertIn("'desktop-team01'", sql)
         self.assertIn("'5901'", sql)
+
+    def test_generate_allows_a_dynamic_pool_without_registered_teams(self):
+        module = _guacamole()
+        config = dict(desktops=[dict(id='desktop-slot01', container=True, shared=True,
+                                     max_connections=5)], teams=[])
+        credentials = dict(desktops={'desktop-slot01': {'password': 'vnc-pass'}}, teams={},
+                           facilitator={'username': 'ridge-facilitator',
+                                        'password': 'admin-long-generated-password'})
+        sql = module.generate(config, credentials)
+        self.assertIn("'desktop-slot01'", sql)
 
 
 if __name__ == '__main__':

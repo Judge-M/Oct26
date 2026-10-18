@@ -154,6 +154,395 @@ services:
     secrets:
       - source: vnc_password_team10
         target: vnc_password
+  desktop-slot01:
+    <<: *desktop
+    volumes:
+      - ${RIDGE_CASE_DIR:?Set verified prepared case directory}:/opt/silent-ridge/prepared-case:ro
+      - ${RIDGE_EVIDENCE_DIR:?Set published evidence directory}:/evidence:ro
+      - ${RIDGE_ORIGINALS_DIR:?Set original evidence directory}:/originals:ro
+      - desktop-slot01-cases:/home/participant/Cases
+      - desktop-slot01-workspace:/home/participant/Workspace
+      - desktop-slot01-scratch:/home/participant/Scratch
+    secrets:
+      - source: vnc_password_desktop-slot01
+        target: vnc_password
+
+  desktop-slot02:
+    <<: *desktop
+    volumes:
+      - ${RIDGE_CASE_DIR:?Set verified prepared case directory}:/opt/silent-ridge/prepared-case:ro
+      - ${RIDGE_EVIDENCE_DIR:?Set published evidence directory}:/evidence:ro
+      - ${RIDGE_ORIGINALS_DIR:?Set original evidence directory}:/originals:ro
+      - desktop-slot02-cases:/home/participant/Cases
+      - desktop-slot02-workspace:/home/participant/Workspace
+      - desktop-slot02-scratch:/home/participant/Scratch
+    secrets:
+      - source: vnc_password_desktop-slot02
+        target: vnc_password
+
+  desktop-slot03:
+    <<: *desktop
+    volumes:
+      - ${RIDGE_CASE_DIR:?Set verified prepared case directory}:/opt/silent-ridge/prepared-case:ro
+      - ${RIDGE_EVIDENCE_DIR:?Set published evidence directory}:/evidence:ro
+      - ${RIDGE_ORIGINALS_DIR:?Set original evidence directory}:/originals:ro
+      - desktop-slot03-cases:/home/participant/Cases
+      - desktop-slot03-workspace:/home/participant/Workspace
+      - desktop-slot03-scratch:/home/participant/Scratch
+    secrets:
+      - source: vnc_password_desktop-slot03
+        target: vnc_password
+
+  desktop-slot04:
+    <<: *desktop
+    volumes:
+      - ${RIDGE_CASE_DIR:?Set verified prepared case directory}:/opt/silent-ridge/prepared-case:ro
+      - ${RIDGE_EVIDENCE_DIR:?Set published evidence directory}:/evidence:ro
+      - ${RIDGE_ORIGINALS_DIR:?Set original evidence directory}:/originals:ro
+      - desktop-slot04-cases:/home/participant/Cases
+      - desktop-slot04-workspace:/home/participant/Workspace
+      - desktop-slot04-scratch:/home/participant/Scratch
+    secrets:
+      - source: vnc_password_desktop-slot04
+        target: vnc_password
+
+  desktop-slot05:
+    <<: *desktop
+    volumes:
+      - ${RIDGE_CASE_DIR:?Set verified prepared case directory}:/opt/silent-ridge/prepared-case:ro
+      - ${RIDGE_EVIDENCE_DIR:?Set published evidence directory}:/evidence:ro
+      - ${RIDGE_ORIGINALS_DIR:?Set original evidence directory}:/originals:ro
+      - desktop-slot05-cases:/home/participant/Cases
+      - desktop-slot05-workspace:/home/participant/Workspace
+      - desktop-slot05-scratch:/home/participant/Scratch
+    secrets:
+      - source: vnc_password_desktop-slot05
+        target: vnc_password
+
+  desktop-slot06:
+    <<: *desktop
+    volumes:
+      - ${RIDGE_CASE_DIR:?Set verified prepared case directory}:/opt/silent-ridge/prepared-case:ro
+      - ${RIDGE_EVIDENCE_DIR:?Set published evidence directory}:/evidence:ro
+      - ${RIDGE_ORIGINALS_DIR:?Set original evidence directory}:/originals:ro
+      - desktop-slot06-cases:/home/participant/Cases
+      - desktop-slot06-workspace:/home/participant/Workspace
+      - desktop-slot06-scratch:/home/participant/Scratch
+    secrets:
+      - source: vnc_password_desktop-slot06
+        target: vnc_password
+
+  desktop-slot07:
+    <<: *desktop
+    volumes:
+      - ${RIDGE_CASE_DIR:?Set verified prepared case directory}:/opt/silent-ridge/prepared-case:ro
+      - ${RIDGE_EVIDENCE_DIR:?Set published evidence directory}:/evidence:ro
+      - ${RIDGE_ORIGINALS_DIR:?Set original evidence directory}:/originals:ro
+      - desktop-slot07-cases:/home/participant/Cases
+      - desktop-slot07-workspace:/home/participant/Workspace
+      - desktop-slot07-scratch:/home/participant/Scratch
+    secrets:
+      - source: vnc_password_desktop-slot07
+        target: vnc_password
+
+  desktop-slot08:
+    <<: *desktop
+    volumes:
+      - ${RIDGE_CASE_DIR:?Set verified prepared case directory}:/opt/silent-ridge/prepared-case:ro
+      - ${RIDGE_EVIDENCE_DIR:?Set published evidence directory}:/evidence:ro
+      - ${RIDGE_ORIGINALS_DIR:?Set original evidence directory}:/originals:ro
+      - desktop-slot08-cases:/home/participant/Cases
+      - desktop-slot08-workspace:/home/participant/Workspace
+      - desktop-slot08-scratch:/home/participant/Scratch
+    secrets:
+      - source: vnc_password_desktop-slot08
+        target: vnc_password
+
+  desktop-slot09:
+    <<: *desktop
+    volumes:
+      - ${RIDGE_CASE_DIR:?Set verified prepared case directory}:/opt/silent-ridge/prepared-case:ro
+      - ${RIDGE_EVIDENCE_DIR:?Set published evidence directory}:/evidence:ro
+      - ${RIDGE_ORIGINALS_DIR:?Set original evidence directory}:/originals:ro
+      - desktop-slot09-cases:/home/participant/Cases
+      - desktop-slot09-workspace:/home/participant/Workspace
+      - desktop-slot09-scratch:/home/participant/Scratch
+    secrets:
+      - source: vnc_password_desktop-slot09
+        target: vnc_password
+
+  desktop-slot10:
+    <<: *desktop
+    volumes:
+      - ${RIDGE_CASE_DIR:?Set verified prepared case directory}:/opt/silent-ridge/prepared-case:ro
+      - ${RIDGE_EVIDENCE_DIR:?Set published evidence directory}:/evidence:ro
+      - ${RIDGE_ORIGINALS_DIR:?Set original evidence directory}:/originals:ro
+      - desktop-slot10-cases:/home/participant/Cases
+      - desktop-slot10-workspace:/home/participant/Workspace
+      - desktop-slot10-scratch:/home/participant/Scratch
+    secrets:
+      - source: vnc_password_desktop-slot10
+        target: vnc_password
+
+  desktop-slot11:
+    <<: *desktop
+    volumes:
+      - ${RIDGE_CASE_DIR:?Set verified prepared case directory}:/opt/silent-ridge/prepared-case:ro
+      - ${RIDGE_EVIDENCE_DIR:?Set published evidence directory}:/evidence:ro
+      - ${RIDGE_ORIGINALS_DIR:?Set original evidence directory}:/originals:ro
+      - desktop-slot11-cases:/home/participant/Cases
+      - desktop-slot11-workspace:/home/participant/Workspace
+      - desktop-slot11-scratch:/home/participant/Scratch
+    secrets:
+      - source: vnc_password_desktop-slot11
+        target: vnc_password
+
+  desktop-slot12:
+    <<: *desktop
+    volumes:
+      - ${RIDGE_CASE_DIR:?Set verified prepared case directory}:/opt/silent-ridge/prepared-case:ro
+      - ${RIDGE_EVIDENCE_DIR:?Set published evidence directory}:/evidence:ro
+      - ${RIDGE_ORIGINALS_DIR:?Set original evidence directory}:/originals:ro
+      - desktop-slot12-cases:/home/participant/Cases
+      - desktop-slot12-workspace:/home/participant/Workspace
+      - desktop-slot12-scratch:/home/participant/Scratch
+    secrets:
+      - source: vnc_password_desktop-slot12
+        target: vnc_password
+
+  desktop-slot13:
+    <<: *desktop
+    volumes:
+      - ${RIDGE_CASE_DIR:?Set verified prepared case directory}:/opt/silent-ridge/prepared-case:ro
+      - ${RIDGE_EVIDENCE_DIR:?Set published evidence directory}:/evidence:ro
+      - ${RIDGE_ORIGINALS_DIR:?Set original evidence directory}:/originals:ro
+      - desktop-slot13-cases:/home/participant/Cases
+      - desktop-slot13-workspace:/home/participant/Workspace
+      - desktop-slot13-scratch:/home/participant/Scratch
+    secrets:
+      - source: vnc_password_desktop-slot13
+        target: vnc_password
+
+  desktop-slot14:
+    <<: *desktop
+    volumes:
+      - ${RIDGE_CASE_DIR:?Set verified prepared case directory}:/opt/silent-ridge/prepared-case:ro
+      - ${RIDGE_EVIDENCE_DIR:?Set published evidence directory}:/evidence:ro
+      - ${RIDGE_ORIGINALS_DIR:?Set original evidence directory}:/originals:ro
+      - desktop-slot14-cases:/home/participant/Cases
+      - desktop-slot14-workspace:/home/participant/Workspace
+      - desktop-slot14-scratch:/home/participant/Scratch
+    secrets:
+      - source: vnc_password_desktop-slot14
+        target: vnc_password
+
+  desktop-slot15:
+    <<: *desktop
+    volumes:
+      - ${RIDGE_CASE_DIR:?Set verified prepared case directory}:/opt/silent-ridge/prepared-case:ro
+      - ${RIDGE_EVIDENCE_DIR:?Set published evidence directory}:/evidence:ro
+      - ${RIDGE_ORIGINALS_DIR:?Set original evidence directory}:/originals:ro
+      - desktop-slot15-cases:/home/participant/Cases
+      - desktop-slot15-workspace:/home/participant/Workspace
+      - desktop-slot15-scratch:/home/participant/Scratch
+    secrets:
+      - source: vnc_password_desktop-slot15
+        target: vnc_password
+
+  desktop-slot16:
+    <<: *desktop
+    volumes:
+      - ${RIDGE_CASE_DIR:?Set verified prepared case directory}:/opt/silent-ridge/prepared-case:ro
+      - ${RIDGE_EVIDENCE_DIR:?Set published evidence directory}:/evidence:ro
+      - ${RIDGE_ORIGINALS_DIR:?Set original evidence directory}:/originals:ro
+      - desktop-slot16-cases:/home/participant/Cases
+      - desktop-slot16-workspace:/home/participant/Workspace
+      - desktop-slot16-scratch:/home/participant/Scratch
+    secrets:
+      - source: vnc_password_desktop-slot16
+        target: vnc_password
+
+  desktop-slot17:
+    <<: *desktop
+    volumes:
+      - ${RIDGE_CASE_DIR:?Set verified prepared case directory}:/opt/silent-ridge/prepared-case:ro
+      - ${RIDGE_EVIDENCE_DIR:?Set published evidence directory}:/evidence:ro
+      - ${RIDGE_ORIGINALS_DIR:?Set original evidence directory}:/originals:ro
+      - desktop-slot17-cases:/home/participant/Cases
+      - desktop-slot17-workspace:/home/participant/Workspace
+      - desktop-slot17-scratch:/home/participant/Scratch
+    secrets:
+      - source: vnc_password_desktop-slot17
+        target: vnc_password
+
+  desktop-slot18:
+    <<: *desktop
+    volumes:
+      - ${RIDGE_CASE_DIR:?Set verified prepared case directory}:/opt/silent-ridge/prepared-case:ro
+      - ${RIDGE_EVIDENCE_DIR:?Set published evidence directory}:/evidence:ro
+      - ${RIDGE_ORIGINALS_DIR:?Set original evidence directory}:/originals:ro
+      - desktop-slot18-cases:/home/participant/Cases
+      - desktop-slot18-workspace:/home/participant/Workspace
+      - desktop-slot18-scratch:/home/participant/Scratch
+    secrets:
+      - source: vnc_password_desktop-slot18
+        target: vnc_password
+
+  desktop-slot19:
+    <<: *desktop
+    volumes:
+      - ${RIDGE_CASE_DIR:?Set verified prepared case directory}:/opt/silent-ridge/prepared-case:ro
+      - ${RIDGE_EVIDENCE_DIR:?Set published evidence directory}:/evidence:ro
+      - ${RIDGE_ORIGINALS_DIR:?Set original evidence directory}:/originals:ro
+      - desktop-slot19-cases:/home/participant/Cases
+      - desktop-slot19-workspace:/home/participant/Workspace
+      - desktop-slot19-scratch:/home/participant/Scratch
+    secrets:
+      - source: vnc_password_desktop-slot19
+        target: vnc_password
+
+  desktop-slot20:
+    <<: *desktop
+    volumes:
+      - ${RIDGE_CASE_DIR:?Set verified prepared case directory}:/opt/silent-ridge/prepared-case:ro
+      - ${RIDGE_EVIDENCE_DIR:?Set published evidence directory}:/evidence:ro
+      - ${RIDGE_ORIGINALS_DIR:?Set original evidence directory}:/originals:ro
+      - desktop-slot20-cases:/home/participant/Cases
+      - desktop-slot20-workspace:/home/participant/Workspace
+      - desktop-slot20-scratch:/home/participant/Scratch
+    secrets:
+      - source: vnc_password_desktop-slot20
+        target: vnc_password
+
+  desktop-slot21:
+    <<: *desktop
+    volumes:
+      - ${RIDGE_CASE_DIR:?Set verified prepared case directory}:/opt/silent-ridge/prepared-case:ro
+      - ${RIDGE_EVIDENCE_DIR:?Set published evidence directory}:/evidence:ro
+      - ${RIDGE_ORIGINALS_DIR:?Set original evidence directory}:/originals:ro
+      - desktop-slot21-cases:/home/participant/Cases
+      - desktop-slot21-workspace:/home/participant/Workspace
+      - desktop-slot21-scratch:/home/participant/Scratch
+    secrets:
+      - source: vnc_password_desktop-slot21
+        target: vnc_password
+
+  desktop-slot22:
+    <<: *desktop
+    volumes:
+      - ${RIDGE_CASE_DIR:?Set verified prepared case directory}:/opt/silent-ridge/prepared-case:ro
+      - ${RIDGE_EVIDENCE_DIR:?Set published evidence directory}:/evidence:ro
+      - ${RIDGE_ORIGINALS_DIR:?Set original evidence directory}:/originals:ro
+      - desktop-slot22-cases:/home/participant/Cases
+      - desktop-slot22-workspace:/home/participant/Workspace
+      - desktop-slot22-scratch:/home/participant/Scratch
+    secrets:
+      - source: vnc_password_desktop-slot22
+        target: vnc_password
+
+  desktop-slot23:
+    <<: *desktop
+    volumes:
+      - ${RIDGE_CASE_DIR:?Set verified prepared case directory}:/opt/silent-ridge/prepared-case:ro
+      - ${RIDGE_EVIDENCE_DIR:?Set published evidence directory}:/evidence:ro
+      - ${RIDGE_ORIGINALS_DIR:?Set original evidence directory}:/originals:ro
+      - desktop-slot23-cases:/home/participant/Cases
+      - desktop-slot23-workspace:/home/participant/Workspace
+      - desktop-slot23-scratch:/home/participant/Scratch
+    secrets:
+      - source: vnc_password_desktop-slot23
+        target: vnc_password
+
+  desktop-slot24:
+    <<: *desktop
+    volumes:
+      - ${RIDGE_CASE_DIR:?Set verified prepared case directory}:/opt/silent-ridge/prepared-case:ro
+      - ${RIDGE_EVIDENCE_DIR:?Set published evidence directory}:/evidence:ro
+      - ${RIDGE_ORIGINALS_DIR:?Set original evidence directory}:/originals:ro
+      - desktop-slot24-cases:/home/participant/Cases
+      - desktop-slot24-workspace:/home/participant/Workspace
+      - desktop-slot24-scratch:/home/participant/Scratch
+    secrets:
+      - source: vnc_password_desktop-slot24
+        target: vnc_password
+
+  desktop-slot25:
+    <<: *desktop
+    volumes:
+      - ${RIDGE_CASE_DIR:?Set verified prepared case directory}:/opt/silent-ridge/prepared-case:ro
+      - ${RIDGE_EVIDENCE_DIR:?Set published evidence directory}:/evidence:ro
+      - ${RIDGE_ORIGINALS_DIR:?Set original evidence directory}:/originals:ro
+      - desktop-slot25-cases:/home/participant/Cases
+      - desktop-slot25-workspace:/home/participant/Workspace
+      - desktop-slot25-scratch:/home/participant/Scratch
+    secrets:
+      - source: vnc_password_desktop-slot25
+        target: vnc_password
+
+  desktop-slot26:
+    <<: *desktop
+    volumes:
+      - ${RIDGE_CASE_DIR:?Set verified prepared case directory}:/opt/silent-ridge/prepared-case:ro
+      - ${RIDGE_EVIDENCE_DIR:?Set published evidence directory}:/evidence:ro
+      - ${RIDGE_ORIGINALS_DIR:?Set original evidence directory}:/originals:ro
+      - desktop-slot26-cases:/home/participant/Cases
+      - desktop-slot26-workspace:/home/participant/Workspace
+      - desktop-slot26-scratch:/home/participant/Scratch
+    secrets:
+      - source: vnc_password_desktop-slot26
+        target: vnc_password
+
+  desktop-slot27:
+    <<: *desktop
+    volumes:
+      - ${RIDGE_CASE_DIR:?Set verified prepared case directory}:/opt/silent-ridge/prepared-case:ro
+      - ${RIDGE_EVIDENCE_DIR:?Set published evidence directory}:/evidence:ro
+      - ${RIDGE_ORIGINALS_DIR:?Set original evidence directory}:/originals:ro
+      - desktop-slot27-cases:/home/participant/Cases
+      - desktop-slot27-workspace:/home/participant/Workspace
+      - desktop-slot27-scratch:/home/participant/Scratch
+    secrets:
+      - source: vnc_password_desktop-slot27
+        target: vnc_password
+
+  desktop-slot28:
+    <<: *desktop
+    volumes:
+      - ${RIDGE_CASE_DIR:?Set verified prepared case directory}:/opt/silent-ridge/prepared-case:ro
+      - ${RIDGE_EVIDENCE_DIR:?Set published evidence directory}:/evidence:ro
+      - ${RIDGE_ORIGINALS_DIR:?Set original evidence directory}:/originals:ro
+      - desktop-slot28-cases:/home/participant/Cases
+      - desktop-slot28-workspace:/home/participant/Workspace
+      - desktop-slot28-scratch:/home/participant/Scratch
+    secrets:
+      - source: vnc_password_desktop-slot28
+        target: vnc_password
+
+  desktop-slot29:
+    <<: *desktop
+    volumes:
+      - ${RIDGE_CASE_DIR:?Set verified prepared case directory}:/opt/silent-ridge/prepared-case:ro
+      - ${RIDGE_EVIDENCE_DIR:?Set published evidence directory}:/evidence:ro
+      - ${RIDGE_ORIGINALS_DIR:?Set original evidence directory}:/originals:ro
+      - desktop-slot29-cases:/home/participant/Cases
+      - desktop-slot29-workspace:/home/participant/Workspace
+      - desktop-slot29-scratch:/home/participant/Scratch
+    secrets:
+      - source: vnc_password_desktop-slot29
+        target: vnc_password
+
+  desktop-slot30:
+    <<: *desktop
+    volumes:
+      - ${RIDGE_CASE_DIR:?Set verified prepared case directory}:/opt/silent-ridge/prepared-case:ro
+      - ${RIDGE_EVIDENCE_DIR:?Set published evidence directory}:/evidence:ro
+      - ${RIDGE_ORIGINALS_DIR:?Set original evidence directory}:/originals:ro
+      - desktop-slot30-cases:/home/participant/Cases
+      - desktop-slot30-workspace:/home/participant/Workspace
+      - desktop-slot30-scratch:/home/participant/Scratch
+    secrets:
+      - source: vnc_password_desktop-slot30
+        target: vnc_password
 
 secrets:
   vnc_password_team01:
@@ -176,6 +565,95 @@ secrets:
     file: ${RIDGE_VNC_PASSWORD_DIR:?Set private per-team VNC password directory}/team09
   vnc_password_team10:
     file: ${RIDGE_VNC_PASSWORD_DIR:?Set private per-team VNC password directory}/team10
+  vnc_password_desktop-slot01:
+    file: ${RIDGE_VNC_PASSWORD_DIR:?Set private per-slot VNC password directory}/desktop-slot01
+
+  vnc_password_desktop-slot02:
+    file: ${RIDGE_VNC_PASSWORD_DIR:?Set private per-slot VNC password directory}/desktop-slot02
+
+  vnc_password_desktop-slot03:
+    file: ${RIDGE_VNC_PASSWORD_DIR:?Set private per-slot VNC password directory}/desktop-slot03
+
+  vnc_password_desktop-slot04:
+    file: ${RIDGE_VNC_PASSWORD_DIR:?Set private per-slot VNC password directory}/desktop-slot04
+
+  vnc_password_desktop-slot05:
+    file: ${RIDGE_VNC_PASSWORD_DIR:?Set private per-slot VNC password directory}/desktop-slot05
+
+  vnc_password_desktop-slot06:
+    file: ${RIDGE_VNC_PASSWORD_DIR:?Set private per-slot VNC password directory}/desktop-slot06
+
+  vnc_password_desktop-slot07:
+    file: ${RIDGE_VNC_PASSWORD_DIR:?Set private per-slot VNC password directory}/desktop-slot07
+
+  vnc_password_desktop-slot08:
+    file: ${RIDGE_VNC_PASSWORD_DIR:?Set private per-slot VNC password directory}/desktop-slot08
+
+  vnc_password_desktop-slot09:
+    file: ${RIDGE_VNC_PASSWORD_DIR:?Set private per-slot VNC password directory}/desktop-slot09
+
+  vnc_password_desktop-slot10:
+    file: ${RIDGE_VNC_PASSWORD_DIR:?Set private per-slot VNC password directory}/desktop-slot10
+
+  vnc_password_desktop-slot11:
+    file: ${RIDGE_VNC_PASSWORD_DIR:?Set private per-slot VNC password directory}/desktop-slot11
+
+  vnc_password_desktop-slot12:
+    file: ${RIDGE_VNC_PASSWORD_DIR:?Set private per-slot VNC password directory}/desktop-slot12
+
+  vnc_password_desktop-slot13:
+    file: ${RIDGE_VNC_PASSWORD_DIR:?Set private per-slot VNC password directory}/desktop-slot13
+
+  vnc_password_desktop-slot14:
+    file: ${RIDGE_VNC_PASSWORD_DIR:?Set private per-slot VNC password directory}/desktop-slot14
+
+  vnc_password_desktop-slot15:
+    file: ${RIDGE_VNC_PASSWORD_DIR:?Set private per-slot VNC password directory}/desktop-slot15
+
+  vnc_password_desktop-slot16:
+    file: ${RIDGE_VNC_PASSWORD_DIR:?Set private per-slot VNC password directory}/desktop-slot16
+
+  vnc_password_desktop-slot17:
+    file: ${RIDGE_VNC_PASSWORD_DIR:?Set private per-slot VNC password directory}/desktop-slot17
+
+  vnc_password_desktop-slot18:
+    file: ${RIDGE_VNC_PASSWORD_DIR:?Set private per-slot VNC password directory}/desktop-slot18
+
+  vnc_password_desktop-slot19:
+    file: ${RIDGE_VNC_PASSWORD_DIR:?Set private per-slot VNC password directory}/desktop-slot19
+
+  vnc_password_desktop-slot20:
+    file: ${RIDGE_VNC_PASSWORD_DIR:?Set private per-slot VNC password directory}/desktop-slot20
+
+  vnc_password_desktop-slot21:
+    file: ${RIDGE_VNC_PASSWORD_DIR:?Set private per-slot VNC password directory}/desktop-slot21
+
+  vnc_password_desktop-slot22:
+    file: ${RIDGE_VNC_PASSWORD_DIR:?Set private per-slot VNC password directory}/desktop-slot22
+
+  vnc_password_desktop-slot23:
+    file: ${RIDGE_VNC_PASSWORD_DIR:?Set private per-slot VNC password directory}/desktop-slot23
+
+  vnc_password_desktop-slot24:
+    file: ${RIDGE_VNC_PASSWORD_DIR:?Set private per-slot VNC password directory}/desktop-slot24
+
+  vnc_password_desktop-slot25:
+    file: ${RIDGE_VNC_PASSWORD_DIR:?Set private per-slot VNC password directory}/desktop-slot25
+
+  vnc_password_desktop-slot26:
+    file: ${RIDGE_VNC_PASSWORD_DIR:?Set private per-slot VNC password directory}/desktop-slot26
+
+  vnc_password_desktop-slot27:
+    file: ${RIDGE_VNC_PASSWORD_DIR:?Set private per-slot VNC password directory}/desktop-slot27
+
+  vnc_password_desktop-slot28:
+    file: ${RIDGE_VNC_PASSWORD_DIR:?Set private per-slot VNC password directory}/desktop-slot28
+
+  vnc_password_desktop-slot29:
+    file: ${RIDGE_VNC_PASSWORD_DIR:?Set private per-slot VNC password directory}/desktop-slot29
+
+  vnc_password_desktop-slot30:
+    file: ${RIDGE_VNC_PASSWORD_DIR:?Set private per-slot VNC password directory}/desktop-slot30
 
 volumes:
   team01-cases:
@@ -208,6 +686,96 @@ volumes:
   team10-cases:
   team10-workspace:
   team10-scratch:
+  desktop-slot01-cases:
+  desktop-slot01-workspace:
+  desktop-slot01-scratch:
+  desktop-slot02-cases:
+  desktop-slot02-workspace:
+  desktop-slot02-scratch:
+  desktop-slot03-cases:
+  desktop-slot03-workspace:
+  desktop-slot03-scratch:
+  desktop-slot04-cases:
+  desktop-slot04-workspace:
+  desktop-slot04-scratch:
+  desktop-slot05-cases:
+  desktop-slot05-workspace:
+  desktop-slot05-scratch:
+  desktop-slot06-cases:
+  desktop-slot06-workspace:
+  desktop-slot06-scratch:
+  desktop-slot07-cases:
+  desktop-slot07-workspace:
+  desktop-slot07-scratch:
+  desktop-slot08-cases:
+  desktop-slot08-workspace:
+  desktop-slot08-scratch:
+  desktop-slot09-cases:
+  desktop-slot09-workspace:
+  desktop-slot09-scratch:
+  desktop-slot10-cases:
+  desktop-slot10-workspace:
+  desktop-slot10-scratch:
+  desktop-slot11-cases:
+  desktop-slot11-workspace:
+  desktop-slot11-scratch:
+  desktop-slot12-cases:
+  desktop-slot12-workspace:
+  desktop-slot12-scratch:
+  desktop-slot13-cases:
+  desktop-slot13-workspace:
+  desktop-slot13-scratch:
+  desktop-slot14-cases:
+  desktop-slot14-workspace:
+  desktop-slot14-scratch:
+  desktop-slot15-cases:
+  desktop-slot15-workspace:
+  desktop-slot15-scratch:
+  desktop-slot16-cases:
+  desktop-slot16-workspace:
+  desktop-slot16-scratch:
+  desktop-slot17-cases:
+  desktop-slot17-workspace:
+  desktop-slot17-scratch:
+  desktop-slot18-cases:
+  desktop-slot18-workspace:
+  desktop-slot18-scratch:
+  desktop-slot19-cases:
+  desktop-slot19-workspace:
+  desktop-slot19-scratch:
+  desktop-slot20-cases:
+  desktop-slot20-workspace:
+  desktop-slot20-scratch:
+  desktop-slot21-cases:
+  desktop-slot21-workspace:
+  desktop-slot21-scratch:
+  desktop-slot22-cases:
+  desktop-slot22-workspace:
+  desktop-slot22-scratch:
+  desktop-slot23-cases:
+  desktop-slot23-workspace:
+  desktop-slot23-scratch:
+  desktop-slot24-cases:
+  desktop-slot24-workspace:
+  desktop-slot24-scratch:
+  desktop-slot25-cases:
+  desktop-slot25-workspace:
+  desktop-slot25-scratch:
+  desktop-slot26-cases:
+  desktop-slot26-workspace:
+  desktop-slot26-scratch:
+  desktop-slot27-cases:
+  desktop-slot27-workspace:
+  desktop-slot27-scratch:
+  desktop-slot28-cases:
+  desktop-slot28-workspace:
+  desktop-slot28-scratch:
+  desktop-slot29-cases:
+  desktop-slot29-workspace:
+  desktop-slot29-scratch:
+  desktop-slot30-cases:
+  desktop-slot30-workspace:
+  desktop-slot30-scratch:
 
 networks:
   desktop:

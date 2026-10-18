@@ -22,12 +22,21 @@ use routable addresses, and stay outside Git.
 - `event.incident_date` (the scenario date) and `event.event_start` (the wall-clock
   event date) are separate fields.
 - A missing `roster` generates neutral teams and participant accounts from the
-  configured desktops.
-- `capacity.host` must fit the central services plus one desktop per team; the
-  ten-team example is a planning envelope, not a measured host.
+  configured desktops for the legacy fixed-roster path.
+- With `registration.enabled: true`, the roster is intentionally empty at boot.
+  The host allocator admits up to `registration.max_teams`, creates five
+  participant seats per team, and starts exactly three of the predeclared
+  desktop slots for each registered team.
+- A dynamic profile must declare `max_teams * desktops_per_team` desktop slots.
+  `capacity.host` is checked against the full pool so event-day registration
+  cannot overcommit memory or CPU.
 
 ## Required fields
 
 `schema_version`, `profile_id`, `provider`, `event`, `desktops`, `capacity`,
 `addresses`, `secret_refs`, `retention`, `spending`. `roster` is optional. Error
 messages from `ProfileError` name the exact JSON field.
+
+`deployment/profiles/example-dynamic.json` is the reference ten-team shape:
+five members per team, three GUI-only desktops per team, and a persistent
+registration handout at CTFd `/silent-ridge/register`.

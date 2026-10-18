@@ -77,7 +77,7 @@ class ProvisionSpec:
 def _require(spec: ProvisionSpec) -> None:
     if spec.user_mode != 'teams':
         raise ProvisionError('user_mode: only team mode is supported')
-    if not spec.teams:
+    if not spec.teams and not spec.registration_visible:
         raise ProvisionError('teams: at least one team is required')
     seen = set()
     for team in spec.teams:

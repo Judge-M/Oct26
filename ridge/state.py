@@ -85,9 +85,9 @@ class State:
         finally:
             con.close()
 
-    def initialize(self, teams, tickets):
-        if not teams or len({t['id'] for t in teams}) != len(teams):
-            raise ValueError('Nonempty unique teams required')
+    def initialize(self, teams, tickets, allow_empty=False):
+        if (not allow_empty and not teams) or len({t['id'] for t in teams}) != len(teams):
+            raise ValueError('Unique teams required')
         if not tickets or any(not t['questions'] for t in tickets):
             raise ValueError('Each ticket needs questions')
         ids = {t['id'] for t in tickets}
@@ -150,6 +150,34 @@ class State:
                                 (q['id'], t['id'], json.dumps(body), self.digest(q['answer']), json.dumps(q['finding'])))
                 if not requires:
                     self.enqueue(con, 'ticket:'+t['id'], 'ticket', ticket_delivery(t['id'],t['title']))
+
+    def register_team(self, team):
+        """Add one dynamically provisioned team to a running event.
+
+        The application IDs are resolved by the registration worker before this
+        method is called. Repeating the same message is safe; a reused team ID
+        with different application mappings is rejected.
+        """
+        required = ('id', 'iris', 'ctfd', 'name')
+        if not isinstance(team, dict) or any(team.get(key) in (None, '') for key in required):
+            raise ValueError('team requires id, iris, ctfd and name')
+        with self.transaction() as con:
+            self.mutable(con)
+            existing = con.execute('SELECT * FROM teams WHERE id=?', (team['id'],)).fetchone()
+            if existing is not None:
+                if (str(existing['iris']) != str(team['iris'])
+                        or int(existing['ctfd']) != int(team['ctfd'])
+                        or existing['name'] != team['name']):
+                    raise Conflict('team ID is already mapped to different identities')
+                return
+            for field in ('iris', 'ctfd'):
+                if con.execute('SELECT 1 FROM teams WHERE %s=?' % field,
+                               (team[field],)).fetchone():
+                    raise Conflict('application identity is already mapped to another team')
+            con.execute('INSERT INTO teams(id,iris,ctfd,name) VALUES (?,?,?,?)',
+                        (team['id'], str(team['iris']), int(team['ctfd']), team['name']))
+            self.record(con, team['id'], 'register_team',
+                        {'name': team['name'], 'iris': str(team['iris']), 'ctfd': int(team['ctfd'])})
 
     @staticmethod
     def digest(answer):

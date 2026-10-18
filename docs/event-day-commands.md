@@ -41,7 +41,7 @@ should use the bundle.)
 
 ## 1. Profile (once per host)
 
-From `<install-dir>/source`, copy `deployment/profiles/example-two-team.json`
+From `<install-dir>/source`, copy `deployment/profiles/example-dynamic.json`
 to `../event-profile.json` and edit
 **only**:
 
@@ -49,7 +49,10 @@ to `../event-profile.json` and edit
 - `addresses`: set `central_bind_ip` to `<LAN-IP>` and the three
   `*_public_url` values to `https://<LAN-IP>:8081`, `:8083`, `:8082`
 
-Do **not** edit the roster — team count is a start-time switch (`--teams`).
+For the dynamic profile, do **not** add a roster and do **not** pass `--teams`:
+the registration page admits up to ten teams at runtime. Each registered team
+gets five participant seats and three GUI-only desktop slots. The landing page
+is `https://<LAN-IP>:8083/silent-ridge/register`.
 
 ## 2. Runtime local.json (once per host)
 
@@ -83,7 +86,7 @@ and restarting does **not** rotate the live security-index credential. Use
 
 ```bash
 python -m ridge.deploy doctor --profile event-profile.json --runtime R
-python -m ridge.deploy up --teams 10 --profile event-profile.json --runtime R
+python -m ridge.deploy up --profile event-profile.json --runtime R
 # re-run `up` until every stage verifies
 python -m ridge.deploy status --profile event-profile.json --runtime R   # expect event_ready: true
 ```
@@ -98,8 +101,11 @@ On Windows, backup and restore run OpenSSL from the already loaded
 `silent-ridge-integration:dev` image with no network or image pull; a host
 `openssl.exe` installation is not required. Keep the exact image and backup
 key available during recovery.
-Hand out team accounts from `R/secrets/team-credentials.json` and the shared
-Wazuh reader login from `R/secrets/wazuh_reader`.
+The host-side registration worker starts automatically when `start` succeeds.
+Send teams to `https://<LAN-IP>:8083/silent-ridge/register`. Each team receives
+a private retrieval link containing its IRIS, CTFd, and Guacamole credentials
+plus three role-specific desktop links. Do not hand out
+`R/secrets/team-credentials.json`; it remains an operator recovery artifact.
 
 After `up` generates the final certificates and before any participant login,
 run `python scripts/export_participant_ca.py --runtime R --output <new-pack>`.

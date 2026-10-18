@@ -21,7 +21,7 @@ import hashlib
 import json
 import re
 
-CONTAINER_ADDRESS = re.compile(r"desktop-team[0-9]{2}")
+CONTAINER_ADDRESS = re.compile(r"desktop-(?:team|slot)[0-9]{2}")
 from pathlib import Path
 
 
@@ -31,7 +31,11 @@ def container_address(team_id):
     On the external `desktop` network a desktop is addressed by its Compose
     service name, for example `desktop-team01`, instead of a routed VM address.
     """
-    match=re.search(r'([0-9]+)',str(team_id))
+    value = str(team_id)
+    slot = re.search(r'^desktop-slot([0-9]+)$', value)
+    if slot:
+        return 'desktop-slot%02d' % int(slot.group(1))
+    match=re.search(r'([0-9]+)',value)
     if not match:
         raise ValueError('Team identifier must contain a number')
     return 'desktop-team%02d' % int(match.group(1))
@@ -62,10 +66,13 @@ def _desktops(config):
 
 
 def _teams(config, desktops):
-    if len({t['id'] for t in config['teams']})!=len(config['teams']) or not config['teams']:
-        raise ValueError('At least one unique team required')
+    if len({t['id'] for t in config['teams']})!=len(config['teams']):
+        raise ValueError('Unique team identifiers required')
     for team in config['teams']:
-        if team['desktop'] not in desktops:
+        selected = team.get('desktops')
+        if selected is None:
+            selected = [team.get('desktop')]
+        if not selected or any(desktop not in desktops for desktop in selected):
             raise ValueError('Team desktop missing')
     return config['teams']
 
@@ -101,8 +108,10 @@ def reconcile(config,credentials):
         sql.append("INSERT INTO guacamole_user(entity_id,password_hash,password_salt,password_date) SELECT entity_id,decode("+
                    quote(digest)+",'hex'),NULL,CURRENT_TIMESTAMP FROM guacamole_entity WHERE name="+quote(name)+
                    " AND type='USER' ON CONFLICT (entity_id) DO NOTHING;")
-        sql.append("INSERT INTO guacamole_connection_permission(entity_id,connection_id,permission) SELECT e.entity_id,c.connection_id,'READ' FROM guacamole_entity e,guacamole_connection c WHERE e.name="+
-                   quote(name)+" AND e.type='USER' AND c.connection_name="+quote(team['desktop'])+" ON CONFLICT DO NOTHING;")
+        selected = team.get('desktops') or [team['desktop']]
+        for desktop in selected:
+            sql.append("INSERT INTO guacamole_connection_permission(entity_id,connection_id,permission) SELECT e.entity_id,c.connection_id,'READ' FROM guacamole_entity e,guacamole_connection c WHERE e.name="+
+                       quote(name)+" AND e.type='USER' AND c.connection_name="+quote(desktop)+" ON CONFLICT DO NOTHING;")
     facilitator=credentials.get('facilitator')
     if not facilitator or not facilitator.get('username') or not facilitator.get('password'):
         raise ValueError('Generated facilitator administrator credentials required')

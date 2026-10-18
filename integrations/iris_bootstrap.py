@@ -15,6 +15,7 @@ import os
 from pathlib import Path
 
 from ridge.iris_bootstrap import BootstrapSpec, IdentitySpec, bootstrap, preflight
+from ridge.registration import RegistrationConfig, RegistrationStore
 
 SCHEMA = 'iris-2.4.20'
 
@@ -142,6 +143,7 @@ def _spec_from_json(document):
         service_login=document['service_login'], service_name=document['service_name'],
         service_password=document['service_password'], open_status=document['open_status'],
         closed_status=document['closed_status'], schema=document.get('schema', SCHEMA),
+        registration_enabled=document.get('registration_enabled', False),
         identities=tuple(IdentitySpec(team=i['team'], login=i['login'], name=i['name'],
                                       password=i['password']) for i in document['identities']))
 
@@ -165,3 +167,32 @@ def register(app):
             raise
         inventory.write_text(json.dumps({'inventory': result, 'preflight': ready}, indent=2))
         print(json.dumps(ready))
+
+    @app.cli.command('silent-ridge-register')
+    @click.option('--registration-id', required=True, type=int)
+    def silent_ridge_register(registration_id):
+        """Create one IRIS team identity and grant read-only case access."""
+        store = RegistrationStore(
+            os.environ.get('RIDGE_REGISTRATION_DB', '/registration/registrations.sqlite'),
+            RegistrationConfig(
+                max_teams=int(os.environ.get('RIDGE_REGISTRATION_MAX_TEAMS', '10')),
+                members_per_team=int(os.environ.get('RIDGE_REGISTRATION_MEMBERS', '5'))))
+        registration = store.get_by_id(registration_id, include_private=True)
+        if registration['status'] not in ('provisioning', 'ready'):
+            raise click.ClickException('registration is not being provisioned')
+        credentials = registration['credentials']['iris']
+        service_login = os.environ.get('RIDGE_IRIS_SERVICE_LOGIN', 'silent-ridge-service')
+        case_id = int(os.environ['RIDGE_IRIS_CASE'])
+        admin = OrmAdmin(service_login)
+        from app import db
+        try:
+            user = admin.find_user(credentials['username'])
+            if user is None:
+                user = admin.create_user(credentials['username'], registration['team_name'],
+                                         credentials['password'])
+            admin.set_case_access(int(user['id']), case_id, 'read_only')
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            raise
+        print(json.dumps({'iris_id': int(user['id']), 'login': credentials['username']}))

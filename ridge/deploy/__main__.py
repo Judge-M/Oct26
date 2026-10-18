@@ -278,7 +278,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('action', choices=('doctor', 'build', 'verify-build', 'status',
                                          'up', 'start', 'pause', 'backup', 'restore',
-                                         'switch', 'down', 'fence'))
+                                         'switch', 'down', 'fence', 'registration-worker'))
     parser.add_argument('--component', choices=(*IMAGES, 'all'), default='all')
     parser.add_argument('--work', type=Path, default=ROOT / 'work/build-receipts')
     parser.add_argument('--profile', type=Path,
@@ -307,7 +307,7 @@ def main():
             print(json.dumps(doctor(args.profile, args.runtime, args.work), indent=2))
             return
         lifecycle = ('up', 'start', 'pause', 'status', 'down', 'backup', 'restore', 'switch',
-                     'fence')
+                     'fence', 'registration-worker')
         if args.action == 'status' and args.profile is None:
             print(json.dumps({'event_ready': False, 'next_gate': 'profile-scoped deployment',
                               'instructions': 'docs/handoff/BUILD-FIRST.md'}))
@@ -340,7 +340,9 @@ def main():
                                     encoding='utf-8')
             stack = LocalStack(profile, args.runtime, SubprocessRunner(),
                                operator=args.operator, receipts=args.work)
-            if args.action == 'up':
+            if args.action == 'registration-worker':
+                stack.registration_loop()
+            elif args.action == 'up':
                 print(json.dumps(stack.up(_release_fingerprint(args.work)), indent=2))
             elif args.action == 'start':
                 print(json.dumps(stack.start(_release_fingerprint(args.work)), indent=2))
