@@ -1,0 +1,144 @@
+[
+  {
+    "id": "01",
+    "stem": "brief-01-opening-task",
+    "title": "Opening tasking",
+    "ticket": null,
+    "requires": [],
+    "release_files": [],
+    "learning_objectives": [
+      "LO2",
+      "LO7",
+      "LO8"
+    ],
+    "trigger": "At the orientation-to-investigation seam, after participant access and the issued schedule are checked, immediately before the organizer starts the event.",
+    "purpose": "Establish stakes and cooperative tasking without revealing the incident mechanism or discovery answers.",
+    "words": 166,
+    "estimated_seconds_at_140_wpm": 71,
+    "text": "All stations, this is EXCON. Exercise, exercise, exercise.\n\nOperation Silent Ridge. Exercise time, zero-nine-three-zero Zulu. Incoming watch, you have the watch.\n\nPatrol LANTERN is in the field. Disclosure of its movement details is suspected. No harm is confirmed. Do not assume the incident is over.\n\nEndpoint, network, identity, document-service, and security information and event management exports are staged. Establish what moved, how access was gained, and which systems remain affected.\n\nLabel each claim confirmed, assessed with confidence, or unknown. Cite evidence. Share findings across cells for the joint assessment. Report even at low confidence. Your first command update is due at the elapsed mark in your issued schedule.\n\nRead-only investigation. Preserve the supplied evidence. Do not contact real personnel, track them, or direct them. No attack is required. Send defensive recommendations to the controller. Command decides any patrol response.\n\nGood hunting. EXCON, out.\n\nAll names, hosts, addresses and artifacts are fictional exercise material. Nothing here is a real system or person.\nOPERATION SILENT RIDGE — EXERCISE ONLY.\n"
+  },
+  {
+    "id": "02",
+    "stem": "brief-02-inject-a-reset",
+    "title": "Identity reassessment",
+    "ticket": "T07",
+    "requires": [
+      "T06"
+    ],
+    "release_files": [
+      "identity/late-auth.csv"
+    ],
+    "learning_objectives": [
+      "LO4"
+    ],
+    "trigger": "Observe T06 complete, T07 released and synchronized, and the later authentication file visible.",
+    "purpose": "Prompt an evidence-based test of control efficacy without declaring whether the reset succeeded.",
+    "words": 71,
+    "estimated_seconds_at_140_wpm": 30,
+    "text": "All stations, this is EXCON. Exercise, exercise, exercise.\n\nLater authentication records are now available. Revisit your access assessment. Did the credential action contain the activity? What does the evidence establish about its effect? Carry the revised finding and its limits into the shared case.\n\nGood hunting. EXCON, out.\n\nAll names, hosts, addresses and artifacts are fictional exercise material. Nothing here is a real system or person.\nOPERATION SILENT RIDGE — EXERCISE ONLY.\n"
+  },
+  {
+    "id": "03",
+    "stem": "brief-03-inject-b-superseded",
+    "title": "Movement-information comparison",
+    "ticket": "T09",
+    "requires": [
+      "T08"
+    ],
+    "release_files": [
+      "server/version-comparison.csv"
+    ],
+    "learning_objectives": [
+      "LO5",
+      "LO2"
+    ],
+    "trigger": "Observe T08 complete, T09 released and synchronized, and the version comparison visible.",
+    "purpose": "Invite comparison without revealing any version, changed field, retained field or movement detail.",
+    "words": 71,
+    "estimated_seconds_at_140_wpm": 30,
+    "text": "All stations, this is EXCON. Exercise, exercise, exercise.\n\nSuperseding movement information is now available. Compare it with the earlier record. Which details changed? Which, if any, remain relevant? Revisit the disclosure scope in your shared finding. Keep the comparison separate from assumptions about harm.\n\nGood hunting. EXCON, out.\n\nAll names, hosts, addresses and artifacts are fictional exercise material. Nothing here is a real system or person.\nOPERATION SILENT RIDGE — EXERCISE ONLY.\n"
+  },
+  {
+    "id": "04",
+    "stem": "brief-04-inject-c-unresolved",
+    "title": "Scope lead and coverage",
+    "ticket": "T11",
+    "requires": [
+      "T10"
+    ],
+    "release_files": [
+      "hunting/late-inventory.csv"
+    ],
+    "learning_objectives": [
+      "LO6",
+      "LO5"
+    ],
+    "trigger": "Observe T10 complete, T11 released and synchronized, and the late inventory visible. The comparator belongs to earlier work; do not announce it as newly released.",
+    "purpose": "Prompt scope testing against actual coverage without identifying either host or deciding the lead.",
+    "words": 77,
+    "estimated_seconds_at_140_wpm": 33,
+    "text": "All stations, this is EXCON. Exercise, exercise, exercise.\n\nFurther inventory evidence is now available. Test the host lead against the comparator already supplied. What does a name match establish? What collection would support a stronger conclusion? Record coverage limits before clearing or implicating any system. Share the revised scope assessment.\n\nGood hunting. EXCON, out.\n\nAll names, hosts, addresses and artifacts are fictional exercise material. Nothing here is a real system or person.\nOPERATION SILENT RIDGE — EXERCISE ONLY.\n"
+  },
+  {
+    "id": "05",
+    "stem": "brief-05-inject-d-payload",
+    "title": "Payload verification",
+    "ticket": "T19",
+    "requires": [
+      "T01",
+      "T05"
+    ],
+    "release_files": [
+      "network/dlp-body.txt",
+      "network/dlp-metadata.json"
+    ],
+    "learning_objectives": [
+      "LO2",
+      "LO5"
+    ],
+    "trigger": "Observe BOTH T01 and T05 complete, T19 released and synchronized, and both DLP files visible.",
+    "purpose": "Turn the size-based lead into a comparison task without supplying the match, version or human-receipt answer.",
+    "words": 78,
+    "estimated_seconds_at_140_wpm": 33,
+    "text": "All stations, this is EXCON. Exercise, exercise, exercise.\n\nA transmitted body and its metadata are now available. Re-test the earlier transmission assessment against the body itself. Does it support the size-based lead? Separate evidence of transmission from claims about human receipt or intent. Update the shared finding with citations and limits.\n\nGood hunting. EXCON, out.\n\nAll names, hosts, addresses and artifacts are fictional exercise material. Nothing here is a real system or person.\nOPERATION SILENT RIDGE — EXERCISE ONLY.\n"
+  },
+  {
+    "id": "06",
+    "stem": "brief-06-command-decision",
+    "title": "Command decision support",
+    "ticket": "T20",
+    "requires": [
+      "T07",
+      "T09",
+      "T11",
+      "T19"
+    ],
+    "release_files": [],
+    "learning_objectives": [
+      "LO5",
+      "LO7",
+      "LO8"
+    ],
+    "trigger": "Observe T07, T09, T11 and T19 complete and T20 released and synchronized; confirm its IRIS task. There is no new file. This is not proof all twenty tickets are complete.",
+    "purpose": "Ask for evidence-bounded synthesis and recommendations without answering T20 or directing the patrol.",
+    "words": 114,
+    "estimated_seconds_at_140_wpm": 49,
+    "text": "All stations, this is EXCON. Exercise, exercise, exercise.\n\nThe final synthesis ticket is available. Bring the shared findings together for command.\n\nWhich movement information is supported as disclosed? Is roster disclosure established? Is exposure fully bounded? What can you establish about an adversary? Did the credential action contain the activity?\n\nLabel claims confirmed, assessed, or unknown. Distinguish disclosed, denied, and unresolved claims. Recommend proportionate containment, evidence preservation, and targeted collection, with reasons and limits. Provide a reliable technical assessment to the controller. Command decides any patrol response.\n\nGood hunting. EXCON, out.\n\nAll names, hosts, addresses and artifacts are fictional exercise material. Nothing here is a real system or person.\nOPERATION SILENT RIDGE — EXERCISE ONLY.\n"
+  },
+  {
+    "id": "07",
+    "stem": "brief-07-endex-standdown",
+    "title": "ENDEX stand-down",
+    "ticket": null,
+    "requires": [],
+    "release_files": [],
+    "learning_objectives": [
+      "LO8"
+    ],
+    "trigger": "At the organizer-declared end of investigation, immediately before the after-action review. May occur with incomplete tickets; never wait indefinitely for T20.",
+    "purpose": "Close the investigation and invite reflection without inventing a completed assessment or resolving any gap.",
+    "words": 62,
+    "estimated_seconds_at_140_wpm": 27,
+    "text": "All stations, this is EXCON. Exercise, exercise, exercise.\n\nExercise ends. ENDEX. Stand down. Cease investigation. Preserve the shared findings for the after-action review. Bring one supported finding, one remaining uncertainty, and one improvement. Well done.\n\nGood hunting. EXCON, out.\n\nAll names, hosts, addresses and artifacts are fictional exercise material. Nothing here is a real system or person.\nOPERATION SILENT RIDGE — EXERCISE ONLY.\n"
+  }
+]
