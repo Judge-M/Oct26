@@ -37,3 +37,9 @@ Follow-up base: local package commit `b5633d5`. Added FACILITATION.md, linked it
 - Manual procedure review covers independent release ordering, B occurring before A, no ready evidence revision, absent speakers, incomplete T20 at the closing seam, and a hard stop before the final exchange. Fallbacks preserve evidence gates and ENDEX; AAR discussion uses preserved findings without reopening investigation.
 
 The five-minute exchange allowance plus approximately 175 seconds of inject/synthesis speech is planning arithmetic, not measured facilitation. Actual pauses, participant response, feedback quality, engagement and learning still require a human rehearsal. No new audio recording, visual browser acceptance, controller operation or live facilitation is claimed.
+
+## Same-station producer handoff
+
+Added NEXT-AI-HANDOFF.md as the current production entry point and linked it from the package index. It includes exact existing local input paths, a single authoritative output directory to create, all seven complete spoken texts with verified SHA-256 hashes, live facilitation prompts, corrected release mechanics, acceptance criteria and remaining limitations. The next producer uses this station's existing checkout; patch/clone recovery is backup guidance only.
+
+Handoff appendix/text/hash parity and existing input-path checks: PASS. Package content validator and Markdown links: PASS. Presenter landing tests: 9 passed. Required full repository suite with the previously verified published training artifact: **467 tests passed** in 51.091 seconds, exit 0; private log `work/producer-handoff-unittest.log` in the task workspace. No recordings, live event changes or audio acceptance are claimed by this handoff-only update.

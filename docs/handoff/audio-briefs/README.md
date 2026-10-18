@@ -2,6 +2,8 @@
 
 Seven spoiler-checked EXCON scripts for live reading or later recording. Four injects follow **observed automatic releases**, in any release order. This package contains scripts and production notes; final mixed audio is not included.
 
+For another AI producing the finished briefs, start with [NEXT-AI-HANDOFF.md](NEXT-AI-HANDOFF.md): current decisions, all seven exact scripts, source hashes and production acceptance.
+
 Open [the offline cue desk](player.html) to read or play locally loaded recordings. Start with [RUNBOOK.md](RUNBOOK.md) for the delivery checks and [REVIEW.md](REVIEW.md) for corrections to the inherited plan.
 
 [FACILITATION.md](FACILITATION.md) adds three participant-response activities: a two-minute interim update with peer challenge, one minute explaining an evidence-driven revision, and a two-minute containment recommendation with an alternative, tradeoff and feedback. They use the existing facilitated allowance and add no scoring, submission or ticket-unlock requirements.
@@ -20,6 +22,7 @@ Open [the offline cue desk](player.html) to read or play locally loaded recordin
 | [FACILITATION.md](FACILITATION.md) | Participant prompts, timing, rotating peer challenges, feedback, fallbacks and private rehearsal observations. |
 | [REVIEW.md](REVIEW.md) | Source reconciliation, plan corrections, remaining deck/start issues. |
 | [VALIDATION.md](VALIDATION.md) | Actual checks and limitations. |
+| [NEXT-AI-HANDOFF.md](NEXT-AI-HANDOFF.md) | Current production assignment, complete narration appendix, facilitation requirements and QA. |
 | [MASTER-HANDOFF.md](MASTER-HANDOFF.md) | Unchanged inherited planning input; REVIEW records corrections. |
 | [briefs.json](briefs.json) / [spoken/](spoken/) | Canonical structured text and clean voice/TTS inputs. |
 | [validate.py](validate.py) | Read-only spoiler, parity, release and packaging checker. |
