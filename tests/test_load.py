@@ -2,6 +2,7 @@
 import json
 import os
 import socket
+import struct
 import tempfile
 import threading
 import unittest
@@ -48,6 +49,54 @@ def stop_test_server(server, thread, timeout=5.0):
         server.server_close()
     except OSError:
         pass
+
+
+def _pending_receive_bytes(sock):
+    """Count bytes the kernel received but the handler never read.
+
+    Linux exposes the queue depth via SIOCINQ through ``fcntl``.  That ioctl
+    is platform-specific, so where it is unavailable (Windows) or unsupported
+    (macOS raises here) the fallback is a non-blocking ``MSG_PEEK``: it
+    reports queued payload on every platform and never counts a bare FIN,
+    so an empty queue reads as 0 everywhere.
+    """
+    try:
+        import fcntl
+        # SIOCINQ (0x541B): bytes sitting unread in the receive queue.
+        raw = fcntl.ioctl(sock.fileno(), 0x541B, b'\x00' * 4)
+        return struct.unpack('i', raw)[0]
+    except (ImportError, OSError):
+        pass
+    sock.setblocking(False)
+    try:
+        return len(sock.recv(1, socket.MSG_PEEK))
+    except OSError:
+        return 0
+
+
+class BodyDrainGuardServer(HTTPServer):
+    """Records every connection closed with unread request bytes still queued.
+
+    A handler that responds without consuming its declared ``Content-Length``
+    leaves the body in the kernel receive queue; ``closesocket()`` with
+    unread received data sends an RST on Windows, which discards the
+    just-written response and surfaces in urllib as WinError 10053.  Linux
+    masks the identical pattern (BufferedReader read-ahead plus delivery of
+    queued response bytes before the RST), so Linux-green does not exonerate
+    an undrained handler.  Pair this server with handlers forced to
+    ``rbufsize = 0`` so no platform can prefetch the body out of reach of
+    the probe; see ``UndrainedPostBodyTests``.
+    """
+
+    def __init__(self, *args, **kwargs):
+        self.unread_at_close = []
+        super().__init__(*args, **kwargs)
+
+    def shutdown_request(self, request):
+        pending = _pending_receive_bytes(request)
+        if pending:
+            self.unread_at_close.append(pending)
+        super().shutdown_request(request)
 
 
 class PercentileTests(unittest.TestCase):
@@ -168,6 +217,49 @@ class FakeCtfd(BaseHTTPRequestHandler):
                 self._send(b'Not yet. Try the next help level.')
         else:
             self._send(b'not found', 404)
+
+
+class BounceCtfdLogin(FakeCtfd):
+    """CTFd fake whose login POST bounces the participant back to /login."""
+
+    def do_POST(self):
+        # Drain the declared body before responding, mirroring FakeCtfd: an
+        # undrained body sits in the kernel receive queue and turns the
+        # connection close into an RST on Windows (WinError 10053).
+        length = int(self.headers.get('Content-Length', 0))
+        self.rfile.read(length)
+        self.send_response(302)
+        self.send_header('Location', '/login')
+        self.end_headers()
+
+
+class BounceIrisLogin(BaseHTTPRequestHandler):
+    """IRIS fake whose login POST bounces to /dashboard, which rebounces."""
+
+    def log_message(self, *args):
+        pass
+
+    def do_GET(self):
+        if self.path.startswith('/login'):
+            body = b'<form><input name="password"></form>'
+            self.send_response(200)
+            self.send_header('Content-Length', str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+        else:
+            self.send_response(302)
+            self.send_header('Location', '/login?next=/dashboard')
+            self.end_headers()
+
+    def do_POST(self):
+        # Drain the declared body before responding, mirroring FakeCtfd: an
+        # undrained body sits in the kernel receive queue and turns the
+        # connection close into an RST on Windows (WinError 10053).
+        length = int(self.headers.get('Content-Length', 0))
+        self.rfile.read(length)
+        self.send_response(302)
+        self.send_header('Location', '/dashboard')
+        self.end_headers()
 
 
 class CtfdBotTests(unittest.TestCase):
@@ -369,13 +461,7 @@ class AuthPageTests(unittest.TestCase):
             stop_test_server(server, thread)
 
     def test_ctfd_login_redirect_back_to_login_is_failure(self):
-        class Bounce(FakeCtfd):
-            def do_POST(self):
-                self.send_response(302)
-                self.send_header('Location', '/login')
-                self.end_headers()
-
-        server, thread = start_test_server(Bounce)
+        server, thread = start_test_server(BounceCtfdLogin)
         try:
             samples = []
             with self.assertRaisesRegex(LoadError, 'ended on the login page'):
@@ -386,28 +472,7 @@ class AuthPageTests(unittest.TestCase):
             stop_test_server(server, thread)
 
     def test_iris_dashboard_bounce_is_failure_even_when_final_status_is_200(self):
-        class Bounce(BaseHTTPRequestHandler):
-            def log_message(self, *args):
-                pass
-
-            def do_GET(self):
-                if self.path.startswith('/login'):
-                    body = b'<form><input name="password"></form>'
-                    self.send_response(200)
-                    self.send_header('Content-Length', str(len(body)))
-                    self.end_headers()
-                    self.wfile.write(body)
-                else:
-                    self.send_response(302)
-                    self.send_header('Location', '/login?next=/dashboard')
-                    self.end_headers()
-
-            def do_POST(self):
-                self.send_response(302)
-                self.send_header('Location', '/dashboard')
-                self.end_headers()
-
-        server, thread = start_test_server(Bounce)
+        server, thread = start_test_server(BounceIrisLogin)
         try:
             samples = []
             with self.assertRaisesRegex(LoadError, 'ended on the login page'):
@@ -481,6 +546,56 @@ class ServerTeardownTests(unittest.TestCase):
                 stop_test_server(server, thread)
         self.assertFalse(thread.is_alive())
         HTTPServer.server_close(server)
+
+
+class UndrainedPostBodyTests(unittest.TestCase):
+    """Cross-platform guard for the WinError 10053 precondition.
+
+    A fake that answers a POST without consuming its ``Content-Length``
+    leaves the form body queued in the kernel receive buffer; the close then
+    RSTs on Windows and urllib reports WinError 10053 instead of the status
+    line (Linux hides this behind read-ahead, so Linux-green proves nothing).
+    These guards force ``rbufsize = 0`` so no stdlib read-ahead can prefetch
+    the body out of reach of the receive-queue probe, and assert every fake
+    drains its POST body exactly like ``FakeCtfd.do_POST`` before responding.
+    """
+
+    ITERATIONS = 25
+
+    def assert_post_body_drained(self, handler, login_flow, domain_error):
+        guarded = type(f'Guarded{handler.__name__}', (handler,), {'rbufsize': 0})
+        for attempt in range(self.ITERATIONS):
+            server = BodyDrainGuardServer(('127.0.0.1', 0), guarded)
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                # The flow must fail with its domain error; a bare
+                # connection error reaching this line is also a failure,
+                # never something to swallow.
+                with self.assertRaisesRegex(LoadError, domain_error):
+                    login_flow(f'http://127.0.0.1:{server.server_port}')
+                self.assertEqual(
+                    server.unread_at_close, [],
+                    f'iteration {attempt}: {len(server.unread_at_close)} '
+                    'connection(s) closed with unread request bytes queued '
+                    f'{server.unread_at_close} — the Windows RST/'
+                    'WinError 10053 precondition')
+            finally:
+                stop_test_server(server, thread)
+
+    def test_ctfd_bounce_login_post_drains_its_body(self):
+        def login(base):
+            CtfdBot(base, 'team-01-p01', 'pw', []).login()
+
+        self.assert_post_body_drained(BounceCtfdLogin, login,
+                                      'ended on the login page')
+
+    def test_iris_bounce_login_post_drains_its_body(self):
+        def login(base):
+            IrisBot(base, 'team-01', 'pw', []).login()
+
+        self.assert_post_body_drained(BounceIrisLogin, login,
+                                      'ended on the login page')
 
 
 if __name__ == '__main__':

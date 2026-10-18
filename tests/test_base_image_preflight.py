@@ -32,6 +32,14 @@ FOREIGN = json.dumps([{
     'Id': 'sha256:008173c23f95aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
     'RepoDigests': ['evil.example.com/ctfd/ctfd@sha256:2222222222222222222222222222222222222222222222222222222222222222'],
 }])
+# The Docker Desktop 29.8.0 shape observed on the event host after an
+# authenticated `docker pull docker.io/ctfd/ctfd:3.7.7`: an authentic digest
+# reported under the short Docker Hub spelling, not the canonical
+# docker.io/ctfd/ctfd. The guard must accept it as the same repository.
+SHORT_SPELLING_CTFD = json.dumps([{
+    'Id': 'sha256:008173c23f95aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    'RepoDigests': ['ctfd/ctfd@sha256:9847758' + '0' * 57],
+}])
 # Fresh `docker pull ubuntu:24.04` on a Docker/containerd that records Docker
 # Hub official images under their short repository: the RepoDigest carries
 # ``ubuntu@sha256:...``, not ``docker.io/library/ubuntu@sha256:...``. This is a
@@ -92,6 +100,54 @@ class RegistryDigestTests(unittest.TestCase):
             registry_digest_for('ubuntu@sha256:3333333333333333333333333333333333333333333333333333333333333333',
                                 details))
 
+
+class DockerDesktopShortSpellingTests(unittest.TestCase):
+    """Equivalent Docker Hub spellings denote the same repository.
+
+    Docker Desktop 29.8.0 reports RepoDigests for an authentic
+    ``docker pull docker.io/ctfd/ctfd:3.7.7`` as ``ctfd/ctfd@sha256:...``.
+    The issue #184 guard must treat the short, ``library/`` and canonical
+    ``docker.io`` spellings as one repository — while still rejecting
+    digests from any genuinely different repository.
+    """
+
+    def test_short_hub_spelling_digest_proves_the_pull(self):
+        details = json.loads(SHORT_SPELLING_CTFD)[0]
+        self.assertTrue(registry_digest_for('ctfd/ctfd:3.7.7', details))
+        # The FROM spelled canonically is the same repository too.
+        self.assertTrue(registry_digest_for('docker.io/ctfd/ctfd:3.7.7', details))
+
+    def test_canonical_digest_still_matches_when_either_side_is_short(self):
+        clean = json.loads(CLEAN_CTFD)[0]
+        self.assertTrue(registry_digest_for('docker.io/ctfd/ctfd:3.7.7', clean))
+
+    def test_library_alias_spellings_are_equivalent(self):
+        # Official images: ubuntu == library/ubuntu == docker.io/library/ubuntu.
+        digest = 'sha256:' + '3' * 64
+        for spelling in ('library/ubuntu@' + digest,
+                         'docker.io/library/ubuntu@' + digest):
+            with self.subTest(digest=spelling):
+                details = {'RepoDigests': [spelling]}
+                self.assertTrue(registry_digest_for('ubuntu:24.04', details))
+                self.assertTrue(registry_digest_for('library/ubuntu:24.04', details))
+                self.assertTrue(registry_digest_for('docker.io/library/ubuntu:24.04', details))
+
+    def test_short_spelling_does_not_widen_trust_to_other_repositories(self):
+        # Normalization must not let a retagged image from a different Hub
+        # repository (or another registry) pass as ctfd/ctfd.
+        for digests in (['evil/ctfd@sha256:' + '2' * 64],
+                        ['ctfd/ctfd-not@sha256:' + '2' * 64],
+                        ['ctfd/library/ctfd@sha256:' + '2' * 64],
+                        ['evil.example.com/ctfd/ctfd@sha256:' + '2' * 64]):
+            with self.subTest(digests=digests):
+                self.assertIsNone(
+                    registry_digest_for('ctfd/ctfd:3.7.7', {'RepoDigests': digests}))
+
+    def test_verify_base_cache_accepts_the_docker_desktop_shape(self):
+        with patch('ridge.deploy.__main__.docker',
+                   docker_returning({'ctfd/ctfd:3.7.7': SHORT_SPELLING_CTFD})):
+            problems, uncached = verify_base_cache(['ctfd/ctfd:3.7.7'])
+        self.assertEqual((problems, uncached), ([], []))
 
     def test_short_docker_hub_repodigest_proves_the_tag(self):
         # `docker pull ubuntu:24.04` can record the RepoDigest in short form

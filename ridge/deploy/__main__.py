@@ -104,17 +104,22 @@ def registry_digest_for(image, details):
     FROM cannot be re-tagged over (docker refuses digest targets), so it is
     exempt from the check.
 
-    The digest's repository is normalized the same way as the FROM reference:
-    some docker/containerd versions record Docker Hub official images under
+    Docker Desktop may report the digest under an equivalent Docker Hub
+    spelling of the same repository (``ctfd/ctfd@sha256:...`` or
+    ``library/ubuntu@sha256:...`` instead of the canonical
+    ``docker.io/...`` form), so both sides are run through
+    ``_registry_repository`` before comparing. This also handles
+    docker/containerd versions that record Docker Hub official images under
     their short repository (``ubuntu@sha256:...`` instead of
-    ``docker.io/library/ubuntu@sha256:...``), and comparing raw strings
-    falsely reported that genuine pull as an overwritten tag.
+    ``docker.io/library/ubuntu@sha256:...``). Normalization is exact at the
+    repository-path level: a digest from a genuinely different repository or
+    registry still proves nothing here.
     """
     if '@' in image:
         return ''
-    repository = _registry_repository(image)
+    expected = _registry_repository(image)
     for digest in details.get('RepoDigests') or []:
-        if _registry_repository(digest) == repository:
+        if _registry_repository(digest) == expected:
             return digest
     return None
 
