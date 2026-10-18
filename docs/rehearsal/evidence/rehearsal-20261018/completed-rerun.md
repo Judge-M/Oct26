@@ -60,7 +60,7 @@ the run used those named sources rather than bypassing the participant flow.
 | Ticket | Accepted answers, Q1 → Q4 | Human explanation |
 |---|---|---|
 | T01 | `WS-17`; `req-71`; `req-72`; `198.51.100.77` | Correlate the plan request and upload in the sensor capture; the traffic identifies the workstation, request IDs, and destination, but not human receipt or intent. |
-| T02 | `relay.archive.example`; `198.51.100.77`; `WS-17/10.26.10.17`; `60` | Resolve the recorded name and compare the DNS client, answer address, and TTL. |
+| T02 | `relay.archive.example`; `198.51.100.77`; `10.26.10.17`; `60` | Resolve the recorded name and compare the DNS client, answer address, and TTL; the address maps back to WS-17 in the scenario inventory. |
 | T03 | `08:57:00`; `brief-viewer.exe`; `briefs.helpdesk.example`; `C:/Downloads` | Read the browser download export and preserve its UTC normalization and target path. |
 | T04 | `BriefSync`; `brief-viewer.exe`; `user logon`; `09:08:00` | Inspect the task-registration event, then apply the documented 120-second WS-17 clock correction once. |
 | T05 | `LANTERN`; `3`; `AMBER`; `CEDAR` | Recover the deleted cache entry and transcribe the patrol, version, sector, and check-in word. |
