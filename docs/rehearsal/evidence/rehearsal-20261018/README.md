@@ -1,5 +1,10 @@
 # Fresh 11-role rehearsal — 2026-10-18
 
+> **Completed rerun:** The failed initial attempt below was followed by a
+> fresh, verified run. See [completed-rerun.md](completed-rerun.md) for the
+> authoritative result: 20/20 stages, 80/80 accepted answers, and zero
+> pending deliveries.
+
 Event: `ridge-oct26-fresh`  
 Source release: `caf2da73afa185e040b96de20c3ad4c35d91f9b0`  
 Participant hostname: `desktop-t5pf26o.tail799fee.ts.net`  
