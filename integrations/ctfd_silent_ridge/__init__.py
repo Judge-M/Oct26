@@ -71,6 +71,12 @@ def load(app):
     def ridge_questions():
         message = ''
         try:
+            # CTFd's stock CSRF session does not guarantee a value for this
+            # event-specific nonce on every authenticated session.  Generate
+            # one before rendering or validating the form so a fresh team
+            # browser never receives an empty hidden nonce and then gets a
+            # misleading 403 on its first answer.
+            session.setdefault('nonce', os.urandom(24).hex())
             team = identity()
             if request.method == 'POST':
                 if not hmac.compare_digest(request.form.get('nonce', ''), session.get('nonce', '!')):
