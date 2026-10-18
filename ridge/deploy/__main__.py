@@ -108,7 +108,10 @@ def registry_digest_for(image, details):
     spelling of the same repository (``ctfd/ctfd@sha256:...`` or
     ``library/ubuntu@sha256:...`` instead of the canonical
     ``docker.io/...`` form), so both sides are run through
-    ``_registry_repository`` before comparing. Normalization is exact at the
+    ``_registry_repository`` before comparing. This also handles
+    docker/containerd versions that record Docker Hub official images under
+    their short repository (``ubuntu@sha256:...`` instead of
+    ``docker.io/library/ubuntu@sha256:...``). Normalization is exact at the
     repository-path level: a digest from a genuinely different repository or
     registry still proves nothing here.
     """
