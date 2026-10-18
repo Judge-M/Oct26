@@ -32,6 +32,15 @@ FOREIGN = json.dumps([{
     'Id': 'sha256:008173c23f95aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
     'RepoDigests': ['evil.example.com/ctfd/ctfd@sha256:2222222222222222222222222222222222222222222222222222222222222222'],
 }])
+# Fresh `docker pull ubuntu:24.04` on a Docker/containerd that records Docker
+# Hub official images under their short repository: the RepoDigest carries
+# ``ubuntu@sha256:...``, not ``docker.io/library/ubuntu@sha256:...``. This is a
+# genuine registry pull; the preflight must accept it (issue #184 follow-up:
+# the short form was falsely reported as an overwritten tag).
+SHORT_HUB_UBUNTU = json.dumps([{
+    'Id': 'sha256:534baea6a22c03a63003dbc8dbe78fe34bc0d7e595d9a9dc9834884ff530eb55',
+    'RepoDigests': ['ubuntu@sha256:534baea6a22c03a63003dbc8dbe78fe34bc0d7e595d9a9dc9834884ff530eb55'],
+}])
 
 
 def docker_returning(responses, default='ok'):
@@ -82,6 +91,19 @@ class RegistryDigestTests(unittest.TestCase):
         self.assertIsNotNone(
             registry_digest_for('ubuntu@sha256:3333333333333333333333333333333333333333333333333333333333333333',
                                 details))
+
+
+    def test_short_docker_hub_repodigest_proves_the_tag(self):
+        # `docker pull ubuntu:24.04` can record the RepoDigest in short form
+        # (``ubuntu@sha256:...``, no docker.io/library prefix). The FROM
+        # reference and the digest's repository are the same Docker Hub
+        # repository, so the preflight must accept it, not report #184.
+        short = json.loads(SHORT_HUB_UBUNTU)[0]
+        self.assertTrue(registry_digest_for('ubuntu:24.04', short))
+        with patch('ridge.deploy.__main__.docker',
+                   docker_returning({'ubuntu:24.04': SHORT_HUB_UBUNTU})):
+            problems, uncached = verify_base_cache(['ubuntu:24.04'])
+        self.assertEqual((problems, uncached), ([], []))
 
 
 class VerifyBaseCacheTests(unittest.TestCase):
