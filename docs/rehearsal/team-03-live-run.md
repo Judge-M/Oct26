@@ -330,7 +330,9 @@ normal human answer submission. This was reproducible across several claimed
 tickets. It is a real usability defect: the default page should render the
 active ticket's questions or provide an unambiguous link to them. The direct
 question route was used only as a documented workaround while preserving the
-normal submit/check-answer flow.
+normal submit/check-answer flow. The repository fix adds `no-store` and
+`Vary: Cookie` headers to the CTFd question response so a pre-claim page cannot
+be reused after a claim; it is committed and pushed on this rehearsal branch.
 
 ### Participant certificate warning
 
