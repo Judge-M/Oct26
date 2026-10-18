@@ -16,6 +16,8 @@ Facilitator-only production sheet. The **Script** section and paired text echo a
 
 **Spoiler discipline:** No protected host, session, filename, version, address, incident timestamp, field value, or scored remediation answer is spoken. Evidence questions must remain questions. Do not improvise a result.
 
+**Participant response:** Carry observations from activities A–C into the AAR. Invite cells that have not spoken and recognize evidence-bounded uncertainty; do not run late investigative cues after ENDEX. See [FACILITATION.md](FACILITATION.md) for timing, clock handling and fallbacks. Coaching adds no scoring or unlock gate.
+
 ## Script
 
 All stations, this is EXCON. Exercise, exercise, exercise.

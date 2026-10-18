@@ -8,6 +8,13 @@ solved answers and points with their original solving team.
 Use IRIS findings, question history and the private audit export to discuss what
 teams learned. Coaching observations are separate from the scoreboard.
 
+For live analytical communication practice, use the three
+[participant-response activities](../docs/handoff/audio-briefs/FACILITATION.md):
+an interim update with peer challenge, an evidence-revision explanation, and a
+containment recommendation defended against an alternative. They use the existing
+facilitated allowance. No briefing, feedback or observation becomes an additional
+report submission, scoring item, facilitator approval or ticket-unlock gate.
+
 ## After-action review
 
 Reserve AAR time separately from investigation activity. Ask each team to explain

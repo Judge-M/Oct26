@@ -26,3 +26,14 @@ The binary/source/manifests were not changed or republished by this task. The ve
 The browser preview was blocked by the browser's local-file URL policy; no browser visual acceptance is claimed. The cue desk's logic and package links were checked offline. No audio recording, mixing or listening acceptance occurred. Live reading is available; optional recordings require later voice production and room playback checks.
 
 No Docker image was built and no real service/event was started, paused, or announced to. Image smoke and event-hardware acceptance are not applicable to this documentation-only change and remain independent deployment gates. This receipt certifies source/content checks only, not event readiness, thirty-person pacing, or correction of the existing exported deck.
+
+## Participant-response follow-up validation
+
+Follow-up base: local package commit `b5633d5`. Added FACILITATION.md, linked it from the cue desk, runbook, injection plan, production sheets and existing AAR guidance. Three activities include timed speaking, peer challenge, response and feedback; they use five minutes of the existing facilitated allowance and add no score, submission or ticket-unlock gate.
+
+- Content validator: PASS for all seven scripts and all 80 answer-key entries. The spoken texts, structured text and announcement echoes are unchanged from the base package. All three new read-aloud prompts also pass the existing forbidden-literal check.
+- All package Markdown file links resolve. Existing presenter landing tests: 9 passed.
+- Required full suite after preparing the previously recovered, manifest-verified LFS training artifact: **467 tests passed**, exit 0. Private execution log: `work/facilitation-validation/unittest.log` in the task workspace. No runtime service or image smoke was needed for these documentation changes.
+- Manual procedure review covers independent release ordering, B occurring before A, no ready evidence revision, absent speakers, incomplete T20 at the closing seam, and a hard stop before the final exchange. Fallbacks preserve evidence gates and ENDEX; AAR discussion uses preserved findings without reopening investigation.
+
+The five-minute exchange allowance plus approximately 175 seconds of inject/synthesis speech is planning arithmetic, not measured facilitation. Actual pauses, participant response, feedback quality, engagement and learning still require a human rehearsal. No new audio recording, visual browser acceptance, controller operation or live facilitation is claimed.

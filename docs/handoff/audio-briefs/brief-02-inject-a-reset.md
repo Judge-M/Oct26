@@ -16,6 +16,8 @@ Facilitator-only production sheet. The **Script** section and paired text echo a
 
 **Spoiler discipline:** No protected host, session, filename, version, address, incident timestamp, field value, or scored remediation answer is spoken. Evidence questions must remain questions. Do not improvise a result.
 
+**Participant response:** Once a cell has investigated one new release, consider activity B: explain the earlier assessment, new evidence and revised or retained conclusion. Use B once per event, not after each inject; playback alone does not establish readiness. See [FACILITATION.md](FACILITATION.md) for timing, clock handling and fallbacks. Coaching adds no scoring or unlock gate.
+
 ## Script
 
 All stations, this is EXCON. Exercise, exercise, exercise.

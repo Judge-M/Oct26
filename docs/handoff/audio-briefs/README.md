@@ -4,6 +4,8 @@ Seven spoiler-checked EXCON scripts for live reading or later recording. Four in
 
 Open [the offline cue desk](player.html) to read or play locally loaded recordings. Start with [RUNBOOK.md](RUNBOOK.md) for the delivery checks and [REVIEW.md](REVIEW.md) for corrections to the inherited plan.
 
+[FACILITATION.md](FACILITATION.md) adds three participant-response activities: a two-minute interim update with peer challenge, one minute explaining an evidence-driven revision, and a two-minute containment recommendation with an alternative, tradeoff and feedback. They use the existing facilitated allowance and add no scoring, submission or ticket-unlock requirements.
+
 | File | Purpose |
 |---|---|
 | [01 · Opening tasking](brief-01-opening-task.md) | Orientation seam before normal event start; ~71 s. |
@@ -15,6 +17,7 @@ Open [the offline cue desk](player.html) to read or play locally loaded recordin
 | [07 · ENDEX stand-down](brief-07-endex-standdown.md) | Organizer-declared end of investigation, before AAR; ~27 s. |
 | [INJECTION-PLAN.md](INJECTION-PLAN.md) | Event gates, simultaneous releases, consolidated fallback. |
 | [RUNBOOK.md](RUNBOOK.md) | State-path checks, all exact announce echoes, failure handling, private ledger template. |
+| [FACILITATION.md](FACILITATION.md) | Participant prompts, timing, rotating peer challenges, feedback, fallbacks and private rehearsal observations. |
 | [REVIEW.md](REVIEW.md) | Source reconciliation, plan corrections, remaining deck/start issues. |
 | [VALIDATION.md](VALIDATION.md) | Actual checks and limitations. |
 | [MASTER-HANDOFF.md](MASTER-HANDOFF.md) | Unchanged inherited planning input; REVIEW records corrections. |

@@ -10,6 +10,7 @@ Facilitator-only. Use with [facilitator-evidence-release.md](../../facilitator-e
 4. Keep the full checkout, this package and the presenter page on the operator machine. Only `runtime/public` and approved participant surfaces are distributed. “Facilitator-only” is a distribution rule; GitHub does not supply secrecy.
 5. Open [player.html](player.html) offline. Each cue contains a live-read script. For recorded delivery, select locally produced files named exactly like the seven stems in `spoken/`, with `.wav`, `.mp3`, or `.ogg` extensions. Only loaded files get a player. Test output volume. No recording is included in this package.
 6. Prepare the private cue ledger below. Track audio/live read and written echo separately. A play button and a zero-exit CLI command are not proof teams heard or saw the cue.
+7. Prepare the three live exchanges in [FACILITATION.md](FACILITATION.md): interim update at the issued deadline, one evidence-revision check after analysis, and a recommendation/challenge after Brief 06. Select rotating speaker/challenger cells and use the existing facilitated allowance. These are coaching activities, never scoring or unlock gates.
 
 ## Select and verify the state database
 
@@ -31,6 +32,20 @@ Recheck `status` and `diagnostics` when teams complete prerequisites. A locked t
 Then play/read exactly the selected script, post its full echo below, check the new announcement in `status`, and confirm it appears on a participant surface. Mark both delivery steps in the ledger. Announce records an audit item rather than proving participant delivery. It is not an idempotent cue scheduler: before retrying after an uncertain response, inspect existing announcements and the ledger to avoid duplicates.
 
 Cues 02–05 can arrive in any order. If several arrive together, verify each independently and play the ready, undelivered cues back-to-back in observed release order. If release order is indistinguishable use cue number as a tie-breaker. No extra “intelligence” claim and no forced 02→03→04→05 sequence. At T20 availability, deliver any pending prerequisite cues first, then 06, unless ENDEX has already been called. After ENDEX do not play late investigative cues.
+
+## Participant response windows
+
+Dispatch delivery and participant response are separate steps. Use [FACILITATION.md](FACILITATION.md) for the read-aloud prompts, response scaffolds, peer challenge, feedback and private observation sheet:
+
+| Activity | Trigger | Live exchange |
+|---|---|---|
+| A — interim update | Issued first-update deadline, independent of releases | 60 s assessment, 20 s peer challenge, 20 s defense/revision, 20 s feedback. |
+| B — evidence revision | A cell has investigated one verified release after any of 02–05 | 30 s before/after, 10 s challenge, 10 s response, 10 s feedback; once per event. |
+| C — recommendation | After verified T20 release and Brief 06 | 60 s recommendation/alternative/tradeoff, 20 s peer challenge, 20 s defense/revision, 20 s feedback. |
+
+Pause and verify elapsed-clock mode for each exchange through the existing runbook; resume through normal readiness gates and verify running mode afterward. The five minutes of exchanges and about 175 seconds of mid-investigation dispatch speech fit within the existing ten-minute facilitated allowance with roughly two minutes for transitions. Do not add another full recap segment. Opening and ENDEX stay at their existing seams.
+
+Use current evidence, not a facilitator-supplied conclusion. If B has no ready comparison, defer it to the AAR. If T20 remains locked, omit 06 and use C's incomplete-assessment fallback before ENDEX, or defer to AAR at a hard stop. Never hold evidence, manufacture a revision, change points or condition ticket completion on a briefing. Record actual exchanges separately from the audio/echo delivery ledger.
 
 ## Per-cue commands — select one, never run as a batch
 
@@ -107,6 +122,8 @@ Read/play [brief-06-command-decision.md](brief-06-command-decision.md), then pos
 ```bash
 python -m ridge.cli --state "$RIDGE_STATE" announce --operator EXCON --text 'All stations, this is EXCON. Exercise, exercise, exercise. The final synthesis ticket is available. Bring the shared findings together for command. Which movement information is supported as disclosed? Is roster disclosure established? Is exposure fully bounded? What can you establish about an adversary? Did the credential action contain the activity? Label claims confirmed, assessed, or unknown. Distinguish disclosed, denied, and unresolved claims. Recommend proportionate containment, evidence preservation, and targeted collection, with reasons and limits. Provide a reliable technical assessment to the controller. Command decides any patrol response. Good hunting. EXCON, out. All names, hosts, addresses and artifacts are fictional exercise material. Nothing here is a real system or person. OPERATION SILENT RIDGE — EXERCISE ONLY.'
 ```
+
+After delivery, run activity C from [FACILITATION.md](FACILITATION.md): participants defend a recommendation against an alternative, another cell challenges it, and EXCON gives reasoning-based feedback. Do not supply the scored answer or carry out the recommendation.
 
 ### 07 — ENDEX stand-down
 

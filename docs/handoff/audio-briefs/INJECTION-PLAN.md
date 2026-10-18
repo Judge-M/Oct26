@@ -36,3 +36,9 @@ Keep 06 at observed T20 availability; play 07 at the actual ENDEX seam even if T
 ## Timing
 
 At 140 words per minute these seven scripts total about 273 seconds of speech before sound cues and pauses. The full fiction disclaimer is spoken on every cue. Rehearse the read, playback volume and text visibility; the inherited 15–25 second inject targets cannot carry that mandatory wording plus the tasking at this pace.
+
+## Live participant exchanges
+
+Use [FACILITATION.md](FACILITATION.md) for A: a two-minute interim command update at the issued deadline, B: a one-minute before/after explanation once a cell has investigated a new release, and C: a two-minute recommendation/alternative/tradeoff exchange after Brief 06. A and C include peer challenge and defense, giving two active cross-cell briefings. B may precede A if evidence is investigated first; none is an additional evidence-release gate.
+
+Allocate these five minutes from the existing ten-minute facilitated segment, together with about 175 seconds of inject/synthesis speech and a roughly two-minute transition buffer. Opening belongs to orientation and ENDEX to the AAR seam. Distribute the allowance across the event rather than adding a second recap segment. For the consolidated fallback, allow ready dispatches and these same exchanges within that allowance; do not repeat delivered cues or invent a before/after assessment. Deferred activities move to the AAR without delaying ENDEX.

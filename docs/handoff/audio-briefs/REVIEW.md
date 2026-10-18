@@ -41,3 +41,9 @@ Every script and its echo avoids protected identifiers, discovery timestamps, pa
 Semantic review: no brief declares the reset ineffective, a comparator benign, a body identical, roster access denied, the unresolved host cleared/compromised, or an adversary known. No brief resolves original delivery, token contents, human attribution/reading, collection-gap activity, uncollected systems, or actual use. The opening has no clock-offset hint. Command questions remain questions; recommendations never become patrol orders.
 
 See [VALIDATION.md](VALIDATION.md) for measured check results and limitations. This is a source/content delivery, not an event-readiness certification.
+
+## Participant-response follow-up
+
+The supplied podcast assessment identifies a remaining distinction between hearing a dispatch and defending an analysis. [FACILITATION.md](FACILITATION.md) now supplies three live activities: an interim update with cross-cell challenge, one evidence-revision explanation, and a final recommendation defended against an alternative. Each has a response scaffold, timed challenge/response, specific feedback and an incomplete-evidence fallback.
+
+The five minutes of exchanges use the existing facilitated allowance alongside inject/synthesis dispatches. They introduce no new audio cue, answer, scoring criterion, submission, simulated outcome or controller behavior. Cells and spokespeople rotate; private observation notes feed the existing AAR. Readiness is based on the issued update deadline and actual evidence analysis, not an invented inject minute or a fixed team assignment. Human rehearsal is still needed to measure participation, pacing and whether the exchanges help.
