@@ -103,12 +103,20 @@ def registry_digest_for(image, details):
     image. That is the overwrite failure mode of issue #184. A digest-pinned
     FROM cannot be re-tagged over (docker refuses digest targets), so it is
     exempt from the check.
+
+    Docker Desktop may report the digest under an equivalent Docker Hub
+    spelling of the same repository (``ctfd/ctfd@sha256:...`` or
+    ``library/ubuntu@sha256:...`` instead of the canonical
+    ``docker.io/...`` form), so both sides are run through
+    ``_registry_repository`` before comparing. Normalization is exact at the
+    repository-path level: a digest from a genuinely different repository or
+    registry still proves nothing here.
     """
     if '@' in image:
         return ''
-    prefix = _registry_repository(image) + '@'
+    expected = _registry_repository(image)
     for digest in details.get('RepoDigests') or []:
-        if digest.startswith(prefix):
+        if _registry_repository(digest) == expected:
             return digest
     return None
 
