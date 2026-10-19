@@ -309,8 +309,12 @@ def install(bundle, destination, runner=None, load=True, free_bytes=None,
                     ('wazuh_config', 'wazuh-config'),
                 )
             },
-            'ports': {'crl': 8080, 'iris': 8081, 'ctfd': 8083, 'guac': 8082,
+            'ports': {'edge': 443, 'crl': 8080, 'iris': 8081, 'ctfd': 8083, 'guac': 8082,
                       'wazuh_dashboard': 8443, 'wazuh_indexer': 9200},
+            # Optional host-local override. Keep generated event-CA mode by
+            # default; organizers may set tls.mode=external after obtaining a
+            # pre-issued public certificate for the event hostnames.
+            'tls': {'mode': 'generated'},
             'index_name': 'silent-ridge-oct26',
         }
         (staging / 'runtime-local.example.json').write_text(

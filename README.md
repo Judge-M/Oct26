@@ -12,6 +12,63 @@ This repository contains the full event: the authored scenario and evidence,
 the tooling that builds and runs it, the participant materials, and the
 facilitator guides.
 
+## Start here
+
+### Event organizer: fastest supported path
+
+1. **Prepare the event network first.** Give the event host a stable LAN
+   address. For public HTTPS mode, configure the event network's DHCP to hand
+   out the event DNS service, with these names resolving to the event host:
+
+   ```text
+   ctfd.cyberexperts.org   192.168.1.200
+   iris.cyberexperts.org   192.168.1.200
+   guac.cyberexperts.org   192.168.1.200
+   wazuh.cyberexperts.org  192.168.1.200
+   ```
+
+   Use an event-owned router/access point when possible. Do not run a second
+   DHCP server on a shared venue network. If the venue DNS/DHCP cannot be
+   changed, use the hosts-file onboarding fallback described in
+   [public HTTPS certificates](docs/external-tls.md).
+2. **Install the offline release bundle** from the
+   [latest release](https://github.com/Judge-M/Oct26/releases). This is the
+   event-day path; source builds are for a connected preparation machine.
+3. **Configure the private runtime.** Copy the example runtime configuration,
+   set the host address and asset paths, and follow the
+   [event-day command sheet](docs/event-day-commands.md). If using the trusted
+   wildcard certificate, configure it before `up` using
+   [public HTTPS certificates](docs/external-tls.md). Never commit the private
+   key or runtime secrets.
+4. **Provision and start the event.** For fixed teams, run `up --teams N`.
+   For self-service registration, use `deployment/profiles/example-dynamic.json`
+   and do not pass `--teams`:
+
+   ```bash
+   python -m ridge.deploy doctor --profile PROFILE --runtime RUNTIME
+   python -m ridge.deploy up --profile PROFILE --runtime RUNTIME
+   python -m ridge.deploy status --profile PROFILE --runtime RUNTIME
+   python -m ridge.deploy start --profile PROFILE --runtime RUNTIME
+   ```
+
+5. **Put the registration page on the screen.** In trusted public HTTPS mode,
+   open `https://ctfd.cyberexperts.org/silent-ridge/register` (or the CTFd
+   hostname configured in `local.json`). If you want a friendlier `event.`
+   alias, add it to the local DNS records and TLS hostnames before `up`. In
+   generated-CA mode, use
+   `https://HOST:8083/silent-ridge/register` after distributing the participant
+   CA. The page contains the initial brief and gives each registered team a
+   bookmarkable handout with its credentials, tools, and three desktop links.
+
+### Participant: how to begin
+
+Connect to the event network, open the registration URL provided by the
+organizer, read the initial brief, and register one team. Bookmark the private
+retrieval link shown after registration. Use the three Guacamole desktop links
+for GUI-only tools; use the IRIS, CTFd, and Wazuh links directly in browser tabs.
+No software should be installed on participant laptops in the containerized
+desktop path.
+
 ## I want to run the event — where do I start?
 
 You do not need to know anything about how this project is built. You need

@@ -18,7 +18,7 @@ The runtime directory is private and gitignored. Layout::
       env/*.env                 rendered Compose environment (secret file refs + app env)
       specs/*.json              bootstrap/provisioning specs (contain passwords; private)
       guac-init/                001-initdb.sql (from the guacamole image) + 002-provision.sql
-      wazuh-certs/              local CA + node certs (generate-certs.sh output)
+      wazuh-certs/              local CA + node certs (and optional public edge certs)
       state/state.sqlite        exercise core state (paused by default)
       state/config.json         controller config materialized from discovered identities
       inventories/              IRIS/CTFd provisioning inventories (no passwords)
@@ -406,7 +406,38 @@ class LocalStack:
         for key in ('evidence_public', 'release_vault', 'case_template', 'originals', 'wazuh_config'):
             if not local.get('assets', {}).get(key):
                 raise LifecycleError('local.json assets.%s: required host path' % key)
+        self._validate_tls_config(local)
         return local
+
+    @staticmethod
+    def _validate_tls_config(local):
+        """Validate host-local edge TLS settings without accepting secrets in profiles.
+
+        The default remains the event CA.  ``external`` is intentionally a
+        local.json-only setting: certificate paths and private keys are host
+        material and must never become part of the versioned event profile.
+        """
+        tls = local.get('tls') or {}
+        if not isinstance(tls, dict):
+            raise LifecycleError('local.json tls: expected an object')
+        mode = tls.get('mode', 'generated')
+        if mode not in ('generated', 'external'):
+            raise LifecycleError('local.json tls.mode: expected generated or external')
+        if mode == 'generated':
+            return
+        for key in ('certificate', 'key'):
+            value = tls.get(key)
+            if not value or not Path(value).is_file():
+                raise LifecycleError('local.json tls.%s: required certificate material path' % key)
+        hosts = tls.get('hostnames')
+        required = ('iris', 'ctfd', 'guac', 'wazuh')
+        if not isinstance(hosts, dict) or any(not hosts.get(name) for name in required):
+            raise LifecycleError('local.json tls.hostnames: set iris, ctfd, guac and wazuh')
+        for name in required:
+            host = str(hosts[name])
+            if '://' in host or '/' in host or ':' in host or not re.fullmatch(
+                    r'[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?', host):
+                raise LifecycleError('local.json tls.hostnames.%s: expected a DNS hostname' % name)
 
     @property
     def secrets_dir(self):
@@ -443,6 +474,102 @@ class LocalStack:
 
     def port(self, name, default):
         return int(self.local.get('ports', {}).get(name, default))
+
+    def _tls_mode(self):
+        return (self.local.get('tls') or {}).get('mode', 'generated')
+
+    def _service_hosts(self):
+        bind = self._dashboard_bind_ip()
+        if self._tls_mode() != 'external':
+            return {name: bind for name in ('iris', 'ctfd', 'guac', 'wazuh')}
+        return {name: str(self.local['tls']['hostnames'][name])
+                for name in ('iris', 'ctfd', 'guac', 'wazuh')}
+
+    def _participant_ca_file(self):
+        # Publicly trusted edge certificates use the platform trust store.
+        # Wazuh's indexer and manager continue to use root-ca.pem internally.
+        return None if self._tls_mode() == 'external' else self.runtime / 'wazuh-certs' / 'root-ca.pem'
+
+    def _public_port(self, service, default):
+        return (self.port('edge', 443) if self._tls_mode() == 'external'
+                else self.port(service, default))
+
+    @staticmethod
+    def _public_url(host, port):
+        return 'https://%s' % host if port == 443 else 'https://%s:%d' % (host, port)
+
+    def _render_participant_tls_config(self):
+        """Render the edge proxy config for this host's TLS mode."""
+        target = self.runtime / 'participant-tls.conf'
+        if self._tls_mode() != 'external':
+            shutil.copyfile(COMPOSE_DIR / 'participant-tls.conf', target)
+            return target
+        hosts = self._service_hosts()
+        common = '''worker_processes auto;
+events { worker_connections 1024; }
+
+http {
+    include /etc/nginx/mime.types;
+    resolver 127.0.0.11 valid=10s ipv6=off;
+    map $http_upgrade $connection_upgrade {
+        default upgrade;
+        '' close;
+    }
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_certificate /etc/silent-ridge/participant.pem;
+    ssl_certificate_key /etc/silent-ridge/participant-key.pem;
+    client_max_body_size 128m;
+    proxy_set_header Host $http_host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Host $http_host;
+    proxy_set_header X-Forwarded-Proto https;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $connection_upgrade;
+    proxy_redirect off;
+    proxy_read_timeout 3600s;
+    proxy_send_timeout 3600s;
+
+    server {
+        listen 8080;
+        location = /root-ca.crl {
+            alias /etc/silent-ridge/root-ca.crl;
+            default_type application/pkix-crl;
+            add_header Cache-Control "no-store" always;
+        }
+        location / { return 404; }
+    }
+'''
+        blocks = {
+            hosts['iris']: 'http://iris:8000',
+            hosts['ctfd']: 'http://ctfd:8000',
+            hosts['guac']: 'http://guacamole:8080',
+        }
+        rendered = [common]
+        for hostname, upstream in blocks.items():
+            rendered.append('''    server {
+        listen 443 ssl;
+        server_name %s;
+        location / {
+            proxy_pass %s;
+        }
+    }
+''' % (hostname, upstream))
+        rendered.append('''    server {
+        listen 443 ssl;
+        server_name %s;
+        proxy_ssl_trusted_certificate /etc/silent-ridge/root-ca.pem;
+        proxy_ssl_verify on;
+        proxy_ssl_server_name on;
+        proxy_ssl_name wazuh-dashboard;
+        location / {
+            proxy_pass https://wazuh-dashboard:5601;
+        }
+    }
+}
+''' % hosts['wazuh'])
+        target.write_text(''.join(rendered), encoding='utf-8')
+        return target
 
     def _secret(self, name):
         path = self.secrets_dir / name
@@ -653,7 +780,8 @@ class LocalStack:
         # Host-side publish address is a host property, not the profile's container-side
         # central_bind_ip; default loopback, override via local.json "bind_ip".
         bind = self._dashboard_bind_ip()
-        public = {name: 'https://%s:%d' % (bind, ports[name])
+        hosts = self._service_hosts()
+        public = {name: self._public_url(hosts[name], self._public_port(name, ports[name]))
                   for name in ('iris', 'ctfd', 'guac', 'wazuh')}
         secrets = self.secrets_dir
         files = {}
@@ -703,7 +831,9 @@ class LocalStack:
             'RIDGE_IRIS_SECRET_FILE': secrets / 'ridge-iris-bridge',
             'RIDGE_CTFD_SECRET_FILE': secrets / 'ridge-ctfd-bridge',
             'PARTICIPANT_CERTS_DIR': self.runtime / 'wazuh-certs',
+            'PARTICIPANT_TLS_CONFIG': self._render_participant_tls_config(),
             'BIND_IP': bind,
+            'EDGE_PORT': str(self.port('edge', 443)),
             'CRL_PORT': str(ports['crl']),
             'IRIS_PORT': str(ports['iris']), 'CTFD_PORT': str(ports['ctfd']),
             'GUAC_PORT': str(ports['guac']),
@@ -732,6 +862,7 @@ class LocalStack:
             'WAZUH_ADMIN_SECRET_FILE': self.secrets_dir / 'wazuh_admin',
             'WAZUH_API_PASSWORD': self._wazuh_api_password(),
             'BIND_IP': bind,
+            'RIDGE_CENTRAL_NETWORK': self.event + '-central',
             'WAZUH_DASHBOARD_PORT': str(ports['wazuh']),
             'WAZUH_INDEXER_PORT': str(ports['wazuh_indexer']),
         }
@@ -1051,6 +1182,48 @@ class LocalStack:
                                  'bind_ip %s; preserve the current CA and certificates, '
                                  'then plan a certificate rotation for this address' % (name, bind))
 
+    def _install_external_edge_certificate(self, certs):
+        """Install and verify the public edge certificate for browser endpoints.
+
+        Only participant.pem and dashboard.pem are replaced.  The generated
+        root CA, manager, indexer and admin certificates remain available for
+        Wazuh's private backend trust graph.
+        """
+        tls = self.local['tls']
+        source_cert = Path(tls['certificate']).resolve()
+        source_key = Path(tls['key']).resolve()
+        for source, label in ((source_cert, 'certificate'), (source_key, 'key')):
+            if not source.is_file() or source.stat().st_size == 0:
+                raise LifecycleError('external TLS %s is missing or empty: %s' % (label, source))
+        shutil.copyfile(source_cert, certs / 'participant.pem')
+        shutil.copyfile(source_key, certs / 'participant-key.pem')
+        hosts = self._service_hosts()
+        for name in ('iris', 'ctfd', 'guac', 'wazuh'):
+            match = self._run([
+                'docker', 'run', '--rm', '--network', 'none', '--pull', 'never',
+                '-v', str(certs) + ':/certs:ro', '--entrypoint', 'openssl',
+                'wazuh/wazuh-manager:4.9.2', 'x509', '-in', '/certs/participant.pem',
+                '-noout', '-checkhost', hosts[name],
+            ], check=False)
+            if 'does match certificate' not in match:
+                raise LifecycleError('external TLS certificate does not cover hostname %s; '
+                                     'request a certificate containing every configured service '
+                                     'hostname' % hosts[name])
+        # Nginx will report a key mismatch, but fail early with an actionable
+        # message when the image can inspect both public files.
+        key_check = self._run([
+            'docker', 'run', '--rm', '--network', 'none', '--pull', 'never',
+            '-v', str(certs) + ':/certs:ro', '--entrypoint', 'sh',
+            'wazuh/wazuh-manager:4.9.2', '-ec',
+            "openssl x509 -in /certs/participant.pem -pubkey -noout | "
+            "openssl pkey -pubin -outform DER | sha256sum; "
+            "openssl pkey -in /certs/participant-key.pem -pubout -outform DER | sha256sum",
+        ], check=False)
+        hashes = [line.split()[0] for line in key_check.splitlines()
+                  if re.fullmatch(r'[0-9a-fA-F]{64}', line.split()[0] if line.split() else '')]
+        if len(hashes) != 2 or hashes[0].lower() != hashes[1].lower():
+            raise LifecycleError('external TLS certificate and private key do not match')
+
     def _verify_revocation_material(self, certs, bind):
         crl = certs / 'root-ca.crl'
         if not crl.is_file() or crl.stat().st_size == 0:
@@ -1097,9 +1270,13 @@ class LocalStack:
             '-v', str(certs) + ':/certs', '--entrypoint', 'bash',
             'wazuh/wazuh-manager:4.9.2', '/generate-certs.sh', '/certs', bind,
         ])
-        self._verify_public_certificate(certs, bind, 'dashboard')
-        self._verify_public_certificate(certs, bind, 'participant')
-        self._verify_revocation_material(certs, bind)
+        if self._tls_mode() == 'external':
+            self._install_external_edge_certificate(certs)
+            self._verify_public_certificate(certs, bind, 'dashboard')
+        else:
+            self._verify_public_certificate(certs, bind, 'dashboard')
+            self._verify_public_certificate(certs, bind, 'participant')
+            self._verify_revocation_material(certs, bind)
         guac_init = self.runtime / 'guac-init'
         guac_init.mkdir(parents=True, exist_ok=True)
         if not (guac_init / '001-initdb.sql').is_file():
@@ -1136,11 +1313,16 @@ class LocalStack:
         if not private_users.is_file():
             raise LifecycleError('missing private Wazuh indexer users at %s; restore the '
                                  'runtime or run up on a fresh deployment' % private_users)
-        for name in ('dashboard', 'participant'):
+        if self._tls_mode() == 'external':
+            self._install_external_edge_certificate(self.runtime / 'wazuh-certs')
             self._verify_public_certificate(self.runtime / 'wazuh-certs',
-                                            self._dashboard_bind_ip(), name)
-        self._verify_revocation_material(self.runtime / 'wazuh-certs',
-                                         self._dashboard_bind_ip())
+                                            self._dashboard_bind_ip(), 'dashboard')
+        else:
+            for name in ('dashboard', 'participant'):
+                self._verify_public_certificate(self.runtime / 'wazuh-certs',
+                                                self._dashboard_bind_ip(), name)
+            self._verify_revocation_material(self.runtime / 'wazuh-certs',
+                                             self._dashboard_bind_ip())
         for kind, services in INFRA_SERVICES.items():
             self._require_services(kind, services,
                                    allow_exit0=INFRA_ONE_SHOT.get(kind, ()))
@@ -1154,16 +1336,16 @@ class LocalStack:
     def _probe_applications(self):
         for kind, services in APP_SERVICES.items():
             self._require_services(kind, services)
-        bind = self._dashboard_bind_ip()
+        hosts = self._service_hosts()
         # A fresh CTFd database serves /setup until silent-ridge-provision runs
         # in the next stage. /login redirects there using its internal default
         # port, so requiring /login here would make first boot impossible.
         ctfd_path = ('/login' if (self.runtime / 'inventories' / 'ctfd-inventory.json').is_file()
                      else '/setup')
-        checks = (('https://%s:%d/login' % (bind, self.port('iris', 8081)), 'IRIS'),
-                  ('https://%s:%d%s' % (bind, self.port('ctfd', 8083), ctfd_path), 'CTFd'),
-                  ('https://%s:%d/guacamole/' % (bind, self.port('guac', 8082)), 'Guacamole'))
-        ca_file = self.runtime / 'wazuh-certs' / 'root-ca.pem'
+        checks = ((self._public_url(hosts['iris'], self._public_port('iris', 8081)) + '/login', 'IRIS'),
+                  (self._public_url(hosts['ctfd'], self._public_port('ctfd', 8083)) + ctfd_path, 'CTFd'),
+                  (self._public_url(hosts['guac'], self._public_port('guac', 8082)) + '/guacamole/', 'Guacamole'))
+        ca_file = self._participant_ca_file()
         for url, name in checks:
             status, _ = self.host.http_json('GET', url, ca_file=ca_file)
             if status != 200:
@@ -1226,10 +1408,10 @@ class LocalStack:
         if not self.discovered_path.is_file():
             raise LifecycleError('missing %s: discovered application IDs are not recorded; '
                                  'run up' % self.discovered_path)
-        bind = self._dashboard_bind_ip()
-        url = 'https://%s:%d/login' % (bind, self.port('ctfd', 8083))
+        hosts = self._service_hosts()
+        url = self._public_url(hosts['ctfd'], self._public_port('ctfd', 8083)) + '/login'
         status, _ = self.host.http_json('GET', url,
-                                        ca_file=self.runtime / 'wazuh-certs' / 'root-ca.pem')
+                                        ca_file=self._participant_ca_file())
         if status != 200:
             raise LifecycleError('provisioned CTFd login returned HTTP %s at %s' % (status, url))
         return {'inventories': 2}
@@ -1430,7 +1612,7 @@ class LocalStack:
 
     def _wazuh(self, method, base, path, credential, body=None, headers=None):
         status, payload = self.host.wazuh_request(
-            method, base + path, self.runtime / 'wazuh-certs' / 'root-ca.pem',
+            method, base + path, self._participant_ca_file(),
             credential, body, headers=headers)
         return status, payload
 
@@ -1467,8 +1649,8 @@ class LocalStack:
         # Reach the dashboard on the address it is actually published on. It is
         # bound to local.json's bind_ip, not necessarily loopback, so a hardcoded
         # 127.0.0.1 fails with ECONNREFUSED on a host that binds a LAN address.
-        dashboard = 'https://%s:%d' % (self._dashboard_bind_ip(),
-                                       self.port('wazuh_dashboard', 8443))
+        dashboard = self._public_url(self._service_hosts()['wazuh'],
+                                     self._public_port('wazuh', 8443))
         admin = self._secret('wazuh_admin')
         for view in saved_objects(applied['field_caps']):
             status, payload = self._wazuh(

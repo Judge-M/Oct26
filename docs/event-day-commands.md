@@ -107,8 +107,9 @@ a private retrieval link containing its IRIS, CTFd, and Guacamole credentials
 plus three role-specific desktop links. Do not hand out
 `R/secrets/team-credentials.json`; it remains an operator recovery artifact.
 
-After `up` generates the final certificates and before any participant login,
-run `python scripts/export_participant_ca.py --runtime R --output <new-pack>`.
+With the default generated TLS mode, after `up` generates the final
+certificates and before any participant login, run
+`python scripts/export_participant_ca.py --runtime R --output <new-pack>`.
 Follow [participant CA trust](participant-ca-trust.md): distribute the public
 certificate over a trusted offline channel, independently verify its SHA-256
 fingerprint on each client, and check that all four HTTPS URLs open without a
@@ -117,15 +118,23 @@ participant devices; it is the signed offline CRL embedded in every generated
 participant certificate. Do not ask participants to click through TLS warnings
 or disable revocation checks.
 
+For a pre-issued public certificate, follow
+[public HTTPS certificates](external-tls.md) before `up`, set `tls.mode` to
+`external` in the host-local `R/local.json`, and make the configured hostnames
+resolve to the event server's LAN address. No participant CA installation or
+Internet access is needed on event day; the certificate must already be valid
+and the names must resolve locally.
+
 ## 4. Start the event
 
 ```bash
 python -m ridge.deploy start --profile event-profile.json --runtime R
 ```
 
-Participant URLs (all in their own laptop browser):
+Participant URLs in generated-CA mode (all in their own laptop browser):
 `https://<LAN-IP>:8082` desktops · `:8081` IRIS · `:8083` CTFd ·
-`https://<LAN-IP>:8443` Wazuh.
+`https://<LAN-IP>:8443` Wazuh. In external public-TLS mode, all four use
+their configured hostnames on port 443; see [public HTTPS certificates](external-tls.md).
 Certificate revocation: `http://<LAN-IP>:8080/root-ca.crl` (signed CRL only).
 
 Opening briefing: project **`docs/event-day-deck/event-day-deck.pdf`**

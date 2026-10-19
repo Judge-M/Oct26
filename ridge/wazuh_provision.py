@@ -251,11 +251,19 @@ def record_id(record: dict[str, Any]) -> str:
 
 
 def ca_context(ca_file) -> ssl.SSLContext:
-    """Explicit local-CA trust. Verification is always enabled; never disabled."""
-    path = Path(ca_file)
-    if not path.is_file():
-        raise WazuhError('ca: CA bundle is missing at '+str(path))
-    context = ssl.create_default_context(cafile=str(path))
+    """Build a verifying context for either the event CA or public system roots.
+
+    ``None`` is used only when the public edge certificate mode is enabled. It
+    selects the platform trust store; verification is still enabled and no
+    insecure bypass is permitted.
+    """
+    if ca_file is None:
+        context = ssl.create_default_context()
+    else:
+        path = Path(ca_file)
+        if not path.is_file():
+            raise WazuhError('ca: CA bundle is missing at '+str(path))
+        context = ssl.create_default_context(cafile=str(path))
     context.check_hostname = True
     context.verify_mode = ssl.CERT_REQUIRED
     return context

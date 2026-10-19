@@ -512,6 +512,29 @@ class LifecycleTests(unittest.TestCase):
         self.assertIn('IRIS_PUBLIC_URL=https://192.168.1.200:8081', central_env)
         self.assertIn('CTFD_PUBLIC_URL=https://192.168.1.200:8083', central_env)
 
+    def test_external_tls_uses_public_hostnames_and_platform_trust(self):
+        certificate = self.runtime / 'public-fullchain.pem'
+        key = self.runtime / 'public-key.pem'
+        certificate.write_text('certificate', encoding='utf-8')
+        key.write_text('key', encoding='utf-8')
+        self.stack.local['tls'] = {
+            'mode': 'external',
+            'certificate': str(certificate),
+            'key': str(key),
+            'hostnames': {
+                'iris': 'iris.cyberexperts.org',
+                'ctfd': 'ctfd.cyberexperts.org',
+                'guac': 'guac.cyberexperts.org',
+                'wazuh': 'wazuh.cyberexperts.org',
+            },
+        }
+        self.assertEqual(self.stack._service_hosts()['ctfd'], 'ctfd.cyberexperts.org')
+        self.assertIsNone(self.stack._participant_ca_file())
+        rendered = self.stack._render_participant_tls_config().read_text(encoding='utf-8')
+        self.assertIn('listen 443 ssl;', rendered)
+        self.assertIn('server_name ctfd.cyberexperts.org;', rendered)
+        self.assertIn('proxy_pass https://wazuh-dashboard:5601;', rendered)
+
     def test_existing_dashboard_certificate_without_bind_address_fails_closed(self):
         self.stack.local['bind_ip'] = '192.168.1.200'
         self.runner.certificate_matches = False

@@ -7,6 +7,7 @@ These tests cover the vendored config, role/view payloads, idempotent apply,
 stable record IDs and TLS trust behavior.
 """
 import json
+import ssl
 import tempfile
 import unittest
 from pathlib import Path
@@ -230,6 +231,11 @@ class RecordAndTlsTests(unittest.TestCase):
             bogus.write_text('not a certificate', encoding='utf-8')
             with self.assertRaises(Exception):
                 ca_context(bogus)
+
+    def test_ca_context_can_use_platform_roots_for_public_edge_tls(self):
+        context = ca_context(None)
+        self.assertTrue(context.check_hostname)
+        self.assertEqual(context.verify_mode, ssl.CERT_REQUIRED)
 
 
 if __name__ == '__main__':
