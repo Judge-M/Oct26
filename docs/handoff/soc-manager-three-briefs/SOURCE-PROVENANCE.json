@@ -1,0 +1,17 @@
+{
+  "prepared_date": "2026-10-18",
+  "scope": "Three new scripts and a same-station audio-production handoff; no new audio or repo integration.",
+  "repo_path": "/home/ismaelrodriguez/Documents/Codex/2026-10-18/done-wrote-master-handoff-md-22/outputs/Oct26",
+  "repo_head": "214be8dc6b1f7daa405d8cb07a30f79b7b24affc",
+  "repo_has_preexisting_uncommitted_changes": true,
+  "source_files_sha256": {
+    "/home/ismaelrodriguez/Documents/Codex/2026-10-18/done-wrote-master-handoff-md-22/outputs/Oct26/facilitator/ground-truth.md": "ff91e870a4cfad2ada5b36ac2d9cd6f9e1645953676eeae2cd074311f2462b9c",
+    "/home/ismaelrodriguez/Documents/Codex/2026-10-18/done-wrote-master-handoff-md-22/outputs/Oct26/docs/learning-objectives.md": "8b19cb36e6137f54932832e7cdca65f0ef91fc131239fdd8be86f6dc46b93c18",
+    "/home/ismaelrodriguez/Documents/Codex/2026-10-18/done-wrote-master-handoff-md-22/outputs/Oct26/docs/facilitator-evidence-release.md": "d961d03e4107359838d9f393240ff5cd3903aaa35b40f3432f631c779b7c48f3",
+    "/home/ismaelrodriguez/Documents/Codex/2026-10-18/done-wrote-master-handoff-md-22/outputs/Oct26/docs/rehearsal/evidence/rehearsal-20261018/completed-rerun.md": "5aaab8a16f7250099bfab4e847866627d583125d9f37703a400861024ab94a90",
+    "/home/ismaelrodriguez/Documents/Codex/2026-10-18/done-wrote-master-handoff-md-22/outputs/Oct26/docs/handoff/audio-briefs/validate.py": "587d96152a47a81e25d1c1685fbde244c0700975d743e9405b4983420185fa5a"
+  },
+  "current_narration": "/home/ismaelrodriguez/Documents/Codex/2026-10-18/done-wrote-master-handoff-md-22/outputs/soc-manager-three-briefs/briefs.json",
+  "new_audio_produced": false,
+  "repository_files_changed_by_this_handoff_task": false
+}

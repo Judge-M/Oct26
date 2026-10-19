@@ -1,0 +1,16 @@
+{
+  "ANNOUNCE-TEXTS.json": "270cf20f5d56873bb7130d917313e29f2715600ec3567e77a3b7ac96bca814da",
+  "GIVE-TO-NEXT-AI.txt": "5795de91b052c73b3e306f74b60099d6669736f6e916308086f1c604d02ce28a",
+  "SOURCE-PROVENANCE.json": "ccbca6107d0f1fd656a4bd778e4893fa582eee9c35c342e92565704eb4b86e91",
+  "START-HERE.md": "e99ca5bb62879351378eae022545d9cfc1e89b3b56fe2bbba97439c8e0f77540",
+  "VALIDATION.md": "c26f4f92029b5734b073f7b511e01fcdc205c5f39d543210c7c67a8145503fca",
+  "briefs.json": "c9f48f5045c83cc9d79f4257bf1a1329ddff4e4dccaf08606eb205126a17802c",
+  "production-sheets/brief-01-arrival.md": "7ceb86a57b20563733bfdd6bbfdb21d52b4443a234823d094703145ad93fa0d0",
+  "production-sheets/brief-02-post-lunch.md": "3e4c05692a35a9a823686fade05eaf808b0bffcb5f7058349138e2742a7612ac",
+  "production-sheets/brief-03-final-approach.md": "b09629379c6c91790914eee10605976d849830391aa0c7e25faa6fe478087133",
+  "spoiler-audit.json": "a375a35b20e9b4fd23169aded3e19cd26a71f7f79ad3947980757c5ef8c693c6",
+  "spoken/brief-01-arrival.txt": "b4f02b82edc1b1f08f2f117d09f0542f9f6c0a51ddbb8306bef3102d0edafa49",
+  "spoken/brief-02-post-lunch.txt": "d5326668ddf00ded43c0c49ce99677b80daaf281349ee4672af984cf13a7b8a6",
+  "spoken/brief-03-final-approach.txt": "9a254454313b2744c36b000a758e8a543d7d444eb9f4ee11994b6782d85f089b",
+  "validate.py": "1119afad8e3b97caf0d68b7335e6b1431678ee975d74e5ecf38a85d2f51f9472"
+}

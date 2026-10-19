@@ -1,0 +1,13 @@
+Please produce the THREE Operation Silent Ridge audio briefs from this current handoff:
+
+/home/ismaelrodriguez/Documents/Codex/2026-10-18/done-wrote-master-handoff-md-22/outputs/soc-manager-three-briefs/START-HERE.md
+
+You are on the same station. Read the file directly. The canonical narration inputs are in:
+/home/ismaelrodriguez/Documents/Codex/2026-10-18/done-wrote-master-handoff-md-22/outputs/soc-manager-three-briefs/spoken/
+
+Use one ORIGINAL female SOC-manager voice: professional, warm, confident, conversational, with a lightly textured lower-middle register and natural American delivery. Follow the original-voice prompt and performance sheets. This supersedes the previous male voice and seven-brief plan.
+
+Make arrival, post-lunch restart, and the midpoint between post-lunch restart and ENDEX. Preserve the exact exercise notices, spoiler boundaries and full text echoes. Render clean and final audio plus listening copies, manifest and QA under:
+/home/ismaelrodriguez/Documents/Codex/2026-10-18/done-wrote-master-handoff-md-22/outputs/soc-manager-three-briefs/recordings/
+
+Preserve existing user WAVs and uncommitted repository files. The old player still expects seven cues; follow the handoff's coordinated integration instructions if updating it. Do not change evidence release or scoring. Report actual recordings and performed checks accurately. The handoff contains all full paths, exact scripts and acceptance requirements.

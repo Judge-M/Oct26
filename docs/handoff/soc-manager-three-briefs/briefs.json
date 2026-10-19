@@ -1,0 +1,65 @@
+[
+  {
+    "id": "01",
+    "stem": "brief-01-arrival",
+    "title": "Arrival — take the watch",
+    "speaker": "Original female SOC manager; EXCON call sign",
+    "trigger_kind": "agenda",
+    "trigger": "At the arrival/opening welcome, once the room is assembled, before investigation begins. Follow the issued event agenda.",
+    "ticket": null,
+    "requires": [],
+    "release_files": [],
+    "learning_objectives": [
+      "LO2",
+      "LO7",
+      "LO8"
+    ],
+    "text": "All stations, this is EXCON.\n\nMorning, everyone. I'm your SOC manager for Silent Ridge. Get settled, and let's take the watch.\n\nWe're picking up at zero-nine-three-zero Zulu, exercise time. Patrol LANTERN is already in the field. We suspect its movement details have been disclosed. No harm is confirmed. We need a careful assessment of what happened and what needs attention.\n\nYour evidence comes from endpoints, network traffic, identity records, document services, and security monitoring exports. Work together. Share the source behind a finding, your confidence in it, and the uncertainty that still matters.\n\nIf another cell sees it differently, hear them out. Changing your mind when the evidence changes is part of the job. I'd rather you raise a useful question early than leave the next cell guessing.\n\nKeep this read-only. Preserve the evidence. Do not contact, track, or direct real personnel. No attack is required. Send recommendations to the controller. Command decides any patrol response.\n\nAll right. Let's get to work.\n\nGood hunting. EXCON, out.\n\nAll names, hosts, addresses and artifacts are fictional exercise material. Nothing here is a real system or person.\nOPERATION SILENT RIDGE — EXERCISE ONLY.\n",
+    "words": 189,
+    "estimated_seconds_at_140_wpm": 81,
+    "performance_direction": "Begin with a small, welcoming smile. Become focused at the patrol premise. Keep the safety instructions clear and steady. End as a manager handing the work to people she trusts.",
+    "text_sha256": "b4f02b82edc1b1f08f2f117d09f0542f9f6c0a51ddbb8306bef3102d0edafa49"
+  },
+  {
+    "id": "02",
+    "stem": "brief-02-post-lunch",
+    "title": "Post-lunch — rebuild the shared picture",
+    "speaker": "Original female SOC manager; EXCON call sign",
+    "trigger_kind": "agenda",
+    "trigger": "At the actual post-lunch restart, before teams return to investigation. Independent of ticket completion or evidence release.",
+    "ticket": null,
+    "requires": [],
+    "release_files": [],
+    "learning_objectives": [
+      "LO2",
+      "LO7",
+      "LO8"
+    ],
+    "text": "All stations, this is EXCON.\n\nWelcome back, everyone. Let's get our heads back in the room.\n\nBefore we disappear into our own tabs, take a moment with the shared findings. What can you support? What are you still assessing? What remains open? Check the evidence currently available to you.\n\nGive another cell a short update: your strongest finding, the source behind it, and the uncertainty that matters most. Let them challenge one claim. Walk them through your reasoning, and revise it if you need to.\n\nIf you're stuck, say where. Someone else may have the piece you're missing. Agree your next useful step together.\n\nKeep the investigation read-only, and send recommendations to the controller. Let's keep each other in the picture.\n\nGood hunting. EXCON, out.\n\nAll names, hosts, addresses and artifacts are fictional exercise material. Nothing here is a real system or person.\nOPERATION SILENT RIDGE — EXERCISE ONLY.\n",
+    "words": 148,
+    "estimated_seconds_at_140_wpm": 63,
+    "performance_direction": "Sound like you are bringing colleagues back together after a break. Give the tabs line a small smile, without waiting for a laugh. Make the questions curious and the invitation to ask for help reassuring.",
+    "text_sha256": "d5326668ddf00ded43c0c49ce99677b80daaf281349ee4672af984cf13a7b8a6"
+  },
+  {
+    "id": "03",
+    "stem": "brief-03-final-approach",
+    "title": "Final approach — defend the assessment",
+    "speaker": "Original female SOC manager; EXCON call sign",
+    "trigger_kind": "agenda",
+    "trigger": "Halfway between the actual post-lunch restart R and planned ENDEX E: R + (E - R)/2. Use the issued agenda; this is not the midpoint of the whole event. Recalculate if the organizer changes the agenda. Deliver before ENDEX even if analysis is incomplete.",
+    "ticket": null,
+    "requires": [],
+    "release_files": [],
+    "learning_objectives": [
+      "LO5",
+      "LO7",
+      "LO8"
+    ],
+    "text": "All stations, this is EXCON.\n\nAll right, everyone. Let's bring the pieces together.\n\nWe've still got time to do useful work. Start shaping the assessment you can defend with the evidence you have.\n\nWhat can you support as disclosed? What remains unproven? If you can't establish something yet, say so. I need to understand how sure you are, and why.\n\nRecommend a proportionate containment response. Explain the evidence behind it, an alternative you considered, and the tradeoff for disruption or evidence preservation. What would change your mind?\n\nAnother cell will challenge your reasoning. Give them room to do that. Work through the challenge, and revise the assessment if it changes your view.\n\nKeep this read-only. Send your technical assessment to the controller. Command decides any patrol response.\n\nKeep talking to each other. Let's make the remaining time count.\n\nGood hunting. EXCON, out.\n\nAll names, hosts, addresses and artifacts are fictional exercise material. Nothing here is a real system or person.\nOPERATION SILENT RIDGE — EXERCISE ONLY.\n",
+    "words": 165,
+    "estimated_seconds_at_140_wpm": 71,
+    "performance_direction": "Slightly more focused, with the same warmth. Leave a beat after each question. Sound interested in their reasoning. The ending encourages continued work; it is not a stand-down.",
+    "text_sha256": "9a254454313b2744c36b000a758e8a543d7d444eb9f4ee11994b6782d85f089b"
+  }
+]

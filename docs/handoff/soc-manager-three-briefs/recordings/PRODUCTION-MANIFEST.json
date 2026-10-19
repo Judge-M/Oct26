@@ -1,0 +1,57 @@
+{
+  "title": "Operation Silent Ridge \u2014 SOC manager briefs (3)",
+  "produced": "2026-10-18",
+  "voice": "Original adult female SOC manager (Jennifer Lawrence voice clone)",
+  "voice_source": "https://www.youtube.com/watch?v=A11QW8ahsDU (Behind-the-scenes interview), clean window ~25.4-35.3s",
+  "engine": "Resemble AI Chatterbox (open source), full 500M English model, CPU",
+  "generation_params": {
+    "cfg_weight": 0.3,
+    "exaggeration": 0.4,
+    "temperature": 0.9
+  },
+  "processing": "2-pass loudnorm to -16 LUFS / TP -1.5 dBTP; no pitch-shift or filters (preserve warmth). PerTh watermark embedded by Chatterbox.",
+  "pronunciation_layer": "SOC->'sock', EXCON->'ex con', ENDEX->'end ex', LANTERN->'Lantern', Zulu->'zoo loo', zero-nine-three-zero->'zero nine three zero'; canonical texts unchanged.",
+  "chunking": "paragraph-boundary chunks <=55 words (model caps at 1000 speech tokens ~40s).",
+  "briefs": [
+    {
+      "stem": "brief-01-arrival",
+      "clean_master": "recordings/clean/brief-01-arrival.wav",
+      "clean_duration_s": 71.8,
+      "final_wav": "recordings/final/brief-01-arrival.wav",
+      "final_duration_s": 71.8,
+      "final_format": "WAV PCM 16-bit, 48 kHz, mono",
+      "integrated_lufs": -16.5,
+      "true_peak_dbfs": -1.5,
+      "mp3": "recordings/mp3/brief-01-arrival.mp3",
+      "source_text_sha256": "b4f02b82edc1b1f08f2f117d09f0542f9f6c0a51ddbb8306bef3102d0edafa49",
+      "final_audio_sha256": "8d999ab3e54ed69aa62f65e546adde7f58a282857fe3f8c01c69c3fe287b225b"
+    },
+    {
+      "stem": "brief-02-post-lunch",
+      "clean_master": "recordings/clean/brief-02-post-lunch.wav",
+      "clean_duration_s": 49.76,
+      "final_wav": "recordings/final/brief-02-post-lunch.wav",
+      "final_duration_s": 49.76,
+      "final_format": "WAV PCM 16-bit, 48 kHz, mono",
+      "integrated_lufs": -16.3,
+      "true_peak_dbfs": -1.5,
+      "mp3": "recordings/mp3/brief-02-post-lunch.mp3",
+      "source_text_sha256": "d5326668ddf00ded43c0c49ce99677b80daaf281349ee4672af984cf13a7b8a6",
+      "final_audio_sha256": "6acc6e7e048ca7a50a4c836d07c36208b95940715625804d7e4eb49a23b79f1e"
+    },
+    {
+      "stem": "brief-03-final-approach",
+      "clean_master": "recordings/clean/brief-03-final-approach.wav",
+      "clean_duration_s": 55.9,
+      "final_wav": "recordings/final/brief-03-final-approach.wav",
+      "final_duration_s": 55.9,
+      "final_format": "WAV PCM 16-bit, 48 kHz, mono",
+      "integrated_lufs": -16.5,
+      "true_peak_dbfs": -1.5,
+      "mp3": "recordings/mp3/brief-03-final-approach.mp3",
+      "source_text_sha256": "9a254454313b2744c36b000a758e8a543d7d444eb9f4ee11994b6782d85f089b",
+      "final_audio_sha256": "9f733d33471d378e7f727bf7bd3b3a8e6b9b1aa719112435515ef608bc159c22"
+    }
+  ],
+  "not_tested": "Human listening acceptance and browser playback; no ASR available for automated word-check."
+}
