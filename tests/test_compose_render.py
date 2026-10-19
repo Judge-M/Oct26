@@ -134,7 +134,8 @@ class ComposeAuditTests(unittest.TestCase):
             self.assertNotIn('ports', central['services'][service])
         self.assertNotIn('ports', guac['services']['guacamole'])
         proxy = central['services']['participant-tls']
-        self.assertEqual(len(proxy['ports']), 4)
+        self.assertEqual(len(proxy['ports']), 5)
+        self.assertTrue(any(':${EDGE_PORT:-443}:443' in port for port in proxy['ports']))
         self.assertIn('participant.pem', ' '.join(proxy['volumes']))
         self.assertIn('root-ca.crl', ' '.join(proxy['volumes']))
         self.assertTrue(any(':${CRL_PORT:-8080}:8080' in port for port in proxy['ports']))

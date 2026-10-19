@@ -141,7 +141,7 @@ services:
       - ${WAZUH_CONFIG_DIR:?Set vendored Wazuh config directory}/wazuh_dashboard/opensearch_dashboards.yml:/usr/share/wazuh-dashboard/config/opensearch_dashboards.yml:ro
     ports:
       - ${BIND_IP:-127.0.0.1}:${WAZUH_DASHBOARD_PORT:-8443}:5601
-    networks: [wazuh-backend, frontend]
+    networks: [wazuh-backend, frontend, central]
     depends_on:
       wazuh-dashboard-certs-init: {condition: service_completed_successfully}
       wazuh-indexer: {condition: service_healthy}
@@ -161,3 +161,6 @@ networks:
   wazuh-backend:
     internal: true
   frontend:
+  central:
+    external: true
+    name: ${RIDGE_CENTRAL_NETWORK:?Set shared central network for participant edge proxy}
