@@ -21,6 +21,17 @@ Measure the current host; do not assume Docker, a hypervisor or credentials are
 missing because another agent said so. Distinguish CLI availability, daemon
 availability, image availability and an actually running healthy application.
 
+## Commit attribution
+
+For organizer-authorized agent work, use the repository-local commit identity
+`Matt Judge <233139535+Judge-M@users.noreply.github.com>`. Check
+`git var GIT_AUTHOR_IDENT` and `git var GIT_COMMITTER_IDENT` before committing.
+Do not substitute a shared agent email such as `hermes@nousresearch.com`: GitHub
+may associate it with an unrelated account. Configure this repository only, not
+the user's global Git identity. Preserve other contributors' authorship and do
+not rewrite published commits merely to repair display attribution without the
+organizer's explicit approval for that history rewrite.
+
 ## Work one dependency at a time
 
 - Select exactly one task. Finish its implementation, required build and checks
