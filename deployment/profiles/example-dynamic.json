@@ -1,0 +1,241 @@
+{
+  "schema_version": 1,
+  "profile_kind": "example",
+  "profile_id": "example-dynamic",
+  "provider": "local",
+  "event": {
+    "id": "ridge-oct26-dynamic",
+    "release_id": "silent-ridge-expanded-1",
+    "incident_date": "2026-10-15",
+    "event_start": "2026-10-26T09:00:00-04:00",
+    "duration_minutes": 360,
+    "activity_minutes": 360,
+    "timezone": "America/New_York"
+  },
+  "registration": {
+    "enabled": true,
+    "max_teams": 10,
+    "members_per_team": 5,
+    "desktops_per_team": 3
+  },
+  "desktops": [
+    {
+      "name": "desktop-slot01",
+      "address": "172.18.0.11",
+      "shared": true,
+      "max_connections": 5
+    },
+    {
+      "name": "desktop-slot02",
+      "address": "172.18.0.12",
+      "shared": true,
+      "max_connections": 5
+    },
+    {
+      "name": "desktop-slot03",
+      "address": "172.18.0.13",
+      "shared": true,
+      "max_connections": 5
+    },
+    {
+      "name": "desktop-slot04",
+      "address": "172.18.0.14",
+      "shared": true,
+      "max_connections": 5
+    },
+    {
+      "name": "desktop-slot05",
+      "address": "172.18.0.15",
+      "shared": true,
+      "max_connections": 5
+    },
+    {
+      "name": "desktop-slot06",
+      "address": "172.18.0.16",
+      "shared": true,
+      "max_connections": 5
+    },
+    {
+      "name": "desktop-slot07",
+      "address": "172.18.0.17",
+      "shared": true,
+      "max_connections": 5
+    },
+    {
+      "name": "desktop-slot08",
+      "address": "172.18.0.18",
+      "shared": true,
+      "max_connections": 5
+    },
+    {
+      "name": "desktop-slot09",
+      "address": "172.18.0.19",
+      "shared": true,
+      "max_connections": 5
+    },
+    {
+      "name": "desktop-slot10",
+      "address": "172.18.0.20",
+      "shared": true,
+      "max_connections": 5
+    },
+    {
+      "name": "desktop-slot11",
+      "address": "172.18.0.21",
+      "shared": true,
+      "max_connections": 5
+    },
+    {
+      "name": "desktop-slot12",
+      "address": "172.18.0.22",
+      "shared": true,
+      "max_connections": 5
+    },
+    {
+      "name": "desktop-slot13",
+      "address": "172.18.0.23",
+      "shared": true,
+      "max_connections": 5
+    },
+    {
+      "name": "desktop-slot14",
+      "address": "172.18.0.24",
+      "shared": true,
+      "max_connections": 5
+    },
+    {
+      "name": "desktop-slot15",
+      "address": "172.18.0.25",
+      "shared": true,
+      "max_connections": 5
+    },
+    {
+      "name": "desktop-slot16",
+      "address": "172.18.0.26",
+      "shared": true,
+      "max_connections": 5
+    },
+    {
+      "name": "desktop-slot17",
+      "address": "172.18.0.27",
+      "shared": true,
+      "max_connections": 5
+    },
+    {
+      "name": "desktop-slot18",
+      "address": "172.18.0.28",
+      "shared": true,
+      "max_connections": 5
+    },
+    {
+      "name": "desktop-slot19",
+      "address": "172.18.0.29",
+      "shared": true,
+      "max_connections": 5
+    },
+    {
+      "name": "desktop-slot20",
+      "address": "172.18.0.30",
+      "shared": true,
+      "max_connections": 5
+    },
+    {
+      "name": "desktop-slot21",
+      "address": "172.18.0.31",
+      "shared": true,
+      "max_connections": 5
+    },
+    {
+      "name": "desktop-slot22",
+      "address": "172.18.0.32",
+      "shared": true,
+      "max_connections": 5
+    },
+    {
+      "name": "desktop-slot23",
+      "address": "172.18.0.33",
+      "shared": true,
+      "max_connections": 5
+    },
+    {
+      "name": "desktop-slot24",
+      "address": "172.18.0.34",
+      "shared": true,
+      "max_connections": 5
+    },
+    {
+      "name": "desktop-slot25",
+      "address": "172.18.0.35",
+      "shared": true,
+      "max_connections": 5
+    },
+    {
+      "name": "desktop-slot26",
+      "address": "172.18.0.36",
+      "shared": true,
+      "max_connections": 5
+    },
+    {
+      "name": "desktop-slot27",
+      "address": "172.18.0.37",
+      "shared": true,
+      "max_connections": 5
+    },
+    {
+      "name": "desktop-slot28",
+      "address": "172.18.0.38",
+      "shared": true,
+      "max_connections": 5
+    },
+    {
+      "name": "desktop-slot29",
+      "address": "172.18.0.39",
+      "shared": true,
+      "max_connections": 5
+    },
+    {
+      "name": "desktop-slot30",
+      "address": "172.18.0.40",
+      "shared": true,
+      "max_connections": 5
+    }
+  ],
+  "capacity": {
+    "host": {
+      "vcpus": 32,
+      "memory_mib": 131072,
+      "disk_gib": 1200
+    },
+    "central": {
+      "vcpus": 6,
+      "memory_mib": 8192,
+      "disk_gib": 250
+    },
+    "desktop": {
+      "vcpus": 1,
+      "memory_mib": 2048,
+      "disk_gib": 20
+    }
+  },
+  "addresses": {
+    "central_bind_ip": "192.0.2.10",
+    "iris_public_url": "https://iris.example.invalid",
+    "ctfd_public_url": "https://ctfd.example.invalid",
+    "guacamole_public_url": "https://guacamole.example.invalid"
+  },
+  "secret_refs": {
+    "iris_bridge": "file:/etc/silent-ridge/secrets/iris-bridge",
+    "ctfd_bridge": "file:/etc/silent-ridge/secrets/ctfd-bridge",
+    "guac_database": "file:/etc/silent-ridge/secrets/guac-database"
+  },
+  "retention": {
+    "backup_days": 30,
+    "export_days": 30,
+    "min_free_bytes": 1073741824
+  },
+  "spending": {
+    "ttl_hours": 72,
+    "budget_usd": 0,
+    "currency": "USD"
+  }
+}

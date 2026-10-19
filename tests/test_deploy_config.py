@@ -10,6 +10,7 @@ from ridge.deploy.config import (ProfileError, apply_team_override, desired_inve
 ROOT = Path(__file__).resolve().parents[1]
 TWO = json.loads((ROOT / 'deployment/profiles/example-two-team.json').read_text(encoding='utf-8'))
 TEN = json.loads((ROOT / 'deployment/profiles/example-ten-team-aws.json').read_text(encoding='utf-8'))
+DYNAMIC = json.loads((ROOT / 'deployment/profiles/example-dynamic.json').read_text(encoding='utf-8'))
 
 
 def production(profile):
@@ -32,6 +33,12 @@ class DeployProfileTests(unittest.TestCase):
         for team in ten['roster']['teams']:
             self.assertNotIn('iris', team)
             self.assertNotIn('ctfd', team)
+
+    def test_dynamic_profile_reserves_a_three_desktop_pool(self):
+        normalized = validate(DYNAMIC)
+        self.assertEqual(normalized['roster']['teams'], [])
+        self.assertEqual(normalized['registration']['max_teams'], 10)
+        self.assertEqual(len(normalized['desktops']), 30)
 
     def test_neutral_roster_and_accounts_generated(self):
         teams = neutral_roster(3)

@@ -68,6 +68,7 @@ class BootstrapSpec:
     closed_status: str
     identities: tuple[IdentitySpec, ...]
     schema: str = 'iris-2.4.20'
+    registration_enabled: bool = False
 
 
 def _require(spec: BootstrapSpec) -> None:
@@ -75,7 +76,7 @@ def _require(spec: BootstrapSpec) -> None:
                  'open_status', 'closed_status', 'schema'):
         if not getattr(spec, name):
             raise BootstrapError('Missing required field: '+name)
-    if not spec.identities:
+    if not spec.identities and not spec.registration_enabled:
         raise BootstrapError('At least one identity is required')
     seen = set()
     for identity in spec.identities:

@@ -21,6 +21,8 @@ PROVIDERS = ('local', 'aws')
 PROFILE_KINDS = ('example', 'production')
 DEFAULT_TEAM_COUNT = 10
 DEFAULT_MEMBERS = 3
+DEFAULT_REGISTRATION_MEMBERS = 5
+DEFAULT_REGISTRATION_DESKTOPS = 3
 
 SECRET_REF = re.compile(r'^(env|file|vault|ref):[A-Za-z0-9_./@-]+$')
 SECRET_KEY = re.compile(r'password|secret|token|api[_-]?key|access[_-]?key|private[_-]?key|credential', re.I)
@@ -176,6 +178,29 @@ def _validate_desktops(profile, profile_kind):
     return result
 
 
+def _validate_registration(profile):
+    registration = profile.get('registration', {})
+    if registration is None:
+        registration = {}
+    if not isinstance(registration, dict):
+        _fail('registration', 'must be an object')
+    enabled = registration.get('enabled', False)
+    if not isinstance(enabled, bool):
+        _fail('registration.enabled', 'must be a boolean')
+    max_teams = registration.get('max_teams', DEFAULT_TEAM_COUNT)
+    members = registration.get('members_per_team', DEFAULT_REGISTRATION_MEMBERS)
+    desktops = registration.get('desktops_per_team', DEFAULT_REGISTRATION_DESKTOPS)
+    if not isinstance(max_teams, int) or isinstance(max_teams, bool) or not 1 <= max_teams <= 10:
+        _fail('registration.max_teams', 'must be an integer between 1 and 10')
+    if not isinstance(members, int) or isinstance(members, bool) or not 1 <= members <= 10:
+        _fail('registration.members_per_team', 'must be an integer between 1 and 10')
+    if desktops != DEFAULT_REGISTRATION_DESKTOPS:
+        _fail('registration.desktops_per_team', 'must be exactly 3')
+    result = dict(registration, enabled=enabled, max_teams=max_teams,
+                  members_per_team=members, desktops_per_team=desktops)
+    return result
+
+
 def neutral_accounts(team_name, members=DEFAULT_MEMBERS):
     """Neutral participant account names for a team with no supplied roster."""
     return ['%s-p%02d' % (team_name, index + 1) for index in range(members)]
@@ -221,7 +246,15 @@ def apply_team_override(profile, team_count):
     return result
 
 
-def _validate_roster(profile, desktops):
+def _validate_roster(profile, desktops, registration=None):
+    if registration and registration.get('enabled'):
+        supplied = profile.get('roster')
+        if supplied and (not isinstance(supplied, dict) or supplied.get('teams')):
+            _fail('roster', 'must be omitted when dynamic registration is enabled')
+        needed = registration['max_teams'] * registration['desktops_per_team']
+        if len(desktops) < needed:
+            _fail('desktops', 'dynamic registration requires at least %d desktop slots' % needed)
+        return {'team_count': 0, 'teams': []}
     desktop_names = [desktop['name'] for desktop in desktops]
     roster = profile.get('roster')
     if not roster or not roster.get('teams'):
@@ -387,16 +420,23 @@ def validate(profile, kind=None):
     _assert_no_fixed_ids(profile)
     _validate_event(profile)
     capacity = _validate_capacity(profile)
+    registration = _validate_registration(profile)
     desktops = _validate_desktops(profile, profile_kind)
-    roster = _validate_roster(profile, desktops)
+    roster = _validate_roster(profile, desktops, registration)
     _validate_addresses(profile, profile_kind)
     _validate_secrets(profile)
     _validate_retention(profile)
     _validate_spending(profile)
-    _check_capacity(capacity, roster)
+    effective_roster = roster
+    if registration['enabled']:
+        effective_roster = {'teams': [
+            {'name': 'registration-slot-%02d' % (index + 1)}
+            for index in range(registration['max_teams'])]}
+    _check_capacity(capacity, effective_roster)
     normalized = deepcopy(profile)
     normalized['profile_kind'] = profile_kind
     normalized['roster'] = roster
+    normalized['registration'] = registration
     return normalized
 
 

@@ -9,10 +9,12 @@ database, including the facilitator's real login and administrator page.
 """
 import click
 import json
+import os
 from pathlib import Path
 
 from ridge.ctfd_provision import (FacilitatorSpec, ProvisionSpec, TeamSpec, UserSpec,
                                   preflight, provision)
+from ridge.registration import RegistrationConfig, RegistrationStore
 
 SCHEMA = 'ctfd-3.7.7'
 
@@ -116,3 +118,48 @@ def register(app):
         ready = preflight(admin, spec, result)
         inventory.write_text(json.dumps({'inventory': result, 'preflight': ready}, indent=2), encoding='utf-8')
         print(json.dumps(ready))
+
+    @app.cli.command('silent-ridge-register')
+    @click.option('--registration-id', required=True, type=int)
+    def silent_ridge_register(registration_id):
+        """Create one CTFd team and its five memberships from the allocator."""
+        store = RegistrationStore(
+            os.environ.get('RIDGE_REGISTRATION_DB', '/registration/registrations.sqlite'),
+            RegistrationConfig(
+                max_teams=int(os.environ.get('RIDGE_REGISTRATION_MAX_TEAMS', '10')),
+                members_per_team=int(os.environ.get('RIDGE_REGISTRATION_MEMBERS', '5'))))
+        registration = store.get_by_id(registration_id, include_private=True)
+        if registration['status'] not in ('provisioning', 'ready'):
+            raise click.ClickException('registration is not being provisioned')
+        credentials = registration['credentials']['ctfd']
+        admin = OrmAdmin()
+        from CTFd.models import db
+        try:
+            team = admin.find_team(registration['team_name'])
+            if team is None:
+                team = admin.create_team(registration['team_name'], credentials['password'])
+            team_id = int(team['id'])
+            users = []
+            for member in credentials['members']:
+                user = _find_or_create_user_for_registration(admin, member, team_id)
+                users.append({'id': int(user['id']), 'name': user['name']})
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            raise
+        print(json.dumps({'team_id': team_id, 'team_name': registration['team_name'],
+                          'users': users}))
+
+
+def _find_or_create_user_for_registration(admin, member, team_id):
+    """Idempotent helper used by the host registration worker."""
+    existing = admin.find_user(member['username'])
+    if existing is not None:
+        if admin.user_team(int(existing['id'])) != team_id:
+            raise click.ClickException('participant login belongs to another team')
+        return existing
+    created = admin.create_user(member['username'],
+                                member['username'] + '@silent-ridge.invalid',
+                                member['password'])
+    admin.set_user_team(int(created['id']), team_id)
+    return created

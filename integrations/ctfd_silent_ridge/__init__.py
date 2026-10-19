@@ -14,12 +14,74 @@ from CTFd.utils.user import get_current_user, is_admin
 from ridge.transport import bridge, secret, TRANSPORT_ERRORS
 from ridge.narrative import participant_context
 from ridge.web import PAGE, queue_state
+from ridge.registration import (RegistrationConfig, RegistrationError,
+                                 RegistrationStore, desktop_handout)
 
 
 class RidgeCredit(db.Model):
     __tablename__ = 'silent_ridge_credits'
     key = db.Column(db.String(200), primary_key=True)
     award_id = db.Column(db.Integer, db.ForeignKey('awards.id'), nullable=False)
+
+
+REGISTRATION_PAGE = r'''
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Operation Silent Ridge — team registration</title>
+<style>
+body{font:16px system-ui,sans-serif;max-width:960px;margin:2rem auto;padding:0 1rem;color:#17212b}
+main{border:1px solid #ccd6df;border-radius:12px;padding:2rem;box-shadow:0 4px 18px #0001}
+h1{margin-top:0}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem}
+.card{background:#f4f7fa;border-radius:8px;padding:1rem}.error{background:#fee9e7;color:#8c1d18;padding:1rem;border-radius:8px}
+label{display:block;font-weight:600;margin:.8rem 0}.field{display:block;width:100%;box-sizing:border-box;padding:.65rem;border:1px solid #aab7c4;border-radius:6px;font-size:1rem}
+button{margin-top:1rem;padding:.7rem 1.2rem;border:0;border-radius:6px;background:#1257a6;color:#fff;font-weight:700;cursor:pointer}
+code{background:#eef1f4;padding:.15rem .3rem;border-radius:4px}.secret{font-family:ui-monospace,monospace;background:#fff6cf;padding:.15rem .3rem}
+table{border-collapse:collapse;width:100%}td,th{border-bottom:1px solid #d7dee5;text-align:left;padding:.55rem}
+</style></head><body><main>
+{% if view == 'register' %}
+<h1>Operation Silent Ridge</h1>
+<p><strong>Team registration</strong></p>
+<p>Welcome to the incident-response exercise. Register your team once. The event
+will assign three isolated GUI workstations and create the CTFd, IRIS, and
+Guacamole logins your team needs. Keep the retrieval link: it is your team's
+persistent handout.</p>
+<div class="grid">
+  <div class="card"><strong>Browser services</strong><br>IRIS, CTFd, and Wazuh run from your own laptop browser.</div>
+  <div class="card"><strong>Three GUI workstations</strong><br>Two Autopsy seats plus one Wireshark/Cutter/Linux seat.</div>
+  <div class="card"><strong>Five seats</strong><br>Each team receives five participant CTFd accounts.</div>
+</div>
+{% if error %}<p class="error">{{ error }}</p>{% endif %}
+<form method="post">
+<input type="hidden" name="nonce" value="{{ nonce }}">
+<label>Team name<input class="field" name="team_name" maxlength="48" required value="{{ team_name }}"></label>
+<label>Captain / facilitator contact<input class="field" name="captain_name" maxlength="48" required value="{{ captain_name }}"></label>
+<button type="submit">Reserve our team</button>
+</form>
+{% elif view == 'pending' %}
+<h1>{{ registration.team_name }}</h1><p>Your team slot is reserved. The event host is starting your three workstations and creating the application accounts.</p>
+<p>Status: <strong>{{ registration.status }}</strong>. Refresh this page in a few seconds.</p>
+<p>Your retrieval path is <code>{{ retrieve_path }}</code>. Bookmark it.</p>
+<meta http-equiv="refresh" content="5">
+{% elif view == 'ready' %}
+<h1>{{ registration.team_name }} — team handout</h1>
+<p>Registration is complete. Bookmark this page. Do not post these passwords in a public chat.</p>
+<h2>Browser services</h2>
+<table><tr><th>Service</th><th>URL</th><th>Username</th><th>Password</th></tr>
+<tr><td>IRIS</td><td><a href="{{ iris_url }}">{{ iris_url }}</a></td><td><code>{{ credentials.iris.username }}</code></td><td><span class="secret">{{ credentials.iris.password }}</span></td></tr>
+<tr><td>CTFd team</td><td><a href="{{ ctfd_url }}">{{ ctfd_url }}</a></td><td><code>{{ credentials.ctfd.team }}</code></td><td><span class="secret">{{ credentials.ctfd.password }}</span></td></tr>
+</table>
+<h2>Participant CTFd seats</h2>
+<table><tr><th>Seat</th><th>Username</th><th>Password</th></tr>
+{% for member in credentials.ctfd.members %}<tr><td>{{ loop.index }}</td><td><code>{{ member.username }}</code></td><td><span class="secret">{{ member.password }}</span></td></tr>{% endfor %}
+</table>
+<h2>GUI workstations</h2>
+<p>Log into Guacamole once with the account below. Each connection opens the role-specific desktop assigned to your team.</p>
+<p>Guacamole username: <code>{{ credentials.guacamole.username }}</code><br>Password: <span class="secret">{{ credentials.guacamole.password }}</span><br><a href="{{ guac_url }}">{{ guac_url }}</a></p>
+<table><tr><th>Desktop</th><th>Tools</th><th>Open</th></tr>
+{% for desktop in registration.result.desktop_urls %}<tr><td>{{ desktop.name }}</td><td>{{ desktop.tools|join(', ') }}</td><td><a href="{{ desktop.url }}">Open connection</a></td></tr>{% endfor %}
+</table>
+{% else %}<h1>Registration unavailable</h1><p>{{ registration.error or 'The registration code is invalid.' }}</p>{% endif %}
+</main></body></html>
+'''
 
 
 def load(app):
@@ -48,6 +110,12 @@ def load(app):
         from CTFd.utils import set_config
         set_config('score_visibility', 'private')
         set_config('account_visibility', 'private')
+    registration_path = os.environ.get('RIDGE_REGISTRATION_DB', '/registration/registrations.sqlite')
+    registration_store = RegistrationStore(
+        registration_path,
+        RegistrationConfig(
+            max_teams=int(os.environ.get('RIDGE_REGISTRATION_MAX_TEAMS', '10')),
+            members_per_team=int(os.environ.get('RIDGE_REGISTRATION_MEMBERS', '5'))))
     from .provision import register as register_provision
     register_provision(app)
 
@@ -65,6 +133,48 @@ def load(app):
                 abort(403)
         if request.path == '/challenges':
             return redirect('/silent-ridge')
+
+    @app.route('/silent-ridge/register', methods=['GET', 'POST'])
+    def ridge_register():
+        """Public landing page and self-service team reservation."""
+        session.setdefault('registration_nonce', os.urandom(24).hex())
+        error = ''
+        team_name = request.form.get('team_name', '')
+        captain_name = request.form.get('captain_name', '')
+        if request.method == 'POST':
+            if not hmac.compare_digest(request.form.get('nonce', ''),
+                                       session.get('registration_nonce', '!')):
+                abort(403)
+            try:
+                created = registration_store.register(team_name, captain_name)
+                return redirect(created['retrieve_path'])
+            except RegistrationError as exc:
+                error = str(exc)
+        return render_template_string(REGISTRATION_PAGE, view='register', error=error,
+                                      team_name=team_name, captain_name=captain_name,
+                                      nonce=session['registration_nonce'])
+
+    @app.route('/silent-ridge/registration/<access_code>')
+    def ridge_registration(access_code):
+        try:
+            registration = registration_store.get(access_code)
+        except RegistrationError:
+            registration = {'status': 'invalid', 'error': 'This registration link is invalid.'}
+        if registration.get('status') == 'ready':
+            private = registration_store.get(access_code, include_private=True)
+            registration['result'] = registration.get('result') or {}
+            credentials = private['credentials']
+            return render_template_string(
+                REGISTRATION_PAGE, view='ready', registration=registration,
+                credentials=credentials, iris_url=os.environ['IRIS_PUBLIC_URL'],
+                ctfd_url=os.environ['CTFD_PUBLIC_URL'],
+                guac_url=os.environ.get('GUACAMOLE_PUBLIC_URL',
+                                        os.environ.get('CTFD_PUBLIC_URL', '').rstrip('/') + ':8082'))
+        if registration.get('status') in ('pending', 'provisioning'):
+            return render_template_string(REGISTRATION_PAGE, view='pending',
+                                          registration=registration,
+                                          retrieve_path=request.path)
+        return render_template_string(REGISTRATION_PAGE, view='error', registration=registration), 404
 
     @app.route('/silent-ridge', methods=['GET', 'POST'])
     @authed_only
