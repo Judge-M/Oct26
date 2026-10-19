@@ -1462,6 +1462,16 @@ http {
         if claimed is None:
             return None
         credentials = registration.activate_credentials(claimed['id'])
+        wazuh_username, separator, wazuh_password = self._secret('wazuh_reader').partition(':')
+        if not separator or not wazuh_username or not wazuh_password:
+            raise LifecycleError('wazuh_reader must contain username:password')
+        # Wazuh is intentionally one shared read-only classroom account. Include
+        # it only in the private retrieval handout; never in public registration
+        # state or repository configuration.
+        credentials['wazuh'] = {
+            'username': wazuh_username,
+            'password': wazuh_password,
+        }
         services = list(claimed['slots'])
         try:
             self._compose('desktops', 'up', '-d', '--wait', '--wait-timeout', '300', *services)

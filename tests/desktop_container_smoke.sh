@@ -28,6 +28,11 @@ docker exec "$name" bash -ec '
   runuser -u participant -- touch /home/participant/Cases/WS17/smoke-marker
   runuser -u participant -- env DISPLAY=:1 /usr/local/bin/firefox --version
   runuser -u participant -- env DISPLAY=:1 wireshark --version
+  runuser -u participant -- mousepad --version
+  strings --version
+  readelf --version
+  file --version
+  test "$(runuser -u participant -- xdg-mime query default text/csv)" = org.xfce.mousepad.desktop
   runuser -u participant -- env DISPLAY=:1 /opt/cutter/Cutter.AppImage --appimage-extract-and-run --version
   ldd /usr/local/lib/libtsk_jni.so | tee /tmp/tsk-libraries
   ! grep "not found" /tmp/tsk-libraries

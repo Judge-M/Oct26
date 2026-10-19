@@ -9,7 +9,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from ridge.state import State, normalize_answer
-from expanded.author import answer_format
+from expanded.author import answer_format, build
 
 
 class NormalizeTests(unittest.TestCase):
@@ -118,6 +118,26 @@ class AuthorFormatTests(unittest.TestCase):
                                     'C:/Program Files/Approved/briefsync.exe'))
         self.assertIn('Case and outer whitespace are ignored.',
                       answer_format('Which check-in word is present?', 'CEDAR'))
+        self.assertIn('filename only',
+                      answer_format('What is the basename of its parent executable?',
+                                    'browser.exe'))
+
+    def test_cross_source_routes_do_not_publish_answers_as_steps(self):
+        questions = {question['id']: question
+                     for ticket in build()
+                     for question in ticket['questions']}
+        self.assertEqual(questions['T07-Q1']['selection'], 'data.action:password_reset')
+        self.assertEqual(questions['T07-Q1']['source_record'], 'wazuh/telemetry.jsonl')
+        self.assertEqual(questions['T07-Q2']['source_record'], 'identity/late-auth.csv')
+        self.assertEqual(questions['T07-Q4']['source_record'], 'identity/policy.txt')
+        self.assertEqual(questions['T12-Q2']['source_record'], 'server/collection.txt')
+        self.assertIn('filename only', questions['T13-Q2']['format'])
+        ordinary_steps = '\n'.join(questions['T01-Q1']['steps'] +
+                                   questions['T07-Q2']['steps'] +
+                                   questions['T07-Q4']['steps'])
+        for leaked_answer in ('10.26.10.17', 'm.ellis', '09:26:00',
+                              'explicit session revocation'):
+            self.assertNotIn(leaked_answer, ordinary_steps)
 
 
 if __name__ == '__main__':
