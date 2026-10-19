@@ -6,7 +6,8 @@ from pathlib import Path
 
 os.environ.update(DATABASE_URL='sqlite:////tmp/ctfd-smoke.sqlite',SECRET_KEY='disposable-ci-key-only-000000000000',
     UPLOAD_FOLDER='/tmp/uploads',LOG_FOLDER='/tmp/logs',RIDGE_CTFD_FILE='/tmp/ridge-ctfd-secret',
-    IRIS_PUBLIC_URL='http://iris.invalid')
+    IRIS_PUBLIC_URL='http://iris.invalid',
+    RIDGE_REGISTRATION_DB='/tmp/ctfd-registration-smoke.sqlite')
 os.environ.setdefault('CTFD_PUBLIC_URL','http://ctfd.invalid')
 Path('/tmp/ridge-ctfd-secret').write_text('c'*40)
 
@@ -43,6 +44,19 @@ with app.test_client() as cookie_client:
     cookie_header=cookie_response.headers['Set-Cookie']
     assert cookie_header.startswith('silent_ridge_ctfd_session='),cookie_header
     assert ('Secure' in cookie_header) is app.config['SESSION_COOKIE_SECURE'],cookie_header
+
+with app.test_client() as registration_client:
+    registration_page=registration_client.get('/silent-ridge/register')
+    assert registration_page.status_code==200,registration_page.status_code
+    with registration_client.session_transaction() as registration_session:
+        registration_nonce=registration_session['nonce']
+    registration=registration_client.post('/silent-ridge/register',data={
+        'team_name':'Registration smoke team','captain_name':'Smoke facilitator',
+        'nonce':registration_nonce})
+    assert registration.status_code==302,(
+        registration.status_code,registration.get_data(as_text=True)[:200])
+    assert registration.headers['Location'].startswith('/silent-ridge/registration/'),(
+        registration.headers['Location'])
 
 body={'key':'smoke-run:point:T01-Q1','kind':'point','payload':{
     'question':'T01-Q1','ctfd_team':team_id,'value':1,'event':'smoke-event'}}

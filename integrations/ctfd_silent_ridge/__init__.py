@@ -137,13 +137,18 @@ def load(app):
     @app.route('/silent-ridge/register', methods=['GET', 'POST'])
     def ridge_register():
         """Public landing page and self-service team reservation."""
-        session.setdefault('registration_nonce', os.urandom(24).hex())
+        # CTFd validates every form POST against session['nonce'] in its global
+        # before-request hook.  Using a second registration-only nonce makes the
+        # global check reject the request before this handler can validate it.
+        # Reuse CTFd's nonce so the public form receives the same CSRF protection
+        # as the rest of the application.
+        session.setdefault('nonce', os.urandom(24).hex())
         error = ''
         team_name = request.form.get('team_name', '')
         captain_name = request.form.get('captain_name', '')
         if request.method == 'POST':
             if not hmac.compare_digest(request.form.get('nonce', ''),
-                                       session.get('registration_nonce', '!')):
+                                       session.get('nonce', '!')):
                 abort(403)
             try:
                 created = registration_store.register(team_name, captain_name)
@@ -152,7 +157,7 @@ def load(app):
                 error = str(exc)
         return render_template_string(REGISTRATION_PAGE, view='register', error=error,
                                       team_name=team_name, captain_name=captain_name,
-                                      nonce=session['registration_nonce'])
+                                      nonce=session['nonce'])
 
     @app.route('/silent-ridge/registration/<access_code>')
     def ridge_registration(access_code):
