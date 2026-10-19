@@ -17,6 +17,7 @@ services:
       RIDGE_IRIS_SERVICE_LOGIN: silent-ridge-service
       IRIS_PUBLIC_URL: ${IRIS_PUBLIC_URL:?Set participant IRIS URL}
       CTFD_PUBLIC_URL: ${CTFD_PUBLIC_URL:?Set participant CTFd URL}
+      RIDGE_FINAL_BRIEF_URL: ${RIDGE_FINAL_BRIEF_URL:-}
       RIDGE_IRIS_CASE: ${RIDGE_IRIS_CASE:?Set dedicated exercise case ID}
       RIDGE_IRIS_SERVICE_USER: ${RIDGE_IRIS_SERVICE_USER:?Set service user ID}
       RIDGE_IRIS_OPEN_STATUS: ${RIDGE_IRIS_OPEN_STATUS:?Set verified open status ID}
@@ -110,6 +111,7 @@ services:
       IRIS_PUBLIC_URL: ${IRIS_PUBLIC_URL:?Set participant IRIS URL}
       CTFD_PUBLIC_URL: ${CTFD_PUBLIC_URL:?Set participant CTFd URL}
       GUACAMOLE_PUBLIC_URL: ${GUACAMOLE_PUBLIC_URL:?Set participant Guacamole URL}
+      RIDGE_FINAL_BRIEF_URL: ${RIDGE_FINAL_BRIEF_URL:-}
       RIDGE_REGISTRATION_DB: /registration/registrations.sqlite
       RIDGE_REGISTRATION_MAX_TEAMS: ${RIDGE_REGISTRATION_MAX_TEAMS:-10}
       RIDGE_REGISTRATION_MEMBERS: ${RIDGE_REGISTRATION_MEMBERS:-5}

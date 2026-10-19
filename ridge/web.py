@@ -5,7 +5,7 @@ PAGE = '''<!doctype html><html lang="en"><meta charset="utf-8">
 body{font:18px system-ui;max-width:980px;margin:2rem auto;padding:1rem;background:#f4f6fa;color:#14243b}
 nav,a{color:#155bbb}nav{display:flex;gap:2rem}article{background:white;padding:1.5rem;margin:1rem 0;border:1px solid #bccada;border-radius:12px}
 button,input{font:inherit;padding:.6rem;margin:.4rem}button{cursor:pointer}summary{cursor:pointer;padding:.5rem}pre{white-space:pre-wrap}small{display:block}
-.briefing{background:#14243b;color:white;padding:1.5rem;border-radius:12px;margin:1rem 0}.briefing strong{color:#9ed0ff}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.8rem}.card{background:#e8eef6;padding:1rem;border-radius:8px}.phase{color:#385675;font-weight:700}.why{border-left:4px solid #c77700;padding-left:1rem}
+.briefing{background:#14243b;color:white;padding:1.5rem;border-radius:12px;margin:1rem 0}.briefing strong{color:#9ed0ff}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.8rem}.card{background:#e8eef6;padding:1rem;border-radius:8px}.phase{color:#385675;font-weight:700}.why{border-left:4px solid #c77700;padding-left:1rem}.conclusion{background:#102d29;color:#f4fbf8;border:4px solid #d79a24;padding:1.5rem;border-radius:12px;margin:1.5rem 0}.conclusion h2{color:#ffd174;margin-top:0}.conclusion h3{color:#b7e3d6}.conclusion a{color:#9ed0ff}.conclusion li{margin:.45rem 0}
 </style><nav><a href="{{iris}}/silent-ridge">Incident queue</a><a href="{{ctfd}}/silent-ridge">Questions and help</a><a href="{{ctfd}}/scoreboard">Scoreboard</a></nav>
 <h1>{{story.title}}</h1><section class="briefing"><p><strong>{{story.fiction_notice}}</strong></p><p>{{story.premise}}</p><p>{{story.discovery}}</p><p><strong>Mission:</strong> {{story.stakes}}</p></section>
 <p>{{story.participant_role}}</p><div class="grid">{% for role in story.roles %}<div class="card"><strong>{{role.name}}</strong><p>{{role.purpose}}</p></div>{% endfor %}</div>
@@ -15,7 +15,15 @@ button,input{font:inherit;padding:.6rem;margin:.4rem}button{cursor:pointer}summa
 <p id="notice" role="status">{{message}}</p>
 <p id="queue-status" role="status">{{queue.status}}</p>
 <p>Activity elapsed: <span id="clock">{{snapshot.elapsed_seconds|round|int}}</span> seconds.</p>
-{% for a in snapshot.announcements %}<article><strong>Published announcement · {{a.timestamp}}</strong><p>{{a.text}}</p></article>{% endfor %}
+{% if story.conclusion %}<section class="conclusion" id="final-assessment" aria-labelledby="final-assessment-title">
+<h2 id="final-assessment-title">{{story.conclusion.status}}</h2><p>{{story.conclusion.summary}}</p>
+<div class="grid"><div><h3>Confirmed</h3><ul>{% for item in story.conclusion.confirmed %}<li>{{item}}</li>{% endfor %}</ul></div>
+<div><h3>Not established</h3><ul>{% for item in story.conclusion.not_established %}<li>{{item}}</li>{% endfor %}</ul></div>
+<div><h3>Unresolved</h3><ul>{% for item in story.conclusion.unresolved %}<li>{{item}}</li>{% endfor %}</ul></div></div>
+<h3>Required containment</h3><ol>{% for item in story.conclusion.actions %}<li>{{item}}</li>{% endfor %}</ol>
+{% if final_brief_url %}<p><a href="{{final_brief_url}}" target="_blank" rel="noopener"><strong>Play the unlocked closing audiovisual brief</strong></a></p>{% else %}<p><strong>Closing brief unlocked:</strong> the facilitator can now present the final audiovisual debrief.</p>{% endif %}
+</section>{% endif %}
+{% for a in snapshot.announcements %}<article><strong>{{'Published final assessment' if a.kind=='final_assessment' else 'Published announcement'}} · {{a.timestamp}}</strong><p>{{a.text}}</p></article>{% endfor %}
 {% if lane=='iris' %}<h2>{{'Choose one available ticket' if queue.claimable else 'Ticket queue'}}</h2>
 {% for t in snapshot.tickets %}{% set context=story.ticket_context.get(t.id) %}<article><h3>{{t.id}} · {{t.title}}</h3><p>{{t.subject}} · {{t.status}} · Owner: {{t.owner or 'available'}}</p>
 {% if context %}<p class="phase">{{context.phase_title}}</p><p>{{context.briefing}}</p><p class="why"><strong>Why now:</strong> {{context.stakes}}</p><p><strong>Handoff:</strong> {{context.handoff}}</p>{% endif %}
@@ -74,7 +82,8 @@ def queue_state(snapshot):
         else:
             notes[t['id']]='Claiming is not open for this ticket right now (status: %s).' % t.get('status')
     if tickets and len(complete)==len(tickets):
-        status=('Exercise complete — every ticket in the queue is closed and its findings are published. '
+        status=('Assessment complete — LIMITED DISCLOSURE CONFIRMED. Every ticket is closed, '
+                'the final incident assessment is published, and required containment actions are available below. '
                 'Nothing further can be claimed. This is the expected end state, not an outage.')
     else:
         parts=[]

@@ -15,6 +15,11 @@ queued deliveries have synchronized.
 | T19 | T01 and T05 | `network/dlp-body.txt`, `network/dlp-metadata.json` |
 | T20 | T07, T09, T11 and T19 | No additional file; final synthesis ticket |
 
+When the last T20 answer closes the final ticket, the controller also emits one
+idempotent final-assessment delivery. It is attached to the T20 task in IRIS,
+appears as the final announcement on both participant surfaces, and unlocks the
+containment-focused conclusion. Do not create a duplicate comment manually.
+
 The initial evidence is published during provisioning. The controller keeps
 future material under the private release vault. When a prerequisite closes,
 the state worker queues the dependent ticket; the integration worker verifies
@@ -51,6 +56,11 @@ After the prerequisite ticket is fully answered:
    python -m ridge.cli --state RUNTIME/state/state.sqlite announce \
      --operator EXCON-A --text "Follow-up evidence is now available in the shared queue."
    ```
+
+After T20, confirm `pending` returns to zero and verify the T20 task contains
+the **FINAL INCIDENT ASSESSMENT** comment. Use
+[`facilitator-closing-brief.md`](facilitator-closing-brief.md) for the spoken or
+audiovisual debrief.
 
 For a technical failure, pause the exercise before intervention:
 

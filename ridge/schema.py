@@ -1,5 +1,5 @@
 """Explicit, transactional upgrades. Stop old workers before migrating."""
-VERSION = 4
+VERSION = 5
 
 
 def _v2(con):
@@ -73,6 +73,17 @@ def _v4(con):
     con.execute('PRAGMA user_version=4')
 
 
+def _v5(con):
+    """Completion-assessment release marker.
+
+    The assessment itself lives in the versioned narrative contract and uses
+    the existing audit/outbox tables. State.migrate performs the idempotent
+    backfill after this transactional version step so completed live runs gain
+    the new ending without rewriting participant answers or scores.
+    """
+    con.execute('PRAGMA user_version=5')
+
+
 def migrate(con):
     version = con.execute('PRAGMA user_version').fetchone()[0]
     if version > VERSION:
@@ -83,3 +94,5 @@ def migrate(con):
         _v3(con)
     if version < 4:
         _v4(con)
+    if version < 5:
+        _v5(con)

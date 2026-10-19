@@ -48,7 +48,8 @@ class QueueStateTests(unittest.TestCase):
     def test_all_complete_says_the_exercise_is_over_not_broken(self):
         state=queue_state(snapshot(tickets=[ticket('T01','complete'),ticket('T02','complete','team-02')]))
         self.assertTrue(state['complete'])
-        self.assertIn('Exercise complete',state['status'])
+        self.assertIn('Assessment complete',state['status'])
+        self.assertIn('LIMITED DISCLOSURE CONFIRMED',state['status'])
         self.assertIn('not an outage',state['status'])
         self.assertIn('Complete',state['notes']['T01'])
 
