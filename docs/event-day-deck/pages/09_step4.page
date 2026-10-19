@@ -36,12 +36,12 @@ elements:
         <p><strong>1.</strong> In the IRIS tab, find a ticket marked <strong>available</strong>
         and press <strong>Claim ticket</strong>. Your team now owns it.</p>
         <p style="margin-top:10px"><strong>2.</strong> Switch to the CTFd tab — the ticket's
-        questions are now visible. Open the first one and read the free help.</p>
+        questions are visible. Open one; help levels 1 and 2 are free.</p>
         <p style="margin-top:10px"><strong>3.</strong> Investigate with the tool the question names
         (next page shows all five).</p>
         <p style="margin-top:10px"><strong>4.</strong> Type the requested value in the answer box and
-        press <strong>Check answer</strong>. Correct: one point, and the finding publishes to IRIS
-        for everyone. Wrong: read the next free help level and try again.</p>
+        press <strong>Check answer</strong>. Correct: four points and an IRIS finding.
+        Level 3 is the full walkthrough; unlocking it costs 75%, leaving one point.</p>
   - elementId: check-rule
     elementType: line
     bounds: [600, 210, 2, 240]

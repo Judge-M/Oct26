@@ -8,7 +8,7 @@ import hmac
 import os
 from datetime import datetime, timezone
 from urllib.error import HTTPError, URLError
-from flask import abort, jsonify, render_template_string, request
+from flask import abort, jsonify, redirect, render_template_string, request
 from flask_login import current_user, login_required
 from flask_wtf.csrf import generate_csrf, validate_csrf
 from wtforms.validators import ValidationError
@@ -32,8 +32,12 @@ def install(app):
         RidgeReceipt.__table__.create(db.engine,checkfirst=True)
 
     @app.route('/silent-ridge',methods=['GET','POST'])
-    @login_required
     def ridge_queue():
+        # IRIS does not configure Flask-Login's login_view on this pinned
+        # release, so @login_required answers a first visit with a bare 401.
+        # Send participants to the native login page and return them here.
+        if not current_user.is_authenticated:
+            return redirect('/login?next=%2Fsilent-ridge')
         try:
             if request.method=='POST':
                 try:

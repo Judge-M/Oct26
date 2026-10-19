@@ -1,12 +1,14 @@
 """Execute inside the actual extended CTFd 3.7.7 image, using a disposable database."""
 import concurrent.futures
 import os
+from urllib.parse import urlsplit
 from unittest.mock import patch
 from pathlib import Path
 
 os.environ.update(DATABASE_URL='sqlite:////tmp/ctfd-smoke.sqlite',SECRET_KEY='disposable-ci-key-only-000000000000',
     UPLOAD_FOLDER='/tmp/uploads',LOG_FOLDER='/tmp/logs',RIDGE_CTFD_FILE='/tmp/ridge-ctfd-secret',
-    IRIS_PUBLIC_URL='http://iris.invalid')
+    IRIS_PUBLIC_URL='http://iris.invalid',
+    RIDGE_REGISTRATION_DB='/tmp/ctfd-registration-smoke.sqlite')
 os.environ.setdefault('CTFD_PUBLIC_URL','http://ctfd.invalid')
 Path('/tmp/ridge-ctfd-secret').write_text('c'*40)
 
@@ -44,6 +46,20 @@ with app.test_client() as cookie_client:
     assert cookie_header.startswith('silent_ridge_ctfd_session='),cookie_header
     assert ('Secure' in cookie_header) is app.config['SESSION_COOKIE_SECURE'],cookie_header
 
+with app.test_client() as registration_client:
+    registration_page=registration_client.get('/silent-ridge/register')
+    assert registration_page.status_code==200,registration_page.status_code
+    with registration_client.session_transaction() as registration_session:
+        registration_nonce=registration_session['nonce']
+    registration=registration_client.post('/silent-ridge/register',data={
+        'team_name':'Registration smoke team','captain_name':'Smoke facilitator',
+        'nonce':registration_nonce})
+    assert registration.status_code==302,(
+        registration.status_code,registration.get_data(as_text=True)[:200])
+    registration_location=urlsplit(registration.headers['Location']).path
+    assert registration_location.startswith('/silent-ridge/registration/'),(
+        registration.headers['Location'])
+
 body={'key':'smoke-run:point:T01-Q1','kind':'point','payload':{
     'question':'T01-Q1','ctfd_team':team_id,'value':1,'event':'smoke-event'}}
 
@@ -61,7 +77,8 @@ with app.app_context():
 
 # The award survives failed cache invalidation; a receipt retry must invalidate again.
 from CTFd.plugins import ctfd_silent_ridge as plugin
-retry_body={**body,'key':'smoke-run:point:T01-Q2'}
+retry_body={**body,'key':'smoke-run:point:T01-Q2','payload':{
+    **body['payload'],'question':'T01-Q2','value':4,'event':'smoke-event-2'}}
 with app.test_client() as client:
     with patch.object(plugin,'invalidate_scores',side_effect=ConnectionError('cache unavailable')):
         try:
@@ -75,6 +92,7 @@ with app.test_client() as client:
         invalidated.assert_called_once()
 with app.app_context():
     assert Awards.query.count()==2
+    assert sorted(award.value for award in Awards.query.all())==[1,4]
 
 from CTFd.plugins.ctfd_silent_ridge.provision import OrmAdmin
 from ridge.ctfd_provision import FacilitatorSpec, ProvisionSpec, TeamSpec, provision, preflight
@@ -118,4 +136,36 @@ with app.test_client() as client:
     assert client.post('/api/v1/challenges/attempt',json={'challenge_id':1,'submission':'anything'},
                        headers={'CSRF-Token':'smoke-nonce'}).status_code==403
     assert client.get('/silent-ridge/internal').status_code in (404,405)
+
+# The participant page must require an explicit POST before the paid
+# walkthrough appears; the final hint is never shipped in the locked page.
+participant_snapshot={'team':'smoke','mode':'running','elapsed_seconds':0,'pending':0,
+    'announcements':[],'tickets':[],'scores':[]}
+locked_question={'id':'T01-Q1','ticket':'T01','prompt':'Prompt','purpose':'Purpose',
+    'tool':'Tool','evidence':'Evidence','steps':['Step'],'format':'text','recovery':'Retry',
+    'hints':['Free one','Free two'],'solved_by':None,'finding':None,'answerable':True,
+    'hint_unlocked':False,'paid_hint_available':True,'full_points':4,'available_points':4,
+    'walkthrough_cost_percent':75}
+def participant_bridge(application, identity, action, **kwargs):
+    if action=='snapshot':
+        return participant_snapshot
+    if action=='questions':
+        return [locked_question]
+    if action=='hint':
+        return {'unlocked':True,'cost_percent':75,'available_points':1}
+    raise AssertionError(action)
+with app.test_client() as client:
+    with client.session_transaction() as participant_session:
+        participant_session.update(id=user_id,name='smoke-user',email='smoke@example.test',
+                                   type='user',nonce='smoke-nonce')
+    with patch.object(plugin,'bridge',side_effect=participant_bridge):
+        page=client.get('/silent-ridge')
+        html=page.get_data(as_text=True)
+        assert page.status_code==200
+        assert 'costs 3 of 4 points' in html
+        assert 'explicit walkthrough answer' not in html
+        unlocked=client.post('/silent-ridge',data={
+            'nonce':'smoke-nonce','action':'unlock_hint','question':'T01-Q1'})
+        assert unlocked.status_code==200
+        assert 'Assisted scoring is active' in unlocked.get_data(as_text=True)
 print('Actual CTFd image: unique credits, retry race, authentication and stock API blocking passed.')

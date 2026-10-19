@@ -27,6 +27,7 @@ The runtime directory is private and gitignored. Layout::
 """
 from __future__ import annotations
 
+import csv
 import hashlib
 import ipaddress
 import json
@@ -69,6 +70,23 @@ APP_SERVICES = {
     'guacamole': ['guacamole'],
 }
 IMAGE_COMPONENTS = ('iris', 'ctfd', 'integration', 'desktop')
+
+
+def _windows_process_exists(pid):
+    """Return True only when tasklist reports an exact process row for *pid*.
+
+    ``tasklist`` exits zero when its filter matches no process, so its return
+    code alone cannot validate a saved worker PID.
+    """
+    result = subprocess.run(
+        ['tasklist', '/FI', 'PID eq %d' % pid, '/FO', 'CSV', '/NH'],
+        capture_output=True, text=True, timeout=5)
+    if result.returncode != 0:
+        return False
+    for row in csv.reader(result.stdout.splitlines()):
+        if len(row) > 1 and row[1].strip() == str(pid):
+            return True
+    return False
 
 # Upstream Wazuh single-node config files that compose.wazuh.yaml bind-mounts
 # out of the wazuh_config asset, with the format each must parse as. Issue #187:
@@ -1355,9 +1373,7 @@ class LocalStack:
         if self.registration_pid_path.is_file():
             try:
                 pid = int(self.registration_pid_path.read_text(encoding='utf-8').strip())
-                if pid > 0 and subprocess.run(['tasklist', '/FI', 'PID eq %d' % pid],
-                                              capture_output=True, text=True,
-                                              timeout=5).returncode == 0:
+                if pid > 0 and _windows_process_exists(pid):
                     return pid
             except (OSError, ValueError, subprocess.SubprocessError):
                 pass
@@ -1369,8 +1385,10 @@ class LocalStack:
                    '--runtime', str(self.runtime)]
         (self.runtime / 'registration-profile.json').write_text(
             json.dumps(self.profile, indent=2), encoding='utf-8')
+        creationflags = (getattr(subprocess, 'CREATE_NEW_PROCESS_GROUP', 0) |
+                         getattr(subprocess, 'DETACHED_PROCESS', 0))
         process = subprocess.Popen(command, cwd=str(ROOT), stdout=log, stderr=log,
-                                   creationflags=getattr(subprocess, 'CREATE_NEW_PROCESS_GROUP', 0))
+                                   creationflags=creationflags)
         log.close()
         self.registration_pid_path.write_text(str(process.pid) + '\n', encoding='utf-8')
         return process.pid

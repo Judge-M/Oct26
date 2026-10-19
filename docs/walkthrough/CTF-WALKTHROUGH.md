@@ -409,12 +409,17 @@ Back in CTFd, type the value and press **Check answer**.
 
 ![First answer accepted](images/03-ctfd-first-answer-correct.png)
 
+> **Scoring update:** the screenshot below was captured before assisted scoring
+> was introduced. The live event now awards four points for an unassisted answer.
+> Help levels 1 and 2 are free; unlocking the explicit level-3 walkthrough costs
+> 75% and leaves one point available for that question.
+
 Two things happen at once, and both are the point of the exercise:
 
 ### 6.1 The point
 
 ```
-Correct — one point earned. Findings synchronization pending.
+Correct — four points earned. Findings synchronization pending.
 ```
 
 The card then shows, permanently:

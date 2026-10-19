@@ -6,7 +6,8 @@ and desktop/Wazuh usability remain separate acceptance gates.
 
 Sequence: verify no remote tasks exist, run preflight, provision while paused,
 drain initial delivery, start explicitly, then exercise claim, one correct
-answer, one finding, one point, relinquish and takeover, and a restart.
+answer, one finding, one full-value four-point award, relinquish and takeover,
+and a restart.
 """
 import argparse
 import json
@@ -97,7 +98,7 @@ def run(state, config, client, sink, operator, ticket, question, answer, start=F
     report.record('claim')
     # The claim itself delivers an ownership comment; measure answer effects
     # against the settled post-claim baseline so exactly one finding and one
-    # point must come from the accepted answer.
+    # full-value four-point award must come from the accepted answer.
     drain(state, sink)
     before = client.effects()
     result = state.answer(first, question, answer)
@@ -106,9 +107,9 @@ def run(state, config, client, sink, operator, ticket, question, answer, start=F
     report.record('answer')
     drain(state, sink)
     after = client.effects()
-    if after['findings'] != before['findings'] + 1 or after['points'] != before['points'] + 1:
+    if after['findings'] != before['findings'] + 1 or after['points'] != before['points'] + 4:
         state.mode(operator, 'paused')
-        raise SliceError('native effects: expected exactly one new finding and point')
+        raise SliceError('native effects: expected exactly one new finding and four points')
     report.record('finding')
     report.record('point')
     generation = next(t['generation'] for t in state.snapshot()['tickets'] if t['id'] == ticket)
