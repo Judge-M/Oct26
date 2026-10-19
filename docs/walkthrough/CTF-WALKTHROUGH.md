@@ -618,7 +618,18 @@ Its questions ask directly whether roster disclosure, WS-31 clearance or
 **adversary intent** are established. The expected answers are mostly `no`.
 
 That is the whole exercise in one ticket: *distinguish transmission from human
-receipt, and receipt from intent.*
+receipt, and receipt from intent.* Closing T20 now unlocks the canonical final
+assessment:
+
+> **LIMITED DISCLOSURE CONFIRMED — IMMEDIATE CONTAINMENT REQUIRED.** WS-17
+> transmitted movement brief v3 in req-72. V4 superseded its sector and window,
+> but retained CEDAR, leaving residual operational risk. The roster request was
+> denied; actor control, intent, and WS-31 execution remain unestablished.
+
+The participant surfaces then show the required response: rotate CEDAR, revoke
+S-41, isolate and preserve WS-17, collect WS-31, and monitor or block the
+external relay indicator. The same final assessment is published as an
+idempotent IRIS comment on T20.
 
 ---
 

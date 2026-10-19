@@ -17,7 +17,7 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Protocol, TypedDict, Any
-from ridge.narrative import ticket_delivery
+from ridge.narrative import final_assessment, ticket_delivery
 from ridge.schema import migrate, VERSION
 
 FULL_QUESTION_POINTS = 4
@@ -238,9 +238,48 @@ class State:
         con.executemany('INSERT INTO delivery_dependencies VALUES (?,?)',
                         [(identifier, dependency) for dependency in dependencies])
 
+    def _ensure_final_assessment(self, con, team=None, event=None):
+        """Publish the canonical ending exactly once after the capstone closes.
+
+        New runs call this from the final T20 answer. Migrations call it again
+        to backfill an already-completed live rehearsal; the audit marker and
+        deterministic outbox key make both paths idempotent.
+        """
+        tables={row[0] for row in con.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'")}
+        if not {'tickets','questions','answers','teams','audit','outbox'} <= tables:
+            return False
+        if con.execute("SELECT 1 FROM audit WHERE action='final_assessment'").fetchone():
+            return False
+        totals=con.execute("SELECT COUNT(*) total, SUM(status='complete') complete FROM tickets").fetchone()
+        if not totals['total'] or totals['complete'] != totals['total']:
+            return False
+        if not con.execute("SELECT 1 FROM tickets WHERE id='T20' AND status='complete'").fetchone():
+            return False
+        if team is None or event is None:
+            last=con.execute('''SELECT a.team,a.event FROM answers a
+                JOIN questions q ON q.id=a.question
+                WHERE q.ticket='T20' ORDER BY a.timestamp DESC LIMIT 1''').fetchone()
+            if last is None:
+                return False
+            team,event=last['team'],last['event']
+        teamrow=con.execute('SELECT name FROM teams WHERE id=?',(team,)).fetchone()
+        if teamrow is None:
+            return False
+        assessment=final_assessment()
+        payload={'ticket':'T20','text':assessment['announcement'],
+                 'status':assessment['status'],'event':event,
+                 'team':team,'team_name':teamrow['name']}
+        self.enqueue(con,'assessment:final','assessment',payload)
+        self.record(con,team,'final_assessment',
+                    {'text':assessment['announcement'],'event':event,
+                     'status':assessment['status']})
+        return True
+
     def migrate(self):
         with self.transaction() as con:
             migrate(con)
+            self._ensure_final_assessment(con)
 
     @staticmethod
     def mutable(con):
@@ -525,8 +564,12 @@ class State:
                     if set(json.loads(lead['requires'])) <= completed:
                         con.execute("UPDATE tickets SET status='available' WHERE id=?", (lead['id'],))
                         self.enqueue(con, 'ticket:'+lead['id'], 'ticket', ticket_delivery(lead['id'],lead['title']))
+                assessment_published=self._ensure_final_assessment(con,team,event)
+            else:
+                assessment_published=False
             return {'correct':True, 'event':event, 'closed':not remaining,
-                    'synchronization':'pending', 'value':value, 'assisted':assisted}
+                    'synchronization':'pending', 'value':value, 'assisted':assisted,
+                    'assessment_published':assessment_published}
 
     def snapshot(self, team=None):
         with self.transaction(write=False) as con:
@@ -551,8 +594,9 @@ class State:
                 total=0
             return {'mode':con.execute('SELECT mode FROM run').fetchone()[0],
                     'elapsed_seconds':max(total,0),'server_time':stamp,
-                    'announcements':[dict(id=r['id'],timestamp=r['timestamp'],text=json.loads(r['detail'])['text'])
-                                     for r in con.execute("SELECT * FROM audit WHERE action='announcement' ORDER BY id")],
+                    'announcements':[dict(id=r['id'],timestamp=r['timestamp'],kind=r['action'],
+                                          text=json.loads(r['detail'])['text'])
+                                     for r in con.execute("SELECT * FROM audit WHERE action IN ('announcement','final_assessment') ORDER BY id")],
                     'tickets':[dict(r) for r in con.execute("SELECT id,title,subject,owner,status,iris_id,generation FROM tickets WHERE status!='locked'")],
                     'scores':[dict(r) for r in con.execute('''SELECT t.id,t.name,COALESCE(SUM(a.value),0) points FROM teams t
                                   LEFT JOIN answers a ON a.team=t.id GROUP BY t.id ORDER BY points DESC,t.id''')],

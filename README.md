@@ -182,6 +182,11 @@ cold-machine → running-event → teardown checklist with exact commands.
 The [participant briefing deck](docs/event-day-deck/event-day-deck.pdf)
 (13 slides, PDF) is what you project at the start: it explains the
 scenario and walks participants through setup click by click.
+The [facilitator closing brief](docs/facilitator-closing-brief.md) is the
+canonical ending used after T20. Completion automatically reveals the final
+assessment and containment actions in CTFd, publishes the same assessment to
+IRIS, and optionally unlocks the closing audiovisual when
+`RIDGE_FINAL_BRIEF_URL` is configured.
 
 ```bash
 python -m ridge.deploy pause   --profile ... --runtime ...   # pause the clock

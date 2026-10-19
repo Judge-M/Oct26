@@ -1,6 +1,6 @@
 import unittest
 from expanded.author import build
-from ridge.narrative import contract,participant_context,ticket_context,ticket_delivery
+from ridge.narrative import contract,final_assessment,participant_context,ticket_context,ticket_delivery
 from ridge.web import PAGE
 
 
@@ -12,6 +12,8 @@ class NarrativeTests(unittest.TestCase):
         self.assertEqual(len(data['roles']),3)
         self.assertIn('fictional',data['fiction_notice'].lower())
         self.assertIn('LANTERN',data['premise'])
+        self.assertIn('LIMITED DISCLOSURE CONFIRMED',final_assessment()['status'])
+        self.assertIn('CEDAR',final_assessment()['summary'])
 
     def test_authored_content_uses_the_shared_contract(self):
         for ticket in build():
@@ -29,10 +31,21 @@ class NarrativeTests(unittest.TestCase):
         self.assertEqual(story['total'],20)
         self.assertEqual(story['question_count'],1)
         self.assertNotIn('answer',story)
+        self.assertIsNone(story['conclusion'])
+
+    def test_conclusion_is_revealed_only_after_all_twenty_stages_complete(self):
+        before=participant_context({'tickets':[{'id':'T%02d' % number,'status':'complete'}
+                                                       for number in range(1,20)]})
+        after=participant_context({'tickets':[{'id':'T%02d' % number,'status':'complete'}
+                                                      for number in range(1,21)]})
+        self.assertIsNone(before['conclusion'])
+        self.assertEqual(after['conclusion']['status'],final_assessment()['status'])
+        self.assertIn('198.51.100.77',after['conclusion']['summary'])
 
     def test_page_renders_mission_phase_and_handoff_contract(self):
         for text in ('story.fiction_notice','story.participant_role','Why this question matters',
-                     'story.tools.items()','context.handoff','Shared progress'):
+                     'story.tools.items()','context.handoff','Shared progress',
+                     'final-assessment','story.conclusion.actions','final_brief_url'):
             self.assertIn(text,PAGE)
 
 
