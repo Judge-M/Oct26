@@ -706,9 +706,9 @@ The per-team queue released later work automatically: T07 and T19 appeared after
 1. **Registration POST returned 403.** The plugin used a second `registration_nonce`, while CTFd's global CSRF hook requires `session['nonce']`. Fixed and covered by the actual CTFd image smoke test.
 2. **The registration worker was not alive.** A stale PID file was treated as live because `tasklist` returns exit code zero even when no process matches. Provisioning required one manual `--once` run during this rehearsal. The process check and detached launch behavior are fixed and covered by unit tests. Live deployment verification replaced the stale PID, launched the worker in a detached service session, and confirmed it remained alive.
 3. **Stale configuration generated legacy IP-and-port URLs.** IRIS initially rendered `192.168.1.200:8181/8183`, and the completed team's stored workstation handout used `:8182`. The running containers and both authoritative provisioning-profile copies were corrected to the trusted hostnames on port 443. A browser recheck found no legacy links in IRIS; future registrations will use `iris.cyberexperts.org`, `ctfd.cyberexperts.org`, and `guac.cyberexperts.org`. The already-stored team-01 handout is historical data and was not rewritten.
-4. **The CTFd-to-IRIS link reaches a 401 before the first IRIS login.** Participants must visit the IRIS root and authenticate before opening `/silent-ridge`; redirecting to login would be clearer.
-5. **Hints are currently free.** The page explicitly says all help is free; the requested 75% point-cost policy is not implemented.
-6. **The exercise elapsed clock was not reset for the new team.** It showed more than 37,000 seconds even though this registration was new.
+4. **The CTFd-to-IRIS link reached a 401 before the first IRIS login.** Fixed: an unauthenticated request to `/silent-ridge` now redirects to `/login?next=%2Fsilent-ridge`, while an authenticated participant returns directly to the activity page.
+5. **Hints were free.** Fixed: each new answer is worth 4 points, help levels 1 and 2 remain free, and explicitly unlocking the final walkthrough reduces that question to 1 point (an exact 75% cost). Existing rehearsal answers retain their historical 1-point values.
+6. **The exercise elapsed clock used the global run start.** Fixed: the displayed activity clock now starts from the individual team's registration time. The live completed team showed roughly 1,600 seconds while the global run was over 39,000 seconds old.
 7. **Completion initially showed three synchronization updates pending.** The participant answer state and score were already correct. A final browser check confirmed the outbox drained to **0 updates awaiting synchronization**.
 
 ## Validation receipt
@@ -719,6 +719,9 @@ The per-team queue released later work automatically: T07 and T19 appeared after
 - Staged evidence: later tickets appeared automatically at the observed per-team milestones.
 - CTFd: 80 accepted browser submissions; scoreboard showed 80 points.
 - Integration: final participant page showed 0 updates awaiting synchronization.
+- Assisted scoring: the live participant page advertises the 4-to-1 point policy; focused tests and the actual CTFd image smoke test verified the paid walkthrough path.
+- Team-local clock: the live participant page reports elapsed time from team registration rather than the global run start.
+- IRIS authentication: an unauthenticated direct activity request returns a login redirect instead of a bare 401.
 - Public routing: a post-restart IRIS browser check found hostname-only links and no `192.168.x.x` or `:818x` targets.
 - Registration worker: stale-PID recovery started a detached worker that remained alive during the live follow-up check.
 - Evidence set: 113 sanitized PNGs in `screenshots/`.
