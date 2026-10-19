@@ -266,3 +266,14 @@ Project-authored source code and documentation are licensed under the
 [Apache License 2.0](LICENSE). Third-party components, container images,
 evidence and assets retain their respective licenses and notices; see
 [NOTICE](NOTICE).
+
+## Watch-floor audio briefs
+
+The [two-brief package](docs/handoff/audio-briefs/README.md) provides an introduction
+and exit handover from the watch floor supervisor in charge of Operation Silent
+Ridge. It includes clean narration inputs, a production handoff, exact announcement
+echoes and an offline cue desk linked from the presenter landing page. Matching
+recordings still require production. Keep operator metadata out of participant
+distribution; the narration remains inside the situation without spoken exercise
+notices. Evidence release, scoring and event controls continue through their normal
+workflows.

@@ -1,0 +1,21 @@
+{
+  "prepared_date": "2026-10-19",
+  "integration_base": "5cabbf74438038c74d9b6a6650a6668cebc69b18",
+  "source_of_current_decisions": "Organizer instructions: two briefs; watch floor supervisor; S6 IT referral; no spoken exercise framing; professional personality; urgency and conditional stakes.",
+  "narrative_additions": [
+    "Watch floor supervisor leads Operation Silent Ridge",
+    "S6 IT referral",
+    "Separate forensic teams assist the SOC"
+  ],
+  "unchanged_contracts": [
+    "Evidence and intentional gaps",
+    "Automatic ticket release dependencies",
+    "Scoring",
+    "Runtime state and event clock controls"
+  ],
+  "narration_text_sha256": {
+    "brief-01-introduction": "3d14dad939ab743ff6ce4937c0927214df49d9d0ac5e798259ee4f45da139c81",
+    "brief-02-exit": "ddde43358c5eef77ca752c49e3d91135a1717a69f3aa51cedb16bed84c97b530"
+  },
+  "new_audio_included": false
+}

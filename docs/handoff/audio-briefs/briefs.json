@@ -1,0 +1,34 @@
+[
+  {
+    "id": "01",
+    "stem": "brief-01-introduction",
+    "title": "Introduction — Operation Silent Ridge",
+    "speaker": "Watch floor supervisor in charge of Operation Silent Ridge",
+    "trigger_kind": "agenda",
+    "trigger": "At the opening, after the assisting teams assemble and before investigative work begins. Independent of ticket completion or evidence release.",
+    "ticket": null,
+    "requires": [],
+    "release_files": [],
+    "text": "All right, everyone. Thanks for coming in. We need to move.\n\nI'm the watch floor supervisor in charge of Operation Silent Ridge. The S6 IT department has flagged issues that need a closer look. I've brought your teams in to assist our SOC with the digital forensic investigation.\n\nWe're investigating a suspected disclosure of movement details for Patrol LANTERN, already in the field. No harm is confirmed.\n\nIf those details reached someone outside our control, they could anticipate the patrol's movements. That could put people and the mission at risk. A rushed response could also disrupt essential systems or damage evidence. We need to move quickly and be able to defend our decisions.\n\nEstablish what happened, what information may have been exposed, and which systems need further attention. Bring me significant findings as soon as you can support them, with the uncertainty alongside. Command needs a reliable picture while it can still act on it.\n\nYou'll have endpoint, network, identity, document-service, and security monitoring records to work from. Give me the source behind a finding, your confidence in it, and what you still can't establish. A good hunch earns another look. A finding needs evidence.\n\nYou're separate teams, but I need one shared picture. Share your findings. Challenge each other's reasoning. If your favorite theory doesn't hold up, let it go. That's progress.\n\nKeep the investigation read-only and the original evidence untouched. Don't scan external systems or run programs recovered from evidence. Bring technical recommendations to me. I'll coordinate with command; patrol decisions stay with them.\n\nAll right. Show me what the evidence supports.\n",
+    "words": 264,
+    "estimated_seconds_at_140_wpm": 113,
+    "performance_direction": "Focused and brisk from “We need to move.” Grounded authority on her title and the S6 referral. Slow slightly for the conditional stakes: personnel, mission, systems and evidence. A small dry smile on the hunch/finding lines. The invitation to challenge reasoning is sincere. Keep urgency controlled; do not race through instructions or imply confirmed harm.",
+    "text_sha256": "3d14dad939ab743ff6ce4937c0927214df49d9d0ac5e798259ee4f45da139c81"
+  },
+  {
+    "id": "02",
+    "stem": "brief-02-exit",
+    "title": "Exit — investigation handover",
+    "speaker": "Watch floor supervisor in charge of Operation Silent Ridge",
+    "trigger_kind": "agenda",
+    "trigger": "At the actual end of the assisting teams' investigative assignment, as work stops and the existing shared case is handed over. Independent of ticket completion; do not play at a midpoint or only because a synthesis ticket unlocks.",
+    "ticket": null,
+    "requires": [],
+    "release_files": [],
+    "text": "All right, everyone. We're closing your teams' assignment to Operation Silent Ridge.\n\nI need command to see anything that could affect LANTERN's safety. Put it up front, with the evidence and uncertainty beside it. A critical finding buried in your notes won't help the next watch.\n\nBefore you disappear, leave the next watch a case they can actually follow. Record your findings and source references in the shared case. Make clear what you can support, how confident you are, and what remains unresolved.\n\nLoose ends belong in the handover. They don't get to vanish because we're out of time. Leave the open leads and collection limits visible, with the next useful step for whoever picks them up.\n\nSet out your recommended defensive steps, the evidence behind them, an alternative you considered, and the impact on operations or evidence preservation. I'll take those recommendations to command.\n\nClose out your investigative work at this handover. Preserve the evidence, your working notes, and the shared case record. Further collection and operational action will be coordinated through me.\n\nThank you for the work you've put into this. I'll take the difficult questions to command. Make sure I've got your evidence with me.\n\nYour teams can stand down from this assignment. I'll take it from here.\n",
+    "words": 211,
+    "estimated_seconds_at_140_wpm": 90,
+    "performance_direction": "Begin with firm attention to anything that could affect LANTERN, then stay composed and slightly wry on “Before you disappear.” Give the loose-ends lines a conversational edge without scolding. Take responsibility on the command lines. The final sentence releases the teams; it does not celebrate a solved incident or suggest the risk has passed.",
+    "text_sha256": "ddde43358c5eef77ca752c49e3d91135a1717a69f3aa51cedb16bed84c97b530"
+  }
+]
