@@ -203,8 +203,13 @@ def load(app):
                 elif action == 'answer':
                     result = bridge('ctfd', team, 'answer', question=request.form['question'], answer=request.form['answer'])
                     if result['correct']:
-                        message = 'Correct — %d point%s earned. Findings synchronization pending.' % (
-                            result['value'], '' if result['value'] == 1 else 's')
+                        if result.get('assessment_published'):
+                            message = ('Correct — %d point%s earned. Capstone complete: the final incident '
+                                       'assessment and containment actions are now unlocked below.') % (
+                                result['value'], '' if result['value'] == 1 else 's')
+                        else:
+                            message = 'Correct — %d point%s earned. Findings synchronization pending.' % (
+                                result['value'], '' if result['value'] == 1 else 's')
                     else:
                         message = 'Not yet. Try the next free help level or unlock the explicit walkthrough.'
                 else:
@@ -215,7 +220,8 @@ def load(app):
                 PAGE, lane='ctfd', snapshot=snapshot, questions=questions,
                 queue=queue_state(snapshot),
                 iris=os.environ['IRIS_PUBLIC_URL'], ctfd=os.environ['CTFD_PUBLIC_URL'], csrf=session['nonce'],
-                message=message, story=participant_context(snapshot, questions)))
+                message=message, story=participant_context(snapshot, questions),
+                final_brief_url=os.environ.get('RIDGE_FINAL_BRIEF_URL','').strip()))
             # Claim and answer state is shared and changes outside the CTFd
             # process. Prevent a cached pre-claim page from hiding the current
             # ticket's question forms; the status poll already uses no-store.

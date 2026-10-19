@@ -54,7 +54,8 @@ def install(app):
                 queue=queue_state(snapshot),
                 iris=os.environ['IRIS_PUBLIC_URL'],ctfd=os.environ['CTFD_PUBLIC_URL'],
                 csrf=generate_csrf(),case=os.environ['RIDGE_IRIS_CASE'],message='',
-                story=participant_context(snapshot))
+                story=participant_context(snapshot),
+                final_brief_url=os.environ.get('RIDGE_FINAL_BRIEF_URL','').strip())
         except HTTPError as exc:
             return 'Ticket unavailable, another team claimed it, or exercise paused. Reload the queue.',exc.code
         except TRANSPORT_ERRORS:
@@ -104,7 +105,7 @@ def install(app):
                 return {c.name:(getattr(row,c.name).isoformat() if isinstance(getattr(row,c.name),datetime) else str(getattr(row,c.name)) if c.name.endswith('uuid') else getattr(row,c.name)) for c in row.__table__.columns}
             return jsonify(tasks=[serialize(t) for t in tasks],comments=[serialize(c) for c in comments],
                            links=[serialize(link) for link in links],receipts=[dict(key=r.key,remote=r.remote) for r in db.session.query(RidgeReceipt).all()])
-        if kind not in ('ticket','finding','close','ownership') or len(key)>200:
+        if kind not in ('ticket','finding','close','ownership','assessment') or len(key)>200:
             abort(400)
         receipt=db.session.get(RidgeReceipt,key)
         if receipt:
@@ -127,10 +128,14 @@ def install(app):
                     task.task_status_id=int(os.environ['RIDGE_IRIS_CLOSED_STATUS'])
                     task.task_close_date=stamp;task.task_userid_close=user;remote=task.id
                 else:
-                    text=('Ownership: '+str(p['team'] or 'available')) if kind=='ownership' else (
-                        p['text']+'\nEvidence: '+', '.join(p['evidence'])+'\nLimitation: '+p['limitation']+
-                        '\nQuestion: '+p['question']+'\nSolved by: '+p['team_name']+'\nUTC: '+p['timestamp']+
-                        '\nAnswer event: '+p['event'])
+                    if kind=='ownership':
+                        text='Ownership: '+str(p['team'] or 'available')
+                    elif kind=='assessment':
+                        text=p['text']+'\n\nCompletion event: '+p['event']+'\nCompleted by: '+p['team_name']
+                    else:
+                        text=(p['text']+'\nEvidence: '+', '.join(p['evidence'])+'\nLimitation: '+p['limitation']+
+                              '\nQuestion: '+p['question']+'\nSolved by: '+p['team_name']+'\nUTC: '+p['timestamp']+
+                              '\nAnswer event: '+p['event'])
                     comment=Comments(comment_text=text,comment_date=stamp,comment_update_date=stamp,
                                      comment_user_id=user,comment_case_id=case)
                     db.session.add(comment);db.session.flush()

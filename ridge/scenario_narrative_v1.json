@@ -53,5 +53,30 @@
       "handoff": "Publish the supported disclosure finding, list the denied or unproven claims, and name the collection still required."
     }
   ],
-  "completion": "Success is a shared, cited assessment: what was transmitted, which records support it, what was denied or superseded, and which leads remain unresolved."
+  "completion": "Success is a shared, cited assessment: what was transmitted, which records support it, what was denied or superseded, and which leads remain unresolved.",
+  "conclusion": {
+    "status": "LIMITED DISCLOSURE CONFIRMED — IMMEDIATE CONTAINMENT REQUIRED",
+    "summary": "At 09:06 UTC, WS-17 transmitted a payload matching Patrol LANTERN movement brief v3 to 198.51.100.77 through request req-72. Version 4 superseded that brief at 09:10 UTC, changing the sector from AMBER to BLUE and setting the movement window to 10:30–11:30Z. CEDAR remained unchanged, so the older brief still exposed an active check-in word.",
+    "confirmed": [
+      "Movement brief v3 left WS-17 and was acknowledged by the external relay at 198.51.100.77.",
+      "Session S-41, assigned to m.ellis, survived the password reset and refreshed successfully at 09:26 UTC.",
+      "The superseding v4 record changed the sector and movement window but retained check-in word CEDAR."
+    ],
+    "not_established": [
+      "The denied roster request returned HTTP 403 and zero body bytes; successful roster disclosure is not established.",
+      "The evidence does not establish who controlled session S-41, whether a human read the transmitted body, or adversary intent.",
+      "The evidence does not support an enterprise-wide compromise conclusion."
+    ],
+    "unresolved": [
+      "WS-31 cannot be cleared because endpoint collection stopped before task execution could be determined.",
+      "Additional collection is required to determine whether the WS-31 BriefSync inventory represents execution or only configuration."
+    ],
+    "actions": [
+      "Rotate the CEDAR check-in word and brief Patrol LANTERN on the residual exposure.",
+      "Explicitly revoke session S-41; a password reset alone does not invalidate the issued session.",
+      "Isolate and preserve WS-17, then acquire the missing endpoint and network evidence from WS-31.",
+      "Monitor or block the external relay indicator and retain req-72, the matching payload hash, and the corrected timeline in the case record."
+    ],
+    "announcement": "FINAL INCIDENT ASSESSMENT — LIMITED DISCLOSURE CONFIRMED. At 09:06 UTC, WS-17 transmitted a payload matching Patrol LANTERN movement brief v3 to 198.51.100.77 in req-72. V4 superseded the route at 09:10 UTC, but CEDAR remained unchanged, leaving an active check-in word exposed. The roster request was denied with HTTP 403 and zero body bytes. Session S-41 survived the password reset, but control of the session and adversary intent are not established. WS-31 remains unresolved because collection ended before execution could be determined. Required actions: rotate CEDAR, revoke S-41, isolate and preserve WS-17, collect WS-31, and monitor or block the external relay indicator."
+  }
 }

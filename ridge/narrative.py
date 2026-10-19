@@ -9,7 +9,7 @@ from pathlib import Path
 def contract():
     data=json.loads(Path(__file__).with_name('scenario_narrative_v1.json').read_text(encoding='utf-8'))
     required=('title','fiction_notice','premise','discovery','stakes','participant_role',
-              'operating_rule','roles','tools','phases','completion')
+              'operating_rule','roles','tools','phases','completion','conclusion')
     missing=[field for field in required if not data.get(field)]
     if data.get('schema')!=1 or missing:
         raise ValueError('Invalid scenario narrative contract: '+', '.join(missing or ['schema']))
@@ -17,7 +17,17 @@ def contract():
     tickets=[ticket for phase in data['phases'] for ticket in phase.get('tickets',[])]
     if set(tickets)!=expected or len(tickets)!=len(set(tickets)):
         raise ValueError('Scenario narrative phases must cover T01 through T20 exactly once')
+    conclusion=data['conclusion']
+    conclusion_required=('status','summary','confirmed','not_established','unresolved',
+                         'actions','announcement')
+    if any(not conclusion.get(field) for field in conclusion_required):
+        raise ValueError('Scenario narrative conclusion is incomplete')
     return data
+
+
+def final_assessment():
+    """Return the canonical post-capstone assessment used by UI and IRIS."""
+    return contract()['conclusion']
 
 
 def ticket_context(ticket):
@@ -43,10 +53,14 @@ def participant_context(snapshot,questions=()):
     data=contract()
     mapping={ticket:ticket_context(ticket) for phase in data['phases'] for ticket in phase['tickets']}
     visible=list(snapshot.get('tickets',[]))
+    completed=sum(t.get('status')=='complete' for t in visible)
+    total=sum(len(phase['tickets']) for phase in data['phases'])
     return {'title':data['title'],'fiction_notice':data['fiction_notice'],
             'premise':data['premise'],'discovery':data['discovery'],'stakes':data['stakes'],
             'participant_role':data['participant_role'],'operating_rule':data['operating_rule'],
             'roles':data['roles'],'tools':data['tools'],'ticket_context':mapping,
-            'completion':data['completion'],'completed':sum(t.get('status')=='complete' for t in visible),
-            'total':sum(len(phase['tickets']) for phase in data['phases']),
+            'completion':data['completion'],'completed':completed,'total':total,
+            # Do not ship the conclusion in pre-completion HTML. It is a reveal,
+            # not a hidden client-side element that curious participants can read.
+            'conclusion':data['conclusion'] if completed==total else None,
             'question_count':len(questions or ())}
