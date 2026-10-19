@@ -47,6 +47,14 @@ The four answers in each row correspond to Q1–Q4 in order. The linked screensh
 5. **Incorrect question-level sources — medium/high.** T07-Q1 cited `session_refresh` for a password-reset question; T07-Q2/Q4 and T12-Q2/Q3 also cited ticket-level records that did not contain the requested fact. Question-level source and selection metadata now point to the evidence that actually answers each question.
 6. **T13-Q2 answer granularity — medium.** The prompt asked for an executable but rejected the full path while accepting a basename. It now explicitly asks for the parent executable basename and supplies filename-only formatting guidance.
 
+## Deployment and automated validation
+
+- The complete source test suite passed on the event machine: **487 tests passed, 23 skipped**.
+- The repaired desktop image built successfully and was verified to contain Mousepad 0.6.1, GNU `strings`/`readelf` 2.42, `file` 5.45, and the CSV MIME association.
+- The CTFd, integration, and all three team desktop containers were recreated from the updated images while retaining the rehearsal data volumes.
+- After recreation, every affected container reported healthy and the lifecycle probe reported `event_ready: true`, one team, 20 tickets, and zero pending synchronization updates.
+- A fresh browser verification confirmed that CTFd still showed 80 accepted answers, 20/20 stages, the final assessment, and zero pending updates; IRIS independently showed all 20 tickets complete and the same published conclusion. [Post-deployment proof](evidence-route-screenshots/58-post-deploy-final-assessment.png)
+
 ## Improvements still recommended
 
 - Add a visible, team-local midpoint brief when the new evidence is released. Automatic release worked, but it was silent and therefore missed a major narrative beat.
