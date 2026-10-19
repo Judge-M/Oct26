@@ -704,7 +704,7 @@ The per-team queue released later work automatically: T07 and T19 appeared after
 ## Defects and event-day risks found
 
 1. **Registration POST returned 403.** The plugin used a second `registration_nonce`, while CTFd's global CSRF hook requires `session['nonce']`. Fixed and covered by the actual CTFd image smoke test.
-2. **The registration worker was not alive.** A stale PID file was treated as live because `tasklist` returns exit code zero even when no process matches. Provisioning required one manual `--once` run during this rehearsal. The process check and detached launch behavior are fixed and covered by unit tests; a persistent-worker restart remains part of deployment verification.
+2. **The registration worker was not alive.** A stale PID file was treated as live because `tasklist` returns exit code zero even when no process matches. Provisioning required one manual `--once` run during this rehearsal. The process check and detached launch behavior are fixed and covered by unit tests. Live deployment verification replaced the stale PID, launched the worker in a detached service session, and confirmed it remained alive.
 3. **Stale configuration generated legacy IP-and-port URLs.** IRIS initially rendered `192.168.1.200:8181/8183`, and the completed team's stored workstation handout used `:8182`. The running containers and both authoritative provisioning-profile copies were corrected to the trusted hostnames on port 443. A browser recheck found no legacy links in IRIS; future registrations will use `iris.cyberexperts.org`, `ctfd.cyberexperts.org`, and `guac.cyberexperts.org`. The already-stored team-01 handout is historical data and was not rewritten.
 4. **The CTFd-to-IRIS link reaches a 401 before the first IRIS login.** Participants must visit the IRIS root and authenticate before opening `/silent-ridge`; redirecting to login would be clearer.
 5. **Hints are currently free.** The page explicitly says all help is free; the requested 75% point-cost policy is not implemented.
@@ -720,4 +720,5 @@ The per-team queue released later work automatically: T07 and T19 appeared after
 - CTFd: 80 accepted browser submissions; scoreboard showed 80 points.
 - Integration: final participant page showed 0 updates awaiting synchronization.
 - Public routing: a post-restart IRIS browser check found hostname-only links and no `192.168.x.x` or `:818x` targets.
+- Registration worker: stale-PID recovery started a detached worker that remained alive during the live follow-up check.
 - Evidence set: 113 sanitized PNGs in `screenshots/`.
