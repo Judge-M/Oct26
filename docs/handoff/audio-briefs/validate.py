@@ -7,11 +7,14 @@ from html.parser import HTMLParser
 import json
 from pathlib import Path
 import re
+import wave
 
 
 HERE = Path(__file__).resolve().parent
 STEMS = ["brief-01-introduction", "brief-02-exit"]
 SPEAKER = "Faye Maxwell, SOC supervisor for Operation Silent Ridge"
+INTRO_AUDIO = HERE / "recordings" / "brief-01-introduction.wav"
+INTRO_AUDIO_SHA256 = "6b5a471c510c29081cee1851546d513f88117bc93ba53b1f6121aea4c31eb92a"
 
 
 def check(repo: Path) -> int:
@@ -35,9 +38,16 @@ def check(repo: Path) -> int:
     need({path.stem for path in (HERE / "spoken").glob("*.txt")} == set(STEMS), "exactly two canonical spoken files")
     need({path.stem for path in HERE.glob("brief-*.md")} == set(STEMS), "exactly two production sheets")
 
-    prohibited_media = [path for path in HERE.rglob("*") if path.suffix.casefold() in {".wav", ".mp3", ".ogg", ".m4a", ".flac"}]
+    media = [path for path in HERE.rglob("*") if path.suffix.casefold() in {".wav", ".mp3", ".ogg", ".m4a", ".flac"}]
     prohibited_renderers = [path for path in HERE.rglob("*.py") if path.name != "validate.py"]
-    need(not prohibited_media, "no audio files are committed")
+    need(media == [INTRO_AUDIO], "only the unchanged introduction WAV is committed")
+    need(hashlib.sha256(INTRO_AUDIO.read_bytes()).hexdigest() == INTRO_AUDIO_SHA256, "introduction audio hash")
+    with wave.open(str(INTRO_AUDIO), "rb") as audio:
+        need(audio.getnchannels() == 1, "introduction audio is mono")
+        need(audio.getsampwidth() == 2, "introduction audio is PCM-16")
+        need(audio.getframerate() == 48000, "introduction audio is 48 kHz")
+        need(audio.getnframes() == 5464320, "introduction audio frame count")
+    need(provenance["included_audio"]["sha256"] == INTRO_AUDIO_SHA256, "audio provenance hash")
     need(not prohibited_renderers, "no voice-rendering scripts are committed")
     need(not (HERE.parent / "audio-voice-current").exists(), "superseded voice-render directory is absent")
     need(not (HERE.parent / "soc-manager-three-briefs").exists(), "superseded three-brief directory is absent")
@@ -113,7 +123,7 @@ def check(repo: Path) -> int:
             print("FAIL:", failure)
         return 1
 
-    print("PASS: exactly two approved Faye Maxwell scripts; no audio or renderer is committed.")
+    print("PASS: exactly two approved Faye Maxwell scripts and one unchanged introduction WAV; no renderer or outro media is committed.")
     print("PASS: introduction is spoiler-safe; conclusion is completion-gated and matches the final assessment.")
     print("PASS: text, JSON, sheets, echoes, hashes, counts, provenance and cue-desk links agree.")
     print("Estimates: " + ", ".join(f"{brief['words']} words / {brief['estimated_seconds_at_140_wpm']} s" for brief in data) + ".")
