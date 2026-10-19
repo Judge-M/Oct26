@@ -10,7 +10,7 @@ teams learned. Coaching observations are separate from the scoreboard.
 
 Optional [live analytical exchanges](../docs/handoff/audio-briefs/FACILITATION.md)
 support an interim assessment, evidence-based revision and a challenged containment
-recommendation. They remain separate from the two recorded watch-floor briefs and
+recommendation. They remain separate from the two room-wide watch-floor briefs and
 add no report submission, score, approval requirement or ticket-unlock gate. Use the
 issued agenda and current findings; keep feedback free of scored answers.
 
