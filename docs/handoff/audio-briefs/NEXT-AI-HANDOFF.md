@@ -1,8 +1,7 @@
 # Audio-production handoff
 
-Produce two recordings only, using the text byte-for-byte from:
+The existing introduction recording is already included at `recordings/brief-01-introduction.wav`. Produce the missing outro recording using the text byte-for-byte from:
 
-- `spoken/brief-01-introduction.txt`
 - `spoken/brief-02-exit.txt`
 
 The speaker is **Faye Maxwell, SOC supervisor for Operation Silent Ridge**. Use one consistent adult female voice with natural American English, clear diction, grounded authority and controlled urgency. The performance should sound like a supervisor speaking to trusted analysts, not an announcer or trailer narrator.
@@ -24,12 +23,11 @@ Conclusion direction: identify Faye by name, then deliver the confirmed disclosu
 
 Do not add, omit or paraphrase words. Do not speak headings, production notes, exercise framing or EXCON terminology. Do not append music, sound effects or ad-libs unless the organizer separately approves them.
 
-Output stems:
+Output stem:
 
-- `brief-01-introduction`
 - `brief-02-exit`
 
-No rendered audio belongs in this PR. Put candidate recordings outside the repository for listening review. Only accepted final audio should be added in a later, clearly labeled change.
+Put candidate outro recordings outside the repository for listening review. Only accepted final outro audio should be added in a later, clearly labeled change. Do not replace or edit the included introduction unless the organizer explicitly requests it.
 
 Reject any source directory containing earlier three-brief, seven-brief, midpoint, post-lunch, generic handover or superseded voice materials. Validate the repository package before production:
 

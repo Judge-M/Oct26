@@ -11,7 +11,14 @@
     "brief-01-introduction": "53f27bf0b7f9e9cdbc5ffaa3632c5c0978e6684fd5a3d720f64d888de4d94094",
     "brief-02-exit": "350fd19a53669509b17daa96f6d023b20e32d542759329f6542ec0747d3c80d0"
   },
-  "new_audio_included": false,
+  "included_audio": {
+    "path": "recordings/brief-01-introduction.wav",
+    "source": "Original reading-02.wav recovered unchanged from the superseded current-voice branch.",
+    "format": "48000 Hz mono PCM-16",
+    "frames": 5464320,
+    "sha256": "6b5a471c510c29081cee1851546d513f88117bc93ba53b1f6121aea4c31eb92a",
+    "note": "Retains the existing final sentence beyond the canonical written introduction."
+  },
   "superseded_material_excluded": [
     "three-brief packages",
     "seven-brief packages",

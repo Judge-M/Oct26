@@ -3,7 +3,7 @@
 `validate.py` verifies:
 
 - Exactly two canonical spoken scripts and production sheets exist.
-- No audio files or voice-rendering scripts are present.
+- The only bundled media is the unchanged 48 kHz mono PCM-16 introduction WAV with its expected frame count and SHA-256; no outro media or voice-rendering script is present.
 - The introduction contains no answer-key spoilers or spoken exercise framing.
 - The conclusion matches the canonical final assessment and contains its required limits and actions.
 - Structured JSON, announcement echoes, word counts and SHA-256 hashes match the canonical spoken files.

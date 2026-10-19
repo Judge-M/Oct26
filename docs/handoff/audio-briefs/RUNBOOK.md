@@ -4,13 +4,13 @@
 
 1. Confirm the only active scripts are the two files under `spoken/`.
 2. Run `python docs/handoff/audio-briefs/validate.py`.
-3. Confirm no WAV, MP3, OGG, voice-rendering scripts or superseded brief directories are present in this package.
-4. If final audio or video has been accepted separately, load it on the facilitator's presentation machine and test the room output. Do not publish its URL to participants. Otherwise plan to read the conclusion live.
+3. Confirm `recordings/brief-01-introduction.wav` is the only bundled media and that no voice-rendering scripts or superseded brief directories are present.
+4. Test the introduction on the facilitator's presentation machine and confirm the room output. Do not publish its URL to participants. Plan to read the conclusion live unless separately accepted outro audio or video is available.
 5. Open [player.html](player.html) on the facilitator machine.
 
 ## Cue 01 — introduction
 
-Deliver [brief-01-introduction.txt](spoken/brief-01-introduction.txt) after teams assemble and before investigative work begins. The cue does not start the event clock and does not release evidence.
+Play [brief-01-introduction.wav](recordings/brief-01-introduction.wav) once for the room after teams assemble and before investigative work begins, or read [brief-01-introduction.txt](spoken/brief-01-introduction.txt) live. The cue does not start the event clock and does not release evidence.
 
 ## Cue 02 — final assessment
 
