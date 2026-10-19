@@ -1,55 +1,30 @@
 # Facilitator closing brief
 
-Use this brief only after a team completes T20. The platform reveals the same
-assessment automatically in CTFd and IRIS; this script gives the facilitator or
-the closing audiovisual the spoken version of that canonical record.
-
-## On-screen title
+The canonical narrative outro is [Faye Maxwell’s final assessment](handoff/audio-briefs/spoken/brief-02-exit.txt). Deliver it only after all 20 ticket stages are complete and the participant surfaces display:
 
 **LIMITED DISCLOSURE CONFIRMED — IMMEDIATE CONTAINMENT REQUIRED**
 
-## Spoken brief
+## Room-wide delivery
 
-At 09:06 UTC, WS-17 transmitted a payload matching Patrol LANTERN movement
-brief version 3 to the external relay at `198.51.100.77` through request
-`req-72`. Four minutes later, version 4 superseded that brief. The sector moved
-from AMBER to BLUE and the movement window became 10:30–11:30Z, but the
-check-in word CEDAR did not change. The older brief therefore still exposed an
-active operational element.
+Play the accepted audio or video once over the room presentation system. If final media is unavailable, Faye’s script can be read live. Do not distribute a playback URL, embed media on participant pages or allow each team to start the outro independently.
 
-The roster request did not succeed: it returned HTTP 403 and zero body bytes.
-Session S-41, assigned to `m.ellis`, survived the password reset and refreshed
-at 09:26 UTC. The evidence does not establish who controlled that session,
-whether a human read the transmitted payload, or adversary intent. WS-31 also
-cannot be cleared because collection stopped before execution could be
-determined.
+The current repository contains the final script but no final outro WAV or video. Candidate media stays outside the repository until it passes production and human listening acceptance.
 
-The final assessment is a confirmed, limited disclosure from WS-17 with
-residual operational risk. It is not evidence of roster theft, enterprise-wide
-compromise, or actor attribution.
+## Operator sequence
 
-The required response is to rotate CEDAR, explicitly revoke S-41, isolate and
-preserve WS-17, collect the missing evidence from WS-31, and monitor or block
-the external relay indicator.
+1. Confirm shared progress is `20 of 20 ticket stages complete`.
+2. Confirm the final-assessment panel is visible in both CTFd and IRIS.
+3. Confirm the integration queue has returned to zero and IRIS contains the final assessment comment.
+4. Get the room’s attention and pause unrelated activity.
+5. Play or read the outro once for everyone.
+6. Continue with the separate in-person administrative brief and AAR.
 
-## Facilitator discussion prompts
+The outro restates findings already published by the platform. It must never be played early as a hint or evidence release.
 
-1. Why is transmission enough to declare a disclosure even though human
-   reading is not established?
-2. Why does v4 reduce some risk without eliminating the exposure?
+## Discussion prompts
+
+1. Why is transmission enough to declare a disclosure even though human reading is not established?
+2. Why does version four reduce some risk without eliminating the exposure?
 3. Why is password reset insufficient containment for S-41?
 4. Which statements are confirmed, and which remain unresolved?
-5. What additional evidence would be required to attribute intent or clear
-   WS-31?
-
-## Audiovisual integration
-
-When the closing media is ready, set `RIDGE_FINAL_BRIEF_URL` in the event
-environment before starting the central stack. Completed teams will receive a
-**Play the unlocked closing audiovisual brief** link. If it is unset, the
-participant page tells the team that the facilitator can present the closing
-brief in person.
-
-Do not place the media URL or the conclusion on a pre-completion participant
-page. The server adds the conclusion to the rendered context only after all 20
-ticket stages are complete.
+5. What evidence would be required to attribute intent or clear WS-31?

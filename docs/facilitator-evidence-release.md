@@ -60,7 +60,7 @@ After the prerequisite ticket is fully answered:
 After T20, confirm `pending` returns to zero and verify the T20 task contains
 the **FINAL INCIDENT ASSESSMENT** comment. Use
 [`facilitator-closing-brief.md`](facilitator-closing-brief.md) for the spoken or
-audiovisual debrief.
+room-wide audiovisual debrief. Do not expose a participant playback link.
 
 For a technical failure, pause the exercise before intervention:
 

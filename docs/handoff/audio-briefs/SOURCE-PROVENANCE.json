@@ -1,21 +1,22 @@
 {
   "prepared_date": "2026-10-19",
-  "integration_base": "5cabbf74438038c74d9b6a6650a6668cebc69b18",
-  "source_of_current_decisions": "Organizer instructions: two briefs; watch floor supervisor; S6 IT referral; no spoken exercise framing; professional personality; urgency and conditional stakes.",
-  "narrative_additions": [
-    "Watch floor supervisor leads Operation Silent Ridge",
-    "S6 IT referral",
-    "Separate forensic teams assist the SOC"
-  ],
-  "unchanged_contracts": [
-    "Evidence and intentional gaps",
-    "Automatic ticket release dependencies",
-    "Scoring",
-    "Runtime state and event clock controls"
+  "integration_base": "7122894",
+  "speaker": "Faye Maxwell, SOC supervisor for Operation Silent Ridge",
+  "source_of_current_decisions": "Organizer-provided introduction plus organizer-approved definitive conclusion after the completed rehearsal.",
+  "canonical_scripts": [
+    "spoken/brief-01-introduction.txt",
+    "spoken/brief-02-exit.txt"
   ],
   "narration_text_sha256": {
-    "brief-01-introduction": "3d14dad939ab743ff6ce4937c0927214df49d9d0ac5e798259ee4f45da139c81",
-    "brief-02-exit": "ddde43358c5eef77ca752c49e3d91135a1717a69f3aa51cedb16bed84c97b530"
+    "brief-01-introduction": "53f27bf0b7f9e9cdbc5ffaa3632c5c0978e6684fd5a3d720f64d888de4d94094",
+    "brief-02-exit": "350fd19a53669509b17daa96f6d023b20e32d542759329f6542ec0747d3c80d0"
   },
-  "new_audio_included": false
+  "new_audio_included": false,
+  "superseded_material_excluded": [
+    "three-brief packages",
+    "seven-brief packages",
+    "generic exit handovers",
+    "prior voice renders",
+    "voice-rendering scripts"
+  ]
 }

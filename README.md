@@ -184,9 +184,9 @@ The [participant briefing deck](docs/event-day-deck/event-day-deck.pdf)
 scenario and walks participants through setup click by click.
 The [facilitator closing brief](docs/facilitator-closing-brief.md) is the
 canonical ending used after T20. Completion automatically reveals the final
-assessment and containment actions in CTFd, publishes the same assessment to
-IRIS, and optionally unlocks the closing audiovisual when
-`RIDGE_FINAL_BRIEF_URL` is configured.
+assessment and containment actions in CTFd and publishes the same assessment
+to IRIS. The facilitator then plays or reads the outro once for the entire
+room; participant-controlled media playback is intentionally unavailable.
 
 ```bash
 python -m ridge.deploy pause   --profile ... --runtime ...   # pause the clock
@@ -272,13 +272,12 @@ Project-authored source code and documentation are licensed under the
 evidence and assets retain their respective licenses and notices; see
 [NOTICE](NOTICE).
 
-## Watch-floor audio briefs
+## Room-wide narrative briefs
 
-The [two-brief package](docs/handoff/audio-briefs/README.md) provides an introduction
-and exit handover from the watch floor supervisor in charge of Operation Silent
-Ridge. It includes clean narration inputs, a production handoff, exact announcement
-echoes and an offline cue desk linked from the presenter landing page. Matching
-recordings still require production. Keep operator metadata out of participant
-distribution; the narration remains inside the situation without spoken exercise
-notices. Evidence release, scoring and event controls continue through their normal
-workflows.
+The [two-brief package](docs/handoff/audio-briefs/README.md) provides the approved
+introduction and final assessment from Faye Maxwell, SOC supervisor for Operation
+Silent Ridge. Both are room-wide facilitator cues: play the introduction once at
+the beginning and the conclusion once during wrap-up after the final assessment is
+visible. No participant page links to or plays the media. The package contains the
+canonical scripts and production handoff; final outro audio or video still requires
+production and listening acceptance.

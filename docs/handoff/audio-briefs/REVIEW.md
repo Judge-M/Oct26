@@ -1,15 +1,14 @@
-# Narrative review and provenance
+# Canon review
 
-Current decisions, 2026-10-19: exactly two briefs, introduction and exit. The speaker is an original female watch floor supervisor who leads Operation Silent Ridge. The user added the S6 IT referral and the separate forensic teams as framing. These are narrative context, not newly discovered evidence or changes to scoring and automatic release dependencies.
+Approved decisions, 2026-10-19:
 
-The user explicitly removed spoken exercise/fake explanations and EXCON framing. Keep that context in organizer documents. The scripts stay inside the situation while retaining read-only work, preserved originals, no external scanning/execution and recommendations routed through the supervisor to command. Command retains patrol decisions.
+- Speaker: **Faye Maxwell, SOC supervisor for Operation Silent Ridge**.
+- Exactly two scripts: the organizer-provided introduction and the completion-gated definitive conclusion.
+- Spoken narration remains entirely inside the incident narrative. Administrative exercise framing is delivered separately in person.
+- The conclusion is **LIMITED DISCLOSURE CONFIRMED — IMMEDIATE CONTAINMENT REQUIRED**.
+- The conclusion follows, and does not precede, the automatic final-assessment publication.
+- No audio is included until the final scripts receive separate production and human listening acceptance.
 
-Potential stakes are conditional: disclosed movement details could allow someone to anticipate LANTERN and place people and the mission at risk; a rushed response could disrupt systems or damage evidence. No harm, recipient, hostile intent, imminent attack, deadline or successful remediation is invented. The exit prioritizes findings that could affect the patrol's safety and releases the assisting teams without declaring the operation resolved.
+The conclusion must preserve the evidentiary distinctions already encoded in `ridge/scenario_narrative_v1.json`: v3 transmission is confirmed; the roster disclosure, controller of S-41 and adversary intent are not established; WS-31 remains unresolved; CEDAR rotation, S-41 revocation, WS-17 preservation, WS-31 collection and relay monitoring/blocking are required.
 
-Personality comes from confident, direct requests, dry wit and ownership of the command handover. Urgency means timely, supportable findings with stated uncertainty. It is not permission for speculation or rushed evidence handling. Requests for findings remain questions participants answer from evidence.
-
-The podcast assessment's useful principle is retained as optional live analysis, peer challenge and evidence-based feedback in FACILITATION.md. Participants do the reasoning. The original three- and seven-recording designs and male voice are superseded; no historical draft or mismatched take is offered as an active cue.
-
-Ground truth: facilitator/ground-truth.md; premise: participants/handover.md; mechanics: docs/facilitator-evidence-release.md; objectives: docs/learning-objectives.md; protected answers: docs/rehearsal/evidence/rehearsal-20261018/completed-rerun.md. The incoming-watch scenario time remains 09:30Z in canon; its omission from speech does not change it. The introduction does not imply an ordering of credential action and viewer activity. It does not repair or re-export presentation decks.
-
-Intentional gaps remain: original delivery, token contents, human attribution/reading, collection gaps, unobservable runtime, uncollected systems and actual use of information. Metadata or acknowledgement is not proof of human reading. The exit does not resolve these gaps or establish that all twenty tickets are complete. A schedule model and serialized rerun are not measured room pacing or live thirty-person acceptance.
+Superseded materials: prior three-brief and seven-brief packages, generic exit handovers, post-lunch or midpoint cues, old voice renders and voice-rendering scripts. They must not be merged or copied into the active package.

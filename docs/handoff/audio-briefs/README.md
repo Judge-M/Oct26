@@ -1,27 +1,22 @@
-# Operation Silent Ridge — two watch-floor briefs
+# Operation Silent Ridge — Faye Maxwell narrative briefs
 
-Two narration-ready scripts: an introduction and an exit handover. An original female **watch floor supervisor in charge of Operation Silent Ridge** brings separate teams into a digital forensic investigation after the **S6 IT department flags issues**. She is professional, warm, lightly wry and urgent about evidence that could affect Patrol LANTERN. Risks to people, the mission, systems and evidence remain conditional; harm and resolution are not invented.
+This is the complete approved narrative package. It contains exactly two spoken cues from **Faye Maxwell, SOC supervisor for Operation Silent Ridge**:
 
-The spoken scripts stay entirely within the situation. The user's 2026-10-19 direction replaces the earlier spoken exercise notices and EXCON framing. Organizer-facing scenario context stays in these documents. The underlying project remains a fictional defensive CTF. The operator represents the supervisor and simulated command; narration authorizes no external action.
+| Cue | Canonical script | Trigger | Estimate |
+|---|---|---|---:|
+| Introduction | [brief-01-introduction.txt](spoken/brief-01-introduction.txt) | Teams assembled, before investigation | 256 words / 110 s |
+| Final assessment | [brief-02-exit.txt](spoken/brief-02-exit.txt) | 20/20 stages complete and final assessment visible | 508 words / 218 s |
 
-Start with [the production handoff](NEXT-AI-HANDOFF.md). Open [the offline cue desk](player.html) for live reading or locally selected recordings. No matching audio ships yet. Prior three- and seven-brief takes are superseded; do not load them as these cues.
+Only the two files under `spoken/` are canonical production inputs. The Markdown performance sheets, JSON metadata and announcement echoes must match them. No audio recordings are included in this pull request.
 
-| Asset | Trigger | Words | Estimated speech |
-|---|---|---:|---:|
-| [Introduction](brief-01-introduction.md) | Teams assembled, before investigation | 264 | 113 s |
-| [Exit](brief-02-exit.md) | Actual end of the teams' assignment | 211 | 90 s |
+The introduction stays entirely inside the narrative and does not identify the scenario as an exercise. The conclusion is intentionally spoiler-bearing and must not be delivered early: it follows the participant-page assessment **LIMITED DISCLOSURE CONFIRMED — IMMEDIATE CONTAINMENT REQUIRED**.
 
-Timing assumes 140 words/minute before extra pauses. Neither cue is tied to a ticket or release; the exit can occur with unresolved findings. There is no lunch, midpoint or additional recorded stand-down cue. The exit releases the assisting teams while the operation may continue.
+Start with [START-HERE.md](START-HERE.md). Producers should use [NEXT-AI-HANDOFF.md](NEXT-AI-HANDOFF.md). Facilitators can use the [cue desk](player.html), [runbook](RUNBOOK.md), [cue boundaries](INJECTION-PLAN.md) and [review notes](REVIEW.md).
 
-References: [RUNBOOK](RUNBOOK.md), [cue/release boundaries](INJECTION-PLAN.md), [optional live coaching](FACILITATION.md), [review and canon](REVIEW.md), [validation](VALIDATION.md), [structured scripts](briefs.json), [clean inputs](spoken/), [full normalized echoes](ANNOUNCE-TEXTS.json), [recording destination](recordings/README.md).
-
-Keep this package, presenter page and checkout on the operator machine; distribute only approved participant surfaces and runtime/public. “Facilitator-only” describes event distribution and does not make a public GitHub repository secret. Credentials, real rosters, live state and private production connection notes do not belong here.
-
-From the checkout root:
+Validation:
 
 ```bash
 python docs/handoff/audio-briefs/validate.py
-python -m unittest discover -s tests
 ```
 
-Keep JSON, clean text, production sheets, handoff appendices, runbook echoes and embedded player data synchronized. CI runs the content/parity checker on Linux and Windows. Validation does not connect to or modify an event. No runtime or image source is changed by this package.
+Superseded three-brief, seven-brief and previous voice-render packages must not be copied into this directory or merged from another branch.

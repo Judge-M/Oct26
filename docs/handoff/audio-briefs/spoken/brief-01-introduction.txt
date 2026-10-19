@@ -13,5 +13,3 @@ You'll have endpoint, network, identity, document-service, and security monitori
 You're separate teams, but I need one shared picture. Share your findings. Challenge each other's reasoning. If your favorite theory doesn't hold up, let it go. That's progress.
 
 Keep the investigation read-only and the original evidence untouched. Don't scan external systems or run programs recovered from evidence. Bring technical recommendations to me. I'll coordinate with command; patrol decisions stay with them.
-
-All right. Show me what the evidence supports.
