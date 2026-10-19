@@ -1,0 +1,22 @@
+{
+  "answer_key_relative_path": "docs/rehearsal/evidence/rehearsal-20261018/completed-rerun.md",
+  "intro_allowed_answer_literals": ["LANTERN", "no"],
+  "intro_forbidden_literals": [
+    "WS-17", "WS-22", "WS-31", "brief-viewer.exe", "BriefSync", "S-41",
+    "m.ellis", "r.chen", "plan-v3", "plan-v4", "AMBER", "BLUE", "CEDAR",
+    "198.51.100.77", "10.26.10.17", "relay.archive.example",
+    "briefs.helpdesk.example", "req-71", "req-72", "req-75", "previous_claim",
+    "session revocation", "6364", "7644", "C:/Temp/move-cache.txt",
+    "classify_version", "cached v3", "08:57", "08:58", "09:03", "09:04",
+    "09:06", "09:08", "09:10", "09:20", "09:26"
+  ],
+  "conclusion_required_literals": [
+    "Faye Maxwell", "WS-17", "198.51.100.77", "req-72", "AMBER", "BLUE",
+    "CEDAR", "HTTP 403", "zero bytes", "S-41", "m.ellis", "WS-31",
+    "BriefSync", "limited disclosure confirmed", "immediate containment required"
+  ],
+  "prohibited_spoken_meta_terms": [
+    "exercise", "fictional", "simulation", "simulated", "EXCON", "ENDEX",
+    "controller", "CTF", "not real", "fake", "Good hunting"
+  ]
+}

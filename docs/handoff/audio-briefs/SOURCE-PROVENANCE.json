@@ -1,0 +1,22 @@
+{
+  "prepared_date": "2026-10-19",
+  "integration_base": "7122894",
+  "speaker": "Faye Maxwell, SOC supervisor for Operation Silent Ridge",
+  "source_of_current_decisions": "Organizer-provided introduction plus organizer-approved definitive conclusion after the completed rehearsal.",
+  "canonical_scripts": [
+    "spoken/brief-01-introduction.txt",
+    "spoken/brief-02-exit.txt"
+  ],
+  "narration_text_sha256": {
+    "brief-01-introduction": "53f27bf0b7f9e9cdbc5ffaa3632c5c0978e6684fd5a3d720f64d888de4d94094",
+    "brief-02-exit": "350fd19a53669509b17daa96f6d023b20e32d542759329f6542ec0747d3c80d0"
+  },
+  "new_audio_included": false,
+  "superseded_material_excluded": [
+    "three-brief packages",
+    "seven-brief packages",
+    "generic exit handovers",
+    "prior voice renders",
+    "voice-rendering scripts"
+  ]
+}

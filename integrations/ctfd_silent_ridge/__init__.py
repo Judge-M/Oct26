@@ -220,8 +220,7 @@ def load(app):
                 PAGE, lane='ctfd', snapshot=snapshot, questions=questions,
                 queue=queue_state(snapshot),
                 iris=os.environ['IRIS_PUBLIC_URL'], ctfd=os.environ['CTFD_PUBLIC_URL'], csrf=session['nonce'],
-                message=message, story=participant_context(snapshot, questions),
-                final_brief_url=os.environ.get('RIDGE_FINAL_BRIEF_URL','').strip()))
+                message=message, story=participant_context(snapshot, questions)))
             # Claim and answer state is shared and changes outside the CTFd
             # process. Prevent a cached pre-claim page from hiding the current
             # ticket's question forms; the status poll already uses no-store.

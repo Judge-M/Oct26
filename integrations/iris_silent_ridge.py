@@ -54,8 +54,7 @@ def install(app):
                 queue=queue_state(snapshot),
                 iris=os.environ['IRIS_PUBLIC_URL'],ctfd=os.environ['CTFD_PUBLIC_URL'],
                 csrf=generate_csrf(),case=os.environ['RIDGE_IRIS_CASE'],message='',
-                story=participant_context(snapshot),
-                final_brief_url=os.environ.get('RIDGE_FINAL_BRIEF_URL','').strip())
+                story=participant_context(snapshot))
         except HTTPError as exc:
             return 'Ticket unavailable, another team claimed it, or exercise paused. Reload the queue.',exc.code
         except TRANSPORT_ERRORS:

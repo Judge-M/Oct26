@@ -8,6 +8,12 @@ solved answers and points with their original solving team.
 Use IRIS findings, question history and the private audit export to discuss what
 teams learned. Coaching observations are separate from the scoreboard.
 
+Optional [live analytical exchanges](../docs/handoff/audio-briefs/FACILITATION.md)
+support an interim assessment, evidence-based revision and a challenged containment
+recommendation. They remain separate from the two room-wide watch-floor briefs and
+add no report submission, score, approval requirement or ticket-unlock gate. Use the
+issued agenda and current findings; keep feedback free of scored answers.
+
 ## After-action review
 
 Reserve AAR time separately from investigation activity. Ask each team to explain
