@@ -1,6 +1,7 @@
 """Execute inside the actual extended CTFd 3.7.7 image, using a disposable database."""
 import concurrent.futures
 import os
+from urllib.parse import urlsplit
 from unittest.mock import patch
 from pathlib import Path
 
@@ -55,7 +56,8 @@ with app.test_client() as registration_client:
         'nonce':registration_nonce})
     assert registration.status_code==302,(
         registration.status_code,registration.get_data(as_text=True)[:200])
-    assert registration.headers['Location'].startswith('/silent-ridge/registration/'),(
+    registration_location=urlsplit(registration.headers['Location']).path
+    assert registration_location.startswith('/silent-ridge/registration/'),(
         registration.headers['Location'])
 
 body={'key':'smoke-run:point:T01-Q1','kind':'point','payload':{
