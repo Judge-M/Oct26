@@ -37,11 +37,12 @@ the teaching load in the expanded implementation:
    harmless static training binary) and the Linux file manager (CSV). Participants
    learn the tool by answering a specific, evidence-bounded question.
 3. **Coached, gated questions.** Teams claim one IRIS ticket at a time. Its four
-   CTFd questions are answerable only by the owner. Hints and the full walkthrough
-   are free. A correct answer earns one point, queues an authored finding for IRIS,
-   and persists globally; the last answer closes the ticket and unlocks authored
-   follow-ups (for example `T07` requires `T06`; `T20` requires `T07`, `T09`, `T11`
-   and `T19`).
+   CTFd questions are answerable only by the owner. Help levels 1 and 2 are free.
+   An unassisted correct answer earns four points; explicitly unlocking the full
+   walkthrough applies a 75% cost and leaves one point. Either path queues the
+   same authored finding for IRIS and persists globally; the last answer closes
+   the ticket and unlocks authored follow-ups (for example `T07` requires `T06`;
+   `T20` requires `T07`, `T09`, `T11` and `T19`).
 4. **Durable shared findings with transactional receipts.** Accepted answers queue
    native IRIS findings and CTFd awards through durable outbox retries and
    application-side receipts. The intended effect is one award/finding/task per event
@@ -295,7 +296,8 @@ Three limits matter for formal training credit:
   `docs/expanded-validation.md`, every question has not yet been navigated and
   answered on the exact installed tools, and Hyper-V/AWS boot, Guacamole sessions
   and live IRIS/CTFd behavior remain unverified.
-- **Practice is not assessment.** The free hints and walkthroughs and the supplied
+- **Practice is not assessment.** The two free help levels, optional 75%-cost
+  walkthroughs, and the supplied
   read-only originals support coached practice; reading a supplied original does not
   by itself demonstrate acquiring a forensic duplicate or unaided mastery, and no
   scored item treats it as such.

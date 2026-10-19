@@ -20,6 +20,10 @@ from typing import Protocol, TypedDict, Any
 from ridge.narrative import ticket_delivery
 from ridge.schema import migrate, VERSION
 
+FULL_QUESTION_POINTS = 4
+ASSISTED_QUESTION_POINTS = 1
+WALKTHROUGH_COST_PERCENT = 75
+
 
 def now():
     return datetime.now(timezone.utc).isoformat()
@@ -135,7 +139,8 @@ class State:
                 raise Conflict('Run exists; export before resetting')
             con.execute('INSERT INTO run VALUES (?,?)', (str(uuid.uuid4()), 'paused'))
             for t in teams:
-                con.execute('INSERT INTO teams VALUES (?,?,?,?)', (t['id'], str(t['iris']), t['ctfd'], t['name']))
+                con.execute('INSERT INTO teams(id,iris,ctfd,name,started_at) VALUES (?,?,?,?,NULL)',
+                            (t['id'], str(t['iris']), t['ctfd'], t['name']))
             for t in tickets:
                 requires = t.get('requires', [])
                 con.execute('INSERT INTO tickets(id,title,subject,owner,status,iris_id,requires) VALUES (?,?,?,?,?,?,?)',
@@ -174,8 +179,9 @@ class State:
                 if con.execute('SELECT 1 FROM teams WHERE %s=?' % field,
                                (team[field],)).fetchone():
                     raise Conflict('application identity is already mapped to another team')
-            con.execute('INSERT INTO teams(id,iris,ctfd,name) VALUES (?,?,?,?)',
-                        (team['id'], str(team['iris']), int(team['ctfd']), team['name']))
+            started_at = now() if con.execute('SELECT mode FROM run').fetchone()[0] == 'running' else None
+            con.execute('INSERT INTO teams(id,iris,ctfd,name,started_at) VALUES (?,?,?,?,?)',
+                        (team['id'], str(team['iris']), int(team['ctfd']), team['name'], started_at))
             self.record(con, team['id'], 'register_team',
                         {'name': team['name'], 'iris': str(team['iris']), 'ctfd': int(team['ctfd'])})
 
@@ -344,8 +350,12 @@ class State:
                 raise Conflict('Provision and validate the deployment before starting')
             if con.execute('SELECT mode FROM run').fetchone()[0] == value:
                 return
+            stamp = now()
             con.execute('UPDATE run SET mode=?', (value,))
-            self.record(con, actor, value, {})
+            if value == 'running':
+                con.execute('UPDATE teams SET started_at=? WHERE started_at IS NULL', (stamp,))
+            con.execute('INSERT INTO audit(timestamp,actor,action,detail) VALUES (?,?,?,?)',
+                        (stamp, actor, value, '{}'))
 
     def announce(self, actor, text):
         if not isinstance(text, str) or not text.strip() or len(text)>4000:
@@ -431,14 +441,49 @@ class State:
         with self.transaction(write=False) as con:
             if not con.execute('SELECT 1 FROM teams WHERE id=?', (team,)).fetchone():
                 raise PermissionError('Unknown team')
-            rows = con.execute('''SELECT q.*,t.owner,t.status,a.team solver,a.timestamp FROM questions q
-              JOIN tickets t ON t.id=q.ticket LEFT JOIN answers a ON a.question=q.id
-              WHERE (t.owner=? OR t.status='complete') AND (? IS NULL OR q.id=?)''', (team, question, question)).fetchall()
+            rows = con.execute('''SELECT q.*,t.owner,t.status,a.team solver,a.timestamp,
+              h.team hint_team FROM questions q JOIN tickets t ON t.id=q.ticket
+              LEFT JOIN answers a ON a.question=q.id
+              LEFT JOIN hint_usage h ON h.question=q.id AND h.team=?
+              WHERE (t.owner=? OR t.status='complete') AND (? IS NULL OR q.id=?)''',
+              (team, team, question, question)).fetchall()
             if question and not rows:
                 raise PermissionError('Question is not available')
-            return [dict(json.loads(r['body']), ticket=r['ticket'], solved_by=r['solver'],
-                         answered_at=r['timestamp'], answerable=r['owner']==team and r['solver'] is None,
-                         finding=json.loads(r['finding']) if r['solver'] else None) for r in rows]
+            result=[]
+            for row in rows:
+                body=json.loads(row['body'])
+                hints=list(body.get('hints') or [])
+                unlocked=row['hint_team'] is not None
+                body['hints']=hints if unlocked else hints[:-1]
+                result.append(dict(body, ticket=row['ticket'], solved_by=row['solver'],
+                    answered_at=row['timestamp'], answerable=row['owner']==team and row['solver'] is None,
+                    finding=json.loads(row['finding']) if row['solver'] else None,
+                    hint_unlocked=unlocked, paid_hint_available=bool(hints) and not unlocked,
+                    full_points=FULL_QUESTION_POINTS,
+                    available_points=ASSISTED_QUESTION_POINTS if unlocked else FULL_QUESTION_POINTS,
+                    walkthrough_cost_percent=WALKTHROUGH_COST_PERCENT))
+            return result
+
+    def unlock_hint(self, team, question):
+        """Unlock the explicit walkthrough and durably apply its 75% cost."""
+        with self.transaction() as con:
+            self.running(con)
+            row=con.execute('''SELECT q.body,t.owner,t.status,a.question solved
+                FROM questions q JOIN tickets t ON t.id=q.ticket
+                LEFT JOIN answers a ON a.question=q.id WHERE q.id=?''', (question,)).fetchone()
+            if row is None or row['owner'] != team or row['status'] != 'active' or row['solved']:
+                raise PermissionError('Claim the corresponding unsolved IRIS ticket first')
+            if not (json.loads(row['body']).get('hints') or []):
+                raise Conflict('This question has no explicit walkthrough')
+            stamp=now()
+            inserted=con.execute('''INSERT OR IGNORE INTO hint_usage(team,question,unlocked_at)
+                                    VALUES (?,?,?)''', (team,question,stamp)).rowcount
+            if inserted:
+                self.record(con,team,'unlock_hint',{'question':question,
+                    'cost_percent':WALKTHROUGH_COST_PERCENT,
+                    'available_points':ASSISTED_QUESTION_POINTS})
+            return {'unlocked':True,'cost_percent':WALKTHROUGH_COST_PERCENT,
+                    'available_points':ASSISTED_QUESTION_POINTS}
 
     def answer(self, team, question, answer):
         if not isinstance(answer, str) or len(answer) > 1024:
@@ -455,15 +500,20 @@ class State:
             if not any(hmac.compare_digest(candidate, row['digest'])
                        for candidate in self.answer_digests(answer)):
                 return {'correct':False}
+            assisted=con.execute('SELECT 1 FROM hint_usage WHERE team=? AND question=?',
+                                 (team,question)).fetchone() is not None
+            value=ASSISTED_QUESTION_POINTS if assisted else FULL_QUESTION_POINTS
             stamp = now()
             event = str(uuid.uuid4())
-            con.execute('INSERT INTO answers VALUES (?,?,?,?)', (question, team, stamp, event))
+            con.execute('INSERT INTO answers(question,team,timestamp,event,value) VALUES (?,?,?,?,?)',
+                        (question, team, stamp, event, value))
             teamrow = con.execute('SELECT * FROM teams WHERE id=?', (team,)).fetchone()
             finding = dict(json.loads(row['finding']), question=question, team=team,
                            team_name=teamrow['name'], timestamp=stamp, event=event, ticket=row['ticket'])
-            self.enqueue(con, 'point:'+question, 'point', dict(finding, ctfd_team=teamrow['ctfd'], value=1))
+            self.enqueue(con, 'point:'+question, 'point', dict(finding, ctfd_team=teamrow['ctfd'], value=value))
             self.enqueue(con, 'finding:'+question, 'finding', finding)
-            self.record(con, team, 'answer', {'question':question, 'event':event, 'ticket':row['ticket'], 'value':1})
+            self.record(con, team, 'answer', {'question':question, 'event':event,
+                        'ticket':row['ticket'], 'value':value, 'assisted':assisted})
             remaining = con.execute('''SELECT COUNT(*) FROM questions q LEFT JOIN answers a ON q.id=a.question
                                        WHERE q.ticket=? AND a.question IS NULL''', (row['ticket'],)).fetchone()[0]
             if not remaining:
@@ -475,25 +525,36 @@ class State:
                     if set(json.loads(lead['requires'])) <= completed:
                         con.execute("UPDATE tickets SET status='available' WHERE id=?", (lead['id'],))
                         self.enqueue(con, 'ticket:'+lead['id'], 'ticket', ticket_delivery(lead['id'],lead['title']))
-            return {'correct':True, 'event':event, 'closed':not remaining, 'synchronization':'pending'}
+            return {'correct':True, 'event':event, 'closed':not remaining,
+                    'synchronization':'pending', 'value':value, 'assisted':assisted}
 
-    def snapshot(self):
+    def snapshot(self, team=None):
         with self.transaction(write=False) as con:
             stamp=now();total=0;anchor=None
+            team_started=None
+            if team is not None:
+                row=con.execute('SELECT started_at FROM teams WHERE id=?',(team,)).fetchone()
+                if row is None:
+                    raise PermissionError('Unknown team')
+                team_started=datetime.fromisoformat(row['started_at']) if row['started_at'] else None
             for event in con.execute("SELECT timestamp,action FROM audit WHERE action IN ('running','paused') ORDER BY id"):
                 at=datetime.fromisoformat(event['timestamp'])
                 if event['action']=='running':
                     anchor=at
                 elif anchor is not None:
-                    total+=(at-anchor).total_seconds();anchor=None
+                    start=max(anchor,team_started) if team_started else anchor
+                    total+=max((at-start).total_seconds(),0);anchor=None
             if anchor is not None:
-                total+=(datetime.fromisoformat(stamp)-anchor).total_seconds()
+                start=max(anchor,team_started) if team_started else anchor
+                total+=max((datetime.fromisoformat(stamp)-start).total_seconds(),0)
+            if team is not None and team_started is None:
+                total=0
             return {'mode':con.execute('SELECT mode FROM run').fetchone()[0],
                     'elapsed_seconds':max(total,0),'server_time':stamp,
                     'announcements':[dict(id=r['id'],timestamp=r['timestamp'],text=json.loads(r['detail'])['text'])
                                      for r in con.execute("SELECT * FROM audit WHERE action='announcement' ORDER BY id")],
                     'tickets':[dict(r) for r in con.execute("SELECT id,title,subject,owner,status,iris_id,generation FROM tickets WHERE status!='locked'")],
-                    'scores':[dict(r) for r in con.execute('''SELECT t.id,t.name,COUNT(a.question) points FROM teams t
+                    'scores':[dict(r) for r in con.execute('''SELECT t.id,t.name,COALESCE(SUM(a.value),0) points FROM teams t
                                   LEFT JOIN answers a ON a.team=t.id GROUP BY t.id ORDER BY points DESC,t.id''')],
                     'pending':con.execute('SELECT COUNT(*) FROM outbox WHERE done=0').fetchone()[0]}
 
@@ -573,7 +634,8 @@ class State:
         with self.transaction(write=False) as con:
             with destination.open('x', encoding='utf-8') as f:
                 f.write('{')
-                for number,name in enumerate(('run','teams','tickets','questions','answers','audit','outbox','delivery_dependencies')):
+                for number,name in enumerate(('run','teams','tickets','questions','answers','hint_usage',
+                                               'audit','outbox','delivery_dependencies')):
                     if number:
                         f.write(',')
                     f.write(json.dumps(name)+':[')

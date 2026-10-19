@@ -63,8 +63,8 @@ elements:
       style: "$body"
       fontSize: 14
       text: |
-        <p>Every question's free help levels include a beginner walkthrough for its tool —
-        which button, which view, which filter. You are never expected to know the tool already.</p>
+        <p>Help levels 1 and 2 are free. If you still need it, unlock level 3 for a complete
+        walkthrough; it costs 75% of that question's points so your team can keep moving.</p>
   - elementId: footer
     elementType: text
     bounds: [64, 505, 700, 18]

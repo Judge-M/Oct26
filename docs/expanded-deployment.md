@@ -133,7 +133,8 @@ path has been built or run.
 ## End-to-end acceptance
 
 With Internet disconnected: log into every desktop; open each tool and the
-disk/log/memory case; solve a question and verify one point plus one IRIS finding;
+disk/log/memory case; solve a question and verify four points plus one IRIS finding;
+unlock an explicit walkthrough on a different question and verify it earns one point;
 race claims; relinquish and resume; interrupt services after remote commits;
 restart and check receipts; finish a ticket and inspect shared history/follow-up
 evidence; export and reset. Test allowed sharing and exclusive mode. Attempt

@@ -15,7 +15,9 @@ class WorkflowTests(unittest.TestCase):
         teams=[dict(id=str(i),iris=str(i+10),ctfd=i+20,name='Team '+str(i)) for i in range(3)]
         def ticket(id,requires=None):
             return dict(id=id,title=id,subject='general',requires=requires or [],questions=[
-                dict(id=id+str(i),prompt='Question',answer='answer',finding=dict(text='Finding',evidence=['ref'],limitation='Scope only')) for i in range(2)])
+                dict(id=id+str(i),prompt='Question',answer='answer',
+                     hints=['Check the source.','Narrow the field.','The answer is answer.'],
+                     finding=dict(text='Finding',evidence=['ref'],limitation='Scope only')) for i in range(2)])
         self.state.initialize(teams,[ticket('A'),ticket('B'),ticket('C',['A'])])
         self.deliveries={}
         self.state.provision('controller')
@@ -66,7 +68,7 @@ class WorkflowTests(unittest.TestCase):
         self.assertTrue(self.state.answer('1','A1','answer')['closed'])
         self.assertEqual(len(self.state.questions('2')),2)
         self.assertTrue(all(not q['answerable'] for q in self.state.questions('2')))
-        self.assertEqual({r['id']:r['points'] for r in self.state.snapshot()['scores']},{'0':1,'1':1,'2':0})
+        self.assertEqual({r['id']:r['points'] for r in self.state.snapshot()['scores']},{'0':4,'1':4,'2':0})
         self.drain();self.state.claim('1','C',0)
         self.assertEqual(sum(v[0]=='ticket' for v in self.deliveries.values()),3)
         self.assertEqual(sum(v[0]=='finding' for v in self.deliveries.values()),2)
@@ -92,6 +94,29 @@ class WorkflowTests(unittest.TestCase):
             self.assertEqual(sum(pool.map(answer,range(8))),1)
         self.drain()
         self.assertEqual(sum(v[0]=='point' for v in self.deliveries.values()),1)
+
+    def test_explicit_walkthrough_costs_exactly_seventy_five_percent(self):
+        self.state.claim('0','A',0)
+        before=self.state.questions('0','A0')[0]
+        self.assertEqual(before['hints'],['Check the source.','Narrow the field.'])
+        self.assertTrue(before['paid_hint_available'])
+        self.assertEqual(before['available_points'],4)
+
+        unlocked=self.state.unlock_hint('0','A0')
+        self.assertEqual(unlocked,{'unlocked':True,'cost_percent':75,'available_points':1})
+        after=self.state.questions('0','A0')[0]
+        self.assertEqual(after['hints'][-1],'The answer is answer.')
+        self.assertTrue(after['hint_unlocked'])
+        self.assertEqual(after['available_points'],1)
+        self.assertEqual(self.state.answer('0','A0','answer')['value'],1)
+
+        self.state.claim('1','B',0)
+        self.assertEqual(self.state.answer('1','B0','answer')['value'],4)
+        scores={row['id']:row['points'] for row in self.state.snapshot()['scores']}
+        self.assertEqual(scores['0'],1)
+        self.assertEqual(scores['1'],4)
+        with self.assertRaises(PermissionError):
+            self.state.unlock_hint('2','B1')
 
     def test_ambiguous_remote_success_retry_restart(self):
         self.state.claim('0','A',0);self.drain()
@@ -144,6 +169,22 @@ class WorkflowTests(unittest.TestCase):
             self.assertEqual(self.state.snapshot()['elapsed_seconds'],30)
             self.state.announce('controller','Revised end 14:40 local')
             self.assertEqual(self.state.snapshot()['announcements'][0]['text'],'Revised end 14:40 local')
+
+    def test_dynamic_team_clock_starts_at_registration(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            state=State(Path(tmp)/'dynamic.sqlite',retry_delay=0)
+            ticket=dict(id='T',title='T',subject='general',questions=[dict(
+                id='T1',prompt='Question',answer='answer',hints=['one','two','answer'],
+                finding=dict(text='Finding',evidence=['ref'],limitation='Scope only'))])
+            state.initialize([], [ticket], allow_empty=True)
+            state.provision('controller')
+            with patch('ridge.state.now',return_value='2026-10-15T10:00:00+00:00'):
+                state.mode('controller','running')
+            with patch('ridge.state.now',return_value='2026-10-15T10:05:00+00:00'):
+                state.register_team(dict(id='late',iris='99',ctfd=99,name='Late team'))
+            with patch('ridge.state.now',return_value='2026-10-15T10:05:30+00:00'):
+                self.assertEqual(state.snapshot('late')['elapsed_seconds'],30)
+                self.assertEqual(state.snapshot()['elapsed_seconds'],330)
 
 
 class RegressionTests(unittest.TestCase):

@@ -56,7 +56,7 @@ class Handler(BaseHTTPRequestHandler):
             team = state.identity(app, data['identity'])
             action = data['action']
             if action == 'snapshot':
-                return self.send(200, dict(state.snapshot(), team=team))
+                return self.send(200, dict(state.snapshot(team), team=team))
             if app == 'iris' and action in ('claim','release'):
                 if action == 'release':
                     state.release(team, data['ticket'], data['generation'])
@@ -65,6 +65,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(200, {'ok':True})
             if app == 'ctfd' and action == 'questions':
                 return self.send(200, state.questions(team, data.get('question')))
+            if app == 'ctfd' and action == 'hint':
+                return self.send(200, state.unlock_hint(team, data['question']))
             if app == 'ctfd' and action == 'answer':
                 return self.send(200, state.answer(team, data['question'], data['answer']))
             self.send(403, {'error':'Action not allowed for this application'})

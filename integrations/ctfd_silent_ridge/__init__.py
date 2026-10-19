@@ -196,8 +196,19 @@ def load(app):
             if request.method == 'POST':
                 if not hmac.compare_digest(request.form.get('nonce', ''), session.get('nonce', '!')):
                     abort(403)
-                result = bridge('ctfd', team, 'answer', question=request.form['question'], answer=request.form['answer'])
-                message = 'Correct — one point earned. Findings synchronization pending.' if result['correct'] else 'Not yet. Try the next help level.'
+                action=request.form.get('action','answer')
+                if action == 'unlock_hint':
+                    bridge('ctfd', team, 'hint', question=request.form['question'])
+                    message = 'Explicit walkthrough unlocked. Assisted scoring is active: this question is now worth 1 of 4 points.'
+                elif action == 'answer':
+                    result = bridge('ctfd', team, 'answer', question=request.form['question'], answer=request.form['answer'])
+                    if result['correct']:
+                        message = 'Correct — %d point%s earned. Findings synchronization pending.' % (
+                            result['value'], '' if result['value'] == 1 else 's')
+                    else:
+                        message = 'Not yet. Try the next free help level or unlock the explicit walkthrough.'
+                else:
+                    abort(400)
             snapshot = bridge('ctfd', team, 'snapshot')
             questions = bridge('ctfd', team, 'questions', question=request.args.get('question'))
             response = make_response(render_template_string(
@@ -249,7 +260,7 @@ def load(app):
             return jsonify(credits=[dict(key=c.key, award_id=c.award_id) for c in credits],
                 awards=[dict(id=a.id, team_id=a.team_id, value=a.value, name=a.name,
                              description=a.description, date=a.date.isoformat()) for a in awards])
-        if body['kind'] != 'point' or p['value'] != 1 or len(key) > 200:
+        if body['kind'] != 'point' or p['value'] not in (1, 4) or len(key) > 200:
             abort(400)
         existing = db.session.get(RidgeCredit, key)
         if existing:
@@ -258,7 +269,7 @@ def load(app):
         try:
             award = Awards(team_id=p['ctfd_team'], name=p['question'],
                            description='Silent Ridge accepted answer ' + p['event'],
-                           value=1, category='Silent Ridge')
+                           value=p['value'], category='Silent Ridge')
             db.session.add(award); db.session.flush()
             db.session.add(RidgeCredit(key=key, award_id=award.id))
             db.session.commit()

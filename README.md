@@ -61,9 +61,11 @@ Teams:
 1. Claim an investigation ticket in IRIS (the shared incident case).
 2. Investigate with the desktop tools: disk images in Autopsy, network
    captures in Wireshark, a suspicious binary in Cutter, logs in Wazuh.
-3. Answer the ticket's questions in CTFd. Correct answers post the finding
-   back into the shared IRIS case automatically and score one point — so
-   every team's work helps everyone else's picture of the incident.
+3. Answer the ticket's questions in CTFd. An unassisted correct answer scores
+   four points and posts the finding back into the shared IRIS case
+   automatically. Help levels 1 and 2 are free; unlocking the explicit
+   walkthrough applies an exact 75% cost, leaving one point for that question.
+   Every team's work still helps everyone else's picture of the incident.
 4. Later tickets unlock as their prerequisites are solved, converging on the
    full incident story.
 

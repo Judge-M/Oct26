@@ -1,5 +1,5 @@
 """Explicit, transactional upgrades. Stop old workers before migrating."""
-VERSION = 3
+VERSION = 4
 
 
 def _v2(con):
@@ -36,6 +36,43 @@ def _v3(con):
     con.execute('PRAGMA user_version=3')
 
 
+def _v4(con):
+    """Team-local clocks and durable paid-walkthrough accounting.
+
+    Existing answer rows keep their historical one-point value.  New runs use
+    four-point questions so a walkthrough can have an exact 75% cost while
+    remaining compatible with CTFd's integer score model.
+    """
+    tables = {row[0] for row in con.execute(
+        "SELECT name FROM sqlite_master WHERE type='table'")}
+    if 'teams' in tables:
+        columns = {row[1] for row in con.execute('PRAGMA table_info(teams)')}
+        if 'started_at' not in columns:
+            con.execute('ALTER TABLE teams ADD COLUMN started_at TEXT')
+        if 'audit' in tables:
+            # Dynamic teams already have a precise registration audit event.
+            # The original roster starts at the first run event, preserving
+            # old runs.  Minimal/partial databases simply remain unstarted.
+            con.execute('''UPDATE teams SET started_at=(
+                SELECT timestamp FROM audit
+                WHERE actor=teams.id AND action='register_team'
+                ORDER BY id LIMIT 1) WHERE started_at IS NULL AND EXISTS (
+                SELECT 1 FROM audit WHERE actor=teams.id AND action='register_team')''')
+            con.execute("""UPDATE teams SET started_at=(
+                SELECT timestamp FROM audit WHERE action='running' ORDER BY id LIMIT 1)
+                WHERE started_at IS NULL""")
+    if 'answers' in tables:
+        columns = {row[1] for row in con.execute('PRAGMA table_info(answers)')}
+        if 'value' not in columns:
+            con.execute('ALTER TABLE answers ADD COLUMN value INTEGER NOT NULL DEFAULT 1')
+    con.execute('''CREATE TABLE IF NOT EXISTS hint_usage(
+        team TEXT NOT NULL REFERENCES teams(id),
+        question TEXT NOT NULL REFERENCES questions(id),
+        unlocked_at TEXT NOT NULL,
+        PRIMARY KEY(team, question))''')
+    con.execute('PRAGMA user_version=4')
+
+
 def migrate(con):
     version = con.execute('PRAGMA user_version').fetchone()[0]
     if version > VERSION:
@@ -44,3 +81,5 @@ def migrate(con):
         _v2(con)
     if version < 3:
         _v3(con)
+    if version < 4:
+        _v4(con)

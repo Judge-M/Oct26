@@ -77,7 +77,8 @@ with app.app_context():
 
 # The award survives failed cache invalidation; a receipt retry must invalidate again.
 from CTFd.plugins import ctfd_silent_ridge as plugin
-retry_body={**body,'key':'smoke-run:point:T01-Q2'}
+retry_body={**body,'key':'smoke-run:point:T01-Q2','payload':{
+    **body['payload'],'question':'T01-Q2','value':4,'event':'smoke-event-2'}}
 with app.test_client() as client:
     with patch.object(plugin,'invalidate_scores',side_effect=ConnectionError('cache unavailable')):
         try:
@@ -91,6 +92,7 @@ with app.test_client() as client:
         invalidated.assert_called_once()
 with app.app_context():
     assert Awards.query.count()==2
+    assert sorted(award.value for award in Awards.query.all())==[1,4]
 
 from CTFd.plugins.ctfd_silent_ridge.provision import OrmAdmin
 from ridge.ctfd_provision import FacilitatorSpec, ProvisionSpec, TeamSpec, provision, preflight
@@ -134,4 +136,36 @@ with app.test_client() as client:
     assert client.post('/api/v1/challenges/attempt',json={'challenge_id':1,'submission':'anything'},
                        headers={'CSRF-Token':'smoke-nonce'}).status_code==403
     assert client.get('/silent-ridge/internal').status_code in (404,405)
+
+# The participant page must require an explicit POST before the paid
+# walkthrough appears; the final hint is never shipped in the locked page.
+participant_snapshot={'team':'smoke','mode':'running','elapsed_seconds':0,'pending':0,
+    'announcements':[],'tickets':[],'scores':[]}
+locked_question={'id':'T01-Q1','ticket':'T01','prompt':'Prompt','purpose':'Purpose',
+    'tool':'Tool','evidence':'Evidence','steps':['Step'],'format':'text','recovery':'Retry',
+    'hints':['Free one','Free two'],'solved_by':None,'finding':None,'answerable':True,
+    'hint_unlocked':False,'paid_hint_available':True,'full_points':4,'available_points':4,
+    'walkthrough_cost_percent':75}
+def participant_bridge(application, identity, action, **kwargs):
+    if action=='snapshot':
+        return participant_snapshot
+    if action=='questions':
+        return [locked_question]
+    if action=='hint':
+        return {'unlocked':True,'cost_percent':75,'available_points':1}
+    raise AssertionError(action)
+with app.test_client() as client:
+    with client.session_transaction() as participant_session:
+        participant_session.update(id=user_id,name='smoke-user',email='smoke@example.test',
+                                   type='user',nonce='smoke-nonce')
+    with patch.object(plugin,'bridge',side_effect=participant_bridge):
+        page=client.get('/silent-ridge')
+        html=page.get_data(as_text=True)
+        assert page.status_code==200
+        assert 'costs 3 of 4 points' in html
+        assert 'explicit walkthrough answer' not in html
+        unlocked=client.post('/silent-ridge',data={
+            'nonce':'smoke-nonce','action':'unlock_hint','question':'T01-Q1'})
+        assert unlocked.status_code==200
+        assert 'Assisted scoring is active' in unlocked.get_data(as_text=True)
 print('Actual CTFd image: unique credits, retry race, authentication and stock API blocking passed.')

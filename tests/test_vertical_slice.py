@@ -22,7 +22,7 @@ class FakeClient:
 
     def effects(self):
         self.reads = getattr(self, "reads", 0) + 1
-        return {"findings": int(self.reads > 1), "points": int(self.reads > 1)}
+        return {"findings": int(self.reads > 1), "points": 4 * int(self.reads > 1)}
 
     def count_tasks(self):
         return self.tasks
