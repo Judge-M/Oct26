@@ -42,7 +42,6 @@ import subprocess
 import sys
 config = Path('/etc/silent-ridge/endpoints.json')
 wazuh_discover_path = ("/app/data-explorer/discover#?"
-    "_a=(discover:(columns:!(_source),isDirty:!f,sort:!()),metadata:(indexPattern:silent-ridge-timed,view:discover))&"
     "_g=(filters:!(),refreshInterval:(pause:!t,value:0),time:(from:'2026-10-15T08:00:00.000Z',to:'2026-10-15T10:30:00.000Z'))&"
     "_q=(filters:!(),query:(language:kuery,query:''))")
 if not config.exists():

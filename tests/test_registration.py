@@ -80,7 +80,8 @@ class RegistrationStoreTests(unittest.TestCase):
                   'integrations/ctfd_silent_ridge/__init__.py').read_text(encoding='utf-8')
         self.assertIn("os.environ['WAZUH_PUBLIC_URL']", source)
         self.assertIn('/app/data-explorer/discover#?', source)
-        self.assertIn('indexPattern:silent-ridge-timed', source)
+        self.assertNotIn('columns:!(_source)', source)
+        self.assertIn("2026-10-15T08:00:00.000Z", source)
         self.assertIn('credentials.wazuh.username', source)
         self.assertIn('credentials.wazuh.password', source)
 
