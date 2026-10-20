@@ -28,3 +28,10 @@ Earlier voice attempts (commander/male and the prior female clone) are intention
 - Audio rendered with the superseded voices (excluded on purpose).
 - Loudness-finalized / MP3 variants and the breath-pause treatment (added later, not yet applied here).
 - Human listening acceptance (not performed).
+
+## Exit brief render (for review)
+
+- `exit-brief.wav` — the exit brief (main's `brief-02-exit` text) rendered in the current voice.
+- `exit-brief.reading-input.txt` — the exact text fed to the TTS engine (canonical text plus a
+  pronunciation layer: IP read digit-by-digit, Zulu times as military digits, CEDAR/AMBER/BLUE
+  de-shouted to words, past-tense "read" respelled "red").
