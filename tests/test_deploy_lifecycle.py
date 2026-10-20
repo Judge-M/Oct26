@@ -426,6 +426,16 @@ class LifecycleTests(unittest.TestCase):
                         and 'participant-tls' in call]
         self.assertEqual(len(central_apps), 1)
         self.assertIn('--wait', central_apps[0])
+        app_calls = [' '.join(call) for call in self.runner.calls
+                     if ' up ' in ' '.join(call) and '--wait' in call]
+        wazuh_app = next(i for i, call in enumerate(app_calls)
+                         if 'compose.wazuh.yaml' in call and 'wazuh-dashboard' in call)
+        guacamole_app = next(i for i, call in enumerate(app_calls)
+                             if 'compose.guacamole.yaml' in call and ' guacamole' in call)
+        central_app = next(i for i, call in enumerate(app_calls)
+                           if 'compose.central.yaml' in call and 'participant-tls' in call)
+        self.assertLess(wazuh_app, central_app)
+        self.assertLess(guacamole_app, central_app)
         desktop_up = [call for call in self.runner.calls
                       if 'compose.desktops.yaml' in ' '.join(call) and 'up' in call]
         self.assertEqual(len(desktop_up), 1)

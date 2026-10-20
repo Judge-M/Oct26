@@ -65,9 +65,13 @@ INFRA_SERVICES = {
 }
 INFRA_ONE_SHOT = {'central': ('iris-db-init',)}
 APP_SERVICES = {
-    'central': ['iris', 'iris-worker', 'ctfd', 'participant-tls'],
     'wazuh': ['wazuh-dashboard'],
     'guacamole': ['guacamole'],
+    # participant-tls uses static proxy_pass targets when public TLS is
+    # terminated here. Start the other participant-facing upstreams first;
+    # these are separate Compose projects, so cross-file depends_on cannot
+    # express this cold-start ordering.
+    'central': ['iris', 'iris-worker', 'ctfd', 'participant-tls'],
 }
 IMAGE_COMPONENTS = ('iris', 'ctfd', 'integration', 'desktop')
 
