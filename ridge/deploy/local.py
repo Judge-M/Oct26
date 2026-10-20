@@ -843,6 +843,7 @@ http {
             'IRIS_PUBLIC_URL': public['iris'],
             'CTFD_PUBLIC_URL': public['ctfd'],
             'GUACAMOLE_PUBLIC_URL': public['guac'],
+            'WAZUH_PUBLIC_URL': public['wazuh'],
             'CTFD_SESSION_COOKIE_NAME': 'silent_ridge_ctfd_session',
             'CTFD_SESSION_COOKIE_SECURE': 'true',
             'RIDGE_REGISTRATION_MAX_TEAMS': str(self.profile.get('registration', {}).get('max_teams', 10)),

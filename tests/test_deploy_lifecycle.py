@@ -511,6 +511,7 @@ class LifecycleTests(unittest.TestCase):
         central_env = (self.runtime / 'env' / 'central.env').read_text()
         self.assertIn('IRIS_PUBLIC_URL=https://192.168.1.200:8081', central_env)
         self.assertIn('CTFD_PUBLIC_URL=https://192.168.1.200:8083', central_env)
+        self.assertIn('WAZUH_PUBLIC_URL=https://192.168.1.200:8443', central_env)
 
     def test_external_tls_uses_public_hostnames_and_platform_trust(self):
         certificate = self.runtime / 'public-fullchain.pem'
