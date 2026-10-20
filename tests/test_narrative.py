@@ -12,6 +12,9 @@ class NarrativeTests(unittest.TestCase):
         self.assertEqual(len(data['roles']),3)
         self.assertIn('fictional',data['fiction_notice'].lower())
         self.assertIn('LANTERN',data['premise'])
+        self.assertEqual(data['operational_update']['trigger_after'],
+                         ['T%02d' % number for number in range(1,11)])
+        self.assertTrue(all(row['ticket'].startswith('T') for row in data['timeline']))
         self.assertIn('LIMITED DISCLOSURE CONFIRMED',final_assessment()['status'])
         self.assertIn('CEDAR',final_assessment()['summary'])
 
@@ -32,6 +35,24 @@ class NarrativeTests(unittest.TestCase):
         self.assertEqual(story['question_count'],1)
         self.assertNotIn('answer',story)
         self.assertIsNone(story['conclusion'])
+        self.assertIsNone(story['operational_update'])
+        self.assertEqual(story['elapsed_display'],'00:00:00')
+
+    def test_midpoint_update_and_verified_timeline_are_completion_gated(self):
+        story=participant_context({'team':'team-01','elapsed_seconds':3661,'tickets':[
+            {'id':'T%02d' % number,'status':'complete'} for number in range(1,11)]})
+        self.assertEqual(story['operational_update']['id'],'scope-expansion')
+        self.assertEqual(story['elapsed_display'],'01:01:01')
+        self.assertTrue(story['timeline'])
+        self.assertTrue(all(row['ticket'] in {'T%02d' % number for number in range(1,11)}
+                            for row in story['timeline']))
+        self.assertFalse(any(row['ticket']=='T11' for row in story['timeline']))
+
+    def test_question_sets_activate_local_analysis_workspaces(self):
+        snapshot={'tickets':[{'id':'T13','status':'active'},{'id':'T20','status':'active'}]}
+        story=participant_context(snapshot,[{'ticket':'T13'},{'ticket':'T20'}])
+        self.assertTrue(story['correlation_workspace'])
+        self.assertTrue(story['capstone_workspace'])
 
     def test_conclusion_is_revealed_only_after_all_twenty_stages_complete(self):
         before=participant_context({'tickets':[{'id':'T%02d' % number,'status':'complete'}
@@ -45,7 +66,9 @@ class NarrativeTests(unittest.TestCase):
     def test_page_renders_mission_phase_and_handoff_contract(self):
         for text in ('story.fiction_notice','story.participant_role','Why this question matters',
                      'story.tools.items()','context.handoff','Shared progress',
-                     'final-assessment','story.conclusion.actions','Room-wide closing brief ready'):
+                     'final-assessment','story.conclusion.actions','Room-wide closing brief ready',
+                     'operational-update','Verified incident chronology','correlation-workspace',
+                     'capstone-workspace','formatElapsed','localStorage'):
             self.assertIn(text,PAGE)
 
 

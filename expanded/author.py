@@ -125,6 +125,20 @@ EXTRA_STEPS = {
                'and the unavailable interval in text.'],
     'T12-Q3': ['Open /evidence/server/collection.txt and read the end of the unavailable interval '
                'for the DOCS-1 audit; the coverage records do not carry the boundary.'],
+    # T13-T16 deliberately culminate in a relationship-building task rather
+    # than four isolated JSON lookups. The browser correlation board is a
+    # local scratchpad; the evidence remains the source of truth.
+    'T16-Q1': ['Before answering, use the Process-to-network correlation board above the question '
+               'list. Join /evidence/prepared/windows-process.json, memory-processes.json, and '
+               'windows-connections.json on the viewer PID.',
+               'Draw the chain parent executable and PID → viewer PID → cache argument → remote '
+               'address and port. Record separately what the graph cannot prove; a relationship '
+               'between records is not evidence that a human read the payload.'],
+    'T20-Q1': ['Complete the Capstone assessment workspace above the question list before submitting '
+               'the four final values. Put supported facts, unsupported claims, unresolved gaps, and '
+               'recommended actions in separate fields.',
+               'Cite at least one released source beside every confirmed statement. The workspace '
+               'stays in this browser and is not published as a finding.'],
 }
 
 # Question-level routes keep the published source citation aligned with the

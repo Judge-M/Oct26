@@ -132,6 +132,10 @@ class AuthorFormatTests(unittest.TestCase):
         self.assertEqual(questions['T07-Q4']['source_record'], 'identity/policy.txt')
         self.assertEqual(questions['T12-Q2']['source_record'], 'server/collection.txt')
         self.assertIn('filename only', questions['T13-Q2']['format'])
+        self.assertIn('Process-to-network correlation board',
+                      '\n'.join(questions['T16-Q1']['steps']))
+        self.assertIn('Capstone assessment workspace',
+                      '\n'.join(questions['T20-Q1']['steps']))
         ordinary_steps = '\n'.join(questions['T01-Q1']['steps'] +
                                    questions['T07-Q2']['steps'] +
                                    questions['T07-Q4']['steps'])

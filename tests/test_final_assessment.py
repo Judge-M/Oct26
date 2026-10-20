@@ -2,6 +2,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from ridge.schema import VERSION
 from ridge.state import State
@@ -58,6 +59,15 @@ class FinalAssessmentTests(unittest.TestCase):
                 self.assertEqual(con.execute('PRAGMA user_version').fetchone()[0],VERSION)
                 self.assertEqual(con.execute("SELECT COUNT(*) FROM outbox WHERE kind='assessment'").fetchone()[0],1)
                 self.assertEqual(con.execute("SELECT COUNT(*) FROM audit WHERE action='final_assessment'").fetchone()[0],1)
+
+    def test_activity_clock_freezes_when_the_final_assessment_publishes(self):
+        with tempfile.TemporaryDirectory() as root:
+            state=self.build_completed_capstone(root)
+            baseline=state.snapshot('team-01')
+            with patch('ridge.state.now',return_value='2099-01-01T00:00:00+00:00'):
+                later=state.snapshot('team-01')
+            self.assertTrue(later['activity_complete'])
+            self.assertEqual(later['elapsed_seconds'],baseline['elapsed_seconds'])
 
 
 if __name__=='__main__':

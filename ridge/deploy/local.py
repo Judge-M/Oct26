@@ -550,11 +550,14 @@ http {
             rendered.append('''    server {
         listen 443 ssl;
         server_name %s;
+%s
         location / {
             proxy_pass %s;
         }
     }
-''' % (hostname, upstream))
+''' % (hostname,
+       '        location = / { return 302 /guacamole/; }' if hostname==hosts['guac'] else '',
+       upstream))
         rendered.append('''    server {
         listen 443 ssl;
         server_name %s;

@@ -533,6 +533,8 @@ class LifecycleTests(unittest.TestCase):
         rendered = self.stack._render_participant_tls_config().read_text(encoding='utf-8')
         self.assertIn('listen 443 ssl;', rendered)
         self.assertIn('server_name ctfd.cyberexperts.org;', rendered)
+        self.assertIn('server_name guac.cyberexperts.org;', rendered)
+        self.assertIn('location = / { return 302 /guacamole/; }', rendered)
         self.assertIn('proxy_pass https://wazuh-dashboard:5601;', rendered)
 
     def test_existing_dashboard_certificate_without_bind_address_fails_closed(self):
