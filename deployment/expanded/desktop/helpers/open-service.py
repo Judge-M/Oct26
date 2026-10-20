@@ -6,7 +6,14 @@ import subprocess
 import sys
 
 CONFIG = Path('/etc/silent-ridge/endpoints.json')
-WAZUH_DISCOVER_PATH = "/app/discover#/?_a=(index:'silent-ridge-timed')"
+WAZUH_DISCOVER_PATH = (
+    "/app/data-explorer/discover#?"
+    "_a=(discover:(columns:!(_source),isDirty:!f,sort:!()),"
+    "metadata:(indexPattern:silent-ridge-timed,view:discover))&"
+    "_g=(filters:!(),refreshInterval:(pause:!t,value:0),"
+    "time:(from:'2026-10-15T08:00:00.000Z',to:'2026-10-15T10:30:00.000Z'))&"
+    "_q=(filters:!(),query:(language:kuery,query:''))"
+)
 
 
 def main():
@@ -22,7 +29,7 @@ def main():
         raise SystemExit('Expected an HTTP or HTTPS service URL')
     if service in ('iris', 'ctfd') and not url.rstrip('/').endswith('/silent-ridge'):
         url = url.rstrip('/') + '/silent-ridge'
-    elif service == 'wazuh' and '/app/discover' not in url:
+    elif service == 'wazuh' and '/app/data-explorer/discover' not in url:
         url = url.rstrip('/') + WAZUH_DISCOVER_PATH
     subprocess.run(['/usr/local/bin/firefox', url], check=True)
 

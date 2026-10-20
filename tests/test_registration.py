@@ -79,7 +79,8 @@ class RegistrationStoreTests(unittest.TestCase):
         source = (Path(__file__).resolve().parents[1] /
                   'integrations/ctfd_silent_ridge/__init__.py').read_text(encoding='utf-8')
         self.assertIn("os.environ['WAZUH_PUBLIC_URL']", source)
-        self.assertIn("/app/discover#/?_a=(index:'silent-ridge-timed')", source)
+        self.assertIn('/app/data-explorer/discover#?', source)
+        self.assertIn('indexPattern:silent-ridge-timed', source)
         self.assertIn('credentials.wazuh.username', source)
         self.assertIn('credentials.wazuh.password', source)
 

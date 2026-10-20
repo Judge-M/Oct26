@@ -181,7 +181,12 @@ class DesktopContainerTests(unittest.TestCase):
             for service, expected in (
                 ('iris', 'https://event.example:8444/silent-ridge'),
                 ('ctfd', 'https://event.example:8445/silent-ridge'),
-                ('wazuh', "https://event.example:8443/app/discover#/?_a=(index:'silent-ridge-timed')")):
+                ('wazuh', "https://event.example:8443/app/data-explorer/discover#?"
+                          "_a=(discover:(columns:!(_source),isDirty:!f,sort:!()),"
+                          "metadata:(indexPattern:silent-ridge-timed,view:discover))&"
+                          "_g=(filters:!(),refreshInterval:(pause:!t,value:0),"
+                          "time:(from:'2026-10-15T08:00:00.000Z',to:'2026-10-15T10:30:00.000Z'))&"
+                          "_q=(filters:!(),query:(language:kuery,query:''))")):
                 with self.subTest(service=service), patch('sys.argv', ['open-service.py', service]), \
                         patch.object(module.subprocess, 'run') as launch:
                     module.main()
@@ -194,7 +199,7 @@ class DesktopContainerTests(unittest.TestCase):
         spec.loader.exec_module(module)
         with tempfile.TemporaryDirectory() as tmp:
             module.CONFIG = Path(tmp) / 'endpoints.json'
-            expected = "https://event.example/app/discover#/?_a=(index:'silent-ridge-timeless')"
+            expected = "https://event.example/app/data-explorer/discover#/?_a=(index:'silent-ridge-timeless')"
             module.CONFIG.write_text(json.dumps({'wazuh': expected}), encoding='utf-8')
             with patch('sys.argv', ['open-service.py', 'wazuh']), \
                     patch.object(module.subprocess, 'run') as launch:
