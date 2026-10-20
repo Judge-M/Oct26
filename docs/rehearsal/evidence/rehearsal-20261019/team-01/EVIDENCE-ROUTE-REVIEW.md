@@ -49,21 +49,22 @@ The four answers in each row correspond to Q1–Q4 in order. The linked screensh
 
 ## Deployment and automated validation
 
-- The complete source test suite passed on the event machine: **487 tests passed, 23 skipped**.
+- The complete source test suite passed on the event machine after the experience improvements: **490 tests passed, 23 skipped**.
 - The repaired desktop image built successfully and was verified to contain Mousepad 0.6.1, GNU `strings`/`readelf` 2.42, `file` 5.45, and the CSV MIME association.
-- The CTFd, integration, and all three team desktop containers were recreated from the updated images while retaining the rehearsal data volumes.
+- CTFd, IRIS, the IRIS worker, the integration service, and the participant TLS edge were recreated from revision `310462b` while retaining the completed rehearsal data volumes. The desktop image receipt was refreshed, but the three running desktop containers did not need to be replaced for this UI-only follow-up.
 - After recreation, every affected container reported healthy and the lifecycle probe reported `event_ready: true`, one team, 20 tickets, and zero pending synchronization updates.
-- A fresh browser verification confirmed that CTFd still showed 80 accepted answers, 20/20 stages, the final assessment, and zero pending updates; IRIS independently showed all 20 tickets complete and the same published conclusion. [Post-deployment proof](evidence-route-screenshots/58-post-deploy-final-assessment.png)
+- A fresh browser verification confirmed that CTFd still showed 80 accepted answers, 20/20 stages, the final assessment, zero pending updates, and a frozen `00:30:36 (complete)` clock. IRIS independently showed all 20 tickets complete, the same published conclusion, and the new ten-event verified chronology. The Guacamole hostname root redirected from `/` to `/guacamole/#/` instead of returning a broken-looking root page. [Post-deployment proof](evidence-route-screenshots/58-post-deploy-final-assessment.png)
 
-## Improvements still recommended
+## Improvements implemented after the rehearsal
 
-- Add a visible, team-local midpoint brief when the new evidence is released. Automatic release worked, but it was silent and therefore missed a major narrative beat.
-- Redirect the Guacamole hostname root to `/guacamole/`; the root currently looks broken even though the application path works.
-- Format elapsed time as `HH:MM:SS` or hours/minutes and freeze it at completion instead of showing raw seconds.
-- Publish verified incident events into the IRIS timeline so the shared case visibly becomes a chronology rather than only a ticket list.
-- Reduce repetition in the prepared-JSON stretch (T13–T16). At least one task should require participants to build or compare a process/network graph rather than read four adjacent fields.
-- Give T20 an explicit synthesis workspace or short structured assessment before its four yes/no/value submissions; the final conclusion is strong, but the capstone interaction itself is less stimulating than the conclusion it unlocks.
-- Run the remaining F06 acceptance separately: 30 concurrent sessions, offline operation, restart/recovery, switch, and teardown. This one-team rehearsal does not satisfy that card.
+1. **Team-local midpoint operational update.** After T01–T10 are complete, Faye Maxwell's scope-expansion brief appears prominently for that team. It explains the new priorities and may be dismissed once per team/browser. Evidence release remains automatic and team-local.
+2. **Guacamole root redirect.** The public hostname now sends `/` to `/guacamole/`, eliminating the misleading root-page failure while preserving the standard Guacamole application path.
+3. **Readable, durable activity clock.** Participant pages display `HH:MM:SS`; after all tickets complete, the clock freezes at the durable final-assessment timestamp and shows `(complete)` even while the overall exercise remains in running mode.
+4. **Verified IRIS chronology.** The shared participant view now grows a source-cited incident timeline as supporting tickets complete. It distinguishes incident UTC from participant submission time and never publishes an event before its supporting ticket is complete.
+5. **T13–T16 correlation board.** The prepared-record stretch now includes a browser-local process-to-network relationship board for parent executable/PID, viewer PID, cache argument, remote endpoint, limitation, and a cross-record review check. T16 guidance explicitly requires the multi-source join.
+6. **T20 capstone workspace.** Before the final four submissions, participants receive a browser-local structured assessment workspace for confirmed facts, unestablished claims, unresolved questions, recommended action, and citation review. T20 guidance explicitly directs them to synthesize the assessment rather than answer four isolated prompts.
+
+The remaining F06 acceptance must still run separately: 30 concurrent sessions, offline operation, restart/recovery, switch, and teardown. This one-team rehearsal does not satisfy that card.
 
 ## Validation boundaries
 
