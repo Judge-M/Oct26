@@ -19,6 +19,21 @@ from ridge.deploy.journal import Journal
 
 
 class WazuhOfflineConfigTests(unittest.TestCase):
+    def test_dashboard_pins_default_index_without_widening_participant_permissions(self):
+        source = ('opensearch.hosts: https://wazuh.indexer:9200\n'
+                  'uiSettings.overrides.defaultRoute: /app/wz-home\n')
+        rendered = deploy_local.offline_wazuh_dashboard_config(source)
+        self.assertIn('uiSettings.overrides.defaultIndex: silent-ridge-timed', rendered)
+        self.assertEqual(deploy_local.offline_wazuh_dashboard_config(rendered), rendered)
+        self.assertNotIn('kibana_all_write', rendered)
+        self.assertNotIn('multitenancy.enabled: true', rendered)
+
+    def test_dashboard_rejects_duplicate_default_index_overrides(self):
+        source = ('uiSettings.overrides.defaultIndex: first\n'
+                  'uiSettings.overrides.defaultIndex: second\n')
+        with self.assertRaisesRegex(LifecycleError, 'duplicate defaultIndex'):
+            deploy_local.offline_wazuh_dashboard_config(source)
+
     def test_private_indexer_admin_hash_replaces_only_admin(self):
         old = '$2y$12$' + 'b' * 53
         new = '$2y$12$' + 'a' * 53

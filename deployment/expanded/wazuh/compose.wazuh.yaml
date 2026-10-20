@@ -138,7 +138,7 @@ services:
       API_PASSWORD: ${WAZUH_API_PASSWORD:?Set generated Wazuh API password}
     volumes:
       - wazuh-dashboard-certs:/usr/share/wazuh-dashboard/certs:ro
-      - ${WAZUH_CONFIG_DIR:?Set vendored Wazuh config directory}/wazuh_dashboard/opensearch_dashboards.yml:/usr/share/wazuh-dashboard/config/opensearch_dashboards.yml:ro
+      - ${WAZUH_RUNTIME_CONFIG_DIR:?Set rendered Wazuh config directory}/opensearch_dashboards.yml:/usr/share/wazuh-dashboard/config/opensearch_dashboards.yml:ro
     ports:
       - ${BIND_IP:-127.0.0.1}:${WAZUH_DASHBOARD_PORT:-8443}:5601
     networks: [wazuh-backend, frontend, central]

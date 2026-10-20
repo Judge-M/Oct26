@@ -115,6 +115,7 @@ SECRET_FILES = (
     'wazuh_admin', 'wazuh_writer', 'wazuh_reader', 'guac-db-password',
 )
 WAZUH_API_SECRET = 'wazuh-api-password'
+WAZUH_PARTICIPANT_DEFAULT_INDEX = 'silent-ridge-timed'
 
 
 def _set_unique_wazuh_option(source, section_name, option_name, value):
@@ -194,6 +195,42 @@ def offline_wazuh_config(source):
                 or (options[0].text or '').strip().lower() != 'no'):
             raise LifecycleError('Wazuh <%s>/<%s> must be uniquely disabled for the '
                                  'offline kit' % (section_name, option_name))
+    return rendered
+
+
+def offline_wazuh_dashboard_config(source):
+    """Pin the participant's prepared Discover view without granting UI writes.
+
+    Wazuh calls ``uiSettings.set('defaultIndex', ...)`` when this setting is
+    absent.  A participant must not be able to write the shared dashboard
+    tenant, so that otherwise-cosmetic first-login initialization correctly
+    returns 403 and produces an alarming toast.  An override is immutable from
+    the browser and prevents the write while retaining the read-only role.
+    """
+    if _yaml is not None:
+        try:
+            parsed = _yaml.safe_load(source)
+        except Exception as exc:
+            raise LifecycleError('vendored Wazuh dashboard config is invalid YAML: %s' % exc)
+        if not isinstance(parsed, dict):
+            raise LifecycleError('vendored Wazuh dashboard config must be a YAML mapping')
+    pattern = re.compile(
+        r'^[ \t]*uiSettings\.overrides\.defaultIndex[ \t]*:[^\r\n]*$',
+        flags=re.MULTILINE,
+    )
+    setting = ('uiSettings.overrides.defaultIndex: '
+               + WAZUH_PARTICIPANT_DEFAULT_INDEX)
+    matches = list(pattern.finditer(source))
+    if len(matches) > 1:
+        raise LifecycleError('vendored Wazuh dashboard config has duplicate defaultIndex overrides')
+    if matches:
+        rendered = pattern.sub(setting, source, count=1)
+    else:
+        rendered = source.rstrip('\r\n') + '\n' + setting + '\n'
+    if _yaml is not None:
+        verified = _yaml.safe_load(rendered)
+        if verified.get('uiSettings.overrides.defaultIndex') != WAZUH_PARTICIPANT_DEFAULT_INDEX:
+            raise LifecycleError('Wazuh dashboard defaultIndex override was not rendered')
     return rendered
 
 
@@ -925,10 +962,18 @@ http {
         source = self.asset('wazuh_config') / 'wazuh_cluster' / 'wazuh_manager.conf'
         if not source.is_file():
             raise LifecycleError('vendored Wazuh manager config missing at %s' % source)
+        dashboard_source = (self.asset('wazuh_config') / 'wazuh_dashboard'
+                            / 'opensearch_dashboards.yml')
+        if not dashboard_source.is_file():
+            raise LifecycleError('vendored Wazuh dashboard config missing at %s'
+                                 % dashboard_source)
         target_dir = self.runtime / 'wazuh-config'
         target_dir.mkdir(parents=True, exist_ok=True)
         (target_dir / 'ossec.conf').write_text(
             offline_wazuh_config(source.read_text(encoding='utf-8')), encoding='utf-8')
+        (target_dir / 'opensearch_dashboards.yml').write_text(
+            offline_wazuh_dashboard_config(
+                dashboard_source.read_text(encoding='utf-8')), encoding='utf-8')
         users = target_dir / 'internal_users.yml'
         if not users.is_file():
             password = self._secret('wazuh_admin').split(':', 1)[1]

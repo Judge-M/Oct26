@@ -110,6 +110,14 @@ class ComposeAuditTests(unittest.TestCase):
                          manager['environment']['API_PASSWORD'])
         self.assertFalse(any('/data/wazuh/config/wazuh.yml' in mount
                              for mount in dashboard['volumes']))
+        self.assertTrue(any(
+            '${WAZUH_RUNTIME_CONFIG_DIR' in mount
+            and '/opensearch_dashboards.yml:' in mount
+            for mount in dashboard['volumes']))
+        self.assertFalse(any(
+            '${WAZUH_CONFIG_DIR' in mount
+            and '/wazuh_dashboard/opensearch_dashboards.yml:' in mount
+            for mount in dashboard['volumes']))
         self.assertEqual(dashboard['depends_on']['wazuh-manager']['condition'],
                          'service_healthy')
 
