@@ -284,6 +284,10 @@ class FakeRunner:
                         '  URI:http://192.168.1.200:8080/root-ca.crl\n')
             result = 'does match' if self.certificate_matches else 'does NOT match'
             return 'IP %s %s certificate\n' % (argv[-1], result)
+        if argv[:2] == ['docker', 'run'] and 'sha256sum' in joined:
+            first = 'a' * 64
+            second = first if self.certificate_matches else 'b' * 64
+            return '%s  -\n%s  -\n' % (first, second)
         return ''
 
     def _compose(self, argv, joined, check):
@@ -562,6 +566,49 @@ class LifecycleTests(unittest.TestCase):
         self.assertIn('server_name guac.cyberexperts.org;', rendered)
         self.assertIn('location = / { return 302 /guacamole/; }', rendered)
         self.assertIn('proxy_pass https://wazuh-dashboard:5601;', rendered)
+
+    def test_external_tls_rerun_preserves_internal_wazuh_certificates(self):
+        certificate = self.runtime / 'public-fullchain.pem'
+        key = self.runtime / 'public-key.pem'
+        certificate.write_text('certificate', encoding='utf-8')
+        key.write_text('key', encoding='utf-8')
+        self.stack.local['tls'] = {
+            'mode': 'external',
+            'certificate': str(certificate),
+            'key': str(key),
+            'hostnames': {
+                'iris': 'iris.cyberexperts.org',
+                'ctfd': 'ctfd.cyberexperts.org',
+                'guac': 'guac.cyberexperts.org',
+                'wazuh': 'wazuh.cyberexperts.org',
+            },
+        }
+        certs = self.runtime / 'wazuh-certs'
+        certs.mkdir()
+        for name in ('root-ca.pem', 'root-ca-key.pem', 'root-ca.crl',
+                     'dashboard.pem', 'dashboard-key.pem',
+                     'indexer.pem', 'indexer-key.pem', 'manager.pem', 'manager-key.pem',
+                     'admin.pem', 'admin-key.pem'):
+            (certs / name).write_text('preserved-' + name, encoding='utf-8')
+        self.stack._prepare_wazuh_certificates(certs, '192.168.1.200')
+        self.assertFalse(any('/generate-certs.sh' in call for call in self.runner.calls))
+        self.assertEqual((certs / 'indexer.pem').read_text(), 'preserved-indexer.pem')
+        self.assertEqual((certs / 'participant.pem').read_text(), 'certificate')
+        self.assertEqual((certs / 'dashboard.pem').read_text(), 'preserved-dashboard.pem')
+
+    def test_external_tls_rerun_rejects_incomplete_internal_wazuh_certificates(self):
+        self.stack.local['tls'] = {
+            'mode': 'external', 'certificate': str(self.runtime / 'public.pem'),
+            'key': str(self.runtime / 'public-key.pem'),
+            'hostnames': {name: name + '.cyberexperts.org'
+                          for name in ('iris', 'ctfd', 'guac', 'wazuh')},
+        }
+        certs = self.runtime / 'wazuh-certs'
+        certs.mkdir()
+        (certs / 'root-ca.pem').write_text('ca', encoding='utf-8')
+        with self.assertRaisesRegex(LifecycleError, 'incomplete internal Wazuh'):
+            self.stack._prepare_wazuh_certificates(certs, '192.168.1.200')
+        self.assertFalse(any('/generate-certs.sh' in call for call in self.runner.calls))
 
     def test_existing_dashboard_certificate_without_bind_address_fails_closed(self):
         self.stack.local['bind_ip'] = '192.168.1.200'

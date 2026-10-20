@@ -1238,9 +1238,9 @@ http {
     def _install_external_edge_certificate(self, certs):
         """Install and verify the public edge certificate for browser endpoints.
 
-        Only participant.pem and dashboard.pem are replaced.  The generated
-        root CA, manager, indexer and admin certificates remain available for
-        Wazuh's private backend trust graph.
+        Only participant.pem is replaced.  The generated root CA, dashboard,
+        manager, indexer and admin certificates remain available for Wazuh's
+        private backend trust graph.
         """
         tls = self.local['tls']
         source_cert = Path(tls['certificate']).resolve()
@@ -1307,6 +1307,47 @@ http {
                                      'URL %s; rotate the event CA and certificates'
                                      % (name, expected))
 
+    def _prepare_wazuh_certificates(self, certs, bind):
+        """Prepare internal node TLS and the participant-facing edge certificate.
+
+        In external TLS mode the configured public certificate replaces the
+        generated participant edge pair.  A later ``up`` must therefore not
+        ask the private-CA generator to validate that public certificate's CRL
+        extension.  Preserve the existing internal CA/node material, fail
+        closed if any of it is incomplete, and reinstall the configured edge
+        pair idempotently.
+        """
+        external_reuse = self._tls_mode() == 'external' and (certs / 'root-ca.pem').is_file()
+        if external_reuse:
+            internal = (
+                'root-ca.pem', 'root-ca-key.pem', 'root-ca.crl',
+                'dashboard.pem', 'dashboard-key.pem',
+                'indexer.pem', 'indexer-key.pem',
+                'manager.pem', 'manager-key.pem',
+                'admin.pem', 'admin-key.pem',
+            )
+            missing = [name for name in internal
+                       if not (certs / name).is_file() or (certs / name).stat().st_size == 0]
+            if missing:
+                raise LifecycleError(
+                    'external TLS runtime has incomplete internal Wazuh certificate material: '
+                    + ', '.join(missing) + '; restore the runtime backup or use a fresh runtime')
+        else:
+            self._run([
+                'docker', 'run', '--rm', '--network', 'none', '--pull', 'never',
+                '-e', 'RIDGE_CRL_PORT=%d' % self.port('crl', 8080),
+                '-v', str(WAZUH_DIR / 'generate-certs.sh') + ':/generate-certs.sh:ro',
+                '-v', str(certs) + ':/certs', '--entrypoint', 'bash',
+                'wazuh/wazuh-manager:4.9.2', '/generate-certs.sh', '/certs', bind,
+            ])
+        if self._tls_mode() == 'external':
+            self._install_external_edge_certificate(certs)
+            self._verify_public_certificate(certs, bind, 'dashboard')
+        else:
+            self._verify_public_certificate(certs, bind, 'dashboard')
+            self._verify_public_certificate(certs, bind, 'participant')
+            self._verify_revocation_material(certs, bind)
+
     def _apply_infrastructure(self):
         self._ensure_secrets()
         self._render_specs()
@@ -1316,20 +1357,7 @@ http {
         certs = self.runtime / 'wazuh-certs'
         bind = self._dashboard_bind_ip()
         certs.mkdir(parents=True, exist_ok=True)
-        self._run([
-            'docker', 'run', '--rm', '--network', 'none', '--pull', 'never',
-            '-e', 'RIDGE_CRL_PORT=%d' % self.port('crl', 8080),
-            '-v', str(WAZUH_DIR / 'generate-certs.sh') + ':/generate-certs.sh:ro',
-            '-v', str(certs) + ':/certs', '--entrypoint', 'bash',
-            'wazuh/wazuh-manager:4.9.2', '/generate-certs.sh', '/certs', bind,
-        ])
-        if self._tls_mode() == 'external':
-            self._install_external_edge_certificate(certs)
-            self._verify_public_certificate(certs, bind, 'dashboard')
-        else:
-            self._verify_public_certificate(certs, bind, 'dashboard')
-            self._verify_public_certificate(certs, bind, 'participant')
-            self._verify_revocation_material(certs, bind)
+        self._prepare_wazuh_certificates(certs, bind)
         guac_init = self.runtime / 'guac-init'
         guac_init.mkdir(parents=True, exist_ok=True)
         if not (guac_init / '001-initdb.sql').is_file():
