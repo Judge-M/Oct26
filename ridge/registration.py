@@ -34,10 +34,15 @@ DEFAULT_MAX_TEAMS = 10
 DEFAULT_MEMBERS_PER_TEAM = 5
 DEFAULT_DESKTOPS_PER_TEAM = 3
 DESKTOP_ROLES = (
-    ('forensics-a', 'Autopsy workstation A', ('Autopsy', 'Evidence browser')),
-    ('forensics-b', 'Autopsy workstation B', ('Autopsy', 'Evidence browser')),
-    ('analysis', 'Network and reverse-engineering workstation',
-     ('Wireshark', 'Cutter', 'Linux evidence tools')),
+    ('forensics-a', 'Desktop 1 — disk and filesystem triage',
+     'Start with disk images, recovered files, browser records, and document versions.',
+     ('Autopsy', 'Wireshark', 'Cutter', 'Evidence browser', 'Linux evidence tools')),
+    ('forensics-b', 'Desktop 2 — timeline and endpoint correlation',
+     'Start with endpoint exports, task records, timestamps, and cross-source correlation.',
+     ('Autopsy', 'Wireshark', 'Cutter', 'Evidence browser', 'Linux evidence tools')),
+    ('analysis', 'Desktop 3 — network, identity, and binary analysis',
+     'Start with PCAPs, Wazuh searches, identity records, and harmless training binaries.',
+     ('Autopsy', 'Wireshark', 'Cutter', 'Evidence browser', 'Linux evidence tools')),
 )
 
 
@@ -161,7 +166,7 @@ class RegistrationStore:
             return
         rows = []
         for team_index in range(1, self.config.max_teams + 1):
-            for desktop_index, (role, _label, _tools) in enumerate(DESKTOP_ROLES, 1):
+            for desktop_index, (role, _label, _guidance, _tools) in enumerate(DESKTOP_ROLES, 1):
                 slot_number = ((team_index - 1) * self.config.desktops_per_team) + desktop_index
                 rows.append(('desktop-slot%02d' % slot_number, role,
                              'available'))
@@ -383,7 +388,8 @@ def desktop_handout(slots: list[str], public_guacamole_url: str) -> list[dict[st
     if len(slots) != len(DESKTOP_ROLES):
         raise RegistrationError('a team must receive exactly three desktop slots')
     return [
-        {'slot': slot, 'role': role, 'name': label, 'tools': list(tools),
+        {'slot': slot, 'role': role, 'name': label, 'guidance': guidance,
+         'tools': list(tools),
          'url': public_guacamole_url.rstrip('/') + '/guacamole/'}
-        for slot, (role, label, tools) in zip(slots, DESKTOP_ROLES)
+        for slot, (role, label, guidance, tools) in zip(slots, DESKTOP_ROLES)
     ]

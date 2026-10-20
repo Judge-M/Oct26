@@ -41,6 +41,7 @@ from pathlib import Path
 import subprocess
 import sys
 config = Path('/etc/silent-ridge/endpoints.json')
+wazuh_discover_path = "/app/discover#/?_a=(index:'silent-ridge-timed')"
 if not config.exists():
     subprocess.run(['zenity', '--error', '--text=The organizer has not configured service addresses yet.'])
     raise SystemExit(1)
@@ -50,6 +51,8 @@ if not isinstance(url, str) or not url.startswith(('https://', 'http://')):
     raise SystemExit('Expected an HTTP or HTTPS service URL')
 if service in ('iris', 'ctfd') and not url.rstrip('/').endswith('/silent-ridge'):
     url = url.rstrip('/') + '/silent-ridge'
+elif service == 'wazuh' and '/app/discover' not in url:
+    url = url.rstrip('/') + wazuh_discover_path
 subprocess.run(['/usr/local/bin/firefox', url], check=True)
 PY
 chmod 755 /opt/silent-ridge/{open-autopsy.sh,start-desktop.sh,open-service.py}

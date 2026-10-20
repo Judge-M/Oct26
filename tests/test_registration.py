@@ -70,6 +70,8 @@ class RegistrationStoreTests(unittest.TestCase):
         self.assertEqual([row['role'] for row in handout],
                          ['forensics-a', 'forensics-b', 'analysis'])
         self.assertIn('Wireshark', handout[2]['tools'])
+        self.assertIn('Wireshark', handout[0]['tools'])
+        self.assertTrue(all(row['guidance'] for row in handout))
         self.assertTrue(all(row['url'].startswith('https://event:8082/guacamole/')
                             for row in handout))
 
@@ -77,6 +79,7 @@ class RegistrationStoreTests(unittest.TestCase):
         source = (Path(__file__).resolve().parents[1] /
                   'integrations/ctfd_silent_ridge/__init__.py').read_text(encoding='utf-8')
         self.assertIn("os.environ['WAZUH_PUBLIC_URL']", source)
+        self.assertIn("/app/discover#/?_a=(index:'silent-ridge-timed')", source)
         self.assertIn('credentials.wazuh.username', source)
         self.assertIn('credentials.wazuh.password', source)
 

@@ -181,11 +181,25 @@ class DesktopContainerTests(unittest.TestCase):
             for service, expected in (
                 ('iris', 'https://event.example:8444/silent-ridge'),
                 ('ctfd', 'https://event.example:8445/silent-ridge'),
-                ('wazuh', 'https://event.example:8443')):
+                ('wazuh', "https://event.example:8443/app/discover#/?_a=(index:'silent-ridge-timed')")):
                 with self.subTest(service=service), patch('sys.argv', ['open-service.py', service]), \
                         patch.object(module.subprocess, 'run') as launch:
                     module.main()
                     launch.assert_called_once_with(['/usr/local/bin/firefox', expected], check=True)
+
+    def test_wazuh_shortcut_keeps_an_explicit_discover_route(self):
+        path = DESKTOP / 'helpers/open-service.py'
+        spec = importlib.util.spec_from_file_location('open_service_explicit', path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        with tempfile.TemporaryDirectory() as tmp:
+            module.CONFIG = Path(tmp) / 'endpoints.json'
+            expected = "https://event.example/app/discover#/?_a=(index:'silent-ridge-timeless')"
+            module.CONFIG.write_text(json.dumps({'wazuh': expected}), encoding='utf-8')
+            with patch('sys.argv', ['open-service.py', 'wazuh']), \
+                    patch.object(module.subprocess, 'run') as launch:
+                module.main()
+                launch.assert_called_once_with(['/usr/local/bin/firefox', expected], check=True)
 
     def test_manifest_matches_desktop_v1_pins(self):
         self.assertEqual(self.manifest['base_image']['reference'], 'ubuntu:24.04')

@@ -18,6 +18,14 @@ from ridge.registration import (RegistrationConfig, RegistrationError,
                                  RegistrationStore, desktop_handout)
 
 
+WAZUH_DISCOVER_PATH = "/app/discover#/?_a=(index:'silent-ridge-timed')"
+
+
+def participant_wazuh_url(base_url):
+    """Land participants in the prepared Discover view, not the admin wizard."""
+    return base_url.rstrip('/') + WAZUH_DISCOVER_PATH
+
+
 class RidgeCredit(db.Model):
     __tablename__ = 'silent_ridge_credits'
     key = db.Column(db.String(200), primary_key=True)
@@ -68,17 +76,17 @@ persistent handout.</p>
 <table><tr><th>Service</th><th>URL</th><th>Username</th><th>Password</th></tr>
 <tr><td>IRIS</td><td><a href="{{ iris_url }}">{{ iris_url }}</a></td><td><code>{{ credentials.iris.username }}</code></td><td><span class="secret">{{ credentials.iris.password }}</span></td></tr>
 <tr><td>CTFd team</td><td><a href="{{ ctfd_url }}">{{ ctfd_url }}</a></td><td><code>{{ credentials.ctfd.team }}</code></td><td><span class="secret">{{ credentials.ctfd.password }}</span></td></tr>
-<tr><td>Wazuh</td><td><a href="{{ wazuh_url }}">{{ wazuh_url }}</a></td><td><code>{{ credentials.wazuh.username }}</code></td><td><span class="secret">{{ credentials.wazuh.password }}</span></td></tr>
+  <tr><td>Wazuh Discover</td><td><a href="{{ wazuh_url }}">Open prepared telemetry view</a></td><td><code>{{ credentials.wazuh.username }}</code></td><td><span class="secret">{{ credentials.wazuh.password }}</span></td></tr>
 </table>
 <h2>Participant CTFd seats</h2>
 <table><tr><th>Seat</th><th>Username</th><th>Password</th></tr>
 {% for member in credentials.ctfd.members %}<tr><td>{{ loop.index }}</td><td><code>{{ member.username }}</code></td><td><span class="secret">{{ member.password }}</span></td></tr>{% endfor %}
 </table>
 <h2>GUI workstations</h2>
-<p>Log into Guacamole once with the account below. Each connection opens the role-specific desktop assigned to your team.</p>
+  <p>Log into Guacamole once with the account below. All three desktops contain the same complete evidence toolbox. The labels are suggested starting roles so five people can divide the work; they are not tool restrictions.</p>
 <p>Guacamole username: <code>{{ credentials.guacamole.username }}</code><br>Password: <span class="secret">{{ credentials.guacamole.password }}</span><br><a href="{{ guac_url }}">{{ guac_url }}</a></p>
-<table><tr><th>Desktop</th><th>Tools</th><th>Open</th></tr>
-{% for desktop in registration.result.desktop_urls %}<tr><td>{{ desktop.name }}</td><td>{{ desktop.tools|join(', ') }}</td><td><a href="{{ desktop.url }}">Open connection</a></td></tr>{% endfor %}
+  <table><tr><th>Suggested role</th><th>Best starting work</th><th>Installed tools</th><th>Open</th></tr>
+  {% for desktop in registration.result.desktop_urls %}<tr><td>{{ desktop.name }}</td><td>{{ desktop.guidance }}</td><td>{{ desktop.tools|join(', ') }}</td><td><a href="{{ desktop.url }}">Open connection</a></td></tr>{% endfor %}
 </table>
 {% else %}<h1>Registration unavailable</h1><p>{{ registration.error or 'The registration code is invalid.' }}</p>{% endif %}
 </main></body></html>
@@ -174,7 +182,7 @@ def load(app):
                 REGISTRATION_PAGE, view='ready', registration=registration,
                 credentials=credentials, iris_url=os.environ['IRIS_PUBLIC_URL'],
                 ctfd_url=os.environ['CTFD_PUBLIC_URL'],
-                wazuh_url=os.environ['WAZUH_PUBLIC_URL'],
+                wazuh_url=participant_wazuh_url(os.environ['WAZUH_PUBLIC_URL']),
                 guac_url=os.environ.get('GUACAMOLE_PUBLIC_URL',
                                         os.environ.get('CTFD_PUBLIC_URL', '').rstrip('/') + ':8082'))
         if registration.get('status') in ('pending', 'provisioning'):

@@ -68,7 +68,8 @@ class NarrativeTests(unittest.TestCase):
                      'story.tools.items()','context.handoff','Shared progress',
                      'final-assessment','story.conclusion.actions','Room-wide closing brief ready',
                      'operational-update','Verified incident chronology','correlation-workspace',
-                     'capstone-workspace','formatElapsed','localStorage'):
+                      'capstone-workspace','formatElapsed','localStorage','current-questions',
+                      'completed-history','NEW EVIDENCE RELEASED','acknowledgeUpdate'):
             self.assertIn(text,PAGE)
 
 
