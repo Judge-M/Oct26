@@ -1,6 +1,6 @@
 # Operation Silent Ridge
 
-A cooperative, defensive incident-response exercise for **up to ten teams of three**.
+A cooperative, defensive incident-response exercise for **up to ten teams of five**.
 Participants investigate a fictional breach using real forensics and detection
 tools — Autopsy, Wireshark, Cutter and Wazuh — coordinated through a shared
 IRIS case, with questions and scoring in CTFd. Teams claim investigation
@@ -49,6 +49,7 @@ facilitator guides.
    python -m ridge.deploy up --profile PROFILE --runtime RUNTIME
    python -m ridge.deploy status --profile PROFILE --runtime RUNTIME
    python -m ridge.deploy start --profile PROFILE --runtime RUNTIME
+   python -m ridge.deploy registration-open --profile PROFILE --runtime RUNTIME
    ```
 
 5. **Put the registration page on the screen.** In trusted public HTTPS mode,
@@ -58,7 +59,11 @@ facilitator guides.
    generated-CA mode, use
    `https://HOST:8083/silent-ridge/register` after distributing the participant
    CA. The page contains the initial brief and gives each registered team a
-   bookmarkable handout with its credentials, tools, and three desktop links.
+   bookmarkable handout with five personal CTFd seats, its service credentials,
+   and the names of its three isolated desktop connections. Registration starts
+   closed; give captains the enrollment code from
+   `RUNTIME/secrets/registration-enrollment-code`, then open the window with the
+   command above.
 
 ### Participant: how to begin
 
@@ -110,12 +115,13 @@ the participant deck has a "what to try before raising a hand" slide.
 
 ## What participants experience
 
-Each team shares one container-hosted Linux desktop (three people, one
-screen, via Guacamole in a browser — nothing to install on participant
-laptops). Everything else happens in the participants' own browser tabs.
+Each five-person team receives three isolated, container-hosted Linux desktops
+through Guacamole—Forensics A, Forensics B, and Analysis. Everything else
+happens in the participants' own browser tabs; nothing is installed on their
+laptops.
 Teams:
 
-1. Claim an investigation ticket in IRIS (the shared incident case).
+1. Claim up to three investigation tickets in IRIS (the shared incident case).
 2. Investigate with the desktop tools: disk images in Autopsy, network
    captures in Wireshark, a suspicious binary in Cutter, logs in Wazuh.
 3. Answer the ticket's questions in CTFd. An unassisted correct answer scores
@@ -123,8 +129,8 @@ Teams:
    automatically. Help levels 1 and 2 are free; unlocking the explicit
    walkthrough applies an exact 75% cost, leaving one point for that question.
    Every team's work still helps everyone else's picture of the incident.
-4. Later tickets unlock as their prerequisites are solved, converging on the
-   full incident story.
+4. Every team works through all 20 tickets and 80 questions. Later phases unlock
+   only when that team completes the required earlier phase.
 
 The event is designed for a 4–5 hour day including orientation, a break, and
 a facilitated after-action review.
@@ -136,9 +142,10 @@ stack, not guesswork:
 
 - **32 GB RAM minimum; 64 GB is comfortable.** Measured on the running stack:
   central services use ~6 GiB; each team desktop idles at ~150 MiB and peaks
-  at ~2 GiB with the Autopsy case open and its text index loaded. Ten loaded
-  desktops plus central services plus the host OS land near a 30 GiB working
-  set. Desktop containers carry a 4 GB memory *limit*, but a limit reserves
+  at ~2 GiB with the Autopsy case open and its text index loaded. Thirty desktop
+  containers are available for ten teams; actual simultaneous loaded-tool use,
+  central services, and the host OS must remain inside the verified host budget.
+  Desktop containers carry a 4 GB memory *limit*, but a limit reserves
   nothing — the host only commits what is actually touched.
 - **16 CPU cores recommended**, gigabit LAN for participant browsers
 - **100 GB free NVMe SSD** — measured: ~19 GB of container images, ~14 GB for
@@ -196,11 +203,13 @@ capacity is still checked against the requested count.
 
 For the event-day self-service roster, copy
 `deployment/profiles/example-dynamic.json` instead. Do not pass `--teams`.
-After `start`, send teams to `https://<host>:8083/silent-ridge/register`.
+After `start`, open registration and send teams to
+`https://ctfd.cyberexperts.org/silent-ridge/register`.
 The landing page contains the initial brief; each registration reserves five
 seats and three GUI-only desktops, starts those three slots through the
 host-side allocator, creates the CTFd/IRIS/Guacamole identities, and returns a
-bookmarkable handout with all URLs and credentials. The runtime registration
+bookmarkable handout with all URLs, credentials, and exact Guacamole connection
+names. The runtime registration
 database is private and is not part of the repository.
 
 `up` builds out the entire stack and stops at a verified, paused state —
@@ -209,24 +218,24 @@ directory is private: it holds the event's secrets, state, and the team
 account inventories you hand out to participants. On Windows, `ridge.ps1`
 wraps the same commands (`.\ridge.ps1 prepare / up / status / start ...`).
 
-Participants then connect in a browser (default ports, bound to localhost
-unless you set `BIND_IP`):
+In the event's trusted public-TLS mode, participants use these port-443 names.
+The event DNS maps them to the LAN address, and the reverse proxy routes each
+name to its internal service:
 
 | What | Where |
 |---|---|
-| Team desktops (Guacamole) | `https://<host>:8082` |
-| IRIS incident case | `https://<host>:8081` |
-| CTFd questions and score | `https://<host>:8083` |
-| Wazuh dashboard | `https://<host>:8443` |
+| Team desktops (Guacamole) | `https://guac.cyberexperts.org` |
+| IRIS incident case | `https://iris.cyberexperts.org` |
+| CTFd questions and score | `https://ctfd.cyberexperts.org` |
+| Wazuh dashboard | `https://wazuh.cyberexperts.org` |
 
-On a fresh event runtime, classroom credentials are intentionally easy to read
-aloud: the organizer uses `admin` / `admin`, and team N uses `teamN` / `teamN`
-across IRIS, CTFd, Guacamole and the Wazuh reader account. The values remain
-private in `R/secrets`; do not commit or publish them.
-Existing runtimes retain their generated credentials when upgraded. Export the
-participant CA after `up` and install it on participant machines using
-[`docs/participant-ca-trust.md`](docs/participant-ca-trust.md) before opening
-these HTTPS URLs.
+Fresh runtimes generate random facilitator, participant, database, and service
+credentials. Retrieve them only from the private runtime or a team's private
+registration handout; never commit, publish, or substitute memorable defaults.
+Existing runtimes retain their generated credentials when upgraded. The
+generated-CA/IP-and-port path remains an offline fallback; only that fallback
+requires the participant trust steps in
+[`docs/participant-ca-trust.md`](docs/participant-ca-trust.md).
 
 ## Running the event
 

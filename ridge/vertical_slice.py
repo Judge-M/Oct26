@@ -93,7 +93,7 @@ def run(state, config, client, sink, operator, ticket, question, answer, start=F
     if len(teams) < 2:
         raise SliceError('teams: a two-team slice requires at least two teams')
     first, second = teams[0], teams[1]
-    generation = next(t['generation'] for t in state.snapshot()['tickets'] if t['id'] == ticket)
+    generation = state.ticket_state(ticket, first)['generation']
     state.claim(first, ticket, generation)
     report.record('claim')
     # The claim itself delivers an ownership comment; measure answer effects
@@ -112,10 +112,10 @@ def run(state, config, client, sink, operator, ticket, question, answer, start=F
         raise SliceError('native effects: expected exactly one new finding and four points')
     report.record('finding')
     report.record('point')
-    generation = next(t['generation'] for t in state.snapshot()['tickets'] if t['id'] == ticket)
+    generation = state.ticket_state(ticket, first)['generation']
     state.release(first, ticket, generation)
     report.record('relinquish')
-    generation = next(t['generation'] for t in state.snapshot()['tickets'] if t['id'] == ticket)
+    generation = state.ticket_state(ticket, second)['generation']
     state.claim(second, ticket, generation)
     drain(state, sink)
     report.record('takeover')

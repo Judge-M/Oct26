@@ -59,7 +59,7 @@ elements:
       color: "#C9CFC7"
       lineHeight: 1.6
       text: |
-        <p>IRIS :8081 · CTFd :8083 · Wazuh :8443 (HTTPS) · Team desktop :8082</p>
+        <p>iris.cyberexperts.org · ctfd.cyberexperts.org · wazuh.cyberexperts.org · guac.cyberexperts.org</p>
         <p><span style="color:#7E877F">All in your own browser. All fictional. Good hunting.</span></p>
   - elementId: footer
     elementType: text

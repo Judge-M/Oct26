@@ -147,7 +147,10 @@ def verify_set(folder):
         path = folder / name
         if not path.is_file() or _sha256(path) != digest:
             raise RecoveryError('corrupt recovery set: %s fails its recorded hash' % name)
-    return json.loads((folder / 'manifest.json').read_text(encoding='utf-8'))
+    manifest = json.loads((folder / 'manifest.json').read_text(encoding='utf-8'))
+    if manifest.get('dynamic_registration') and 'registration/registrations.sqlite' not in sums:
+        raise RecoveryError('dynamic recovery set is missing registration/registrations.sqlite')
+    return manifest
 
 
 def _volume_tar(runner, volume, destination):
@@ -206,11 +209,39 @@ def team_volumes(event, teams):
             for index in range(len(teams)) for kind in TEAM_VOLUME_KINDS]
 
 
+def registration_volumes(event, registration_db, allocated_only=True):
+    """Resolve dynamic desktop volumes from allocator state, never a static roster."""
+    registration_db = Path(registration_db)
+    if not registration_db.is_file():
+        return []
+    con = sqlite3.connect(str(registration_db))
+    try:
+        # Reserved slots have no workspace volume until provisioning starts.
+        # The registration DB preserves their reservation and credentials;
+        # only running slots own data that needs to be archived.
+        where = "WHERE status='running'" if allocated_only else ''
+        slots = [row[0] for row in con.execute(
+            'SELECT slot FROM desktop_slots %s ORDER BY slot' % where)]
+    finally:
+        con.close()
+    return ['%s-desktops_%s-%s' % (event, slot, kind)
+            for slot in slots for kind in TEAM_VOLUME_KINDS]
+
+
+def registration_teams(registration_db):
+    con = sqlite3.connect(str(registration_db))
+    try:
+        return ['team-%02d' % row[0] for row in con.execute(
+            "SELECT id FROM registrations WHERE status<>'cancelled' ORDER BY id")]
+    finally:
+        con.close()
+
+
 def data_volumes(event):
     return ['%s-%s' % (event, name) for name in CENTRAL_DATA_VOLUMES]
 
 
-def event_volumes(event, teams):
+def event_volumes(event, teams, registration_db=None):
     """Every named Docker volume owned by one local event deployment.
 
     Recovery archives only the application and team data volumes, but a wipe
@@ -218,7 +249,9 @@ def event_volumes(event, teams):
     staging volumes.  Keeping the complete inventory here prevents teardown
     and restore from drifting apart.
     """
-    return data_volumes(event) + team_volumes(event, teams) + [
+    desktops = (registration_volumes(event, registration_db, allocated_only=False)
+                if registration_db else team_volumes(event, teams))
+    return data_volumes(event) + desktops + [
         event + '-iris-db',
         event + '-ctfd-db',
         event + '-guacamole-database',
@@ -258,6 +291,21 @@ def create(stack, destination, cipher=None, export_job=None):
                             'let the worker drain, then retry' % exc)
     try:
         destination.mkdir(parents=True)
+        dynamic = bool(stack.profile.get('registration', {}).get('enabled', False))
+        registration_copy = None
+        if dynamic:
+            source_registration = stack.registration_dir / 'registrations.sqlite'
+            if not source_registration.is_file():
+                raise RecoveryError('dynamic backup requires %s' % source_registration)
+            (destination / 'registration').mkdir()
+            registration_copy = destination / 'registration' / 'registrations.sqlite'
+            clone = sqlite3.connect(str(registration_copy))
+            source = sqlite3.connect(str(source_registration))
+            try:
+                source.backup(clone)
+            finally:
+                clone.close()
+                source.close()
         # 1. Receipt watermarks through the real export path (inside the controller
         #    network, where IRIS/CTFd internal URLs are reachable).
         if export_job is None:
@@ -292,7 +340,10 @@ def create(stack, destination, cipher=None, export_job=None):
         # 6. Native app data and per-team volumes.
         volumes_dir = destination / 'volumes'
         volumes_dir.mkdir()
-        for volume in data_volumes(stack.event) + team_volumes(stack.event, stack.teams):
+        desktop_volumes = (registration_volumes(stack.event, registration_copy)
+                           if dynamic else team_volumes(stack.event, stack.teams))
+        backup_volumes = data_volumes(stack.event) + desktop_volumes
+        for volume in backup_volumes:
             _volume_tar(stack._run, volume, volumes_dir / (volume + '.tar.gz'))
         # 7. Public evidence + release vault.
         shutil.copytree(stack.asset('evidence_public'), destination / 'evidence')
@@ -320,8 +371,10 @@ def create(stack, destination, cipher=None, export_job=None):
             'release_fingerprint': stack.release_fingerprint,
             'site_generation': site['generation'],
             'index_name': stack._index_name(),
-            'volumes': data_volumes(stack.event) + team_volumes(stack.event, stack.teams),
-            'teams': [team['name'] for team in stack.teams],
+            'volumes': backup_volumes,
+            'teams': ([team['name'] for team in stack.teams] if not dynamic else
+                      registration_teams(registration_copy)),
+            'dynamic_registration': dynamic,
             'secrets_encryption': {'tool': 'openssl enc -aes-256-cbc -pbkdf2',
                                    'key_env': cipher.key_env,
                                    'note': 'the key itself is never stored in the set'},
@@ -452,13 +505,21 @@ def restore(profile, runtime, backup, runner, host=None, operator='deploy',
                             'before restoring onto this host'
                             % (manifest['event'], ', '.join(live[:3])))
     manifest_teams = manifest.get('teams')
-    if not isinstance(manifest_teams, list) or not manifest_teams:
+    dynamic = bool(manifest.get('dynamic_registration'))
+    if not isinstance(manifest_teams, list) or (not manifest_teams and not dynamic):
         raise RecoveryError('recovery manifest has no effective team roster; refusing to '
                             'guess the destination topology')
     volume_output = runner.run(['docker', 'volume', 'ls', '--format', '{{.Name}}'])
     existing_volumes = set(volume_output.splitlines())
-    stale_volumes = sorted(existing_volumes.intersection(
-        event_volumes(manifest['event'], manifest_teams)))
+    recorded = set(manifest.get('volumes') or ())
+    recorded.update(event_volumes(manifest['event'], manifest_teams) if not dynamic else [
+        manifest['event'] + '-iris-db', manifest['event'] + '-ctfd-db',
+        manifest['event'] + '-guacamole-database',
+        manifest['event'] + '-wazuh_wazuh-indexer-data',
+        manifest['event'] + '-wazuh_wazuh-manager-data',
+        manifest['event'] + '-wazuh_wazuh-indexer-certs',
+        manifest['event'] + '-wazuh_wazuh-dashboard-certs'])
+    stale_volumes = sorted(existing_volumes.intersection(recorded))
     if stale_volumes:
         raise RecoveryError('destination still has event-owned Docker volumes for %s (%s); '
                             'restore refuses to layer a backup over stale data. Complete a '
@@ -468,7 +529,7 @@ def restore(profile, runtime, backup, runner, host=None, operator='deploy',
     from ridge.deploy import config as deploy_config
     base_profile = deploy_config.validate(profile)
     base_team_names = [team['name'] for team in base_profile['roster']['teams']]
-    override_required = base_team_names != manifest_teams
+    override_required = not dynamic and base_team_names != manifest_teams
     if override_required:
         neutral_names = ['team-%02d' % index
                          for index in range(1, len(manifest_teams) + 1)]
@@ -508,6 +569,10 @@ def restore(profile, runtime, backup, runner, host=None, operator='deploy',
         shutil.copy2(backup / 'discovered.json', stack.discovered_path)
     if (backup / 'inventories').is_dir():
         shutil.copytree(backup / 'inventories', runtime / 'inventories')
+    if dynamic:
+        (runtime / 'registration').mkdir(exist_ok=True)
+        shutil.copy2(backup / 'registration' / 'registrations.sqlite',
+                     runtime / 'registration' / 'registrations.sqlite')
     # Cross-release upgrade: migrate the restored state to this checkout's schema.
     from ridge.schema import migrate
     with stack.host.state(stack.state_path).transaction() as con:

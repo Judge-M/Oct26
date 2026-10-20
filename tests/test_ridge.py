@@ -36,17 +36,16 @@ class WorkflowTests(unittest.TestCase):
         while self.state.sync_once(self.sink):
             pass
 
-    def test_simultaneous_claim_one_winner(self):
+    def test_each_team_can_claim_the_same_ticket_independently(self):
         def claim(team):
             try:
                 self.state.claim(team,'A',0);return True
             except Conflict:
                 return False
         with concurrent.futures.ThreadPoolExecutor(3) as pool:
-            self.assertEqual(sum(pool.map(claim,['0','1','2'])),1)
-        owner=self.state.snapshot()['tickets'][0]['owner']
-        with self.assertRaises(Conflict):
-            self.state.claim(owner,'B',0)
+            self.assertEqual(sum(pool.map(claim,['0','1','2'])),3)
+        for team in ('0','1','2'):
+            self.assertEqual(self.state.ticket_state('A',team)['owner'],team)
 
     def test_same_team_simultaneous_different_tickets(self):
         def claim(ticket):
@@ -55,24 +54,37 @@ class WorkflowTests(unittest.TestCase):
             except Conflict:
                 return False
         with concurrent.futures.ThreadPoolExecutor(2) as pool:
-            self.assertEqual(sum(pool.map(claim,['A','B'])),1)
+            self.assertEqual(sum(pool.map(claim,['A','B'])),2)
 
-    def test_transfer_global_close_history_followup(self):
+    def test_fourth_parallel_lane_is_rejected(self):
+        self.state.claim('0','A',0)
+        self.state.claim('0','B',0)
+        with self.state.transaction() as con:
+            con.execute("UPDATE team_tickets SET status='available' WHERE team='0' AND ticket='C'")
+            con.execute("INSERT INTO tickets(id,title,subject,owner,status,iris_id,requires,release_files,generation) VALUES ('D','D','general',NULL,'available',99,'[]','[]',0)")
+            con.execute("INSERT INTO team_tickets(team,ticket,status,generation) VALUES ('0','D','available',0)")
+            con.execute("INSERT INTO tickets(id,title,subject,owner,status,iris_id,requires,release_files,generation) VALUES ('E','E','general',NULL,'available',100,'[]','[]',0)")
+            con.execute("INSERT INTO team_tickets(team,ticket,status,generation) VALUES ('0','E','available',0)")
+        self.state.claim('0','D',0)
+        with self.assertRaisesRegex(Conflict,'three active work lanes'):
+            self.state.claim('0','E',0)
+
+    def test_completion_and_followups_are_independent_per_team(self):
         self.state.claim('0','A',0)
         self.assertTrue(self.state.answer('0','A0',' ANSWER ')['correct'])
-        self.state.release('0','A',1)
-        self.state.claim('1','A',1)
+        self.assertTrue(self.state.answer('0','A1','answer')['closed'])
+        self.assertEqual(self.state.ticket_state('C','0')['status'],'available')
+        self.assertEqual(self.state.ticket_state('C','1')['status'],'locked')
+        self.state.claim('1','A',0)
         questions=self.state.questions('1')
-        self.assertEqual(questions[0]['solved_by'],'0')
-        self.assertFalse(questions[0]['answerable'])
+        self.assertTrue(all(q['solved_by'] is None and q['answerable'] for q in questions))
+        self.assertTrue(self.state.answer('1','A0','answer')['correct'])
         self.assertTrue(self.state.answer('1','A1','answer')['closed'])
-        self.assertEqual(len(self.state.questions('2')),2)
-        self.assertTrue(all(not q['answerable'] for q in self.state.questions('2')))
-        self.assertEqual({r['id']:r['points'] for r in self.state.snapshot()['scores']},{'0':4,'1':4,'2':0})
+        self.assertEqual(self.state.questions('2'),[])
+        self.assertEqual({r['id']:r['points'] for r in self.state.snapshot()['scores']},{'0':8,'1':8,'2':0})
         self.drain();self.state.claim('1','C',0)
         self.assertEqual(sum(v[0]=='ticket' for v in self.deliveries.values()),3)
-        self.assertEqual(sum(v[0]=='finding' for v in self.deliveries.values()),2)
-        self.assertEqual(sum(v[0]=='close' for v in self.deliveries.values()),1)
+        self.assertEqual(sum(v[0]=='finding' for v in self.deliveries.values()),4)
 
     def test_unrelated_direct_read_submission_and_wrong_owner(self):
         self.state.claim('0','A',0)
@@ -136,7 +148,7 @@ class WorkflowTests(unittest.TestCase):
         self.state.claim('0','A',0);self.state.answer('0','A0','answer')
         self.state.mode('controller','paused')
         with self.assertRaises(Conflict):self.state.answer('0','A1','answer')
-        self.state.release(None,'A',1,recovery_actor='controller',reason='Absent team')
+        self.state.release('0','A',1,recovery_actor='controller',reason='Absent team')
         path=self.state.export(Path(self.tmp.name)/'export.json')
         data=json.loads(path.read_text())
         self.assertEqual(len(data['answers']),1)

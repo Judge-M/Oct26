@@ -14,7 +14,7 @@ elements:
   - elementId: title
     elementType: text
     bounds: [170, 96, 726, 44]
-    content: {style: "$title", fontSize: 27, wrap: false, text: Open your team's shared desktop}
+    content: {style: "$title", fontSize: 27, wrap: false, text: Open your team's three desktop connections}
   - elementId: rule
     elementType: line
     bounds: [64, 160, 832, 2]
@@ -34,13 +34,12 @@ elements:
       fontSize: 15
       text: |
         <p><strong>1.</strong> Third tab:
-        <span style="background-color:$palegreen"> https://&lt;event-address&gt;:8082 </span></p>
+        <span style="background-color:$palegreen"> https://guac.cyberexperts.org </span></p>
         <p style="margin-top:10px"><strong>2.</strong> Log in with the <strong>Guacamole</strong> username and
-        password from the handout, then click your team's desktop connection.</p>
-        <p style="margin-top:10px"><strong>3.</strong> If the desktop asks for a password, it is the
-        <strong>VNC password</strong> on the handout.</p>
-        <p style="margin-top:10px"><strong>4.</strong> You are now sharing one Linux desktop with your
-        whole team — take turns driving. Evidence lives under
+        password from the handout. You will see Forensics A, Forensics B, and Analysis.
+        Use the handout's VNC password if a desktop asks.</p>
+        <p style="margin-top:10px"><strong>3.</strong> Assign the three connections across your team.
+        Each is an isolated Linux desktop. Evidence lives under
         <strong>/evidence</strong>; the prepared case lives in the home folder.</p>
   - elementId: check-rule
     elementType: line
@@ -68,7 +67,7 @@ elements:
     bounds: [624, 350, 272, 90]
     content:
       style: "$small"
-      text: "One desktop per team, several of you connected at once. Everything here is read-only exercise material — you cannot break the evidence."
+      text: "Three desktops per team support three parallel work lanes. Everything under /evidence and /originals is mounted read-only."
   - elementId: footer
     elementType: text
     bounds: [64, 505, 700, 18]

@@ -2,22 +2,22 @@
 
 Record observations here during a beginner rehearsal. Estimated columns come from `docs/workload.md` and are arithmetic; the measured columns are the evidence.
 
-Duration target: 270 minutes. Estimated makespan: 195 minutes. Estimated team-minutes: 1300 (130.0/team).
+Duration target: 360 minutes. Estimated makespan: 585 minutes. Estimated team-minutes: 1300 (1300/team).
 
 ## Per-team summary
 
 | Team | Estimated tickets | Estimated minutes | Active minutes | Idle minutes | Help used | Tool failures | Notes |
 |---|---|---|---|---|---|---|---|
-| team-01 | T01, T07, T20 | 195 | | | | | |
-| team-02 | T02, T09 | 130 | | | | | |
-| team-03 | T03, T11 | 130 | | | | | |
-| team-04 | T04, T14 | 130 | | | | | |
-| team-05 | T05, T15 | 130 | | | | | |
-| team-06 | T06, T16 | 130 | | | | | |
-| team-07 | T08, T17 | 130 | | | | | |
-| team-08 | T10, T18 | 130 | | | | | |
-| team-09 | T12, T19 | 130 | | | | | |
-| team-10 | T13 | 65 | | | | | |
+| team-01 | T01, T02, T03, T04, T05, T06, T07, T08, T10, T09, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20 | 1300 | | | | | |
+| team-02 | T01, T02, T03, T04, T05, T06, T07, T08, T10, T09, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20 | 1300 | | | | | |
+| team-03 | T01, T02, T03, T04, T05, T06, T07, T08, T10, T09, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20 | 1300 | | | | | |
+| team-04 | T01, T02, T03, T04, T05, T06, T07, T08, T10, T09, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20 | 1300 | | | | | |
+| team-05 | T01, T02, T03, T04, T05, T06, T07, T08, T10, T09, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20 | 1300 | | | | | |
+| team-06 | T01, T02, T03, T04, T05, T06, T07, T08, T10, T09, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20 | 1300 | | | | | |
+| team-07 | T01, T02, T03, T04, T05, T06, T07, T08, T10, T09, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20 | 1300 | | | | | |
+| team-08 | T01, T02, T03, T04, T05, T06, T07, T08, T10, T09, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20 | 1300 | | | | | |
+| team-09 | T01, T02, T03, T04, T05, T06, T07, T08, T10, T09, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20 | 1300 | | | | | |
+| team-10 | T01, T02, T03, T04, T05, T06, T07, T08, T10, T09, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20 | 1300 | | | | | |
 
 ## Per-ticket observations
 
@@ -33,16 +33,16 @@ Duration target: 270 minutes. Estimated makespan: 195 minutes. Estimated team-mi
 | T08 | Autopsy | - | 65 | | | | | | | | |
 | T09 | Linux file manager | T08 | 65 | | | | | | | | |
 | T10 | Wazuh | - | 65 | | | | | | | | |
-| T11 | Wazuh | T10 | 65 | | | | | | | | |
-| T12 | Wazuh | - | 65 | | | | | | | | |
-| T13 | Autopsy | - | 65 | | | | | | | | |
-| T14 | Autopsy | - | 65 | | | | | | | | |
-| T15 | Autopsy | - | 65 | | | | | | | | |
-| T16 | Autopsy | - | 65 | | | | | | | | |
-| T17 | Cutter | - | 65 | | | | | | | | |
-| T18 | Cutter | - | 65 | | | | | | | | |
-| T19 | Linux file manager | T01, T05 | 65 | | | | | | | | |
-| T20 | Wazuh | T07, T09, T11, T19 | 65 | | | | | | | | |
+| T11 | Wazuh | T01, T02, T03, T04, T05, T06, T07, T08, T09, T10 | 65 | | | | | | | | |
+| T12 | Wazuh | T01, T02, T03, T04, T05, T06, T07, T08, T09, T10 | 65 | | | | | | | | |
+| T13 | Autopsy | T01, T02, T03, T04, T05, T06, T07, T08, T09, T10 | 65 | | | | | | | | |
+| T14 | Autopsy | T01, T02, T03, T04, T05, T06, T07, T08, T09, T10 | 65 | | | | | | | | |
+| T15 | Autopsy | T01, T02, T03, T04, T05, T06, T07, T08, T09, T10 | 65 | | | | | | | | |
+| T16 | Autopsy | T11, T12, T13, T14, T15 | 65 | | | | | | | | |
+| T17 | Cutter | T11, T12, T13, T14, T15 | 65 | | | | | | | | |
+| T18 | Cutter | T11, T12, T13, T14, T15 | 65 | | | | | | | | |
+| T19 | Linux file manager | T01, T05, T11, T12, T13, T14, T15 | 65 | | | | | | | | |
+| T20 | Wazuh | T07, T09, T11, T16, T17, T18, T19 | 65 | | | | | | | | |
 
 ## Rehearsal questions
 

@@ -1,9 +1,10 @@
 # Controller operations and recovery
 
-The expanded exercise has no report, grading or facilitator-approval gate. IRIS
-contains native shared tasks and automatic findings. Team ownership mutations
-originate in its queue extension; CTFd's extension presents current questions and
-completed shared history. IRIS is the only participant ticket system.
+The expanded exercise has no report or facilitator-approval gate. IRIS contains
+native shared tasks and automatic findings. Each team has independent ticket
+state and answer history while published findings contribute to the shared case.
+CTFd presents that team's current questions and completed history. IRIS is the
+only participant ticket system.
 
 ## Start, pause and announcements
 
@@ -38,13 +39,13 @@ See [facilitator-evidence-release.md](facilitator-evidence-release.md) for the
 follow-up evidence dependency chain, release verification, and operator steps.
 
 ```text
-python -m ridge.cli recover T03 --generation 1 --operator EXCON-A --reason "Team disconnected; release remaining questions for another team"
+python -m ridge.cli recover T03 --team team-03 --generation 1 --operator EXCON-A --reason "Team disconnected; release its active lane"
 ```
 
 Recovery records the previous owner, operator and reason. Solved answers and
 points do not reset. An incorrect answer stores no submitted flag and earns no
 points. The core uses serialized SQLite transactions and database uniqueness for
-one owner/one active ticket and one globally accepted answer per question.
+up to three active lanes per team and one accepted answer per team/question pair.
 
 On accepted answers, the core commits answer state and outbox entries together.
 Remote point/finding delivery retries with a bounded backoff. Each application

@@ -84,7 +84,7 @@ services:
       - ${WAZUH_RUNTIME_CONFIG_DIR:?Set private rendered Wazuh config directory}/internal_users.yml:/usr/share/wazuh-indexer/opensearch-security/internal_users.yml:ro
     ports:
       # Loopback-only: controller provisioning/queries; participants use the dashboard.
-      - ${BIND_IP:-127.0.0.1}:${WAZUH_INDEXER_PORT:-9200}:9200
+      - ${WAZUH_INDEXER_BIND_IP:-127.0.0.1}:${WAZUH_INDEXER_PORT:-9200}:9200
     networks:
       wazuh-backend:
         aliases: [wazuh.indexer]
@@ -140,7 +140,7 @@ services:
       - wazuh-dashboard-certs:/usr/share/wazuh-dashboard/certs:ro
       - ${WAZUH_RUNTIME_CONFIG_DIR:?Set rendered Wazuh config directory}/opensearch_dashboards.yml:/usr/share/wazuh-dashboard/config/opensearch_dashboards.yml:ro
     ports:
-      - ${BIND_IP:-127.0.0.1}:${WAZUH_DASHBOARD_PORT:-8443}:5601
+      - ${WAZUH_DASHBOARD_BIND_IP:-127.0.0.1}:${WAZUH_DASHBOARD_PORT:-8443}:5601
     networks: [wazuh-backend, frontend, central]
     depends_on:
       wazuh-dashboard-certs-init: {condition: service_completed_successfully}
@@ -149,6 +149,12 @@ services:
     logging:
       driver: json-file
       options: {max-size: "10m", max-file: "3"}
+    healthcheck:
+      test: [CMD-SHELL, "curl --fail --silent --max-time 5 --cacert /usr/share/wazuh-dashboard/certs/root-ca.pem https://localhost:5601/api/status -o /dev/null"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
 volumes:
   wazuh-indexer-data:
   wazuh-manager-data:

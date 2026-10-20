@@ -1,4 +1,4 @@
-"""CTFd 3.7.7 OSS plugin. Dedicated coached questions, globally unique credits.
+"""CTFd 3.7.7 OSS plugin. Dedicated coached questions with per-team credit.
 
 Do not also create stock challenges for this run: stock solve semantics are per team.
 """
@@ -39,7 +39,7 @@ class RidgeCredit(db.Model):
 
 REGISTRATION_PAGE = r'''
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><title>Operation Silent Ridge — team registration</title>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Operation Silent Ridge — team registration</title>
 <style>
 body{font:16px system-ui,sans-serif;max-width:960px;margin:2rem auto;padding:0 1rem;color:#17212b}
 main{border:1px solid #ccd6df;border-radius:12px;padding:2rem;box-shadow:0 4px 18px #0001}
@@ -48,7 +48,7 @@ h1{margin-top:0}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(
 label{display:block;font-weight:600;margin:.8rem 0}.field{display:block;width:100%;box-sizing:border-box;padding:.65rem;border:1px solid #aab7c4;border-radius:6px;font-size:1rem}
 button{margin-top:1rem;padding:.7rem 1.2rem;border:0;border-radius:6px;background:#1257a6;color:#fff;font-weight:700;cursor:pointer}
 code{background:#eef1f4;padding:.15rem .3rem;border-radius:4px}.secret{font-family:ui-monospace,monospace;background:#fff6cf;padding:.15rem .3rem}
-table{border-collapse:collapse;width:100%}td,th{border-bottom:1px solid #d7dee5;text-align:left;padding:.55rem}
+table{border-collapse:collapse;width:100%}td,th{border-bottom:1px solid #d7dee5;text-align:left;padding:.55rem}.table-wrap{overflow-x:auto}.copy{margin:.15rem;padding:.25rem .5rem;background:#46596b}.actions{display:flex;gap:.7rem;flex-wrap:wrap;align-items:center}@media print{button,.no-print{display:none}main{border:0;box-shadow:none}}
 </style></head><body><main>
 {% if view == 'register' %}
 <h1>Operation Silent Ridge</h1>
@@ -67,32 +67,35 @@ persistent handout.</p>
 <input type="hidden" name="nonce" value="{{ nonce }}">
 <label>Team name<input class="field" name="team_name" maxlength="48" required value="{{ team_name }}"></label>
 <label>Captain / facilitator contact<input class="field" name="captain_name" maxlength="48" required value="{{ captain_name }}"></label>
+<label>Event enrollment code<input class="field" name="enrollment_code" maxlength="64" required autocomplete="one-time-code"></label>
 <button type="submit">Reserve our team</button>
 </form>
 {% elif view == 'pending' %}
 <h1>{{ registration.team_name }}</h1><p>Your team slot is reserved. The event host is starting your three workstations and creating the application accounts.</p>
-<p>Status: <strong>{{ registration.status }}</strong>. Refresh this page in a few seconds.</p>
+<p>Status: <strong id="registration-status">{{ registration.status }}</strong>. This page will update when provisioning finishes.</p>
 <p>Your retrieval path is <code>{{ retrieve_path }}</code>. Bookmark it.</p>
-<meta http-equiv="refresh" content="5">
+<button type="button" onclick="location.reload()">Check now</button><script>setInterval(async()=>{try{const r=await fetch({{ status_url|tojson }},{cache:'no-store'}),s=await r.json();document.getElementById('registration-status').textContent=s.status;if(!['pending','provisioning'].includes(s.status))location.reload();}catch(e){}},5000);</script>
 {% elif view == 'ready' %}
 <h1>{{ registration.team_name }} — team handout</h1>
-<p>Registration is complete. Bookmark this page. Do not post these passwords in a public chat.</p>
+<p>Registration is complete. Bookmark or print this page. Do not post these passwords in a public chat.</p>
+<div class="actions no-print"><button type="button" onclick="window.print()">Print / save handout</button><button type="button" onclick="copyAll()">Copy all credentials</button></div>
 <h2>Browser services</h2>
-<table><tr><th>Service</th><th>URL</th><th>Username</th><th>Password</th></tr>
-<tr><td>IRIS</td><td><a href="{{ iris_url }}">{{ iris_url }}</a></td><td><code>{{ credentials.iris.username }}</code></td><td><span class="secret">{{ credentials.iris.password }}</span></td></tr>
-<tr><td>CTFd team</td><td><a href="{{ ctfd_url }}">{{ ctfd_url }}</a></td><td><code>{{ credentials.ctfd.team }}</code></td><td><span class="secret">{{ credentials.ctfd.password }}</span></td></tr>
+<div class="table-wrap"><table><tr><th>Service</th><th>URL</th><th>Username</th><th>Password</th></tr>
+<tr><td>IRIS</td><td><a href="{{ iris_url }}">{{ iris_url }}</a></td><td><code data-copy>{{ credentials.iris.username }}</code></td><td><span class="secret" data-copy>{{ credentials.iris.password }}</span></td></tr>
   <tr><td>Wazuh Discover</td><td><a href="{{ wazuh_url }}">Open prepared telemetry view</a></td><td><code>{{ credentials.wazuh.username }}</code></td><td><span class="secret">{{ credentials.wazuh.password }}</span></td></tr>
-</table>
+</table></div>
 <h2>Participant CTFd seats</h2>
-<table><tr><th>Seat</th><th>Username</th><th>Password</th></tr>
-{% for member in credentials.ctfd.members %}<tr><td>{{ loop.index }}</td><td><code>{{ member.username }}</code></td><td><span class="secret">{{ member.password }}</span></td></tr>{% endfor %}
-</table>
+<p>Open <a href="{{ ctfd_url }}">{{ ctfd_url }}</a>. CTFd requires one of the personal seat logins below; <strong>the internal team identifier is not a login</strong>.</p>
+<div class="table-wrap"><table><tr><th>Seat</th><th>Username</th><th>Password</th></tr>
+{% for member in credentials.ctfd.members %}<tr><td>{{ loop.index }}</td><td><code data-copy>{{ member.username }}</code></td><td><span class="secret" data-copy>{{ member.password }}</span></td></tr>{% endfor %}
+</table></div>
 <h2>GUI workstations</h2>
   <p>Log into Guacamole once with the account below. All three desktops contain the same complete evidence toolbox. The labels are suggested starting roles so five people can divide the work; they are not tool restrictions.</p>
-<p>Guacamole username: <code>{{ credentials.guacamole.username }}</code><br>Password: <span class="secret">{{ credentials.guacamole.password }}</span><br><a href="{{ guac_url }}">{{ guac_url }}</a></p>
-  <table><tr><th>Suggested role</th><th>Best starting work</th><th>Installed tools</th><th>Open</th></tr>
-  {% for desktop in registration.result.desktop_urls %}<tr><td>{{ desktop.name }}</td><td>{{ desktop.guidance }}</td><td>{{ desktop.tools|join(', ') }}</td><td><a href="{{ desktop.url }}">Open connection</a></td></tr>{% endfor %}
-</table>
+<p>Guacamole username: <code data-copy>{{ credentials.guacamole.username }}</code><br>Password: <span class="secret" data-copy>{{ credentials.guacamole.password }}</span><br><a href="{{ guac_url }}">Open Guacamole</a></p>
+  <div class="table-wrap"><table><tr><th>Connection name</th><th>Suggested role</th><th>Best starting work</th><th>Installed tools</th></tr>
+  {% for desktop in registration.result.desktop_urls %}<tr><td><code>{{ desktop.connection_name }}</code></td><td>{{ desktop.name }}</td><td>{{ desktop.guidance }}</td><td>{{ desktop.tools|join(', ') }}</td></tr>{% endfor %}
+</table></div>
+<script>async function copyAll(){const values=[...document.querySelectorAll('[data-copy]')].map(x=>x.textContent.trim());await navigator.clipboard.writeText(values.join('\n'));}</script>
 {% else %}<h1>Registration unavailable</h1><p>{{ registration.error or 'The registration code is invalid.' }}</p>{% endif %}
 </main></body></html>
 '''
@@ -125,11 +128,14 @@ def load(app):
         set_config('score_visibility', 'private')
         set_config('account_visibility', 'private')
     registration_path = os.environ.get('RIDGE_REGISTRATION_DB', '/registration/registrations.sqlite')
+    code_file = os.environ.get('RIDGE_REGISTRATION_CODE_FILE')
+    enrollment_code = open(code_file, encoding='utf-8').read().strip() if code_file else None
     registration_store = RegistrationStore(
         registration_path,
         RegistrationConfig(
             max_teams=int(os.environ.get('RIDGE_REGISTRATION_MAX_TEAMS', '10')),
-            members_per_team=int(os.environ.get('RIDGE_REGISTRATION_MEMBERS', '5'))))
+            members_per_team=int(os.environ.get('RIDGE_REGISTRATION_MEMBERS', '5'))),
+        enrollment_code=enrollment_code)
     from .provision import register as register_provision
     register_provision(app)
 
@@ -165,7 +171,9 @@ def load(app):
                                        session.get('nonce', '!')):
                 abort(403)
             try:
-                created = registration_store.register(team_name, captain_name)
+                created = registration_store.register(
+                    team_name, captain_name,
+                    enrollment_code=request.form.get('enrollment_code', ''))
                 return redirect(created['retrieve_path'])
             except RegistrationError as exc:
                 error = str(exc)
@@ -193,8 +201,17 @@ def load(app):
         if registration.get('status') in ('pending', 'provisioning'):
             return render_template_string(REGISTRATION_PAGE, view='pending',
                                           registration=registration,
-                                          retrieve_path=request.path)
+                                          retrieve_path=request.path,
+                                          status_url=request.path.rstrip('/') + '/status')
         return render_template_string(REGISTRATION_PAGE, view='error', registration=registration), 404
+
+    @app.route('/silent-ridge/registration/<access_code>/status')
+    def ridge_registration_status(access_code):
+        try:
+            registration = registration_store.get(access_code)
+            return jsonify(status=registration['status'], error=registration.get('error'))
+        except RegistrationError:
+            return jsonify(status='invalid', error='registration not found'), 404
 
     @app.route('/silent-ridge', methods=['GET', 'POST'])
     @authed_only
@@ -229,6 +246,9 @@ def load(app):
                         message = 'Not yet. Try the next free help level or unlock the explicit walkthrough.'
                 else:
                     abort(400)
+                session['ridge_message'] = message
+                return redirect('/silent-ridge#' + request.form.get('question',''), code=303)
+            message = session.pop('ridge_message', '')
             snapshot = bridge('ctfd', team, 'snapshot')
             questions = bridge('ctfd', team, 'questions', question=request.args.get('question'))
             response = make_response(render_template_string(

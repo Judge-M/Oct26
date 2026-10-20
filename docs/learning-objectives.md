@@ -217,7 +217,8 @@ time as HH:MM:SS UTC without a date) and is graded using that rule, with
 normalisation for factually correct submissions in the wrong surface form).
 A correct answer queues an authored IRIS finding that includes
 `text`, `evidence` and `limitation`.
-The queue's one-ticket-at-a-time gating and the dependency chain pace the work; the
+The queue permits up to three concurrent tickets per team, matching the three
+desktop work lanes, while team-local dependency gates pace the work; the
 durable outbox and application-side receipts keep accepted findings from duplicating
 across outages, subject to the tested adapter behavior described above.
 
@@ -234,9 +235,10 @@ Build on other teams' shared findings and convert the run into specific improvem
 | Threat Analysis `PD-WRL-006` | T1643 Develop common operational pictures; T1054 Scope analysis reports to audiences |
 | Insider Threat Analysis `PD-WRL-005` | T1986 Develop a continuously updated overview of an incident throughout its life cycle |
 
-**Mechanism.** Accepted answers post native IRIS findings visible to all teams;
-ownership transfers retain answers and findings for the replacement owner; global
-closure unlocks follow-ups. The AAR asks teams to explain one finding and its
+**Mechanism.** Accepted answers post native IRIS findings visible to all teams. Each
+team completes all twenty tickets and eighty questions independently; its answers
+remain available after a ticket is relinquished, and its own completion gates unlock
+its follow-ups. The AAR asks teams to explain one finding and its
 supporting evidence, and to discuss clock normalization, versions/sessions/denied
 access/gaps, remaining uncertainty, whether shared findings helped, and which tool
 instructions need improvement.
@@ -301,9 +303,9 @@ Three limits matter for formal training credit:
   read-only originals support coached practice; reading a supplied original does not
   by itself demonstrate acquiring a forensic duplicate or unaided mastery, and no
   scored item treats it as such.
-- **The workload is an estimate.** The 1,300 team-minute figure is arithmetic, not a
-  measurement. With ten teams and current dependencies, the scheduling model has a
-  195-minute simulated makespan and critical path. The event target is 240–300
+- **The workload is an estimate.** The 1,300-minute per-team figure is arithmetic, not a
+  measurement. With three concurrent desktop lanes and current dependencies, the
+  scheduling model has a 585-minute simulated makespan. The event target is 240–300
   minutes, with a 270-minute planning midpoint, including facilitated segments;
   beginner rehearsal is still required before relying on those figures. The NICE
   Work Role and Task IDs above are pinned to Components version 2.2.0 and checked

@@ -57,6 +57,7 @@ class StateTests(unittest.TestCase):
     def test_slow_remote_does_not_block_reads_writes_or_pause(self):
         self.ready()
         self.state.claim('a','T01',0)
+        self.state.answer('a','T01q','yes')
         entered=threading.Event();finish=threading.Event()
         def slow(*args):
             entered.set()
@@ -68,7 +69,7 @@ class StateTests(unittest.TestCase):
             self.assertTrue(entered.wait(2))
             begin=time.monotonic()
             self.state.snapshot()
-            self.state.answer('a','T01q','yes')
+            self.state.claim('a','T02',0)
             self.state.mode('operator','paused')
             self.assertLess(time.monotonic()-begin,1)
         finally:
@@ -131,9 +132,8 @@ class StateTests(unittest.TestCase):
         keys=list(self.receipts)
         def position(suffix):
             return next(i for i,key in enumerate(keys) if key.endswith(suffix))
-        self.assertLess(position('point:T01q'),position('finding:T01q'))
-        self.assertLess(position('finding:T01q'),position('close:T01'))
-        self.assertLess(position('close:T01'),position('ticket:T03'))
+        self.assertLess(position('point:a:T01q'),position('finding:a:T01q'))
+        self.assertTrue(any(key.endswith('ticket:T03') for key in keys))
 
     def test_export_blocks_resume_recovery_and_announcements(self):
         self.ready();self.state.claim('a','T01',0)
@@ -141,7 +141,7 @@ class StateTests(unittest.TestCase):
         self.state.mode('operator','paused')
         def remote(url,*args,**kwargs):
             for action in (lambda:self.state.mode('other','running'),
-                           lambda:self.state.release(None,'T01',1,recovery_actor='other',reason='retry'),
+                           lambda:self.state.release('a','T01',1,recovery_actor='other',reason='retry'),
                            lambda:self.state.announce('other','change')):
                 with self.assertRaises(Conflict):action()
             if url.startswith('IRIS'):

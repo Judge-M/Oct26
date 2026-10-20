@@ -49,12 +49,12 @@ class ClaimGenerationTests(unittest.TestCase):
             self.state.ticket_state('T99')
 
     def test_first_claim_with_observed_generation(self):
-        before = self.state.ticket_state('T01')
+        before = self.state.ticket_state('T01','0')
         self.assertEqual((before['status'], before['owner'], before['generation']),
                          ('available', None, 0))
         self.assertIsNotNone(before['iris_id'])
         self.state.claim('0', 'T01', before['generation'])
-        after = self.state.ticket_state('T01')
+        after = self.state.ticket_state('T01','0')
         self.assertEqual((after['status'], after['owner'], after['generation']),
                          ('active', '0', 1))
 
@@ -64,34 +64,34 @@ class ClaimGenerationTests(unittest.TestCase):
         # a message that names the expected generation, and the freshly
         # observed generation must succeed.
         self.state.claim('0', 'T01', 0)
-        self.state.release('0', 'T01', self.state.ticket_state('T01')['generation'])
-        released = self.state.ticket_state('T01')
+        self.state.release('0', 'T01', self.state.ticket_state('T01','0')['generation'])
+        released = self.state.ticket_state('T01','0')
         self.assertEqual((released['status'], released['owner'], released['generation']),
                          ('available', None, 1))
         with self.assertRaises(Conflict) as stale:
-            self.state.claim('1', 'T01', 0)
+            self.state.claim('0', 'T01', 0)
         self.assertIn('expected generation 1', str(stale.exception))
-        self.state.claim('1', 'T01', released['generation'])
-        self.assertEqual(self.state.ticket_state('T01'),
-                         {**released, 'status': 'active', 'owner': '1', 'generation': 2})
+        self.state.claim('0', 'T01', released['generation'])
+        self.assertEqual(self.state.ticket_state('T01','0'),
+                         {**released, 'status': 'active', 'owner': '0', 'generation': 2})
 
     def test_stale_generation_is_rejected_and_changes_nothing(self):
         self.state.claim('0', 'T01', 0)
         self.state.release('0', 'T01', 1)
-        observed = self.state.ticket_state('T01')  # available, generation 1
+        observed = self.state.ticket_state('T01','0')  # available, generation 1
         for stale in (0, 2, '1'):
             with self.subTest(generation=stale):
                 with self.assertRaises(Conflict):
-                    self.state.claim('1', 'T01', stale)
-                self.assertEqual(self.state.ticket_state('T01'), observed)
-        self.state.claim('1', 'T01', observed['generation'])
-        claimed = self.state.ticket_state('T01')
+                    self.state.claim('0', 'T01', stale)
+                self.assertEqual(self.state.ticket_state('T01','0'), observed)
+        self.state.claim('0', 'T01', observed['generation'])
+        claimed = self.state.ticket_state('T01','0')
         with self.assertRaises(Conflict) as ctx:
-            self.state.release('1', 'T01', observed['generation'])
+            self.state.release('0', 'T01', observed['generation'])
         self.assertIn('expected generation 2', str(ctx.exception))
-        self.assertEqual(self.state.ticket_state('T01'), claimed)
-        self.state.release('1', 'T01', self.state.ticket_state('T01')['generation'])
-        self.assertIsNone(self.state.ticket_state('T01')['owner'])
+        self.assertEqual(self.state.ticket_state('T01','0'), claimed)
+        self.state.release('0', 'T01', self.state.ticket_state('T01','0')['generation'])
+        self.assertIsNone(self.state.ticket_state('T01','0')['owner'])
 
 
 if __name__ == '__main__':

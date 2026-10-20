@@ -71,16 +71,16 @@ class PresenterLandingTests(unittest.TestCase):
                     'dress-rehearsal-plan.md', 'schedule-model.md'):
             self.assertIn(doc, hrefs, doc)
 
-    def test_participant_urls_cover_the_five_participant_endpoints(self):
+    def test_participant_urls_cover_public_tls_and_crl_fallback(self):
         text = page()
+        for hostname in ('guac.cyberexperts.org', 'iris.cyberexperts.org',
+                         'ctfd.cyberexperts.org', 'wazuh.cyberexperts.org'):
+            self.assertIn('https://' + hostname, text)
         endpoints = re.findall(
             r'data-url-host="(https?)://" data-url-port="(\d+)"'
             r'(?: data-url-path="([^"]*)")?', text)
         observed = {(scheme, port) for scheme, port, _path in endpoints}
-        self.assertEqual(observed, {
-            ('https', '8082'), ('https', '8081'), ('https', '8083'),
-            ('https', '8443'), ('http', '8080'),
-        })
+        self.assertEqual(observed, {('http', '8080')})
         crl = [path for _s, port, path in endpoints if port == '8080']
         self.assertEqual(crl, ['/root-ca.crl'])
         # The LAN address is a paste-in placeholder until the operator fills
@@ -98,7 +98,7 @@ class PresenterLandingTests(unittest.TestCase):
         agenda = [(name, kind, int(mins)) for name, kind, mins in model_rows
                   if kind in kinds]
         self.assertEqual([mins for _n, _k, mins in agenda],
-                         [25, 195, 10, 15, 30])
+                         [25, 280, 10, 15, 30])
         page_rows = re.findall(
             r'<td>([^<]+)</td><td>(\w+)</td>\s*<td data-minutes="(\d+)">',
             page())
@@ -107,8 +107,8 @@ class PresenterLandingTests(unittest.TestCase):
             agenda,
         )
         total = sum(mins for _n, _k, mins in agenda)
-        self.assertEqual(total, 275)
-        self.assertIn('<td>275</td>', page())
+        self.assertEqual(total, 360)
+        self.assertIn('<td>360</td>', page())
 
     def test_runbook_quick_reference_covers_play_commands(self):
         text = page()

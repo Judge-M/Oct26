@@ -1,12 +1,14 @@
 # Team workflow
 
 IRIS, CTFd and the Wazuh dashboard all open in your own laptop browser (see
-your team handout for addresses and logins). The shared team desktop is for
-the native investigation tools only.
+your team handout for addresses and logins). Your team's three desktops are
+for the native investigation tools only.
 
 Teams are general-purpose investigation groups. Open the shared IRIS queue and
-claim an available ticket. Each team can own one active ticket; each ticket has
-one owner. Open CTFd to see the unanswered questions for your owned ticket.
+claim up to three available tickets so the team can use its three desktop lanes
+in parallel. Every team completes all 20 tickets and all 80 questions; another
+team's progress never removes work from your queue. Open CTFd to see the
+unanswered questions for your active tickets.
 Use the **Incident queue** shortcut or `/silent-ridge` in IRIS; the queue links
 to the correct native case for this installation. Do not guess a numeric case
 ID from another installation. Before claiming a ticket, CTFd may show no
@@ -23,13 +25,15 @@ T10 approved-program inventory comparator. Use `silent-ridge-timeless` for
 undated coverage and catalog records. The stock Overview and empty Reports screen are not the
 exercise evidence view. See the [Wazuh guide](../expanded/guides.md#wazuh).
 
-Submit answers in CTFd. Each globally accepted correct answer earns one point
-and publishes its predefined evidence-backed finding to IRIS. Completion closes
-the ticket and makes eligible follow-up work available. Read shared completed
+Submit answers in CTFd. An unassisted correct answer earns four points. Unlocking
+Help level 3 permanently reduces that question to one point; Help levels 1 and 2
+are free. A correct answer publishes its predefined evidence-backed finding to
+IRIS. Completion closes your team's copy of the ticket and makes your eligible
+follow-up work available. Read shared completed
 findings to understand the wider incident.
 
-Relinquish a ticket in IRIS if another team should continue it. Solved questions
-stay solved and points remain with the team that earned them. You do not need
+Relinquish a ticket when your team needs to free one of its three work lanes.
+Your solved questions and points remain intact. You do not need
 to write a report, change native task status, or obtain facilitator approval.
 
 See [beginner guidance](../expanded/guides.md) and

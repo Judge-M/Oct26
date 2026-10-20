@@ -14,7 +14,7 @@ def main():
     init=sub.add_parser('init');init.add_argument('--config',type=Path,default=Path('expanded/config.json'))
     init.add_argument('--content',type=Path,default=Path('expanded/tickets.json'))
     mode=sub.add_parser('mode');mode.add_argument('value',choices=['running','paused']);mode.add_argument('--operator',required=True)
-    recovery=sub.add_parser('recover');recovery.add_argument('ticket');recovery.add_argument('--operator',required=True);recovery.add_argument('--reason',required=True)
+    recovery=sub.add_parser('recover');recovery.add_argument('ticket');recovery.add_argument('--team',required=True);recovery.add_argument('--operator',required=True);recovery.add_argument('--reason',required=True)
     recovery.add_argument('--generation',type=int,required=True)
     export=sub.add_parser('export');export.add_argument('destination',type=Path)
     sub.add_parser('status')
@@ -39,7 +39,7 @@ def main():
             check(state,json.loads(args.config.read_text(encoding='utf-8')))
         state.mode(args.operator,args.value)
     elif args.action=='recover':
-        state.release(None,args.ticket,args.generation,recovery_actor=args.operator,reason=args.reason)
+        state.release(args.team,args.ticket,args.generation,recovery_actor=args.operator,reason=args.reason)
     elif args.action in ('preflight','provision'):
         print(json.dumps(check(state,json.loads(args.config.read_text(encoding='utf-8')))))
         if args.action=='provision':

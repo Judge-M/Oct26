@@ -46,13 +46,15 @@ to `../event-profile.json` and edit
 **only**:
 
 - `event.event_start` / `duration_minutes`
-- `addresses`: set `central_bind_ip` to `<LAN-IP>` and the three
-  `*_public_url` values to `https://<LAN-IP>:8081`, `:8083`, `:8082`
+- `addresses`: set `central_bind_ip` to `<LAN-IP>` and use
+  `https://iris.cyberexperts.org`, `https://ctfd.cyberexperts.org`, and
+  `https://guac.cyberexperts.org` for the three public URLs. Wazuh uses
+  `https://wazuh.cyberexperts.org`.
 
 For the dynamic profile, do **not** add a roster and do **not** pass `--teams`:
 the registration page admits up to ten teams at runtime. Each registered team
 gets five participant seats and three GUI-only desktop slots. The landing page
-is `https://<LAN-IP>:8083/silent-ridge/register`.
+is `https://ctfd.cyberexperts.org/silent-ridge/register`.
 
 ## 2. Runtime local.json (once per host)
 
@@ -102,9 +104,10 @@ On Windows, backup and restore run OpenSSL from the already loaded
 `openssl.exe` installation is not required. Keep the exact image and backup
 key available during recovery.
 The host-side registration worker starts automatically when `start` succeeds.
-Send teams to `https://<LAN-IP>:8083/silent-ridge/register`. Each team receives
+Registration is closed by default. The private enrollment code is at
+`R/secrets/registration-enrollment-code`; show it only to team captains. Each team receives
 a private retrieval link containing its IRIS, CTFd, and Guacamole credentials
-plus three role-specific desktop links. Do not hand out
+plus the exact names of its three role-specific desktop connections. Do not hand out
 `R/secrets/team-credentials.json`; it remains an operator recovery artifact.
 
 With the default generated TLS mode, after `up` generates the final
@@ -129,6 +132,15 @@ and the names must resolve locally.
 
 ```bash
 python -m ridge.deploy start --profile event-profile.json --runtime R
+python -m ridge.deploy registration-open --profile event-profile.json --runtime R
+```
+
+Project `https://ctfd.cyberexperts.org/silent-ridge/register` and give captains
+the enrollment code. Close the window when check-in ends:
+
+```bash
+python -m ridge.deploy registration-status --profile event-profile.json --runtime R
+python -m ridge.deploy registration-close --profile event-profile.json --runtime R
 ```
 
 Participant URLs in generated-CA mode (all in their own laptop browser):
@@ -146,9 +158,20 @@ The `<event-address>` shown in the deck is the `<LAN-IP>` above.
 
 ```bash
 python -m ridge.deploy status --profile event-profile.json --runtime R
-python -m ridge.cli announce --operator EXCON --text "..."          # message all teams
+python -m ridge.cli --state R/state/state.sqlite announce --operator EXCON --text "..."
 python -m ridge.deploy pause --profile event-profile.json --runtime R   # freeze the clock
-python -m ridge.cli recover T03 --generation 1 --operator EXCON --reason "..."
+python -m ridge.cli --state R/state/state.sqlite recover T03 --team team-03 --generation 1 --operator EXCON --reason "..."
+```
+
+Registration recovery is explicit and preserves the original reserved slots
+and passwords:
+
+```bash
+python -m ridge.deploy registration-status --profile event-profile.json --runtime R
+python -m ridge.deploy registration-retry --registration-id 3 --profile event-profile.json --runtime R
+python -m ridge.deploy registration-rotate-link --registration-id 3 --profile event-profile.json --runtime R
+# Cancel only when the team is abandoning the slot:
+python -m ridge.deploy registration-cancel --registration-id 3 --profile event-profile.json --runtime R
 ```
 
 Symptom → action table: `docs/runbook.md`.

@@ -26,6 +26,7 @@ from pathlib import Path
 import secrets
 import sqlite3
 import string
+import time
 from typing import Any
 from contextlib import contextmanager
 
@@ -99,16 +100,28 @@ def _team_slug(value: str) -> str:
 class RegistrationStore:
     """SQLite-backed allocator safe for concurrent web and host processes."""
 
-    def __init__(self, path: str, config: RegistrationConfig | None = None):
+    MAX_ATTEMPTS = 4
+    LEASE_SECONDS = 300
+
+    def __init__(self, path: str, config: RegistrationConfig | None = None,
+                 enrollment_code: str | None = None, read_only: bool = False):
         self.path = str(path)
         self.config = config or RegistrationConfig()
         self.config.validate()
-        Path(self.path).parent.mkdir(parents=True, exist_ok=True)
-        self._initialize()
+        self.enrollment_hash = _hash(enrollment_code.strip()) if enrollment_code else None
+        self.read_only = read_only
+        if read_only:
+            if not Path(self.path).is_file():
+                raise RegistrationError('registration database is unavailable')
+        else:
+            Path(self.path).parent.mkdir(parents=True, exist_ok=True)
+            self._initialize()
 
     @contextmanager
     def _connect(self):
-        connection = sqlite3.connect(self.path, timeout=30, isolation_level=None)
+        target = 'file:%s?mode=ro' % Path(self.path).resolve().as_posix() if self.read_only else self.path
+        connection = sqlite3.connect(target, timeout=30, isolation_level=None,
+                                     uri=self.read_only)
         connection.row_factory = sqlite3.Row
         connection.execute('PRAGMA busy_timeout=30000')
         connection.execute('PRAGMA foreign_keys=ON')
@@ -123,23 +136,41 @@ class RegistrationStore:
 
     def _initialize(self) -> None:
         with self._connect() as con:
-            con.executescript(
-                """
+            con.execute('PRAGMA foreign_keys=OFF')
+            con.executescript("""
                 CREATE TABLE IF NOT EXISTS registration_meta (
                     key TEXT PRIMARY KEY,
                     value TEXT NOT NULL
                 );
+                """)
+            existing = con.execute(
+                "SELECT sql FROM sqlite_master WHERE type='table' AND name='registrations'"
+            ).fetchone()
+            if existing is not None and 'needs_operator' not in (existing['sql'] or ''):
+                # Upgrade the original four-state allocator without losing retrieval
+                # tokens, reserved slots, or generated credentials.
+                con.executescript("""
+                    ALTER TABLE desktop_slots RENAME TO desktop_slots_legacy;
+                    ALTER TABLE registrations RENAME TO registrations_legacy;
+                """)
+            con.executescript(
+                """
                 CREATE TABLE IF NOT EXISTS registrations (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     team_name TEXT NOT NULL UNIQUE,
                     captain_name TEXT NOT NULL,
                     member_count INTEGER NOT NULL,
                     access_hash TEXT NOT NULL UNIQUE,
-                    status TEXT NOT NULL CHECK(status IN ('pending','provisioning','ready','failed')),
+                    status TEXT NOT NULL CHECK(status IN
+                        ('pending','provisioning','ready','needs_operator','cancelled')),
                     slots_json TEXT NOT NULL,
                     credentials_json TEXT NOT NULL,
                     result_json TEXT,
                     error TEXT,
+                    attempt_count INTEGER NOT NULL DEFAULT 0,
+                    retry_at REAL NOT NULL DEFAULT 0,
+                    lease_until REAL NOT NULL DEFAULT 0,
+                    worker_token TEXT,
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL
                 );
@@ -151,9 +182,44 @@ class RegistrationStore:
                 );
                 CREATE INDEX IF NOT EXISTS registrations_status_idx
                     ON registrations(status);
-                """
-            )
+                """)
+            legacy = con.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='registrations_legacy'"
+            ).fetchone()
+            if legacy:
+                con.execute('''INSERT INTO registrations(
+                    id,team_name,captain_name,member_count,access_hash,status,slots_json,
+                    credentials_json,result_json,error,created_at,updated_at)
+                    SELECT id,team_name,captain_name,member_count,access_hash,
+                      CASE WHEN status='failed' THEN 'cancelled' ELSE status END,
+                      slots_json,credentials_json,result_json,error,created_at,updated_at
+                    FROM registrations_legacy''')
+                con.execute('''INSERT INTO desktop_slots(slot,role,registration_id,status)
+                               SELECT slot,role,registration_id,status
+                               FROM desktop_slots_legacy''')
+                con.executescript('DROP TABLE desktop_slots_legacy; DROP TABLE registrations_legacy;')
+                con.execute('''CREATE INDEX IF NOT EXISTS registrations_status_idx
+                               ON registrations(status)''')
+            self._configure_meta(con)
             self._ensure_slots(con)
+            con.execute('PRAGMA foreign_keys=ON')
+
+    def _configure_meta(self, con: sqlite3.Connection) -> None:
+        # Production runtimes provide an enrollment code and start closed so
+        # an exposed landing page cannot consume event capacity early.  Bare
+        # stores remain open for backwards-compatible library/test use.
+        default_open = '0' if self.enrollment_hash else '1'
+        con.execute("INSERT OR IGNORE INTO registration_meta(key,value) VALUES ('open',?)",
+                    (default_open,))
+        stored = con.execute(
+            "SELECT value FROM registration_meta WHERE key='enrollment_hash'"
+        ).fetchone()
+        if stored is None and self.enrollment_hash:
+            con.execute("INSERT INTO registration_meta(key,value) VALUES ('enrollment_hash',?)",
+                        (self.enrollment_hash,))
+        elif stored is not None and self.enrollment_hash and not hmac_compare(
+                stored['value'], self.enrollment_hash):
+            raise RegistrationError('configured enrollment code does not match this event runtime')
 
     def _ensure_slots(self, con: sqlite3.Connection) -> None:
         expected = self.config.max_teams * self.config.desktops_per_team
@@ -180,13 +246,32 @@ class RegistrationStore:
                 'registered': self.count(),
                 'available': self.config.max_teams - self.count()}
 
+    def is_open(self) -> bool:
+        with self._connect() as con:
+            row = con.execute("SELECT value FROM registration_meta WHERE key='open'").fetchone()
+            return bool(row and row['value'] == '1')
+
+    def set_open(self, value: bool) -> None:
+        if self.read_only:
+            raise RegistrationError('registration store is read-only')
+        with self._connect() as con:
+            con.execute("INSERT INTO registration_meta(key,value) VALUES ('open',?) "
+                        "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+                        ('1' if value else '0',))
+
+    def list(self) -> list[dict[str, Any]]:
+        with self._connect() as con:
+            return [self._public_row(row, False) for row in con.execute(
+                'SELECT * FROM registrations ORDER BY id')]
+
     def count(self) -> int:
         with self._connect() as con:
             return int(con.execute(
-                "SELECT COUNT(*) FROM registrations WHERE status <> 'failed'"
+                "SELECT COUNT(*) FROM registrations WHERE status <> 'cancelled'"
             ).fetchone()[0])
 
-    def register(self, team_name: str, captain_name: str, member_count: int | None = None) -> dict[str, Any]:
+    def register(self, team_name: str, captain_name: str, member_count: int | None = None,
+                 enrollment_code: str | None = None) -> dict[str, Any]:
         """Reserve a team and return its one-time retrieval code.
 
         The returned code is intentionally not stored in plaintext.  The
@@ -195,6 +280,15 @@ class RegistrationStore:
         """
         team_name = _team_slug(team_name)
         captain_name = _team_slug(captain_name)
+        if not self.is_open():
+            raise RegistrationError('team registration is currently closed; ask a facilitator')
+        with self._connect() as con:
+            expected = con.execute(
+                "SELECT value FROM registration_meta WHERE key='enrollment_hash'"
+            ).fetchone()
+        if expected is not None and not hmac_compare(
+                expected['value'], _hash((enrollment_code or '').strip())):
+            raise RegistrationError('the event enrollment code is invalid')
         member_count = self.config.members_per_team if member_count is None else member_count
         if member_count != self.config.members_per_team:
             raise RegistrationError(
@@ -218,7 +312,7 @@ class RegistrationStore:
             if existing is not None:
                 raise RegistrationError('that team name is already registered')
             used = int(con.execute(
-                "SELECT COUNT(*) FROM registrations WHERE status <> 'failed'"
+                "SELECT COUNT(*) FROM registrations WHERE status <> 'cancelled'"
             ).fetchone()[0])
             if used >= self.config.max_teams:
                 raise RegistrationCapacity('all team slots are currently reserved')
@@ -271,6 +365,7 @@ class RegistrationStore:
             'captain_name': row['captain_name'], 'member_count': int(row['member_count']),
             'status': row['status'], 'slots': json.loads(row['slots_json']),
             'result': result, 'error': row['error'],
+            'attempt_count': int(row['attempt_count']),
             'created_at': row['created_at'], 'updated_at': row['updated_at'],
         }
         if include_private:
@@ -278,18 +373,27 @@ class RegistrationStore:
         return payload
 
     def claim_pending(self) -> dict[str, Any] | None:
-        """Atomically claim one pending registration for the host worker."""
+        """Lease one due request without allowing a poisoned row to block later teams."""
         with self._connect() as con:
             con.execute('BEGIN IMMEDIATE')
+            moment = time.time()
+            con.execute("""UPDATE registrations SET status='pending',worker_token=NULL,
+                lease_until=0,error=COALESCE(error,'worker lease expired'),updated_at=?
+                WHERE status='provisioning' AND lease_until>0 AND lease_until<=?""",
+                        (_utc(), moment))
             row = con.execute(
-                "SELECT * FROM registrations WHERE status='pending' ORDER BY id LIMIT 1"
+                "SELECT * FROM registrations WHERE status='pending' AND retry_at<=? "
+                "ORDER BY retry_at,id LIMIT 1", (moment,)
             ).fetchone()
             if row is None:
                 return None
             now = _utc()
-            con.execute("UPDATE registrations SET status='provisioning',updated_at=? WHERE id=?",
-                         (now, row['id']))
-            return self._private_row(row, status='provisioning')
+            token = _token()
+            con.execute("""UPDATE registrations SET status='provisioning',updated_at=?,
+                worker_token=?,lease_until=?,attempt_count=attempt_count+1 WHERE id=?""",
+                        (now, token, moment + self.LEASE_SECONDS, row['id']))
+            return self._private_row(row, status='provisioning', worker_token=token,
+                                     attempt_count=int(row['attempt_count']) + 1)
 
     def activate_credentials(self, registration_id: int) -> dict[str, Any]:
         """Assign stable application usernames to a claimed registration.
@@ -334,16 +438,16 @@ class RegistrationStore:
             slots = json.loads(row['slots_json'])
             now = _utc()
             if credentials is None:
-                con.execute("UPDATE registrations SET status='ready', result_json=?, updated_at=? WHERE id=?",
+                con.execute("UPDATE registrations SET status='ready', result_json=?, updated_at=?, worker_token=NULL,lease_until=0 WHERE id=?",
                             (json.dumps(result), now, registration_id))
             else:
                 con.execute("UPDATE registrations SET status='ready', result_json=?, credentials_json=?, "
-                            "updated_at=? WHERE id=?",
+                            "updated_at=?,worker_token=NULL,lease_until=0 WHERE id=?",
                             (json.dumps(result), json.dumps(credentials), now, registration_id))
             con.executemany("UPDATE desktop_slots SET status='running' WHERE slot=?",
                             [(slot,) for slot in slots])
 
-    def fail(self, registration_id: int, error: str) -> None:
+    def cancel(self, registration_id: int, error: str = 'cancelled by facilitator') -> None:
         with self._connect() as con:
             con.execute('BEGIN IMMEDIATE')
             row = con.execute('SELECT slots_json FROM registrations WHERE id=?',
@@ -351,11 +455,14 @@ class RegistrationStore:
             if row is None:
                 raise RegistrationError('registration not found')
             slots = json.loads(row['slots_json'])
-            con.execute("UPDATE registrations SET status='failed',error=?,updated_at=? WHERE id=?",
+            con.execute("UPDATE registrations SET status='cancelled',error=?,updated_at=?,worker_token=NULL,lease_until=0 WHERE id=?",
                          (str(error)[:500], _utc(), registration_id))
             con.executemany(
                 "UPDATE desktop_slots SET registration_id=NULL,status='available' WHERE slot=?",
                 [(slot,) for slot in slots])
+
+    # Backwards-compatible name used by earlier tests/operator scripts.
+    fail = cancel
 
     def requeue(self, registration_id: int, error: str) -> None:
         """Return a transient provisioning failure to the worker queue.
@@ -365,22 +472,58 @@ class RegistrationStore:
         """
         with self._connect() as con:
             con.execute('BEGIN IMMEDIATE')
-            row = con.execute('SELECT status FROM registrations WHERE id=?',
+            row = con.execute('SELECT status,attempt_count FROM registrations WHERE id=?',
                               (registration_id,)).fetchone()
             if row is None:
                 raise RegistrationError('registration not found')
             if row['status'] == 'ready':
                 return
-            con.execute("UPDATE registrations SET status='pending',error=?,updated_at=? WHERE id=?",
-                        (str(error)[:500], _utc(), registration_id))
+            attempts = int(row['attempt_count'])
+            if attempts >= self.MAX_ATTEMPTS:
+                con.execute("""UPDATE registrations SET status='needs_operator',error=?,
+                    updated_at=?,worker_token=NULL,lease_until=0 WHERE id=?""",
+                            (str(error)[:500], _utc(), registration_id))
+            else:
+                delay = min(120, 2 ** max(attempts, 1))
+                con.execute("""UPDATE registrations SET status='pending',error=?,updated_at=?,
+                    retry_at=?,worker_token=NULL,lease_until=0 WHERE id=?""",
+                            (str(error)[:500], _utc(), time.time() + delay, registration_id))
 
-    def _private_row(self, row: sqlite3.Row, status: str | None = None) -> dict[str, Any]:
-        return {
+    def retry(self, registration_id: int) -> None:
+        with self._connect() as con:
+            con.execute('BEGIN IMMEDIATE')
+            row = con.execute('SELECT status FROM registrations WHERE id=?',
+                              (registration_id,)).fetchone()
+            if row is None:
+                raise RegistrationError('registration not found')
+            if row['status'] not in ('needs_operator', 'pending'):
+                raise RegistrationError('only a pending or needs-operator registration can be retried')
+            con.execute("""UPDATE registrations SET status='pending',error=NULL,retry_at=0,
+                lease_until=0,worker_token=NULL,updated_at=? WHERE id=?""",
+                        (_utc(), registration_id))
+
+    def rotate_access(self, registration_id: int) -> str:
+        access = _token()
+        with self._connect() as con:
+            if con.execute('UPDATE registrations SET access_hash=?,updated_at=? WHERE id=?',
+                           (_hash(access), _utc(), registration_id)).rowcount != 1:
+                raise RegistrationError('registration not found')
+        return access
+
+    def _private_row(self, row: sqlite3.Row, status: str | None = None,
+                     worker_token: str | None = None,
+                     attempt_count: int | None = None) -> dict[str, Any]:
+        result = {
             'id': int(row['id']), 'team_name': row['team_name'],
             'captain_name': row['captain_name'], 'member_count': int(row['member_count']),
             'status': status or row['status'], 'slots': json.loads(row['slots_json']),
             'credentials': json.loads(row['credentials_json']),
         }
+        if worker_token is not None:
+            result['worker_token'] = worker_token
+        if attempt_count is not None:
+            result['attempt_count'] = attempt_count
+        return result
 
 
 def desktop_handout(slots: list[str], public_guacamole_url: str) -> list[dict[str, Any]]:
@@ -390,6 +533,11 @@ def desktop_handout(slots: list[str], public_guacamole_url: str) -> list[dict[st
     return [
         {'slot': slot, 'role': role, 'name': label, 'guidance': guidance,
          'tools': list(tools),
-         'url': public_guacamole_url.rstrip('/') + '/guacamole/'}
+         'connection_name': slot}
         for slot, (role, label, guidance, tools) in zip(slots, DESKTOP_ROLES)
     ]
+
+
+def hmac_compare(left: str, right: str) -> bool:
+    import hmac
+    return hmac.compare_digest(str(left), str(right))
