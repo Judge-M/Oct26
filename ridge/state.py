@@ -574,6 +574,17 @@ class State:
     def snapshot(self, team=None):
         with self.transaction(write=False) as con:
             stamp=now();total=0;anchor=None
+            ticket_counts=con.execute("""SELECT COUNT(*) total,
+                SUM(CASE WHEN status='complete' THEN 1 ELSE 0 END) complete FROM tickets""").fetchone()
+            activity_complete=bool(ticket_counts['total'] and
+                                   ticket_counts['complete']==ticket_counts['total'])
+            final_row=con.execute("""SELECT timestamp FROM audit
+                WHERE action='final_assessment' ORDER BY id LIMIT 1""").fetchone()
+            # The activity clock is a participant pacing measure. Once the
+            # capstone publishes, freeze it at that durable event even if the
+            # facilitator leaves the exercise in running mode for review.
+            cutoff=final_row['timestamp'] if activity_complete and final_row else stamp
+            cutoff_time=datetime.fromisoformat(cutoff)
             team_started=None
             if team is not None:
                 row=con.execute('SELECT started_at FROM teams WHERE id=?',(team,)).fetchone()
@@ -582,6 +593,8 @@ class State:
                 team_started=datetime.fromisoformat(row['started_at']) if row['started_at'] else None
             for event in con.execute("SELECT timestamp,action FROM audit WHERE action IN ('running','paused') ORDER BY id"):
                 at=datetime.fromisoformat(event['timestamp'])
+                if at>cutoff_time:
+                    break
                 if event['action']=='running':
                     anchor=at
                 elif anchor is not None:
@@ -589,11 +602,12 @@ class State:
                     total+=max((at-start).total_seconds(),0);anchor=None
             if anchor is not None:
                 start=max(anchor,team_started) if team_started else anchor
-                total+=max((datetime.fromisoformat(stamp)-start).total_seconds(),0)
+                total+=max((cutoff_time-start).total_seconds(),0)
             if team is not None and team_started is None:
                 total=0
             return {'mode':con.execute('SELECT mode FROM run').fetchone()[0],
                     'elapsed_seconds':max(total,0),'server_time':stamp,
+                    'activity_complete':activity_complete,
                     'announcements':[dict(id=r['id'],timestamp=r['timestamp'],kind=r['action'],
                                           text=json.loads(r['detail'])['text'])
                                      for r in con.execute("SELECT * FROM audit WHERE action IN ('announcement','final_assessment') ORDER BY id")],

@@ -9,7 +9,8 @@ from pathlib import Path
 def contract():
     data=json.loads(Path(__file__).with_name('scenario_narrative_v1.json').read_text(encoding='utf-8'))
     required=('title','fiction_notice','premise','discovery','stakes','participant_role',
-              'operating_rule','roles','tools','phases','completion','conclusion')
+              'operating_rule','roles','tools','operational_update','timeline','phases',
+              'completion','conclusion')
     missing=[field for field in required if not data.get(field)]
     if data.get('schema')!=1 or missing:
         raise ValueError('Invalid scenario narrative contract: '+', '.join(missing or ['schema']))
@@ -17,6 +18,14 @@ def contract():
     tickets=[ticket for phase in data['phases'] for ticket in phase.get('tickets',[])]
     if set(tickets)!=expected or len(tickets)!=len(set(tickets)):
         raise ValueError('Scenario narrative phases must cover T01 through T20 exactly once')
+    update=data['operational_update']
+    triggers=set(update.get('trigger_after') or ())
+    if not update.get('id') or not update.get('title') or not update.get('message') or not triggers <= expected:
+        raise ValueError('Scenario narrative operational update is incomplete')
+    timeline=data['timeline']
+    if any(not row.get('time') or row.get('ticket') not in expected or
+           not row.get('event') or not row.get('source') for row in timeline):
+        raise ValueError('Scenario narrative timeline is incomplete')
     conclusion=data['conclusion']
     conclusion_required=('status','summary','confirmed','not_established','unresolved',
                          'actions','announcement')
@@ -53,13 +62,26 @@ def participant_context(snapshot,questions=()):
     data=contract()
     mapping={ticket:ticket_context(ticket) for phase in data['phases'] for ticket in phase['tickets']}
     visible=list(snapshot.get('tickets',[]))
-    completed=sum(t.get('status')=='complete' for t in visible)
+    complete_ids={t['id'] for t in visible if t.get('status')=='complete'}
+    completed=len(complete_ids)
     total=sum(len(phase['tickets']) for phase in data['phases'])
+    update=data['operational_update']
+    update_ready=set(update['trigger_after']) <= complete_ids
+    question_tickets={q.get('ticket') for q in questions or ()}
+    elapsed=max(float(snapshot.get('elapsed_seconds') or 0),0)
+    hours,rem=divmod(int(elapsed),3600)
+    minutes,seconds=divmod(rem,60)
     return {'title':data['title'],'fiction_notice':data['fiction_notice'],
             'premise':data['premise'],'discovery':data['discovery'],'stakes':data['stakes'],
             'participant_role':data['participant_role'],'operating_rule':data['operating_rule'],
             'roles':data['roles'],'tools':data['tools'],'ticket_context':mapping,
             'completion':data['completion'],'completed':completed,'total':total,
+            'operational_update':update if update_ready and completed<total else None,
+            'timeline':[row for row in data['timeline'] if row['ticket'] in complete_ids],
+            'correlation_workspace':bool(question_tickets & {'T13','T14','T15','T16'}),
+            'capstone_workspace':'T20' in question_tickets and completed<total,
+            'elapsed_display':('%02d:%02d:%02d' % (hours,minutes,seconds)),
+            'activity_complete':completed==total,
             # Do not ship the conclusion in pre-completion HTML. It is a reveal,
             # not a hidden client-side element that curious participants can read.
             'conclusion':data['conclusion'] if completed==total else None,

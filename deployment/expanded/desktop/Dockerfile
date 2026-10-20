@@ -94,7 +94,7 @@ RUN echo "wireshark-common wireshark-common/install-setuid boolean false" | debc
       xfce4 xfce4-terminal tigervnc-standalone-server tigervnc-tools dbus-x11 thunar wireshark \
       xfonts-base x11-xserver-utils libgl1-mesa-dri \
       zenity openjdk-17-jre libopenjfx-java fonts-dejavu fonts-noto-color-emoji \
-      adwaita-icon-theme tini ca-certificates curl xz-utils python3 \
+      adwaita-icon-theme tini ca-certificates curl xz-utils python3 mousepad binutils file xdg-utils \
       testdisk libafflib0t64 libewf2 libvhdi1 libvmdk1 libpq5 libgstreamer1.0-0 libgstreamer-plugins-base1.0-0 \
       libgtk-3-0 libdbus-glib-1-2 libasound2t64 libxtst6 \
     && rm -rf /var/lib/apt/lists/* \

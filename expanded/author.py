@@ -94,27 +94,26 @@ EXTRA_STEPS = {
     # sensor.pcap carries the requester's address 10.26.10.17 and no hostname at
     # all (zero WS-* strings in the capture). The workstation name requires two
     # further hops, neither of which the ticket named.
-    'T01-Q1': ['The capture carries the requester\'s address, not a workstation name. '
-               'Note 10.26.10.17 from the plan-v3 record, then open /evidence/identity/auth.csv '
-               'and find that address to identify the account (m.ellis, session S-41).',
+    'T01-Q1': ['The capture carries a requester address, not a workstation name. Record the '
+               'requester address from the plan download, then open /evidence/identity/auth.csv '
+               'and correlate that address to an account and session.',
                'Open /evidence/endpoint/events.csv and find rows for that account to read its '
-               'workstation name (WS-17). The address column in that file is not the same '
-               'address, so correlate by account rather than by address.'],
+               'workstation name. The address column in that file is not the same address, so '
+               'correlate by account rather than assuming every address field has one meaning.'],
     # The single session_refresh record in wazuh/telemetry.jsonl is timestamped
     # 09:03 (the T06 answer), not 09:26. The later refresh is in the identity
     # evidence, which the Wazuh-only steps never named.
-    'T07-Q2': ['The session_refresh record in the Wazuh data view is timestamped 09:03, which is '
-               'the earlier refresh from the previous ticket, not the late one. This question asks '
-               'for the LATE successful refresh.',
-               'Open /evidence/identity/late-auth.csv and find the session_refresh row for S-41; '
-               'its time field is 09:26:00 and its result is success.'],
+    'T07-Q2': ['The session_refresh record in the Wazuh data view is the earlier refresh from the '
+               'previous ticket, not the late one. This question asks for the later successful '
+               'refresh.',
+               'Open /evidence/identity/late-auth.csv, filter to successful session-refresh rows, '
+               'and correlate the session identifier before reading the time field.'],
     # The phrase is a policy statement, not a telemetry field. "revocation" does
     # not appear anywhere in the Wazuh index.
-    'T07-Q4': ['This question asks which SEPARATE policy action invalidates issued sessions; it is '
-               'not a field in the Wazuh data view. "Revocation" appears nowhere in the telemetry.',
-               'Open /evidence/identity/policy.txt and read the stated identity-provider behaviour: '
-               'a password reset does not invalidate already-issued sessions, and explicit session '
-               'revocation is the separate mechanism.'],
+    'T07-Q4': ['This question asks which separate policy action invalidates issued sessions; it is '
+               'not an event field in the Wazuh data view.',
+               'Open /evidence/identity/policy.txt and compare the documented effect of a password '
+               'reset with the separate control that invalidates already-issued sessions.'],
     # The ticket-level selection is data.action:session_refresh, but the reset is
     # a DIFFERENT action, so following the stated search never surfaces it.
     'T07-Q1': ['The reset is not a session_refresh: the selection above only matches the refresh '
@@ -126,6 +125,33 @@ EXTRA_STEPS = {
                'and the unavailable interval in text.'],
     'T12-Q3': ['Open /evidence/server/collection.txt and read the end of the unavailable interval '
                'for the DOCS-1 audit; the coverage records do not carry the boundary.'],
+    # T13-T16 deliberately culminate in a relationship-building task rather
+    # than four isolated JSON lookups. The browser correlation board is a
+    # local scratchpad; the evidence remains the source of truth.
+    'T16-Q1': ['Before answering, use the Process-to-network correlation board above the question '
+               'list. Join /evidence/prepared/windows-process.json, memory-processes.json, and '
+               'windows-connections.json on the viewer PID.',
+               'Draw the chain parent executable and PID → viewer PID → cache argument → remote '
+               'address and port. Record separately what the graph cannot prove; a relationship '
+               'between records is not evidence that a human read the payload.'],
+    'T20-Q1': ['Complete the Capstone assessment workspace above the question list before submitting '
+               'the four final values. Put supported facts, unsupported claims, unresolved gaps, and '
+               'recommended actions in separate fields.',
+               'Cite at least one released source beside every confirmed statement. The workspace '
+               'stays in this browser and is not published as a finding.'],
+}
+
+# Question-level routes keep the published source citation aligned with the
+# evidence that actually answers the question. The ticket-level route remains
+# useful for orientation, but these cross-source questions require a more
+# precise source and selection in hints, findings, and exports.
+QUESTION_ROUTES = {
+    'T01-Q1': ('endpoint/events.csv', 'account correlated from requester address'),
+    'T07-Q1': ('wazuh/telemetry.jsonl', 'data.action:password_reset'),
+    'T07-Q2': ('identity/late-auth.csv', 'action=session_refresh AND result=success'),
+    'T07-Q4': ('identity/policy.txt', 'issued-session invalidation policy'),
+    'T12-Q2': ('server/collection.txt', 'DOCS-1 unavailable interval'),
+    'T12-Q3': ('server/collection.txt', 'DOCS-1 unavailable interval'),
 }
 
 
@@ -160,6 +186,8 @@ def answer_format(prompt, answer):
     each stated with the question they constrain."""
     value = answer.strip()
     base = 'Enter only the requested value. Case and outer whitespace are ignored. '
+    if 'basename' in prompt.lower():
+        return base + 'Enter the filename only, without a directory path.'
     if re.fullmatch(r'\d{1,2}:\d{2}(:\d{2})?', value):
         return base + 'Times use HH:MM:SS UTC; enter the time only, without a date.'
     if '/' in value:
@@ -214,15 +242,20 @@ def build(config=None):
             # Copy the shared opening list: a per-question supplement must not
             # leak into the other questions of the same ticket.
             steps=list(opening)+list(EXTRA_STEPS.get(qid,[]))
-            question=dict(id=qid,prompt=prompt,answer=answer,tool=tool,evidence='/evidence/'+evidence,
-                selection=selection,source_record=evidence,
+            question_evidence, question_selection = QUESTION_ROUTES.get(
+                qid, (evidence, selection))
+            question=dict(id=qid,prompt=prompt,answer=answer,tool=tool,
+                evidence='/evidence/'+question_evidence,
+                selection=question_selection,source_record=question_evidence,
                 purpose='Use '+title.lower()+' to answer this specific question and identify the limits of the evidence.',
                 steps=steps,format=answer_format(prompt, answer),
                 recovery='If no results appear, clear filters, check the evidence release and absolute UTC range, and reopen your writable case. Never re-ingest a large image during the activity.',
-                hints=['Start with '+selection+' and read the fields named in the question.',
+                hints=['Start with '+question_selection+' and read the fields named in the question.',
                        'Compare the selected record with adjacent events; apply clock correction only to device_time.',
                        'Walkthrough: '+prompt+' The supplied record/comparison yields '+answer+'. Enter '+answer+'. '+limitation],
-                finding=dict(text=findings[i-1],evidence=[evidence+' ('+selection+')'],limitation=limitation))
+                finding=dict(text=findings[i-1],
+                             evidence=[question_evidence+' ('+question_selection+')'],
+                             limitation=limitation))
             if tool=='Autopsy':
                 question['case_entrypoint']=AUTOPSY_CASE_ENTRYPOINT
             questions.append(question)

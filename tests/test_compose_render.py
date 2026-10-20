@@ -148,6 +148,8 @@ class ComposeAuditTests(unittest.TestCase):
         self.assertIn('proxy_set_header X-Forwarded-Host $http_host;', proxy)
         self.assertNotRegex(proxy, r'(?m)^\s*proxy_set_header X-Forwarded-Port ')
         self.assertIn('listen 8080;', proxy)
+        self.assertIn('listen 8082 ssl;', proxy)
+        self.assertIn('location = / { return 302 /guacamole/; }', proxy)
         self.assertIn('location = /root-ca.crl', proxy)
         self.assertIn('application/pkix-crl', proxy)
 

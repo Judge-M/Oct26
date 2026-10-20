@@ -19,6 +19,30 @@
     "Guacamole": "Open the analyst desktop and its prepared evidence tools.",
     "Evidence tools": "Inspect the named PCAP, case artifact, export, or harmless training binary."
   },
+  "operational_update": {
+    "id": "scope-expansion",
+    "trigger_after": ["T01", "T02", "T03", "T04", "T05", "T06", "T07", "T08", "T09", "T10"],
+    "title": "Operational update received — scope expansion",
+    "sender": "Faye Maxwell, SOC Supervisor",
+    "message": "Command has received the revised movement record and the identity review. New endpoint-coverage and late-inventory evidence is now available. Determine whether the surviving session and the WS-31 lead widen the confirmed disclosure, or remain bounded unresolved risks.",
+    "priorities": [
+      "Reassess what information remains operationally sensitive after the superseding brief.",
+      "Separate session persistence from a new password authentication.",
+      "Do not clear WS-31 where collection ended before execution could be established."
+    ]
+  },
+  "timeline": [
+    {"time": "08:45", "ticket": "T11", "event": "WS-31 inventory records a BriefSync task configuration.", "source": "wazuh/telemetry.jsonl"},
+    {"time": "08:50", "ticket": "T11", "event": "Endpoint collection from WS-31 stops, leaving later execution unresolved.", "source": "server/collection.txt"},
+    {"time": "08:57", "ticket": "T03", "event": "The browser export records download of brief-viewer.exe.", "source": "browser/downloads.csv"},
+    {"time": "09:03", "ticket": "T06", "event": "Session S-41 refreshes externally using a previous MFA claim.", "source": "wazuh/telemetry.jsonl"},
+    {"time": "09:06", "ticket": "T19", "event": "Request req-72 transmits a body matching movement brief v3.", "source": "network/dlp-metadata.json"},
+    {"time": "09:08", "ticket": "T04", "event": "Corrected WS-17 task-registration time for BriefSync.", "source": "endpoint/events.csv"},
+    {"time": "09:10", "ticket": "T09", "event": "Movement brief v4 supersedes v3; the sector and window change while CEDAR remains active.", "source": "server/version-comparison.csv"},
+    {"time": "09:14–09:18", "ticket": "T12", "event": "DOCS-1 audit collection is unavailable during the stated interval.", "source": "server/collection.txt"},
+    {"time": "09:20", "ticket": "T07", "event": "The m.ellis password is reset without revoking issued sessions.", "source": "wazuh/telemetry.jsonl"},
+    {"time": "09:26", "ticket": "T07", "event": "Session S-41 refreshes successfully after the password reset.", "source": "identity/late-auth.csv"}
+  ],
   "phases": [
     {
       "id": "disclosure",

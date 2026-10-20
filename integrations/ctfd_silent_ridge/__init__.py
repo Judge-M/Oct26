@@ -68,6 +68,7 @@ persistent handout.</p>
 <table><tr><th>Service</th><th>URL</th><th>Username</th><th>Password</th></tr>
 <tr><td>IRIS</td><td><a href="{{ iris_url }}">{{ iris_url }}</a></td><td><code>{{ credentials.iris.username }}</code></td><td><span class="secret">{{ credentials.iris.password }}</span></td></tr>
 <tr><td>CTFd team</td><td><a href="{{ ctfd_url }}">{{ ctfd_url }}</a></td><td><code>{{ credentials.ctfd.team }}</code></td><td><span class="secret">{{ credentials.ctfd.password }}</span></td></tr>
+<tr><td>Wazuh</td><td><a href="{{ wazuh_url }}">{{ wazuh_url }}</a></td><td><code>{{ credentials.wazuh.username }}</code></td><td><span class="secret">{{ credentials.wazuh.password }}</span></td></tr>
 </table>
 <h2>Participant CTFd seats</h2>
 <table><tr><th>Seat</th><th>Username</th><th>Password</th></tr>
@@ -173,6 +174,7 @@ def load(app):
                 REGISTRATION_PAGE, view='ready', registration=registration,
                 credentials=credentials, iris_url=os.environ['IRIS_PUBLIC_URL'],
                 ctfd_url=os.environ['CTFD_PUBLIC_URL'],
+                wazuh_url=os.environ['WAZUH_PUBLIC_URL'],
                 guac_url=os.environ.get('GUACAMOLE_PUBLIC_URL',
                                         os.environ.get('CTFD_PUBLIC_URL', '').rstrip('/') + ':8082'))
         if registration.get('status') in ('pending', 'provisioning'):

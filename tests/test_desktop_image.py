@@ -52,7 +52,8 @@ class DesktopContainerTests(unittest.TestCase):
         required = ('xfce4', 'xfce4-terminal', 'tigervnc-standalone-server', 'dbus-x11',
                     'thunar', 'wireshark', 'zenity', 'openjdk-17-jre', 'libopenjfx-java',
                     'fonts-dejavu', 'fonts-noto-color-emoji', 'adwaita-icon-theme', 'tini',
-                    'ca-certificates', 'curl', 'xz-utils', 'python3')
+                    'ca-certificates', 'curl', 'xz-utils', 'python3', 'mousepad',
+                    'binutils', 'file', 'xdg-utils')
         for package in required:
             self.assertIn(package, self.dockerfile, package)
         self.assertRegex(self.dockerfile, r'(?m)^FROM\s+ubuntu:24\.04')
@@ -153,6 +154,10 @@ class DesktopContainerTests(unittest.TestCase):
                         '/opt/silent-ridge/open-autopsy.sh', 'wireshark',
                         '/opt/cutter/Cutter.AppImage --appimage-extract-and-run'):
             self.assertIn(command, self.configure, command)
+        for tool in ('mousepad', 'strings', 'readelf', 'file', 'xdg-mime'):
+            self.assertIn(tool, self.configure, tool)
+        for mime in ('text/plain', 'text/csv', 'application/json'):
+            self.assertIn(mime, self.configure, mime)
         service = (DESKTOP / 'helpers/open-service.py').read_text(encoding='utf-8')
         self.assertIn('/etc/silent-ridge/endpoints.json', service)
         self.assertIn('/usr/local/bin/firefox', service)

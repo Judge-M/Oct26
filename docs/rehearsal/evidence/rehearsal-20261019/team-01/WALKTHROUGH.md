@@ -439,7 +439,7 @@ The per-team queue released later work automatically: T07 and T19 appeared after
 - Evidence limitation: Isolated native training reconstruction with actual acquisition UTC. It does not replace the historical incident timeline. Consult the record provenance and original hash.
 - Screenshot: [T13-Q1 explicit walkthrough](screenshots/72-T13-Q1-walkthrough.png)
 
-#### T13-Q2 — What is its parent executable?
+#### T13-Q2 — What is the basename of its parent executable?
 
 - Answer: `browser.exe`
 - Explanation: The native process event names browser.exe as the parent training surrogate.

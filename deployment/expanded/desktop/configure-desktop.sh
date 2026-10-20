@@ -15,7 +15,14 @@ mkdir -p /evidence /originals
 ln -sfn /opt/firefox/firefox /usr/local/bin/firefox
 chmod 755 /opt/cutter/Cutter.AppImage
 ldconfig
-for tool in startxfce4 Xtigervnc wireshark firefox thunar dbus-run-session zenity; do command -v "$tool"; done
+for tool in startxfce4 Xtigervnc wireshark firefox thunar mousepad strings readelf file xdg-mime dbus-run-session zenity; do command -v "$tool"; done
+
+# Evidence exports are deliberately plain text. Make opening CSV, JSON, and
+# text files useful on first click instead of presenting an empty application
+# chooser in the participant desktop.
+for mime in text/plain text/csv application/json; do
+  runuser -u participant -- xdg-mime default org.xfce.mousepad.desktop "$mime"
+done
 
 install -m 755 /opt/silent-ridge/helpers/open-service.py /opt/silent-ridge/open-service.py
 install -m 755 /opt/silent-ridge/helpers/open-autopsy.sh /opt/silent-ridge/open-autopsy.sh

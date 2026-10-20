@@ -5,7 +5,7 @@ PAGE = '''<!doctype html><html lang="en"><meta charset="utf-8">
 body{font:18px system-ui;max-width:980px;margin:2rem auto;padding:1rem;background:#f4f6fa;color:#14243b}
 nav,a{color:#155bbb}nav{display:flex;gap:2rem}article{background:white;padding:1.5rem;margin:1rem 0;border:1px solid #bccada;border-radius:12px}
 button,input{font:inherit;padding:.6rem;margin:.4rem}button{cursor:pointer}summary{cursor:pointer;padding:.5rem}pre{white-space:pre-wrap}small{display:block}
-.briefing{background:#14243b;color:white;padding:1.5rem;border-radius:12px;margin:1rem 0}.briefing strong{color:#9ed0ff}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.8rem}.card{background:#e8eef6;padding:1rem;border-radius:8px}.phase{color:#385675;font-weight:700}.why{border-left:4px solid #c77700;padding-left:1rem}.conclusion{background:#102d29;color:#f4fbf8;border:4px solid #d79a24;padding:1.5rem;border-radius:12px;margin:1.5rem 0}.conclusion h2{color:#ffd174;margin-top:0}.conclusion h3{color:#b7e3d6}.conclusion li{margin:.45rem 0}
+.briefing{background:#14243b;color:white;padding:1.5rem;border-radius:12px;margin:1rem 0}.briefing strong{color:#9ed0ff}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.8rem}.card{background:#e8eef6;padding:1rem;border-radius:8px}.phase{color:#385675;font-weight:700}.why{border-left:4px solid #c77700;padding-left:1rem}.conclusion{background:#102d29;color:#f4fbf8;border:4px solid #d79a24;padding:1.5rem;border-radius:12px;margin:1.5rem 0}.conclusion h2{color:#ffd174;margin-top:0}.conclusion h3{color:#b7e3d6}.conclusion li{margin:.45rem 0}.update{background:#fff4d6;border:4px solid #c77700;padding:1.25rem;border-radius:12px;margin:1.5rem 0}.update h2{margin:.2rem 0}.update .sender{color:#5c4300;font-weight:700}.timeline{background:#fff;border:1px solid #bccada;border-radius:12px;padding:1.25rem;margin:1rem 0}.timeline ol{list-style:none;padding:0}.timeline li{display:grid;grid-template-columns:7rem 1fr;gap:1rem;border-top:1px solid #d8e0e8;padding:.8rem 0}.timeline time{font-weight:800;color:#174f80}.workspace{background:#eef5fb;border:2px solid #6c94b8;border-radius:12px;padding:1.25rem;margin:1.25rem 0}.workspace label{display:block;font-weight:700;margin:.6rem 0}.workspace input:not([type=checkbox]),.workspace textarea{width:100%;box-sizing:border-box;margin:.25rem 0 .5rem}.workspace input[type=checkbox]{width:auto;margin-right:.4rem}.workspace textarea{min-height:5rem}.relation{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:.7rem}.relation label{background:white;padding:.7rem;border-radius:8px}.workspace-note{color:#385675;font-size:.95rem}
 </style><nav><a href="{{iris}}/silent-ridge">Incident queue</a><a href="{{ctfd}}/silent-ridge">Questions and help</a><a href="{{ctfd}}/scoreboard">Scoreboard</a></nav>
 <h1>{{story.title}}</h1><section class="briefing"><p><strong>{{story.fiction_notice}}</strong></p><p>{{story.premise}}</p><p>{{story.discovery}}</p><p><strong>Mission:</strong> {{story.stakes}}</p></section>
 <p>{{story.participant_role}}</p><div class="grid">{% for role in story.roles %}<div class="card"><strong>{{role.name}}</strong><p>{{role.purpose}}</p></div>{% endfor %}</div>
@@ -14,7 +14,11 @@ button,input{font:inherit;padding:.6rem;margin:.4rem}button{cursor:pointer}summa
 <p>Team: {{snapshot.team}} · Exercise: {{snapshot.mode}} · <span id="pending">{{snapshot.pending}}</span> updates awaiting synchronization.</p>
 <p id="notice" role="status">{{message}}</p>
 <p id="queue-status" role="status">{{queue.status}}</p>
-<p>Activity elapsed: <span id="clock">{{snapshot.elapsed_seconds|round|int}}</span> seconds.</p>
+<p>Activity elapsed: <span id="clock">{{story.elapsed_display}}</span>{% if story.activity_complete %} (complete){% endif %}.</p>
+{% if story.operational_update %}<section class="update" id="operational-update" role="alert" aria-labelledby="operational-update-title">
+<p class="sender">{{story.operational_update.sender}}</p><h2 id="operational-update-title">{{story.operational_update.title}}</h2>
+<p>{{story.operational_update.message}}</p><ul>{% for item in story.operational_update.priorities %}<li>{{item}}</li>{% endfor %}</ul>
+<button type="button" id="dismiss-update">Acknowledge update</button></section>{% endif %}
 {% if story.conclusion %}<section class="conclusion" id="final-assessment" aria-labelledby="final-assessment-title">
 <h2 id="final-assessment-title">{{story.conclusion.status}}</h2><p>{{story.conclusion.summary}}</p>
 <div class="grid"><div><h3>Confirmed</h3><ul>{% for item in story.conclusion.confirmed %}<li>{{item}}</li>{% endfor %}</ul></div>
@@ -24,13 +28,34 @@ button,input{font:inherit;padding:.6rem;margin:.4rem}button{cursor:pointer}summa
 <p><strong>Room-wide closing brief ready:</strong> remain in place while the facilitator presents the conclusion to everyone together. Participant-controlled playback is intentionally unavailable.</p>
 </section>{% endif %}
 {% for a in snapshot.announcements %}<article><strong>{{'Published final assessment' if a.kind=='final_assessment' else 'Published announcement'}} · {{a.timestamp}}</strong><p>{{a.text}}</p></article>{% endfor %}
-{% if lane=='iris' %}<h2>{{'Choose one available ticket' if queue.claimable else 'Ticket queue'}}</h2>
+{% if lane=='iris' %}{% if story.timeline %}<section class="timeline" aria-labelledby="timeline-title"><h2 id="timeline-title">Verified incident chronology</h2>
+<p>Events appear only after their supporting ticket is complete. Times are incident UTC, not participant submission times.</p><ol>
+{% for item in story.timeline %}<li><time>{{item.time}} UTC</time><div><strong>{{item.event}}</strong><br><small>{{item.ticket}} · {{item.source}}</small></div></li>{% endfor %}
+</ol></section>{% endif %}<h2>{{'Choose one available ticket' if queue.claimable else 'Ticket queue'}}</h2>
 {% for t in snapshot.tickets %}{% set context=story.ticket_context.get(t.id) %}<article><h3>{{t.id}} · {{t.title}}</h3><p>{{t.subject}} · {{t.status}} · Owner: {{t.owner or 'available'}}</p>
 {% if context %}<p class="phase">{{context.phase_title}}</p><p>{{context.briefing}}</p><p class="why"><strong>Why now:</strong> {{context.stakes}}</p><p><strong>Handoff:</strong> {{context.handoff}}</p>{% endif %}
 {% if t.iris_id %}<a href="{{iris}}/case/tasks?cid={{case}}">Open IRIS tasks and shared findings</a>{% endif %}
 {% if snapshot.mode=='running' and t.status=='available' and t.iris_id %}<form method="post"><input type="hidden" name="csrf_token" value="{{csrf}}"><input type="hidden" name="nonce" value="{{csrf}}"><input type="hidden" name="ticket" value="{{t.id}}"><input type="hidden" name="generation" value="{{t.generation}}"><button name="action" value="claim">Claim ticket</button></form>{% else %}<p class="why"><strong>Claiming:</strong> {{ queue.notes.get(t.id,'Claiming is not open for this ticket right now.') }}</p>{% endif %}
 {% if snapshot.mode=='running' and t.owner==snapshot.team %}<form method="post"><input type="hidden" name="csrf_token" value="{{csrf}}"><input type="hidden" name="nonce" value="{{csrf}}"><input type="hidden" name="ticket" value="{{t.id}}"><input type="hidden" name="generation" value="{{t.generation}}"><button name="action" value="release">Relinquish — keep completed answers</button></form><a href="{{ctfd}}/silent-ridge">Start this ticket's questions</a>{% endif %}</article>{% endfor %}
-{% else %}<h2>Your questions and completed shared history</h2><p>Each question is worth 4 points. Help levels 1 and 2 are free. Unlocking the explicit walkthrough costs 75% of that question's value, leaving 1 point. No report or approval is needed.</p>
+{% else %}{% if story.correlation_workspace %}<section class="workspace" id="correlation-workspace" aria-labelledby="correlation-title"><h2 id="correlation-title">Process-to-network correlation board</h2>
+<p>Build the relationship from the T13–T16 records before treating adjacent fields as one event. This scratchpad stays in this browser and is never submitted.</p><div class="relation">
+<label>Parent executable<input data-ridge-note="parent-executable" placeholder="From process tree"></label>
+<label>Parent PID<input data-ridge-note="parent-pid" placeholder="From memory process record"></label>
+<label>Viewer PID<input data-ridge-note="viewer-pid" placeholder="Join key"></label>
+<label>Cache argument<input data-ridge-note="cache-path" placeholder="From command line"></label>
+<label>Remote endpoint<input data-ridge-note="remote-endpoint" placeholder="Address:port"></label>
+<label>Evidence limitation<input data-ridge-note="correlation-limit" placeholder="What this graph cannot prove"></label>
+</div><label><input type="checkbox" data-ridge-check="correlation-reviewed"> I compared the process, task, memory, and connection records rather than treating one prepared JSON file as the whole finding.</label>
+<p class="workspace-note" id="correlation-status" role="status"></p></section>{% endif %}
+{% if story.capstone_workspace %}<section class="workspace" id="capstone-workspace" aria-labelledby="capstone-title"><h2 id="capstone-title">Capstone assessment workspace</h2>
+<p>Draft the assessment before answering T20. Notes remain only in this browser; the platform publishes only verified question findings.</p>
+<label>Confirmed — what happened and which evidence proves it?<textarea data-ridge-note="capstone-confirmed"></textarea></label>
+<label>Not established — which tempting claims are unsupported?<textarea data-ridge-note="capstone-not-established"></textarea></label>
+<label>Unresolved — what collection gap prevents closure?<textarea data-ridge-note="capstone-unresolved"></textarea></label>
+<label>Recommended action — what should command do next, and why?<textarea data-ridge-note="capstone-action"></textarea></label>
+<label><input type="checkbox" data-ridge-check="capstone-cited"> I can cite a source for each confirmed statement and have kept uncertainty beside the conclusion.</label>
+<p class="workspace-note" id="capstone-status" role="status"></p></section>{% endif %}
+<h2>Your questions and completed shared history</h2><p>Each question is worth 4 points. Help levels 1 and 2 are free. Unlocking the explicit walkthrough costs 75% of that question's value, leaving 1 point. No report or approval is needed.</p>
 {% for q in questions %}{% set context=story.ticket_context.get(q.ticket) %}<article id="{{q.id}}"><h3>{{q.id}} · {{q.prompt}}</h3>
 {% if context %}<p class="phase">{{context.phase_title}}</p><p class="why"><strong>Why this question matters:</strong> {{context.stakes}}</p>{% endif %}
 {% if q.solved_by %}<p>Answered by {{q.solved_by}} at {{q.answered_at}}.</p><p>{{q.finding.text}}</p><p>{{q.finding.limitation}}</p><pre>{{q.finding.evidence|join('\n')}}</pre>
@@ -39,9 +64,23 @@ button,input{font:inherit;padding:.6rem;margin:.4rem}button{cursor:pointer}summa
 {% if q.paid_hint_available %}<form method="post"><input type="hidden" name="nonce" value="{{csrf}}"><input type="hidden" name="action" value="unlock_hint"><input type="hidden" name="question" value="{{q.id}}"><button>Unlock Help level 3 — explicit walkthrough (costs 3 of 4 points)</button></form>{% elif q.hint_unlocked %}<p class="why"><strong>Assisted scoring:</strong> the explicit walkthrough is unlocked; this answer is now worth 1 of 4 points.</p>{% endif %}
 <form method="post"><input type="hidden" name="nonce" value="{{csrf}}"><input type="hidden" name="action" value="answer"><input type="hidden" name="question" value="{{q.id}}"><label>Answer <input name="answer" maxlength="1024" required></label><button>Check answer — worth {{q.available_points}} point{% if q.available_points != 1 %}s{% endif %}</button></form>{% endif %}</article>{% endfor %}{% endif %}
 <section class="card"><strong>Shared progress: {{story.completed}} of {{story.total}} ticket stages complete.</strong><p>{{story.completion}}</p></section>
-<script>let previous=null,seconds={{snapshot.elapsed_seconds}},running={{(snapshot.mode=='running')|tojson}},anchor=performance.now();
-setInterval(()=>{document.getElementById('clock').textContent=Math.floor(seconds+(running?(performance.now()-anchor)/1000:0));},250);
-setInterval(async()=>{try{const r=await fetch('/silent-ridge/status',{cache:'no-store'});if(!r.ok)return;const s=await r.json();document.getElementById('pending').textContent=s.pending;seconds=s.elapsed_seconds;running=s.mode==='running';anchor=performance.now();delete s.server_time;delete s.elapsed_seconds;const v=JSON.stringify(s);if(previous&&previous!==v){document.getElementById('notice').textContent='Progress changed. Reload to see new tasks and findings.';if(![...document.querySelectorAll('input[name=answer]')].some(i=>i.value))location.reload();}previous=v;}catch(e){document.getElementById('notice').textContent='Connection interrupted. Accepted answers are retained. Retrying…';}},5000);</script></html>'''
+<script>
+const ridgeTeam={{snapshot.team|tojson}},ridgePrefix='silent-ridge:'+ridgeTeam+':';
+function formatElapsed(value){const total=Math.max(0,Math.floor(Number(value)||0)),hours=Math.floor(total/3600),minutes=Math.floor((total%3600)/60),seconds=total%60;return [hours,minutes,seconds].map(v=>String(v).padStart(2,'0')).join(':');}
+function readLocal(key){try{return localStorage.getItem(key);}catch(e){return null;}}
+function writeLocal(key,value){try{localStorage.setItem(key,value);}catch(e){}}
+let previous=null,seconds={{snapshot.elapsed_seconds}},running={{(snapshot.mode=='running' and not story.activity_complete)|tojson}},anchor=performance.now();
+setInterval(()=>{document.getElementById('clock').textContent=formatElapsed(seconds+(running?(performance.now()-anchor)/1000:0));},250);
+const update=document.getElementById('operational-update'),dismiss=document.getElementById('dismiss-update'),updateKey=ridgePrefix+'update:scope-expansion';
+if(update&&readLocal(updateKey)==='acknowledged')update.hidden=true;
+if(dismiss)dismiss.addEventListener('click',()=>{writeLocal(updateKey,'acknowledged');update.hidden=true;document.getElementById('notice').textContent='Operational update acknowledged. The released evidence remains available.';});
+const noteFields=[...document.querySelectorAll('[data-ridge-note]')],checkFields=[...document.querySelectorAll('[data-ridge-check]')];
+function workspaceStatus(){for(const [workspace,statusId] of [['correlation-workspace','correlation-status'],['capstone-workspace','capstone-status']]){const root=document.getElementById(workspace),status=document.getElementById(statusId);if(!root||!status)continue;const fields=[...root.querySelectorAll('[data-ridge-note]')],checks=[...root.querySelectorAll('[data-ridge-check]')];const filled=fields.filter(field=>field.value.trim()).length,checked=checks.filter(field=>field.checked).length;status.textContent=filled+' of '+fields.length+' evidence fields drafted'+(checks.length?' · '+checked+' of '+checks.length+' review checks complete':'')+'.';}}
+for(const field of noteFields){const key=ridgePrefix+'note:'+field.dataset.ridgeNote;field.value=readLocal(key)||'';field.addEventListener('input',()=>{writeLocal(key,field.value);workspaceStatus();});}
+for(const field of checkFields){const key=ridgePrefix+'check:'+field.dataset.ridgeCheck;field.checked=readLocal(key)==='true';field.addEventListener('change',()=>{writeLocal(key,String(field.checked));workspaceStatus();});}
+workspaceStatus();
+setInterval(async()=>{try{const r=await fetch('/silent-ridge/status',{cache:'no-store'});if(!r.ok)return;const s=await r.json();document.getElementById('pending').textContent=s.pending;seconds=s.elapsed_seconds;running=s.mode==='running'&&!s.activity_complete;anchor=performance.now();delete s.server_time;delete s.elapsed_seconds;const v=JSON.stringify(s);if(previous&&previous!==v){document.getElementById('notice').textContent='Progress changed. Reload to see new tasks and findings.';if(![...document.querySelectorAll('input[name=answer]')].some(i=>i.value))location.reload();}previous=v;}catch(e){document.getElementById('notice').textContent='Connection interrupted. Accepted answers are retained. Retrying…';}},5000);
+</script></html>'''
 
 
 def queue_state(snapshot):

@@ -29,7 +29,7 @@ def question_overrides():
     return {
         13: ('Inspect acquired process-log records', 'prepared/windows-process.json', [
             ('Which process ID belongs to the acquired viewer?', str(process['pid'])),
-            ('What is its parent executable?', 'browser.exe'),
+            ('What is the basename of its parent executable?', 'browser.exe'),
             ('Which scenario workstation is this lab reconstruction mapped to?', process['scenario_host']),
             ('What actual acquisition UTC time is recorded for process creation?', process_time)], [
             f"Native Security record {process['record_id']} records viewer PID {process['pid']}.",
