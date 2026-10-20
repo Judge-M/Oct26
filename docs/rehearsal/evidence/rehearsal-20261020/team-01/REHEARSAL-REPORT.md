@@ -30,7 +30,9 @@ This was an accelerated assisted rehearsal. It validates functionality, gating, 
 
 The first version of the direct Wazuh link included an explicit `_a` column-state object. It worked after navigating to Discover inside Wazuh, but a fresh hard load could fail with `columns is not iterable` and leave only the Wazuh shell visible. The shortcut now supplies only the global incident time and empty query state, allowing the provisioned Discover view to provide its own valid column metadata. A fresh isolated tab opened the view successfully with the correct data view and time range.
 
-The read-only account still produces a cosmetic `Unable to update UI setting` 403 toast because Wazuh tries to persist a dashboard preference. The evidence view and queries work; broad write permissions were deliberately not granted to hide that harmless warning.
+The remaining read-only Wazuh warning was also corrected. The dashboard now predefines the exact `silent-ridge-timed` default index in its deployed configuration, so the plugin no longer tries to write that preference into the global tenant. A fresh isolated participant session rendered `silent-ridge-*`, 499 records, and the correct incident window with no 403 toast or unauthorized console entry. The participant role remains read-only; no write permission was added.
+
+That deployment exposed a separate rerun-only defect in external TLS mode: the certificate generator attempted to validate the installed public edge certificate as though it were the private-CA participant certificate. Reruns now preserve and validate the existing private Wazuh CA, dashboard, manager, indexer, and admin material, then reinstall the configured public edge pair idempotently. Incomplete private material fails closed. The corrected update completed from a verified recovery backup and returned the live event to `PROVISIONED_PAUSED` with `event_ready: true`.
 
 ## Question-by-question method and explanations
 
@@ -75,6 +77,7 @@ The ticket-level completion captures below are from this rerun. Each capture was
 - [Midpoint evidence release remains visible after acknowledgment](screenshots/midpoint-release-acknowledged.jpg)
 - [Completed process-to-network correlation board](screenshots/correlation-workspace.jpg)
 - [Prepared Wazuh Discover view with an exercise query](screenshots/wazuh-prepared-discover-query.jpg)
+- [Fresh Wazuh participant view after the read-only preference fix](screenshots/28-wazuh-discover-no-errors.jpg)
 - [Completed capstone assessment workspace](screenshots/capstone-assessment-workspace.jpg)
 - [Definitive final incident assessment](screenshots/final-assessment.jpg)
 - [Final CTFd scoreboard with 80 points](screenshots/scoreboard.jpg)
@@ -82,5 +85,4 @@ The ticket-level completion captures below are from this rerun. Each capture was
 ## Remaining recommendations
 
 - Run one beginner team without immediately unlocking level-3 hints to measure real difficulty, ambiguity, and duration.
-- If Wazuh permits it without weakening the participant role, pre-seed the user preference that currently causes the cosmetic 403 toast.
 - Retain the strong uncertainty language and final room-wide outro cue; they prevent participants from converting evidence gaps into unsupported certainty and avoid dozens of devices playing the same media independently.
