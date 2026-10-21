@@ -165,7 +165,8 @@ with app.test_client() as client:
         assert 'costs 3 of 4 points' in html
         assert 'explicit walkthrough answer' not in html
         unlocked=client.post('/silent-ridge',data={
-            'nonce':'smoke-nonce','action':'unlock_hint','question':'T01-Q1'})
+            'nonce':'smoke-nonce','action':'unlock_hint','question':'T01-Q1'},
+            follow_redirects=True)
         assert unlocked.status_code==200
         assert 'Assisted scoring is active' in unlocked.get_data(as_text=True)
 print('Actual CTFd image: unique credits, retry race, authentication and stock API blocking passed.')
