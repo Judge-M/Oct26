@@ -64,17 +64,24 @@ class RegistrationStoreTests(unittest.TestCase):
         again = store.register('Red Comets', 'Jamie Lee')
         self.assertEqual(again['slots'], created['slots'])
 
-    def test_production_registration_starts_closed_and_requires_code(self):
+    def test_production_registration_uses_enrollment_code_as_its_only_gate(self):
         store = RegistrationStore(self.path, RegistrationConfig(max_teams=1),
                                   enrollment_code='LANTERN-42')
-        self.assertFalse(store.is_open())
-        with self.assertRaisesRegex(RegistrationError, 'closed'):
-            store.register('Blue Lanterns', 'Alex Morgan', enrollment_code='LANTERN-42')
-        store.set_open(True)
         with self.assertRaisesRegex(RegistrationError, 'invalid'):
             store.register('Blue Lanterns', 'Alex Morgan', enrollment_code='wrong')
         created = store.register('Blue Lanterns', 'Alex Morgan',
                                  enrollment_code='LANTERN-42')
+        self.assertEqual(created['status'], 'pending')
+
+    def test_existing_runtime_can_adopt_the_static_enrollment_code(self):
+        original = RegistrationStore(self.path, RegistrationConfig(max_teams=1),
+                                     enrollment_code='OLD-RANDOM-CODE')
+        with original._connect() as con:
+            con.execute("INSERT INTO registration_meta(key,value) VALUES ('open','0')")
+        migrated = RegistrationStore(self.path, RegistrationConfig(max_teams=1),
+                                     enrollment_code='SILENT-RIDGE')
+        created = migrated.register('Blue Lanterns', 'Alex Morgan',
+                                    enrollment_code='SILENT-RIDGE')
         self.assertEqual(created['status'], 'pending')
 
     def test_failed_provisioning_stops_for_operator_and_can_be_retried(self):

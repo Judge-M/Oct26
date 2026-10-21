@@ -3,6 +3,8 @@ param(
     [string]$OutroVideo = (Join-Path $PSScriptRoot "..\docs\event-day-deck\media\outrobrief.mp4"),
     [string]$OutputDirectory = (Join-Path $PSScriptRoot "..\docs\event-day-deck"),
     [string]$LandingPage = "https://ctfd.cyberexperts.org/silent-ridge/register",
+    [string]$EnrollmentCode = "SILENT-RIDGE",
+    [switch]$OpeningOnly,
     [switch]$SkipLibreOffice
 )
 
@@ -23,7 +25,9 @@ function Get-Color {
 }
 
 $introVideoPath = Resolve-RequiredFile -Path $IntroVideo -Label "Intro video"
-$outroVideoPath = Resolve-RequiredFile -Path $OutroVideo -Label "Outro video"
+$outroVideoPath = if ($OpeningOnly) { $null } else {
+    Resolve-RequiredFile -Path $OutroVideo -Label "Outro video"
+}
 $outputPath = [System.IO.Path]::GetFullPath($OutputDirectory)
 New-Item -ItemType Directory -Path $outputPath -Force | Out-Null
 
@@ -175,7 +179,9 @@ function Add-OpeningDeck {
     Add-TextBox $slide "GET STARTED" 64 92 400 24 13 $amber $true | Out-Null
     Add-TextBox $slide "Open the participant landing page" 64 130 690 54 34 $light $true | Out-Null
     Add-TextBox $slide $LandingPage 64 210 770 42 23 $amber $true | Out-Null
-    Add-TextBox $slide "1. One captain registers the team.`n2. Bookmark and save the private team handout.`n3. Follow the five on-screen steps. Keep the handout open." 64 284 600 118 18 $softLight | Out-Null
+    Add-TextBox $slide "ENROLLMENT CODE" 64 276 220 22 12 $muted $true | Out-Null
+    Add-TextBox $slide $EnrollmentCode 64 302 420 42 27 $light $true | Out-Null
+    Add-TextBox $slide "1. One captain registers the team.`n2. Bookmark and save the private team handout.`n3. Follow the five on-screen steps. Keep the handout open." 520 276 360 106 17 $softLight | Out-Null
     Add-TextBox $slide "The landing page is the source of truth for logins, desktops, scoring, help, and troubleshooting." 64 444 700 42 14 $muted | Out-Null
 }
 
@@ -220,11 +226,44 @@ function Save-Deck {
     }
 }
 
+function Remove-EmptyRelationshipIds {
+    param([string]$Path)
+    # PowerPoint writes r:id="" on the media click action even though the
+    # video, poster frame, and autoplay timing use real relationships.  The
+    # empty attribute is unnecessary and fails strict OOXML package checks.
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $archive = [System.IO.Compression.ZipFile]::Open(
+        $Path, [System.IO.Compression.ZipArchiveMode]::Update)
+    try {
+        $names = @($archive.Entries |
+            Where-Object { $_.FullName -like 'ppt/slides/slide*.xml' } |
+            ForEach-Object { $_.FullName })
+        foreach ($name in $names) {
+            $entry = $archive.GetEntry($name)
+            $reader = [System.IO.StreamReader]::new($entry.Open())
+            try { $xml = $reader.ReadToEnd() } finally { $reader.Dispose() }
+            $clean = $xml.Replace(' r:id=""', '')
+            if ($clean -eq $xml) { continue }
+            $entry.Delete()
+            $replacement = $archive.CreateEntry(
+                $name, [System.IO.Compression.CompressionLevel]::Optimal)
+            $writer = [System.IO.StreamWriter]::new($replacement.Open(),
+                [System.Text.UTF8Encoding]::new($false))
+            try { $writer.Write($clean) } finally { $writer.Dispose() }
+        }
+    }
+    finally {
+        $archive.Dispose()
+    }
+}
+
 try {
     $powerPoint = New-Object -ComObject PowerPoint.Application
     $powerPoint.Visible = $msoTrue
     Save-Deck $openingPptx ${function:Add-OpeningDeck}
-    Save-Deck $closingPptx ${function:Add-ClosingDeck}
+    if (-not $OpeningOnly) {
+        Save-Deck $closingPptx ${function:Add-ClosingDeck}
+    }
 }
 finally {
     if ($powerPoint) {
@@ -234,12 +273,18 @@ finally {
     [System.GC]::WaitForPendingFinalizers()
 }
 
+Remove-EmptyRelationshipIds $openingPptx
+if (-not $OpeningOnly) {
+    Remove-EmptyRelationshipIds $closingPptx
+}
+
 if (-not $SkipLibreOffice) {
     $soffice = "C:\Program Files\LibreOffice\program\soffice.exe"
     if (-not (Test-Path -LiteralPath $soffice -PathType Leaf)) {
         throw "LibreOffice was not found at $soffice. Use -SkipLibreOffice to build only PowerPoint files."
     }
-    foreach ($deck in @($openingPptx, $closingPptx)) {
+    $decks = if ($OpeningOnly) { @($openingPptx) } else { @($openingPptx, $closingPptx) }
+    foreach ($deck in $decks) {
         $profileName = ([System.IO.Path]::GetFileNameWithoutExtension($deck) +
                         "-lo-profile-" + [guid]::NewGuid().ToString("N"))
         $profilePath = Join-Path ([System.IO.Path]::GetTempPath()) $profileName
@@ -260,8 +305,12 @@ if (-not $SkipLibreOffice) {
 }
 
 Write-Output "Created $openingPptx"
-Write-Output "Created $closingPptx"
+if (-not $OpeningOnly) {
+    Write-Output "Created $closingPptx"
+}
 if (-not $SkipLibreOffice) {
     Write-Output "Created $(Join-Path $outputPath 'opening-brief.odp')"
-    Write-Output "Created $(Join-Path $outputPath 'closing-brief.odp')"
+    if (-not $OpeningOnly) {
+        Write-Output "Created $(Join-Path $outputPath 'closing-brief.odp')"
+    }
 }

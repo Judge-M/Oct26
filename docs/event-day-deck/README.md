@@ -13,12 +13,13 @@ LibreOffice Impress. It contains five slides:
 2. the situation and mission;
 3. the high-level claim, investigate, answer, share workflow;
 4. the embedded introduction video, set to play automatically;
-5. the participant landing-page address.
+5. the participant landing-page address and the static enrollment code.
 
 After the video, leave slide 5 projected while captains open:
 
 ```text
 https://ctfd.cyberexperts.org/silent-ridge/register
+Enrollment code: SILENT-RIDGE
 ```
 
 ## Closing brief
@@ -65,7 +66,8 @@ To use replacement videos or a different registration address:
 .\scripts\build_event_day_deck.ps1 `
   -IntroVideo 'C:\path\to\introbrief.mp4' `
   -OutroVideo 'C:\path\to\outrobrief.mp4' `
-  -LandingPage 'https://ctfd.cyberexperts.org/silent-ridge/register'
+  -LandingPage 'https://ctfd.cyberexperts.org/silent-ridge/register' `
+  -EnrollmentCode 'SILENT-RIDGE'
 ```
 
 The old `event-day-deck.pdf`, `event-day-deck.pptd`, and `pages/` directory are

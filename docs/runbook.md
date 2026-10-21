@@ -24,17 +24,16 @@ to participants). Windows operators may use `.\ridge.ps1 <action> -Profile P
    it re-probes, it never resets state.
 3. **Check readiness** — `python -m ridge.deploy status --profile P --runtime R`.
    You want `event_ready: true`, all stages verified.
-4. **Prepare check-in** — registration starts closed. Read the enrollment code
-   from `R/secrets/registration-enrollment-code`; do not put it on a public
-   screen before check-in. Facilitator and participant passwords are generated
-   randomly and must never be replaced with `admin/admin` or `teamN/teamN`.
-5. **Start the exercise and open registration** — run
-   `python -m ridge.deploy start --profile P --runtime R`, then
-   `python -m ridge.deploy registration-open --profile P --runtime R`.
-   Send captains to `https://ctfd.cyberexperts.org/silent-ridge/register`.
+4. **Prepare check-in** — project opening slide 5. It already shows both:
+   - registration address: `https://ctfd.cyberexperts.org/silent-ridge/register`
+   - enrollment code: `SILENT-RIDGE`
+   Facilitator and participant passwords remain random and must never be
+   replaced with `admin/admin` or `teamN/teamN`.
+5. **Start the exercise** — run
+   `python -m ridge.deploy start --profile P --runtime R`. Registration uses
+   the enrollment code as its only gate; there is no separate open/close step.
    Each private retrieval page supplies five CTFd seats and the team's IRIS,
-   Wazuh, Guacamole, and three desktop connection details. Close registration
-   after check-in with `registration-close`.
+   Wazuh, Guacamole, and three desktop connection details.
 6. **During play** — announcements:
    `python -m ridge.cli --state R/state/state.sqlite announce --operator YOU --text "..."`.
    Free a stuck ticket:

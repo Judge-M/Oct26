@@ -279,8 +279,7 @@ def main():
     parser.add_argument('action', choices=('doctor', 'build', 'verify-build', 'status',
                                          'up', 'start', 'pause', 'backup', 'restore',
                                          'switch', 'down', 'fence', 'registration-worker',
-                                         'registration-status', 'registration-open',
-                                         'registration-close', 'registration-retry',
+                                         'registration-status', 'registration-retry',
                                          'registration-cancel', 'registration-rotate-link'))
     parser.add_argument('--component', choices=(*IMAGES, 'all'), default='all')
     parser.add_argument('--work', type=Path, default=ROOT / 'work/build-receipts')
@@ -313,7 +312,7 @@ def main():
             return
         lifecycle = ('up', 'start', 'pause', 'status', 'down', 'backup', 'restore', 'switch',
                      'fence', 'registration-worker', 'registration-status',
-                     'registration-open', 'registration-close', 'registration-retry',
+                     'registration-retry',
                      'registration-cancel', 'registration-rotate-link')
         if args.action == 'status' and args.profile is None:
             print(json.dumps({'event_ready': False, 'next_gate': 'profile-scoped deployment',
