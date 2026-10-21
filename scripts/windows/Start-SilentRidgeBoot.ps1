@@ -113,6 +113,13 @@ function Invoke-BoundedProcess {
             Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
             throw "process exceeded ${TimeoutSeconds}s timeout: $FilePath"
         }
+        # PowerShell 5.1 can return from the timed overload before the
+        # redirected output handlers and Process object's exit-code cache are
+        # finalized.  Complete the parameterless wait and refresh the object
+        # before reading ExitCode; otherwise a successful command can appear
+        # to have a null exit code and every Docker readiness probe fails.
+        $process.WaitForExit()
+        $process.Refresh()
         $stdout = Get-Content -LiteralPath $stdoutPath -Raw -ErrorAction SilentlyContinue
         $stderr = Get-Content -LiteralPath $stderrPath -Raw -ErrorAction SilentlyContinue
         if (-not $Quiet) {
