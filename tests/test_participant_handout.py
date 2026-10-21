@@ -60,6 +60,18 @@ class ParticipantHandoutTextTests(unittest.TestCase):
         self.assertIn('no team join password is required', text)
         self.assertIn('no separate direct VNC password is participant-facing', text)
 
+    def test_includes_a_captain_independent_delegation_plan(self):
+        text=self.render()
+        for expected in ('DIVIDE THE WORK BEFORE STARTING',
+                         'captain is not a required technical role',
+                         'Person 1 - queue coordinator',
+                         'Person 2 - network/Wazuh analyst',
+                         'Person 3 - disk/endpoint analyst',
+                         'Person 4 - binary/file analyst',
+                         'Person 5 - CTFd recorder/verifier',
+                         'If the captain leaves'):
+            self.assertIn(expected,text)
+
 
 if __name__ == '__main__':
     unittest.main()

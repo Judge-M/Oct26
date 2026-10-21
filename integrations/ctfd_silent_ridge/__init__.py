@@ -147,6 +147,24 @@ persistent handout.</p>
     <li>Claim up to three available IRIS tickets, open their questions in CTFd, investigate the named evidence, and submit only the requested value.</li>
   </ol>
 </section>
+<section class="start" aria-labelledby="delegation-title">
+  <h2 id="delegation-title">Divide the work before anyone starts</h2>
+  <p><strong>The captain is not a required technical role.</strong> Any teammate with this private handout can take over coordination. Say the assignments out loud and keep the handout open on at least two team laptops.</p>
+  <div class="grid">
+    <div class="card"><strong>Person 1 — queue coordinator</strong><br>Open IRIS with the shared team login. Claim up to three tickets, announce each ticket ID and assigned analyst, watch ownership, and claim replacements as tickets finish.</div>
+    <div class="card"><strong>Person 2 — network and Wazuh analyst</strong><br>Take one Guacamole desktop. Start with tickets naming Wireshark or Wazuh. Follow the ticket's exact filter, query, and evidence path.</div>
+    <div class="card"><strong>Person 3 — disk and endpoint analyst</strong><br>Take one Guacamole desktop. Start with tickets naming Autopsy and use the prepared case and evidence path shown on the ticket.</div>
+    <div class="card"><strong>Person 4 — binary and file analyst</strong><br>Take the third Guacamole desktop. Start with Cutter or Evidence file manager tickets, and do not execute recovered files.</div>
+    <div class="card"><strong>Person 5 — CTFd recorder and verifier</strong><br>Keep CTFd open. Read questions and answer formats aloud, submit the analysts' values, track free Help 1–2 versus paid Help 3, and confirm accepted findings.</div>
+  </div>
+  <ol>
+    <li>Each person signs into a different numbered CTFd seat.</li>
+    <li>The coordinator claims up to three tickets and assigns one analyst to each ticket ID.</li>
+    <li>Each analyst follows the ticket's <strong>Start here</strong> directions and reports the answer, source path, and any limitation to the recorder.</li>
+    <li>The recorder submits in CTFd and tells the coordinator when a ticket closes. The coordinator confirms the finding in IRIS and assigns the next available ticket.</li>
+    <li>If someone is stuck, rotate the ticket or desktop. If the captain leaves, another teammate uses this same handout and continues the coordinator checklist.</li>
+  </ol>
+</section>
 <p class="notice"><strong>Keep this page open.</strong> It is your permanent credential and recovery sheet. Help 1 and 2 are free; Help 3 is the full walkthrough and leaves the question worth 1 point.</p>
 <h2>Browser services</h2>
 <div class="table-wrap"><table><tr><th>Service</th><th>URL</th><th>Username</th><th>Password</th></tr>

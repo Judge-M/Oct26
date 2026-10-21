@@ -32,7 +32,7 @@ class ParticipantRegistrationLandingTests(unittest.TestCase):
         for text in ('Each question starts at **4 points**',
                      'levels 1 and 2 are free',
                      "**3 of the question's 4 points**",
-                     'IRIS is the team\'s incident-management view',
+                     "team's incident-management view",
                      'CTFd to investigate a claimed ticket'):
             self.assertIn(text,guide)
         self.assertNotIn('without a\npoint penalty',guide)
@@ -49,6 +49,17 @@ class ParticipantRegistrationLandingTests(unittest.TestCase):
             'Keep this page open.',
         ):
             self.assertIn(text, self.source)
+
+    def test_private_handout_has_a_five_person_delegation_plan(self):
+        for text in ('Divide the work before anyone starts',
+                     'captain is not a required technical role',
+                     'Person 1 — queue coordinator',
+                     'Person 2 — network and Wazuh analyst',
+                     'Person 3 — disk and endpoint analyst',
+                     'Person 4 — binary and file analyst',
+                     'Person 5 — CTFd recorder and verifier',
+                     'If the captain leaves'):
+            self.assertIn(text,self.source)
 
     def test_private_handout_has_persistent_safe_recovery_actions(self):
         for text in (
