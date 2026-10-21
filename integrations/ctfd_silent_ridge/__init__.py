@@ -269,12 +269,13 @@ def load(app):
             private = registration_store.get(access_code, include_private=True)
             registration['result'] = registration.get('result') or {}
             credentials = private['credentials']
-            iris_url = os.environ['IRIS_PUBLIC_URL']
-            ctfd_url = os.environ['CTFD_PUBLIC_URL']
+            iris_url = os.environ['IRIS_PUBLIC_URL'].rstrip('/') + '/silent-ridge'
+            ctfd_base_url = os.environ['CTFD_PUBLIC_URL'].rstrip('/')
+            ctfd_url = ctfd_base_url + '/login'
             wazuh_url = participant_wazuh_url(os.environ['WAZUH_PUBLIC_URL'])
             guac_url = os.environ.get(
-                'GUACAMOLE_PUBLIC_URL', ctfd_url.rstrip('/') + ':8082')
-            retrieve_url = ctfd_url.rstrip('/') + request.path
+                'GUACAMOLE_PUBLIC_URL', ctfd_base_url + ':8082')
+            retrieve_url = ctfd_base_url + request.path
             copy_text = credential_handout_text(
                 registration, credentials, retrieval_url=retrieve_url,
                 ctfd_url=ctfd_url, iris_url=iris_url, wazuh_url=wazuh_url,
@@ -312,15 +313,17 @@ def load(app):
             return _private_handout_response(
                 make_response('The private handout is not ready yet.\n', 409))
         credentials = registration_store.get(access_code, include_private=True)['credentials']
-        ctfd_url = os.environ['CTFD_PUBLIC_URL']
+        ctfd_base_url = os.environ['CTFD_PUBLIC_URL'].rstrip('/')
+        ctfd_url = ctfd_base_url + '/login'
         text = credential_handout_text(
             registration, credentials,
-            retrieval_url=(ctfd_url.rstrip('/') +
+            retrieval_url=(ctfd_base_url +
                            request.path.rsplit('/download', 1)[0]),
-            ctfd_url=ctfd_url, iris_url=os.environ['IRIS_PUBLIC_URL'],
+            ctfd_url=ctfd_url,
+            iris_url=os.environ['IRIS_PUBLIC_URL'].rstrip('/') + '/silent-ridge',
             wazuh_url=participant_wazuh_url(os.environ['WAZUH_PUBLIC_URL']),
             guac_url=os.environ.get('GUACAMOLE_PUBLIC_URL',
-                                    ctfd_url.rstrip('/') + ':8082'))
+                                    ctfd_base_url + ':8082'))
         response = make_response(text)
         response.headers['Content-Type'] = 'text/plain; charset=utf-8'
         response.headers['Content-Disposition'] = (
@@ -454,3 +457,4 @@ def invalidate_scores():
     # Retry invalidation even when the receipt already exists after an ambiguous commit.
     from CTFd.cache import clear_standings
     clear_standings()
+
