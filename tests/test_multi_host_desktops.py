@@ -44,6 +44,19 @@ class MultiHostDesktopTests(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
+    def _configure_relay(self):
+        local_path = self.runtime / 'local.json'
+        local = json.loads(local_path.read_text(encoding='utf-8'))
+        local['desktop_workers']['worker-02']['guacamole_relay'] = {
+            'address': 'host.docker.internal',
+            'listen_address': '0.0.0.0',
+            'source_cidr': '192.168.48.0/20',
+            'ports': {'desktop-02': 15902},
+        }
+        local_path.write_text(json.dumps(local), encoding='utf-8')
+        self.stack = LocalStack(self.profile, self.runtime, self.runner,
+                                host=FakeHost(self.runtime), receipts=self.receipts)
+
     def test_missing_worker_runtime_configuration_fails_closed(self):
         local_path = self.runtime / 'local.json'
         local = json.loads(local_path.read_text(encoding='utf-8'))
@@ -93,6 +106,64 @@ class MultiHostDesktopTests(unittest.TestCase):
         self.assertNotIn('container', remote)
         self.assertEqual(remote['address'], '192.168.1.3')
         self.assertEqual(remote['port'], 5902)
+
+    def test_guacamole_uses_configured_host_relay(self):
+        self._configure_relay()
+        remote = self.stack._guacamole_desktop(self.stack.profile['desktops'][1])
+        self.assertEqual(remote['address'], 'host.docker.internal')
+        self.assertEqual(remote['port'], 15902)
+
+    def test_relay_requires_an_exact_port_map_for_worker_desktops(self):
+        local_path = self.runtime / 'local.json'
+        local = json.loads(local_path.read_text(encoding='utf-8'))
+        local['desktop_workers']['worker-02']['guacamole_relay'] = {
+            'address': 'host.docker.internal',
+            'source_cidr': '192.168.48.0/20',
+            'ports': {'wrong-desktop': 15902},
+        }
+        local_path.write_text(json.dumps(local), encoding='utf-8')
+        with self.assertRaisesRegex(LifecycleError, 'must map every desktop assigned'):
+            LocalStack(self.profile, self.runtime, self.runner,
+                       host=FakeHost(self.runtime), receipts=self.receipts)
+
+    def test_relay_firewall_is_scoped_and_portproxy_targets_worker(self):
+        self._configure_relay()
+        self.stack._apply_guacamole_relays()
+        joined = [' '.join(call) for call in self.runner.calls]
+        firewall = [call for call in joined if 'New-NetFirewallRule' in call]
+        proxy = [call for call in joined if 'portproxy add v4tov4' in call]
+        self.assertEqual(len(firewall), 1)
+        self.assertIn("-RemoteAddress '192.168.48.0/20'", firewall[0])
+        self.assertIn('-Profile Private', firewall[0])
+        self.assertEqual(len(proxy), 1)
+        self.assertIn('listenaddress=0.0.0.0 listenport=15902', proxy[0])
+        self.assertIn('connectaddress=192.168.1.3 connectport=5902', proxy[0])
+
+    def test_stopped_runtime_reconciles_endpoint_without_rotating_credentials(self):
+        self.stack._ensure_secrets()
+        self.stack._render_specs()
+        credentials_path = self.runtime / 'specs' / 'guac-credentials.json'
+        credentials = credentials_path.read_bytes()
+        self._configure_relay()
+        self.stack._render_specs()
+        config = json.loads((self.runtime / 'specs' / 'guac-config.json').read_text())
+        remote = next(row for row in config['desktops'] if row['id'] == 'desktop-02')
+        self.assertEqual(remote['address'], 'host.docker.internal')
+        self.assertEqual(remote['port'], 15902)
+        self.assertEqual(credentials_path.read_bytes(), credentials)
+
+    def test_relay_cleanup_removes_only_exact_event_resources(self):
+        self._configure_relay()
+        self.stack._remove_guacamole_relays()
+        joined = [' '.join(call) for call in self.runner.calls]
+        proxy = [call for call in joined if 'portproxy delete v4tov4' in call]
+        firewall = [call for call in joined if 'Remove-NetFirewallRule' in call]
+        self.assertEqual(proxy, [
+            'netsh interface portproxy delete v4tov4 '
+            'listenaddress=0.0.0.0 listenport=15902'])
+        self.assertEqual(len(firewall), 1)
+        self.assertIn('Silent-Ridge-Guac-Relay-silent-ridge-test-worker-02-15902',
+                      firewall[0])
 
     def test_volume_wipe_is_refused_before_any_worker_is_stopped(self):
         Journal.create(self.runtime / 'deploy-journal.sqlite', self.profile,

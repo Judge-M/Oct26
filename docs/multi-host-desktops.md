@@ -89,6 +89,54 @@ each generated VNC password over the authenticated Docker context into
 `vnc_password_dir`; the value is never placed in an argv, Compose override, or
 Git file.
 
+### Windows Docker Desktop relay
+
+First try the direct configuration above. Docker Engine hosts normally let
+`guacd` route to the worker LAN address. Some Windows Docker Desktop networks
+do not: the Windows primary can reach the worker, while `guacd` times out
+because it runs behind Docker Desktop's VM/NAT boundary.
+
+When that exact condition is confirmed, add an explicit relay to the worker's
+private `local.json` entry. Map every desktop assigned to that worker:
+
+```json
+"guacamole_relay": {
+  "address": "host.docker.internal",
+  "listen_address": "0.0.0.0",
+  "source_cidr": "192.168.48.0/20",
+  "ports": {
+    "desktop-slot12": 15901,
+    "desktop-slot13": 15902
+  }
+}
+```
+
+- `address` is the primary host name as seen by the Guacamole containers.
+  `host.docker.internal` is the usual Docker Desktop value.
+- `source_cidr` is the exact Docker network containing `guacd`. Find it with
+  `docker inspect` and do not substitute the participant LAN or `0.0.0.0/0`.
+- Each relay port must be unique and must map exactly one remote desktop. The
+  lifecycle forwards it to that desktop's profile `address` and `vnc_port`.
+- Keep this block in private `RUNTIME/local.json`; it is host topology, not
+  reusable profile data.
+
+Run `up`, `down`, and `fence` from an elevated Windows terminal when relays are
+configured. `up` starts the Windows IP Helper service, creates deterministic
+event-owned portproxy entries, and creates Private-profile firewall rules that
+allow only `source_cidr`. `down` and `fence` remove those exact entries and
+rules. They do not modify unrelated portproxy or firewall configuration.
+
+For an existing deployment, pause and run `down` before adding the relay block,
+then run `up` and `start` from the elevated terminal. The stopped-runtime resume
+updates only the Guacamole connection endpoints; existing generated usernames
+and passwords are preserved and the provisioning SQL refuses credential
+rotation.
+
+The listener may bind `0.0.0.0` so Docker Desktop can reach the Windows host;
+the source-scoped firewall rule is therefore part of the security boundary.
+Before opening registration, verify there is no broader inbound rule allowing
+the relay ports from participant devices.
+
 ## Worker preparation
 
 1. Give the worker a stable DHCP reservation and record its exact LAN address.
@@ -146,6 +194,8 @@ Register one test team whose allocation crosses the host boundary. Confirm:
 - `/evidence`, `/originals`, and the prepared Autopsy case are present;
 - Guacamole can reach the worker while a participant laptop cannot connect
   directly to the worker VNC ports;
+- if a Windows relay is configured, its port is reachable from `guacd` but not
+  from a participant laptop, and `down` removes the listener;
 - a worker outage leaves registration retryable rather than issuing a partial
   handout.
 
