@@ -1651,9 +1651,11 @@ http {
                 source = str(ipaddress.IPv4Network(relay['source_cidr'], strict=False))
                 self._run([
                     'powershell.exe', '-NoProfile', '-NonInteractive', '-Command',
-                    ("$existing = Get-NetFirewallRule -Name '%s' "
-                     "-ErrorAction SilentlyContinue; if ($null -ne $existing) { "
-                     "$existing | Remove-NetFirewallRule -ErrorAction Stop }") % rule,
+                    ("$Error.Clear(); $existing = Get-NetFirewallRule -Name '%s' "
+                     "-ErrorAction SilentlyContinue; if ($Error.Count -and "
+                     "$Error[0].FullyQualifiedErrorId -notlike 'CmdletizationQuery_NotFound*') "
+                     "{ throw $Error[0] }; if ($null -ne $existing) { $existing | "
+                     "Remove-NetFirewallRule -ErrorAction Stop }; exit 0") % rule,
                 ])
                 self._run([
                     'powershell.exe', '-NoProfile', '-NonInteractive', '-Command',
@@ -1720,9 +1722,11 @@ http {
             rule = self._guacamole_relay_rule_name(worker_id, relay_port)
             self._run([
                 'powershell.exe', '-NoProfile', '-NonInteractive', '-Command',
-                ("$existing = Get-NetFirewallRule -Name '%s' "
-                 "-ErrorAction SilentlyContinue; if ($null -ne $existing) { "
-                 "$existing | Remove-NetFirewallRule -ErrorAction Stop }") % rule,
+                ("$Error.Clear(); $existing = Get-NetFirewallRule -Name '%s' "
+                 "-ErrorAction SilentlyContinue; if ($Error.Count -and "
+                 "$Error[0].FullyQualifiedErrorId -notlike 'CmdletizationQuery_NotFound*') "
+                 "{ throw $Error[0] }; if ($null -ne $existing) { $existing | "
+                 "Remove-NetFirewallRule -ErrorAction Stop }; exit 0") % rule,
             ])
 
     def _dashboard_bind_ip(self):
