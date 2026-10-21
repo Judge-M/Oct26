@@ -104,27 +104,27 @@
 
 <section id="participant-urls">
   <h2>2. Participant URLs (read these aloud / put on the slide)</h2>
-  <p class="note">All four HTTPS URLs open in each participant's own laptop browser and
-  require the event CA to be trusted first — follow
-  <a href="participant-ca-trust.md">participant-ca-trust.md</a> before any participant login.</p>
+  <p class="note">All four HTTPS URLs open on port 443 in each participant's own
+  laptop browser. Event DNS maps these public names to the event server; no hosts-file
+  edit or private CA installation is required in the normal public-certificate mode.</p>
   <div class="url-row"><span class="label">Guacamole desktops</span>
-    <code data-url-host="https://" data-url-port="8082">https://&lt;LAN-IP&gt;:8082</code>
+    <code>https://guac.cyberexperts.org</code>
     <button class="copy" type="button">Copy</button></div>
   <div class="url-row"><span class="label">IRIS case</span>
-    <code data-url-host="https://" data-url-port="8081">https://&lt;LAN-IP&gt;:8081</code>
+    <code>https://iris.cyberexperts.org</code>
     <button class="copy" type="button">Copy</button></div>
   <div class="url-row"><span class="label">CTFd</span>
-    <code data-url-host="https://" data-url-port="8083">https://&lt;LAN-IP&gt;:8083</code>
+    <code>https://ctfd.cyberexperts.org</code>
     <button class="copy" type="button">Copy</button></div>
   <div class="url-row"><span class="label">Wazuh dashboard</span>
-    <code data-url-host="https://" data-url-port="8443">https://&lt;LAN-IP&gt;:8443</code>
+    <code>https://wazuh.cyberexperts.org</code>
     <button class="copy" type="button">Copy</button></div>
   <div class="url-row"><span class="label">Signed CRL (must stay reachable)</span>
     <code data-url-host="http://" data-url-port="8080" data-url-path="/root-ca.crl">http://&lt;LAN-IP&gt;:8080/root-ca.crl</code>
     <button class="copy" type="button">Copy</button></div>
-  <p class="warn">Never point participants at anything else on this machine. Port 8080
-  serves the signed CRL only; the operator material on this page must never reach a
-  participant-reachable listener.</p>
+  <p class="warn">The LAN-IP field affects only the signed CRL/fallback route. Never
+  point participants at anything else on this machine. Port 8080 serves the signed
+  CRL only; operator material on this page must never reach a participant listener.</p>
 </section>
 
 <section id="operator-docs">
@@ -152,7 +152,7 @@
 </section>
 
 <section id="run-of-show">
-  <h2>4. Run-of-show (authored pace, 275 minutes)</h2>
+  <h2>4. Run-of-show (six-hour hard stop, 360 minutes)</h2>
   <p class="no-print">Set the start time to put wall-clock bounds on every segment.
   Times derive from <a href="schedule-model.md">docs/schedule-model.md</a> (authored
   multiplier 1.0); do not improvise the agenda under time pressure — see its pace
@@ -165,14 +165,14 @@
       <tr><td>Orientation and tool familiarization</td><td>facilitated</td>
           <td data-minutes="25">25</td><td class="clock-from"></td><td class="clock-to"></td></tr>
       <tr><td>Investigation block (ticket work)</td><td>investigation</td>
-          <td data-minutes="195">195</td><td class="clock-from"></td><td class="clock-to"></td></tr>
+          <td data-minutes="280">280</td><td class="clock-from"></td><td class="clock-to"></td></tr>
       <tr><td>Inject briefing: late evidence release</td><td>facilitated</td>
           <td data-minutes="10">10</td><td class="clock-from"></td><td class="clock-to"></td></tr>
       <tr><td>Break</td><td>break</td>
           <td data-minutes="15">15</td><td class="clock-from"></td><td class="clock-to"></td></tr>
       <tr><td>After-action review</td><td>aar</td>
           <td data-minutes="30">30</td><td class="clock-from"></td><td class="clock-to"></td></tr>
-      <tr class="seg-total"><td>Total</td><td></td><td>275</td><td></td><td class="clock-to"></td></tr>
+      <tr class="seg-total"><td>Total</td><td></td><td>360</td><td></td><td class="clock-to"></td></tr>
     </tbody>
   </table>
   <p class="note">After the AAR: <code>backup</code>, then <code>down</code> — teardown

@@ -63,7 +63,7 @@ not assumed from local tests.
 | Requirement | Status and evidence |
 |---|---|
 | Adjustable teams/VMs and explicit sharing | Configuration and SQL generator tested; actual Guacamole/desktop sessions untested |
-| One active ticket/one owner; simultaneous claims | Implemented and local race tests passed |
+| Up to three active lanes per team; same ticket may be claimed independently by each team | Implemented and local race tests passed |
 | Transfer with retained progress and original-team points | Implemented and tested in core |
 | Current-ticket question gating | Core HTTP boundary tested; actual CTFd route checks pending CI |
 | Exactly-once points/comments/tasks | Core outbox retry test passed against simulated sink; actual application receipts need runtime checks |

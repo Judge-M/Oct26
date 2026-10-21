@@ -33,8 +33,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from expanded.author import build
 from expanded.workload import schedule as simulate
 
-WINDOW_MIN, WINDOW_MAX = 240, 300
-DEFAULT_TARGET = 270
+WINDOW_MIN, WINDOW_MAX = 330, 390
+DEFAULT_TARGET = 360
+DEFAULT_INVESTIGATION_MINUTES = 280
 
 # Facilitated segments around the investigation block. AAR and breaks are
 # listed separately from investigation time by design (F04 acceptance).
@@ -68,10 +69,10 @@ def plan(tickets, teams=10, multiplier=1.0, segments=None, target=DEFAULT_TARGET
     if teams < 1:
         raise ValueError('teams must be positive')
     segments = DEFAULT_SEGMENTS if segments is None else segments
-    investigation = simulate(scaled_tickets(tickets, multiplier), teams)['makespan']
+    modeled_makespan = simulate(scaled_tickets(tickets, multiplier), teams)['makespan']
     laid_out, total = [], 0
     for segment in segments:
-        minutes = investigation if segment['kind'] == 'investigation' else int(segment['minutes'])
+        minutes = DEFAULT_INVESTIGATION_MINUTES if segment['kind'] == 'investigation' else int(segment['minutes'])
         laid_out.append(dict(segment, minutes=minutes))
         total += minutes
     facilitated = sum(s['minutes'] for s in laid_out if s['kind'] == 'facilitated')
@@ -82,7 +83,8 @@ def plan(tickets, teams=10, multiplier=1.0, segments=None, target=DEFAULT_TARGET
         'multiplier': multiplier,
         'target_minutes': target,
         'window': [WINDOW_MIN, WINDOW_MAX],
-        'investigation_minutes': investigation,
+        'investigation_minutes': DEFAULT_INVESTIGATION_MINUTES,
+        'modeled_makespan_minutes': modeled_makespan,
         'facilitated_minutes': facilitated,
         'break_minutes': breaks,
         'aar_minutes': aar,
@@ -90,6 +92,7 @@ def plan(tickets, teams=10, multiplier=1.0, segments=None, target=DEFAULT_TARGET
         'segments': laid_out,
         'fits_window': WINDOW_MIN <= total <= WINDOW_MAX,
         'fits_target': abs(total - target) <= 15,
+        'fits_investigation_allocation': modeled_makespan <= DEFAULT_INVESTIGATION_MINUTES,
     }
 
 
@@ -107,7 +110,7 @@ def render(plans, target=DEFAULT_TARGET):
         'Facilitated segments, breaks and the AAR are accounted separately from '
         'investigation activity.',
         '',
-        'Target window: %d-%d minutes (midpoint %d). Ten teams, one shared desktop each.'
+        'Target window: %d-%d minutes (midpoint %d). Ten teams, three desktop lanes each.'
         % (WINDOW_MIN, WINDOW_MAX, target),
         '',
         '## Agenda at authored pace (multiplier 1.0)',
@@ -128,22 +131,24 @@ def render(plans, target=DEFAULT_TARGET):
         '',
         '## Pace sensitivity',
         '',
-        'The authored 65-minute ticket allowance is unmeasured. This table rescales it '
-        'to show how beginner pace moves the investigation makespan and the event total.',
+        'The authored 65-minute ticket allowance is unmeasured. The agenda holds the '
+        'investigation block at 280 minutes; this table shows whether the modeled '
+        'three-lane makespan fits that allocation.',
         '',
-        '| Pace multiplier | Investigation makespan | Event total | Fits 240-300 |',
+        '| Pace multiplier | Modeled three-lane makespan | Agenda total | Fits investigation block |',
         '|---|---|---|---|',
     ]
     for entry in plans:
         lines.append('| %.2fx | %d | %d | %s |' % (
-            entry['multiplier'], entry['investigation_minutes'], entry['total_minutes'],
-            'yes' if entry['fits_window'] else 'NO'))
+            entry['multiplier'], entry['modeled_makespan_minutes'], entry['total_minutes'],
+            'yes' if entry['fits_investigation_allocation'] else 'NO'))
     lines += [
         '',
-        'Reading: below 1.0x the event runs short (facilitated segments pad it); '
-        'above ~1.4x the investigation block alone consumes the window and the agenda '
-        'must shed facilitated time or accept overrun. The honest fix for a durable gap '
-        'is more authored content (separate small content tasks), not agenda padding.',
+        'Reading: the agenda is a six-hour hard stop, not a promise that the authored '
+        'estimates fit. The current 1.0x model exceeds the investigation allocation. '
+        'Paid walkthroughs and parallel team roles may reduce observed time, but only a '
+        'representative rehearsal can validate completion; facilitators must monitor '
+        'pace and announce the hard stop rather than silently extending the event.',
         '',
     ]
     return '\n'.join(lines)
@@ -161,7 +166,8 @@ def main():
     plans = sensitivity(tickets, args.teams)
     args.output.write_text(render(plans, args.target), encoding='utf-8')
     print(json.dumps([{k: p[k] for k in ('multiplier', 'investigation_minutes',
-                                         'total_minutes', 'fits_window')}
+                                         'modeled_makespan_minutes', 'total_minutes',
+                                         'fits_window', 'fits_investigation_allocation')}
                       for p in plans], indent=2))
 
 

@@ -14,6 +14,10 @@ class NarrativeTests(unittest.TestCase):
         self.assertIn('LANTERN',data['premise'])
         self.assertEqual(data['operational_update']['trigger_after'],
                          ['T%02d' % number for number in range(1,11)])
+        self.assertIn('wider scope',data['operational_update']['title'].lower())
+        self.assertEqual(len(data['operational_update']['available_now']),3)
+        self.assertIn('configured task is not proof of execution',
+                      data['operational_update']['guardrail'].lower())
         self.assertTrue(all(row['ticket'].startswith('T') for row in data['timeline']))
         self.assertIn('LIMITED DISCLOSURE CONFIRMED',final_assessment()['status'])
         self.assertIn('CEDAR',final_assessment()['summary'])
@@ -68,7 +72,10 @@ class NarrativeTests(unittest.TestCase):
                      'story.tools.items()','context.handoff','Shared progress',
                      'final-assessment','story.conclusion.actions','Room-wide closing brief ready',
                      'operational-update','Verified incident chronology','correlation-workspace',
-                     'capstone-workspace','formatElapsed','localStorage'):
+                      'capstone-workspace','formatElapsed','localStorage','current-questions',
+                      'completed-history','NEW EVIDENCE RELEASED','What command now knows',
+                      'Decision requirement','Assessment standard','operational-update-detail',
+                      "removeAttribute('open')",'acknowledgeUpdate'):
             self.assertIn(text,PAGE)
 
 

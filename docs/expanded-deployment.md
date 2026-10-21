@@ -79,9 +79,8 @@ python deployment/expanded/guacamole.py expanded/config.json PRIVATE-CREDENTIALS
 ```
 
 The private input contains `teams: {team-id: {username, password}}` and
-`desktops: {desktop-id: {password}}`. The classroom deployment intentionally
-uses the memorable `teamN` / `teamN` team logins and `admin` / `admin` operator
-login; per-desktop VNC passwords remain private and are generated separately.
+`desktops: {desktop-id: {password}}`. A fresh runtime generates random team,
+operator, and per-desktop credentials. Never substitute memorable defaults.
 SQL contains VNC passwords and must stay private. Rotate/remove Guacamole's
 upstream default administrator account.
 
@@ -91,10 +90,11 @@ permits the configured simultaneous connection count; `shared: false` sets both
 database connection limits to one. See the [Guacamole connection-limit schema](https://guacamole.apache.org/doc/1.5.3/gug/jdbc-auth.html).
 No assumption about independent RDP logins sharing a session is made.
 
-Team and desktop lists are configurable. Normally assign one desktop per team.
-Additional devices can open IRIS/CTFd directly while a teammate uses the desktop.
-The mapping currently supports one shared IRIS login and one CTFd team ID per
-team. Unique CTFd participant accounts can belong to the same team.
+Team and desktop lists are configurable. The event profile assigns three isolated
+desktop connections per team, supporting three concurrent ticket lanes. Team
+members open IRIS, CTFd, and Wazuh directly on their own laptops. The mapping
+supports one IRIS team login and five individual CTFd seats attached to the same
+team score.
 
 ## Linux template
 

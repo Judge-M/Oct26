@@ -78,6 +78,22 @@ SPECS = [
 ('Can WS-31 be cleared with the available telemetry?','no'),('Does the evidence establish adversary intent?','no')])
 ]
 
+# Operational phase gates are team-local in the controller. Preserve each
+# ticket's evidence-specific prerequisites, then require the prior phase as a
+# whole so the midpoint update is a real release rather than a retrospective
+# banner over evidence that was available from the beginning.
+for index, spec in enumerate(list(SPECS)):
+    ticket = 'T%02d' % (index + 1)
+    required = set(spec[4])
+    if ticket in {'T11','T12','T13','T14','T15'}:
+        required.update('T%02d' % number for number in range(1, 11))
+    elif ticket in {'T16','T17','T18','T19'}:
+        required.update('T%02d' % number for number in range(11, 16))
+    elif ticket == 'T20':
+        required.update('T%02d' % number for number in range(16, 20))
+    SPECS[index] = (*spec[:4], sorted(required), spec[5])
+
+
 LIMITS = {
  'Wireshark':'Replayed or reconstructed evidence; transmission metadata does not establish human receipt, reading, or intent.',
  'Autopsy':'Prepared evidence is limited to the specified collection. Presence of an artifact is not proof of every related action.',

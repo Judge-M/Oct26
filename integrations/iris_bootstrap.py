@@ -176,7 +176,8 @@ def register(app):
             os.environ.get('RIDGE_REGISTRATION_DB', '/registration/registrations.sqlite'),
             RegistrationConfig(
                 max_teams=int(os.environ.get('RIDGE_REGISTRATION_MAX_TEAMS', '10')),
-                members_per_team=int(os.environ.get('RIDGE_REGISTRATION_MEMBERS', '5'))))
+                members_per_team=int(os.environ.get('RIDGE_REGISTRATION_MEMBERS', '5'))),
+            read_only=True)
         registration = store.get_by_id(registration_id, include_private=True)
         if registration['status'] not in ('provisioning', 'ready'):
             raise click.ClickException('registration is not being provisioned')

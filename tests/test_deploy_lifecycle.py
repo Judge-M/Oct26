@@ -19,6 +19,21 @@ from ridge.deploy.journal import Journal
 
 
 class WazuhOfflineConfigTests(unittest.TestCase):
+    def test_dashboard_pins_default_index_without_widening_participant_permissions(self):
+        source = ('opensearch.hosts: https://wazuh.indexer:9200\n'
+                  'uiSettings.overrides.defaultRoute: /app/wz-home\n')
+        rendered = deploy_local.offline_wazuh_dashboard_config(source)
+        self.assertIn('uiSettings.overrides.defaultIndex: silent-ridge-timed', rendered)
+        self.assertEqual(deploy_local.offline_wazuh_dashboard_config(rendered), rendered)
+        self.assertNotIn('kibana_all_write', rendered)
+        self.assertNotIn('multitenancy.enabled: true', rendered)
+
+    def test_dashboard_rejects_duplicate_default_index_overrides(self):
+        source = ('uiSettings.overrides.defaultIndex: first\n'
+                  'uiSettings.overrides.defaultIndex: second\n')
+        with self.assertRaisesRegex(LifecycleError, 'duplicate defaultIndex'):
+            deploy_local.offline_wazuh_dashboard_config(source)
+
     def test_private_indexer_admin_hash_replaces_only_admin(self):
         old = '$2y$12$' + 'b' * 53
         new = '$2y$12$' + 'a' * 53
@@ -269,6 +284,10 @@ class FakeRunner:
                         '  URI:http://192.168.1.200:8080/root-ca.crl\n')
             result = 'does match' if self.certificate_matches else 'does NOT match'
             return 'IP %s %s certificate\n' % (argv[-1], result)
+        if argv[:2] == ['docker', 'run'] and 'sha256sum' in joined:
+            first = 'a' * 64
+            second = first if self.certificate_matches else 'b' * 64
+            return '%s  -\n%s  -\n' % (first, second)
         return ''
 
     def _compose(self, argv, joined, check):
@@ -426,6 +445,16 @@ class LifecycleTests(unittest.TestCase):
                         and 'participant-tls' in call]
         self.assertEqual(len(central_apps), 1)
         self.assertIn('--wait', central_apps[0])
+        app_calls = [' '.join(call) for call in self.runner.calls
+                     if ' up ' in ' '.join(call) and '--wait' in call]
+        wazuh_app = next(i for i, call in enumerate(app_calls)
+                         if 'compose.wazuh.yaml' in call and 'wazuh-dashboard' in call)
+        guacamole_app = next(i for i, call in enumerate(app_calls)
+                             if 'compose.guacamole.yaml' in call and ' guacamole' in call)
+        central_app = next(i for i, call in enumerate(app_calls)
+                           if 'compose.central.yaml' in call and 'participant-tls' in call)
+        self.assertLess(wazuh_app, central_app)
+        self.assertLess(guacamole_app, central_app)
         desktop_up = [call for call in self.runner.calls
                       if 'compose.desktops.yaml' in ' '.join(call) and 'up' in call]
         self.assertEqual(len(desktop_up), 1)
@@ -466,14 +495,20 @@ class LifecycleTests(unittest.TestCase):
         guac = json.loads((self.runtime / 'specs' / 'guac-credentials.json')
                           .read_text(encoding='utf-8'))
         self.assertEqual(guac['facilitator']['username'], 'admin')
-        self.assertEqual((self.runtime / 'secrets' / 'wazuh_admin').read_text().strip(), 'admin:admin')
-        self.assertEqual((self.runtime / 'secrets' / 'wazuh_writer').read_text().strip(), 'writer:writer')
-        self.assertEqual((self.runtime / 'secrets' / 'wazuh_reader').read_text().strip(), 'team1:team1')
+        wazuh_admin = (self.runtime / 'secrets' / 'wazuh_admin').read_text().strip()
+        wazuh_writer = (self.runtime / 'secrets' / 'wazuh_writer').read_text().strip()
+        wazuh_reader = (self.runtime / 'secrets' / 'wazuh_reader').read_text().strip()
+        self.assertTrue(wazuh_admin.startswith('admin:'))
+        self.assertTrue(wazuh_writer.startswith('writer:'))
+        self.assertTrue(wazuh_reader.startswith('participant:'))
+        self.assertNotEqual(wazuh_admin, 'admin:admin')
+        self.assertNotEqual(wazuh_writer, 'writer:writer')
+        self.assertNotEqual(wazuh_reader, 'team1:team1')
         team_creds = json.loads((self.runtime / 'secrets' / 'team-credentials.json').read_text())
         self.assertEqual(team_creds['teams']['team-01']['iris_login'], 'team1')
-        self.assertEqual(team_creds['teams']['team-01']['iris_password'], 'team1')
+        self.assertNotEqual(team_creds['teams']['team-01']['iris_password'], 'team1')
         self.assertEqual(team_creds['teams']['team-01']['guac_username'], 'team1')
-        self.assertEqual(team_creds['teams']['team-01']['guac_password'], 'team1')
+        self.assertNotEqual(team_creds['teams']['team-01']['guac_password'], 'team1')
         self.assertEqual(team_creds['teams']['team-01']['ctfd_name'], 'team1')
         self.assertIn('guacamole_system_permission',
                       (self.runtime / 'guac-init' / '002-provision.sql')
@@ -511,6 +546,7 @@ class LifecycleTests(unittest.TestCase):
         central_env = (self.runtime / 'env' / 'central.env').read_text()
         self.assertIn('IRIS_PUBLIC_URL=https://192.168.1.200:8081', central_env)
         self.assertIn('CTFD_PUBLIC_URL=https://192.168.1.200:8083', central_env)
+        self.assertIn('WAZUH_PUBLIC_URL=https://192.168.1.200:8443', central_env)
 
     def test_external_tls_uses_public_hostnames_and_platform_trust(self):
         certificate = self.runtime / 'public-fullchain.pem'
@@ -536,6 +572,49 @@ class LifecycleTests(unittest.TestCase):
         self.assertIn('server_name guac.cyberexperts.org;', rendered)
         self.assertIn('location = / { return 302 /guacamole/; }', rendered)
         self.assertIn('proxy_pass https://wazuh-dashboard:5601;', rendered)
+
+    def test_external_tls_rerun_preserves_internal_wazuh_certificates(self):
+        certificate = self.runtime / 'public-fullchain.pem'
+        key = self.runtime / 'public-key.pem'
+        certificate.write_text('certificate', encoding='utf-8')
+        key.write_text('key', encoding='utf-8')
+        self.stack.local['tls'] = {
+            'mode': 'external',
+            'certificate': str(certificate),
+            'key': str(key),
+            'hostnames': {
+                'iris': 'iris.cyberexperts.org',
+                'ctfd': 'ctfd.cyberexperts.org',
+                'guac': 'guac.cyberexperts.org',
+                'wazuh': 'wazuh.cyberexperts.org',
+            },
+        }
+        certs = self.runtime / 'wazuh-certs'
+        certs.mkdir()
+        for name in ('root-ca.pem', 'root-ca-key.pem', 'root-ca.crl',
+                     'dashboard.pem', 'dashboard-key.pem',
+                     'indexer.pem', 'indexer-key.pem', 'manager.pem', 'manager-key.pem',
+                     'admin.pem', 'admin-key.pem'):
+            (certs / name).write_text('preserved-' + name, encoding='utf-8')
+        self.stack._prepare_wazuh_certificates(certs, '192.168.1.200')
+        self.assertFalse(any('/generate-certs.sh' in call for call in self.runner.calls))
+        self.assertEqual((certs / 'indexer.pem').read_text(), 'preserved-indexer.pem')
+        self.assertEqual((certs / 'participant.pem').read_text(), 'certificate')
+        self.assertEqual((certs / 'dashboard.pem').read_text(), 'preserved-dashboard.pem')
+
+    def test_external_tls_rerun_rejects_incomplete_internal_wazuh_certificates(self):
+        self.stack.local['tls'] = {
+            'mode': 'external', 'certificate': str(self.runtime / 'public.pem'),
+            'key': str(self.runtime / 'public-key.pem'),
+            'hostnames': {name: name + '.cyberexperts.org'
+                          for name in ('iris', 'ctfd', 'guac', 'wazuh')},
+        }
+        certs = self.runtime / 'wazuh-certs'
+        certs.mkdir()
+        (certs / 'root-ca.pem').write_text('ca', encoding='utf-8')
+        with self.assertRaisesRegex(LifecycleError, 'incomplete internal Wazuh'):
+            self.stack._prepare_wazuh_certificates(certs, '192.168.1.200')
+        self.assertFalse(any('/generate-certs.sh' in call for call in self.runner.calls))
 
     def test_existing_dashboard_certificate_without_bind_address_fails_closed(self):
         self.stack.local['bind_ip'] = '192.168.1.200'

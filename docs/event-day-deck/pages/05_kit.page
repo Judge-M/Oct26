@@ -10,7 +10,7 @@ elements:
   - elementId: title
     elementType: text
     bounds: [64, 66, 832, 40]
-    content: {style: "$title", wrap: false, text: "Your kit: four tabs in your own browser, one shared desktop"}
+    content: {style: "$title", wrap: false, text: "Four browser tabs and three team desktops"}
   - elementId: rule
     elementType: line
     bounds: [64, 116, 832, 2]
@@ -38,17 +38,17 @@ elements:
         - text: ADDRESS
         - text: WHAT IT'S FOR
       - - text: IRIS — incident queue
-        - text: ":8081"
+        - text: iris.cyberexperts.org
         - text: Claim and relinquish tickets; read shared findings as they publish
       - - text: CTFd — questions
-        - text: ":8083"
+        - text: ctfd.cyberexperts.org
         - text: See your ticket's questions, submit answers, watch the scoreboard
       - - text: Wazuh — log search
-        - text: ":8443 (HTTPS)"
+        - text: wazuh.cyberexperts.org
         - text: Search the historical SIEM records for your ticket's time range
-      - - text: Team desktop
-        - text: ":8082"
-        - text: "The only thing that needs the remote desktop: Autopsy, Wireshark, Cutter, files"
+      - - text: Three team desktops
+        - text: guac.cyberexperts.org
+        - text: "Forensics A, Forensics B, Analysis: Autopsy, Wireshark, Cutter, files"
   - elementId: key-title
     elementType: text
     bounds: [64, 412, 300, 22]
@@ -60,8 +60,8 @@ elements:
       style: "$body"
       fontSize: 15
       text: |
-        <p>Do all browsing in <strong>your own laptop browser</strong>. Inside the shared desktop, use only the
-        investigation tools — a browser opened in there slows the desktop down for your whole team.</p>
+        <p>Do all browsing in <strong>your own laptop browser</strong>. Inside the three desktops, use only the
+        investigation tools — opening browsers there consumes event capacity and adds lag.</p>
   - elementId: footer
     elementType: text
     bounds: [64, 505, 700, 18]

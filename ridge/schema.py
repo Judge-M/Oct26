@@ -1,5 +1,5 @@
 """Explicit, transactional upgrades. Stop old workers before migrating."""
-VERSION = 5
+VERSION = 6
 
 
 def _v2(con):
@@ -84,6 +84,59 @@ def _v5(con):
     con.execute('PRAGMA user_version=5')
 
 
+def _v6(con):
+    """Independent per-team ticket progression and answer credit.
+
+    ``tickets`` and ``questions`` remain immutable shared content.  Mutable
+    claim/completion state moves to ``team_tickets`` and answers are keyed by
+    both team and question.  Existing runs are preserved: the former global
+    state is copied to every existing team, which is exact for the one-team
+    rehearsals that predate this schema and fail-safe for an already-shared run.
+    """
+    tables = {row[0] for row in con.execute(
+        "SELECT name FROM sqlite_master WHERE type='table'")}
+    if {'teams', 'tickets'} <= tables:
+        con.execute('''CREATE TABLE IF NOT EXISTS team_tickets(
+            team TEXT NOT NULL REFERENCES teams(id),
+            ticket TEXT NOT NULL REFERENCES tickets(id),
+            status TEXT NOT NULL CHECK(status IN ('locked','available','active','complete')),
+            generation INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY(team,ticket))''')
+        ticket_columns = {row[1] for row in con.execute('PRAGMA table_info(tickets)')}
+        if {'status', 'owner', 'generation'} <= ticket_columns:
+            con.execute('''INSERT OR IGNORE INTO team_tickets(team,ticket,status,generation)
+                SELECT teams.id,tickets.id,
+                  CASE WHEN tickets.status='active' AND tickets.owner<>teams.id THEN 'available'
+                       ELSE tickets.status END,
+                  tickets.generation
+                FROM teams CROSS JOIN tickets''')
+    answer_columns = [row[1] for row in con.execute('PRAGMA table_info(answers)')]
+    if answer_columns:
+        pk = {row[1]: row[5] for row in con.execute('PRAGMA table_info(answers)')}
+        if pk.get('team', 0) == 0:
+            con.execute('ALTER TABLE answers RENAME TO answers_global_v5')
+            con.execute('''CREATE TABLE answers(
+                team TEXT NOT NULL REFERENCES teams(id),
+                question TEXT NOT NULL REFERENCES questions(id),
+                timestamp TEXT NOT NULL,
+                event TEXT UNIQUE NOT NULL,
+                value INTEGER NOT NULL DEFAULT 1,
+                PRIMARY KEY(team,question))''')
+            con.execute('''INSERT INTO answers(team,question,timestamp,event,value)
+                SELECT team,question,timestamp,event,value FROM answers_global_v5''')
+            con.execute('DROP TABLE answers_global_v5')
+    outbox_columns = {row[1] for row in con.execute('PRAGMA table_info(outbox)')}
+    if 'team' not in outbox_columns:
+        con.execute('ALTER TABLE outbox ADD COLUMN team TEXT')
+    if 'team_tickets' in {row[0] for row in con.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'")}:
+        con.execute('CREATE INDEX IF NOT EXISTS team_tickets_status ON team_tickets(team,status)')
+    if 'answers' in {row[0] for row in con.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'")}:
+        con.execute('CREATE INDEX IF NOT EXISTS answers_question ON answers(question)')
+    con.execute('PRAGMA user_version=6')
+
+
 def migrate(con):
     version = con.execute('PRAGMA user_version').fetchone()[0]
     if version > VERSION:
@@ -96,3 +149,5 @@ def migrate(con):
         _v4(con)
     if version < 5:
         _v5(con)
+    if version < 6:
+        _v6(con)

@@ -52,14 +52,14 @@ elements:
       bold: true
       color: "$slate"
       wrap: false
-      text: Your setup — four browser tabs and one desktop
+      text: Your setup — registration, four tabs, three desktops
   - elementId: part2-body
     elementType: text
     bounds: [170, 320, 660, 60]
     content:
       style: "$body"
       text: |
-        <p>We walk through every login, click by click, until your team has claimed
+        <p>We walk through registration and every login, click by click, until your team has claimed
         its first ticket and answered its first question. No prior knowledge assumed.</p>
   - elementId: exit-label
     elementType: text

@@ -63,7 +63,8 @@ class QueueStateTests(unittest.TestCase):
 
     def test_page_template_renders_the_explanations(self):
         for text in ('id="queue-status"','{{queue.status}}','queue.notes.get',
-                     'Claim ticket</button></form>{% else %}',"'Choose one available ticket' if queue.claimable"):
+                     'Claim ticket</button></form>{% else %}',
+                     "'Choose up to three available tickets' if queue.claimable"):
             self.assertIn(text,PAGE)
 
 

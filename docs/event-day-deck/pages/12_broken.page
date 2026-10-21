@@ -41,7 +41,7 @@ elements:
       - - text: Points or findings not showing yet
         - text: Give it about ten seconds — scoring and findings synchronize in the background
       - - text: Desktop frozen or disconnected
-        - text: Reconnect from the :8082 tab; the desktop and your case are exactly where you left them
+        - text: Reconnect from the Guacamole tab; choose the same named connection and your workspace will still be there
       - - text: Login refused everywhere
         - text: Check you're on the right app with the right login kind (team vs seat vs Guacamole), then ask a facilitator
   - elementId: help-title
@@ -56,7 +56,7 @@ elements:
       fontSize: 15
       text: |
         <p>Raise a hand. Facilitators can pause the exercise clock, recover a stuck ticket,
-        or re-issue a login — you cannot break the exercise by asking.</p>
+        retry provisioning, rotate a lost private retrieval link, or recover a stuck ticket.</p>
   - elementId: footer
     elementType: text
     bounds: [64, 505, 700, 18]

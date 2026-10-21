@@ -20,7 +20,9 @@ def contract():
         raise ValueError('Scenario narrative phases must cover T01 through T20 exactly once')
     update=data['operational_update']
     triggers=set(update.get('trigger_after') or ())
-    if not update.get('id') or not update.get('title') or not update.get('message') or not triggers <= expected:
+    update_required=('id','classification','title','sender','message','significance',
+                     'available_now','decision_requirement','priorities','guardrail')
+    if any(not update.get(field) for field in update_required) or not triggers <= expected:
         raise ValueError('Scenario narrative operational update is incomplete')
     timeline=data['timeline']
     if any(not row.get('time') or row.get('ticket') not in expected or

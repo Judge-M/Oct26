@@ -6,7 +6,7 @@ event hardware yet, it says so. One page of event-day instructions, recovery
 appendices after.
 
 Conventions: `P` = your profile JSON (copy of
-`deployment/profiles/example-two-team.json`, adjusted), `R` = your private
+`deployment/profiles/example-dynamic.json`, adjusted), `R` = your private
 runtime directory (secrets, state, inventories — never commit it, never give it
 to participants). Windows operators may use `.\ridge.ps1 <action> -Profile P
 -Runtime R` instead of `python -m ridge.deploy`.
@@ -24,20 +24,21 @@ to participants). Windows operators may use `.\ridge.ps1 <action> -Profile P
    it re-probes, it never resets state.
 3. **Check readiness** — `python -m ridge.deploy status --profile P --runtime R`.
    You want `event_ready: true`, all stages verified.
-4. **Distribute team logins** — from `R/secrets/team-credentials.json` (private).
-   Each team gets
-   its IRIS/CTFd account and its Guacamole desktop connection. For this
-   classroom event the operator login is intentionally memorable: use
-   `admin` / `admin` for IRIS, CTFd, Guacamole, and Wazuh. Team logins use
-   `team1` / `team1`, `team2` / `team2`, and so on. Keep the operator login
-   private and never give it to participants. The stock Guacamole `guacadmin`
-   login remains disabled.
-5. **Start the exercise** — `python -m ridge.deploy start --profile P --runtime R`
-   → `RUNNING`.
+4. **Prepare check-in** — registration starts closed. Read the enrollment code
+   from `R/secrets/registration-enrollment-code`; do not put it on a public
+   screen before check-in. Facilitator and participant passwords are generated
+   randomly and must never be replaced with `admin/admin` or `teamN/teamN`.
+5. **Start the exercise and open registration** — run
+   `python -m ridge.deploy start --profile P --runtime R`, then
+   `python -m ridge.deploy registration-open --profile P --runtime R`.
+   Send captains to `https://ctfd.cyberexperts.org/silent-ridge/register`.
+   Each private retrieval page supplies five CTFd seats and the team's IRIS,
+   Wazuh, Guacamole, and three desktop connection details. Close registration
+   after check-in with `registration-close`.
 6. **During play** — announcements:
-   `python -m ridge.cli announce --operator YOU --text "..."`.
+   `python -m ridge.cli --state R/state/state.sqlite announce --operator YOU --text "..."`.
    Free a stuck ticket:
-   `python -m ridge.cli recover T03 --generation N --operator YOU --reason "..."`
+   `python -m ridge.cli --state R/state/state.sqlite recover T03 --team team-03 --generation N --operator YOU --reason "..."`
    (take `N` from `status`; solved answers and points are kept).
 7. **Breaks / end of play** — `python -m ridge.deploy pause --profile P --runtime R`.
    The clock freezes; findings and scores persist.
@@ -55,12 +56,11 @@ to participants). Windows operators may use `.\ridge.ps1 <action> -Profile P
    (data kept). Add `--volumes` only when you mean it: it wipes all event data
    and **refuses unless a verified backup exists**.
 
-Participant URLs (default ports; set `BIND_IP` to the LAN address so participant
-laptops can reach them): Guacamole desktops `:8082`, IRIS case `:8081`,
-CTFd `:8083`, Wazuh dashboard `:8443` (HTTPS; the shared read-only login is in
-the runtime at `secrets/wazuh_reader` — hand it out with the team accounts),
-and the signed certificate-revocation list at HTTP `:8080/root-ca.crl`.
-Keep the CRL port reachable from participant devices.
+Participant URLs in the public-certificate event configuration are
+`https://guac.cyberexperts.org`, `https://iris.cyberexperts.org`,
+`https://ctfd.cyberexperts.org`, and `https://wazuh.cyberexperts.org`, all on
+port 443. Generated-CA fallback ports and its CRL are documented separately in
+`docs/participant-ca-trust.md`.
 All four open in the participant's own laptop browser — the
 remote desktop is only needed for the native tools (Autopsy, Wireshark,
 Cutter, file manager), so steer participants away from browsing inside it:
@@ -75,15 +75,17 @@ adds VNC lag.
 | `start` refuses | A stage is unverified or preflight failed | `status` shows which gate; fix, re-run `up`, then `start` |
 | Team can't claim a fresh ticket | "still being prepared in IRIS; retry shortly" | Transient — the IRIS task is being created; retry in a few seconds |
 | Answers accepted but no points showing | Outbox backlog: worker logs (`docker logs <event>-integration-1`) | Fix connectivity/credentials; the worker retries — do **not** re-award points or edit receipts |
-| A team disconnects mid-ticket | `status` shows the ticket active with an absent owner | `ridge.cli recover <ticket> --generation N --reason "..."` releases it |
+| A team disconnects mid-ticket | Its queue shows the ticket active | `ridge.cli --state R/state/state.sqlite recover <ticket> --team <team-id> --generation N --operator YOU --reason "..."` releases only that team's lane |
+| Registration stays pending or says operator help is needed | `registration-status` shows the row and attempt count | Fix the named service, then use `registration-retry --registration-id N`; rotate a lost retrieval link with `registration-rotate-link` |
 | Desktop sluggish | Host CPU/RAM saturated (`docker stats`) | Pause non-critical team work; stagger Autopsy ingests; do not restart containers mid-event |
 | Anything feels lost | Don't improvise | `backup`, then Appendix B |
 
 ## Appendix A — Private credentials and backups
 
 - All secrets live only under `R/` (env files, `secrets/`, `inventories/`).
-  Retrieve team accounts from `R/secrets/team-credentials.json`; bridge credentials from
-  `R/secrets/`. None of this is in git.
+  Dynamic-team accounts are retrieved through each team's private registration
+  link; the runtime files are operator recovery material, not handouts. None of
+  this is in git.
 - Backups: `R/backups/<UTC timestamp>/`, each with `manifest.json`,
   `SHA256SUMS.json`, and `RECOVERY-COMPLETE.json` when complete. Secrets inside
   a recovery set are encrypted (`RIDGE_BACKUP_KEY` env at backup/restore time;

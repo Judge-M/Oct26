@@ -278,7 +278,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('action', choices=('doctor', 'build', 'verify-build', 'status',
                                          'up', 'start', 'pause', 'backup', 'restore',
-                                         'switch', 'down', 'fence', 'registration-worker'))
+                                         'switch', 'down', 'fence', 'registration-worker',
+                                         'registration-status', 'registration-open',
+                                         'registration-close', 'registration-retry',
+                                         'registration-cancel', 'registration-rotate-link'))
     parser.add_argument('--component', choices=(*IMAGES, 'all'), default='all')
     parser.add_argument('--work', type=Path, default=ROOT / 'work/build-receipts')
     parser.add_argument('--profile', type=Path,
@@ -301,13 +304,17 @@ def main():
                         help='up only: provision N teams (1-10) with neutral accounts, '
                              'regardless of the profile roster. Recorded in the runtime; '
                              'later commands reuse it automatically')
+    parser.add_argument('--registration-id', type=int, default=None,
+                        help='registration retry/cancel/rotate-link target')
     args = parser.parse_args()
     try:
         if args.action == 'doctor':
             print(json.dumps(doctor(args.profile, args.runtime, args.work), indent=2))
             return
         lifecycle = ('up', 'start', 'pause', 'status', 'down', 'backup', 'restore', 'switch',
-                     'fence', 'registration-worker')
+                     'fence', 'registration-worker', 'registration-status',
+                     'registration-open', 'registration-close', 'registration-retry',
+                     'registration-cancel', 'registration-rotate-link')
         if args.action == 'status' and args.profile is None:
             print(json.dumps({'event_ready': False, 'next_gate': 'profile-scoped deployment',
                               'instructions': 'docs/handoff/BUILD-FIRST.md'}))
@@ -369,6 +376,10 @@ def main():
                     stack.restore()
             elif args.action == 'switch':
                 stack.switch()
+            elif args.action.startswith('registration-'):
+                registration_action = args.action.removeprefix('registration-')
+                print(json.dumps(stack.registration_admin(
+                    registration_action, args.registration_id), indent=2))
             return
         operation = build if args.action == 'build' else verify_build
         components = IMAGES if args.component == 'all' else (args.component,)

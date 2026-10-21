@@ -7,7 +7,7 @@ replace those estimates with observed active/idle time, help use and tool failur
 
 Run from the repository root::
 
-    python expanded/workload.py --teams 10 --target-minutes 270 \
+    python expanded/workload.py --teams 10 --target-minutes 360 \
         --output docs/workload.md --worksheet docs/rehearsal-worksheet.md
 """
 import argparse
@@ -19,9 +19,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from expanded.author import build
 
 DEFAULT_TEAMS = 10
-# Event decision 2026-09-17: the activity should last 4-5 hours (240-300 minutes);
-# 270 is the planning midpoint for the late-October event.
-DEFAULT_TARGET_MINUTES = 270
+# The current event format provides a six-hour participant window.
+DEFAULT_TARGET_MINUTES = 360
 YES_NO = {'yes', 'no'}
 
 
@@ -93,18 +92,21 @@ def critical_path(tickets):
     return max((longest(ticket_id) for ticket_id in by_id), key=lambda entry: entry[0])
 
 
-def schedule(tickets, teams=DEFAULT_TEAMS):
-    """Deterministic list schedule: one globally owned ticket per team at a time.
+def schedule(tickets, teams=DEFAULT_TEAMS, lanes=3):
+    """Deterministic per-team list schedule with parallel desktop lanes.
 
-    Available tickets are claimed in ID order by the lowest-numbered idle team.
-    Returns the makespan, the per-team assignment and the completion timeline.
+    Every team receives the full ticket set.  This simulates one representative
+    team assigning available tickets, in ID order, to its lowest-numbered idle
+    lane; the resulting plan is then replicated for each registered team.
     """
     if teams < 1:
         raise ValueError('teams must be positive')
+    if lanes < 1:
+        raise ValueError('lanes must be positive')
     by_id = {t['id']: t for t in tickets}
     remaining = set(by_id)
     completed = set()
-    free = list(range(teams))
+    free = list(range(lanes))
     active = {}
     timeline = []
     now = 0
@@ -113,26 +115,27 @@ def schedule(tickets, teams=DEFAULT_TEAMS):
                            if set(by_id[ticket_id].get('requires', [])) <= completed)
         while available and free:
             ticket_id = available.pop(0)
-            team = free.pop(0)
+            lane = free.pop(0)
             duration = int(by_id[ticket_id].get('estimate_minutes', 0))
-            active[team] = (ticket_id, now + duration)
+            active[lane] = (ticket_id, now + duration)
             remaining.discard(ticket_id)
         if not active:
             raise ValueError('Cyclic or unsatisfiable ticket dependencies')
         now = min(end for _, end in active.values())
-        for team, (ticket_id, end) in list(active.items()):
+        for lane, (ticket_id, end) in list(active.items()):
             if end == now:
                 completed.add(ticket_id)
-                free.append(team)
-                del active[team]
-                timeline.append({'minute': now, 'team': team, 'ticket': ticket_id})
+                free.append(lane)
+                del active[lane]
+                timeline.append({'minute': now, 'team': 0, 'lane': lane,
+                                 'ticket': ticket_id})
         free.sort()
-    per_team = {}
-    for event in timeline:
-        entry = per_team.setdefault(event['team'], {'tickets': [], 'minutes': 0})
-        entry['tickets'].append(event['ticket'])
-        entry['minutes'] += int(by_id[event['ticket']].get('estimate_minutes', 0))
-    return {'teams': teams, 'makespan': now, 'timeline': timeline, 'per_team': per_team}
+    assigned = [event['ticket'] for event in timeline]
+    minutes = sum(int(by_id[ticket_id].get('estimate_minutes', 0)) for ticket_id in assigned)
+    per_team = {team: {'tickets': list(assigned), 'minutes': minutes}
+                for team in range(teams)}
+    return {'teams': teams, 'lanes': lanes, 'makespan': now,
+            'timeline': timeline, 'per_team': per_team}
 
 
 def summary(tickets, teams=DEFAULT_TEAMS, target_minutes=DEFAULT_TARGET_MINUTES):
@@ -146,7 +149,8 @@ def summary(tickets, teams=DEFAULT_TEAMS, target_minutes=DEFAULT_TARGET_MINUTES)
         'tickets': len(rows),
         'questions': sum(row['questions'] for row in rows),
         'estimated_team_minutes': total_minutes,
-        'average_team_minutes': round(total_minutes / teams, 1),
+        'average_team_minutes': round(total_minutes, 1),
+        'total_event_team_minutes': total_minutes * teams,
         'critical_path_minutes': path_minutes,
         'critical_path_tickets': path_tickets,
         'makespan_minutes': simulation['makespan'],
@@ -183,23 +187,19 @@ def render_inventory(tickets, teams=DEFAULT_TEAMS, target_minutes=DEFAULT_TARGET
         '',
         '- Tickets: {tickets}'.format(**data),
         '- Questions: {questions}'.format(**data),
-        '- Estimated team-minutes: {estimated_team_minutes}'.format(**data),
-        '- Ten-team arithmetic average: {average_team_minutes} minutes/team'.format(**data),
+        '- Estimated minutes per team: {estimated_team_minutes}'.format(**data),
+        '- Estimated event team-minutes: {total_event_team_minutes}'.format(**data),
         '- Longest dependency chain (critical path): {critical_path_minutes} minutes ({path})'.format(
             path=' -> '.join(data['critical_path_tickets']), **data),
         '- Simulated makespan with {teams} teams: {makespan_minutes} minutes'.format(**data),
         '- Configurable duration target: {target_minutes} minutes'.format(**data),
         '',
-        'The ten-team average of {average_team_minutes} minutes/team is a quotient, not a '
-        'plan. The dependency chain and the limited number of initially available tickets '
-        'push the simulated makespan to {makespan_minutes} minutes, and free walkthroughs '
-        'reduce the unaided work below the estimate. Event decision (2026-09-17): the '
-        'late-October event targets 4-5 hours (240-300 minutes) of activity per team. '
-        'Current authored content ({estimated_team_minutes} estimated team-minutes) covers '
-        'roughly half of that. Closing the gap means roughly doubling authored content or '
-        'structuring the event with facilitated segments (orientation, inject briefings, '
-        'after-action review) around the investigations; do not duplicate scoreable tickets '
-        'per team to mask the gap. Only a beginner rehearsal can confirm true duration.'.format(**data),
+        'Every team receives all {tickets} tickets and all {questions} questions. The '
+        '{makespan_minutes}-minute makespan is planning arithmetic for three concurrent '
+        'desktop lanes; it is not a measured participant duration. Paid walkthroughs can '
+        'reduce investigation time, while tool learning, coordination, and breaks can add '
+        'time. Only a representative rehearsal can confirm whether the six-hour window is '
+        'comfortable.'.format(**data),
         '',
         '## Per-team participation (simulated)',
         '',
@@ -214,8 +214,9 @@ def render_inventory(tickets, teams=DEFAULT_TEAMS, target_minutes=DEFAULT_TARGET
         '',
         '## Free walkthroughs and duplicate or superficial questions',
         '',
-        '- Walkthrough hints containing the answer: {free_walkthroughs} of {questions}. '
-        'Free hints and walkthroughs support coached practice and reduce unaided active time.'.format(**data),
+        '- Explicit walkthrough hints containing the answer: {free_walkthroughs} of {questions}. '
+        'Each is the paid Help level 3: unlocking it costs 3 of the question\'s 4 points. '
+        'Help levels 1 and 2 remain free.'.format(**data),
         '- Repeated answers (same value asked by more than one question): {count}.'.format(
             count=len(data['repeated_answers'])),
         '- Yes/no questions that can be guessed: {count}.'.format(count=len(data['yes_no_questions'])),
@@ -237,12 +238,13 @@ def render_inventory(tickets, teams=DEFAULT_TEAMS, target_minutes=DEFAULT_TARGET
         '',
         '## Scheduling assumptions',
         '',
-        '- One global owner per ticket; a team works one claimed ticket at a time.',
-        '- Tickets unlock only when every prerequisite ticket is complete.',
-        '- Tickets are claimed in ID order by the lowest-numbered idle team; no preemption.',
+        '- Every team has independent progress through all twenty tickets and eighty questions.',
+        '- Each team may keep up to three ticket lanes active, matching its three desktops.',
+        '- Tickets unlock for a team only when that team completes every prerequisite.',
+        '- Tickets are assigned in ID order to the lowest-numbered idle lane; no preemption.',
         '- Estimates use the authored 65-minute allowance and exclude orientation, breaks, '
         'help-seeking and the after-action review.',
-        '- Ten teams / thirty participants; one shared desktop per team.',
+        '- Up to ten teams / five participants each / three isolated desktops per team.',
         '',
     ]
     return '\n'.join(lines)

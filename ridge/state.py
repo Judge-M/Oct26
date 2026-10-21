@@ -123,8 +123,10 @@ class State:
               iris_id INTEGER UNIQUE, requires TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS questions(id TEXT PRIMARY KEY, ticket TEXT NOT NULL REFERENCES tickets(id),
               body TEXT NOT NULL, digest TEXT NOT NULL, finding TEXT NOT NULL);
-            CREATE TABLE IF NOT EXISTS answers(question TEXT PRIMARY KEY REFERENCES questions(id),
-              team TEXT NOT NULL REFERENCES teams(id), timestamp TEXT NOT NULL, event TEXT UNIQUE NOT NULL);
+            CREATE TABLE IF NOT EXISTS answers(team TEXT NOT NULL REFERENCES teams(id),
+              question TEXT NOT NULL REFERENCES questions(id), timestamp TEXT NOT NULL,
+              event TEXT UNIQUE NOT NULL, value INTEGER NOT NULL DEFAULT 1,
+              PRIMARY KEY(team,question));
             CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY, timestamp TEXT NOT NULL,
               actor TEXT NOT NULL, action TEXT NOT NULL, detail TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS outbox(id TEXT PRIMARY KEY, kind TEXT NOT NULL,
@@ -155,6 +157,10 @@ class State:
                                 (q['id'], t['id'], json.dumps(body), self.digest(q['answer']), json.dumps(q['finding'])))
                 if not requires:
                     self.enqueue(con, 'ticket:'+t['id'], 'ticket', ticket_delivery(t['id'],t['title']))
+            con.execute('''INSERT INTO team_tickets(team,ticket,status,generation)
+                SELECT teams.id,tickets.id,
+                  CASE WHEN tickets.requires='[]' THEN 'available' ELSE 'locked' END,0
+                FROM teams CROSS JOIN tickets''')
 
     def register_team(self, team):
         """Add one dynamically provisioned team to a running event.
@@ -182,6 +188,9 @@ class State:
             started_at = now() if con.execute('SELECT mode FROM run').fetchone()[0] == 'running' else None
             con.execute('INSERT INTO teams(id,iris,ctfd,name,started_at) VALUES (?,?,?,?,?)',
                         (team['id'], str(team['iris']), int(team['ctfd']), team['name'], started_at))
+            con.execute('''INSERT INTO team_tickets(team,ticket,status,generation)
+                SELECT ?,id,CASE WHEN requires='[]' THEN 'available' ELSE 'locked' END,0
+                FROM tickets''', (team['id'],))
             self.record(con, team['id'], 'register_team',
                         {'name': team['name'], 'iris': str(team['iris']), 'ctfd': int(team['ctfd'])})
 
@@ -226,15 +235,13 @@ class State:
         identifier = run+':'+key
         if con.execute('SELECT 1 FROM outbox WHERE id=?', (identifier,)).fetchone():
             return
-        previous = con.execute('SELECT id FROM outbox WHERE ticket=? ORDER BY rowid DESC LIMIT 1',
-                               (payload['ticket'],)).fetchone()
-        con.execute('INSERT INTO outbox(id,kind,payload,ticket,created) VALUES (?,?,?,?,?)',
-                    (identifier, kind, json.dumps(payload), payload['ticket'], time.time()))
+        team = payload.get('team')
+        previous = con.execute('''SELECT id FROM outbox WHERE ticket=? AND COALESCE(team,'')=?
+                                  ORDER BY rowid DESC LIMIT 1''',
+                               (payload['ticket'], team or '')).fetchone()
+        con.execute('INSERT INTO outbox(id,kind,payload,ticket,created,team) VALUES (?,?,?,?,?,?)',
+                    (identifier, kind, json.dumps(payload), payload['ticket'], time.time(), team))
         dependencies = [previous[0]] if previous else []
-        if kind == 'ticket':
-            requires = json.loads(con.execute('SELECT requires FROM tickets WHERE id=?',
-                                               (payload['ticket'],)).fetchone()[0])
-            dependencies.extend(run+':close:'+ticket for ticket in requires)
         con.executemany('INSERT INTO delivery_dependencies VALUES (?,?)',
                         [(identifier, dependency) for dependency in dependencies])
 
@@ -249,20 +256,35 @@ class State:
             "SELECT name FROM sqlite_master WHERE type='table'")}
         if not {'tickets','questions','answers','teams','audit','outbox'} <= tables:
             return False
-        if con.execute("SELECT 1 FROM audit WHERE action='final_assessment'").fetchone():
+        if team is not None and con.execute(
+                "SELECT 1 FROM audit WHERE action='final_assessment' AND actor=?", (team,)).fetchone():
             return False
-        totals=con.execute("SELECT COUNT(*) total, SUM(status='complete') complete FROM tickets").fetchone()
-        if not totals['total'] or totals['complete'] != totals['total']:
-            return False
-        if not con.execute("SELECT 1 FROM tickets WHERE id='T20' AND status='complete'").fetchone():
-            return False
-        if team is None or event is None:
+        if team is None:
             last=con.execute('''SELECT a.team,a.event FROM answers a
                 JOIN questions q ON q.id=a.question
                 WHERE q.ticket='T20' ORDER BY a.timestamp DESC LIMIT 1''').fetchone()
             if last is None:
                 return False
             team,event=last['team'],last['event']
+        if con.execute("SELECT 1 FROM audit WHERE action='final_assessment' AND actor=?",
+                       (team,)).fetchone():
+            return False
+        totals=con.execute("""SELECT COUNT(*) total,
+            SUM(CASE WHEN status='complete' THEN 1 ELSE 0 END) complete
+            FROM team_tickets WHERE team=?""", (team,)).fetchone()
+        if not totals['total'] or totals['complete'] != totals['total']:
+            return False
+        if not con.execute("""SELECT 1 FROM team_tickets
+            WHERE team=? AND ticket='T20' AND status='complete'""", (team,)).fetchone():
+            return False
+        if event is None:
+            last=con.execute('''SELECT a.team,a.event FROM answers a
+                JOIN questions q ON q.id=a.question
+                WHERE q.ticket='T20' AND a.team=? ORDER BY a.timestamp DESC LIMIT 1''',
+                (team,)).fetchone()
+            if last is None:
+                return False
+            event=last['event']
         teamrow=con.execute('SELECT name FROM teams WHERE id=?',(team,)).fetchone()
         if teamrow is None:
             return False
@@ -270,7 +292,7 @@ class State:
         payload={'ticket':'T20','text':assessment['announcement'],
                  'status':assessment['status'],'event':event,
                  'team':team,'team_name':teamrow['name']}
-        self.enqueue(con,'assessment:final','assessment',payload)
+        self.enqueue(con,'assessment:final:'+team,'assessment',payload)
         self.record(con,team,'final_assessment',
                     {'text':assessment['announcement'],'event':event,
                      'status':assessment['status']})
@@ -279,7 +301,8 @@ class State:
     def migrate(self):
         with self.transaction() as con:
             migrate(con)
-            self._ensure_final_assessment(con)
+            for row in con.execute('SELECT id FROM teams').fetchall():
+                self._ensure_final_assessment(con,row['id'])
 
     @staticmethod
     def mutable(con):
@@ -403,15 +426,22 @@ class State:
             self.mutable(con)
             self.record(con, actor, 'announcement', {'text':text})
 
-    def ticket_state(self, ticket):
+    def ticket_state(self, ticket, team=None):
         """Read a ticket's id, status, owner, generation and iris_id.
 
         The supported way to observe the generation that ``claim`` and
         ``release`` require, without reaching into the SQLite schema.
         """
         with self.transaction(write=False) as con:
-            row = con.execute('SELECT id,status,owner,generation,iris_id FROM tickets WHERE id=?',
-                              (ticket,)).fetchone()
+            if team is None:
+                row = con.execute('SELECT id,status,owner,generation,iris_id FROM tickets WHERE id=?',
+                                  (ticket,)).fetchone()
+            else:
+                row = con.execute('''SELECT t.id,tt.status,
+                    CASE WHEN tt.status='active' THEN tt.team END owner,
+                    tt.generation,t.iris_id FROM team_tickets tt
+                    JOIN tickets t ON t.id=tt.ticket WHERE tt.team=? AND tt.ticket=?''',
+                                  (team,ticket)).fetchone()
             if row is None:
                 raise PermissionError('Unknown ticket')
             return dict(row)
@@ -432,10 +462,14 @@ class State:
             self.running(con)
             if not con.execute('SELECT 1 FROM teams WHERE id=?', (team,)).fetchone():
                 raise PermissionError('Unknown team')
-            if con.execute('SELECT 1 FROM tickets WHERE owner=?', (team,)).fetchone():
-                raise Conflict('Relinquish your current ticket first')
-            row = con.execute('SELECT * FROM tickets WHERE id=?', (ticket,)).fetchone()
-            if row is None or row['status'] != 'available':
+            active=con.execute("SELECT COUNT(*) FROM team_tickets WHERE team=? AND status='active'",
+                               (team,)).fetchone()[0]
+            if active >= 3:
+                raise Conflict('Your team already has three active work lanes; complete or relinquish one first')
+            row = con.execute('''SELECT t.*,tt.status team_status,tt.generation team_generation
+                FROM tickets t JOIN team_tickets tt ON tt.ticket=t.id
+                WHERE tt.team=? AND t.id=?''', (team,ticket)).fetchone()
+            if row is None or row['team_status'] != 'available':
                 raise Conflict('Ticket is not available in IRIS')
             if row['iris_id'] is None:
                 # Unlocked, but the worker has not finished creating the IRIS
@@ -443,12 +477,12 @@ class State:
                 # a transient state; the participant UI hides the claim button
                 # until iris_id is set. API callers should retry shortly.
                 raise Conflict('Ticket is still being prepared in IRIS; retry shortly')
-            if type(generation) is not int or generation != row['generation']:
+            if type(generation) is not int or generation != row['team_generation']:
                 raise Conflict('Ticket changed: expected generation %s, got %r;'
-                               ' re-read the ticket before claiming' % (row['generation'], generation))
-            con.execute("UPDATE tickets SET owner=?,status='active',generation=generation+1 WHERE id=?", (team, ticket))
+                               ' re-read the ticket before claiming' % (row['team_generation'], generation))
+            con.execute("""UPDATE team_tickets SET status='active',generation=generation+1
+                           WHERE team=? AND ticket=?""", (team,ticket))
             self.record(con, team, 'claim', {'ticket':ticket})
-            self.enqueue(con, 'ownership:'+str(uuid.uuid4()), 'ownership', {'ticket':ticket, 'team':team})
 
     def release(self, team, ticket, generation, recovery_actor=None, reason=None):
         """Relinquish an owned ticket using optimistic concurrency.
@@ -465,27 +499,31 @@ class State:
             self.mutable(con)
             if not recovery_actor:
                 self.running(con)
-            row = con.execute('SELECT * FROM tickets WHERE id=?', (ticket,)).fetchone()
-            if row is None or row['status'] != 'active' or (not recovery_actor and row['owner'] != team):
+            if not team:
+                raise ValueError('A team is required for per-team ticket recovery')
+            row = con.execute('''SELECT tt.*,t.iris_id FROM team_tickets tt
+                                 JOIN tickets t ON t.id=tt.ticket
+                                 WHERE tt.team=? AND tt.ticket=?''', (team,ticket)).fetchone()
+            if row is None or row['status'] != 'active':
                 raise PermissionError('Only the owner can relinquish this ticket')
             if type(generation) is not int or generation != row['generation']:
                 raise Conflict('Ownership changed: expected generation %s, got %r;'
                                ' re-read the ticket before relinquishing' % (row['generation'], generation))
-            con.execute("UPDATE tickets SET owner=NULL,status='available' WHERE id=?", (ticket,))
+            con.execute("UPDATE team_tickets SET status='available' WHERE team=? AND ticket=?",
+                        (team,ticket))
             self.record(con, recovery_actor or team, 'recover' if recovery_actor else 'release',
-                        {'ticket':ticket, 'previous_owner':row['owner'], 'reason':reason})
-            self.enqueue(con, 'ownership:'+str(uuid.uuid4()), 'ownership', {'ticket':ticket, 'team':None})
+                        {'ticket':ticket, 'previous_owner':team, 'reason':reason})
 
     def questions(self, team, question=None):
         with self.transaction(write=False) as con:
             if not con.execute('SELECT 1 FROM teams WHERE id=?', (team,)).fetchone():
                 raise PermissionError('Unknown team')
-            rows = con.execute('''SELECT q.*,t.owner,t.status,a.team solver,a.timestamp,
-              h.team hint_team FROM questions q JOIN tickets t ON t.id=q.ticket
-              LEFT JOIN answers a ON a.question=q.id
+            rows = con.execute('''SELECT q.*,tt.team owner,tt.status,a.team solver,a.timestamp,
+              h.team hint_team FROM questions q JOIN team_tickets tt ON tt.ticket=q.ticket AND tt.team=?
+              LEFT JOIN answers a ON a.question=q.id AND a.team=?
               LEFT JOIN hint_usage h ON h.question=q.id AND h.team=?
-              WHERE (t.owner=? OR t.status='complete') AND (? IS NULL OR q.id=?)''',
-              (team, team, question, question)).fetchall()
+              WHERE (tt.status='active' OR tt.status='complete') AND (? IS NULL OR q.id=?)''',
+              (team,team,team,question,question)).fetchall()
             if question and not rows:
                 raise PermissionError('Question is not available')
             result=[]
@@ -495,7 +533,7 @@ class State:
                 unlocked=row['hint_team'] is not None
                 body['hints']=hints if unlocked else hints[:-1]
                 result.append(dict(body, ticket=row['ticket'], solved_by=row['solver'],
-                    answered_at=row['timestamp'], answerable=row['owner']==team and row['solver'] is None,
+                    answered_at=row['timestamp'], answerable=row['status']=='active' and row['solver'] is None,
                     finding=json.loads(row['finding']) if row['solver'] else None,
                     hint_unlocked=unlocked, paid_hint_available=bool(hints) and not unlocked,
                     full_points=FULL_QUESTION_POINTS,
@@ -507,9 +545,10 @@ class State:
         """Unlock the explicit walkthrough and durably apply its 75% cost."""
         with self.transaction() as con:
             self.running(con)
-            row=con.execute('''SELECT q.body,t.owner,t.status,a.question solved
-                FROM questions q JOIN tickets t ON t.id=q.ticket
-                LEFT JOIN answers a ON a.question=q.id WHERE q.id=?''', (question,)).fetchone()
+            row=con.execute('''SELECT q.body,tt.team owner,tt.status,a.question solved
+                FROM questions q JOIN team_tickets tt ON tt.ticket=q.ticket AND tt.team=?
+                LEFT JOIN answers a ON a.question=q.id AND a.team=? WHERE q.id=?''',
+                (team,team,question)).fetchone()
             if row is None or row['owner'] != team or row['status'] != 'active' or row['solved']:
                 raise PermissionError('Claim the corresponding unsolved IRIS ticket first')
             if not (json.loads(row['body']).get('hints') or []):
@@ -529,12 +568,14 @@ class State:
             raise ValueError('Answer must be at most 1024 characters')
         with self.transaction() as con:
             self.running(con)
-            row = con.execute('''SELECT q.*,t.owner,t.status FROM questions q JOIN tickets t ON q.ticket=t.id
-                                 WHERE q.id=?''', (question,)).fetchone()
+            row = con.execute('''SELECT q.*,tt.team owner,tt.status FROM questions q
+                JOIN team_tickets tt ON q.ticket=tt.ticket AND tt.team=? WHERE q.id=?''',
+                (team,question)).fetchone()
             # Ownership is checked before the correctness oracle, even on duplicate submissions.
             if row is None or row['owner'] != team or row['status'] != 'active':
                 raise PermissionError('Claim the corresponding IRIS ticket first')
-            if con.execute('SELECT 1 FROM answers WHERE question=?', (question,)).fetchone():
+            if con.execute('SELECT 1 FROM answers WHERE team=? AND question=?',
+                           (team,question)).fetchone():
                 raise Conflict('Question already answered; points are preserved')
             if not any(hmac.compare_digest(candidate, row['digest'])
                        for candidate in self.answer_digests(answer)):
@@ -544,25 +585,30 @@ class State:
             value=ASSISTED_QUESTION_POINTS if assisted else FULL_QUESTION_POINTS
             stamp = now()
             event = str(uuid.uuid4())
-            con.execute('INSERT INTO answers(question,team,timestamp,event,value) VALUES (?,?,?,?,?)',
-                        (question, team, stamp, event, value))
+            con.execute('INSERT INTO answers(team,question,timestamp,event,value) VALUES (?,?,?,?,?)',
+                        (team,question,stamp,event,value))
             teamrow = con.execute('SELECT * FROM teams WHERE id=?', (team,)).fetchone()
             finding = dict(json.loads(row['finding']), question=question, team=team,
                            team_name=teamrow['name'], timestamp=stamp, event=event, ticket=row['ticket'])
-            self.enqueue(con, 'point:'+question, 'point', dict(finding, ctfd_team=teamrow['ctfd'], value=value))
-            self.enqueue(con, 'finding:'+question, 'finding', finding)
+            self.enqueue(con, 'point:'+team+':'+question, 'point',
+                         dict(finding, ctfd_team=teamrow['ctfd'], value=value))
+            self.enqueue(con, 'finding:'+team+':'+question, 'finding', finding)
             self.record(con, team, 'answer', {'question':question, 'event':event,
                         'ticket':row['ticket'], 'value':value, 'assisted':assisted})
-            remaining = con.execute('''SELECT COUNT(*) FROM questions q LEFT JOIN answers a ON q.id=a.question
-                                       WHERE q.ticket=? AND a.question IS NULL''', (row['ticket'],)).fetchone()[0]
+            remaining = con.execute('''SELECT COUNT(*) FROM questions q
+                LEFT JOIN answers a ON q.id=a.question AND a.team=?
+                WHERE q.ticket=? AND a.question IS NULL''', (team,row['ticket'])).fetchone()[0]
             if not remaining:
-                con.execute("UPDATE tickets SET owner=NULL,status='complete' WHERE id=?", (row['ticket'],))
-                self.enqueue(con, 'close:'+row['ticket'], 'close', {'ticket':row['ticket'], 'event':event})
+                con.execute("""UPDATE team_tickets SET status='complete'
+                               WHERE team=? AND ticket=?""", (team,row['ticket']))
                 self.record(con, team, 'close', {'ticket':row['ticket'], 'event':event})
-                completed = {r[0] for r in con.execute("SELECT id FROM tickets WHERE status='complete'")}
-                for lead in con.execute("SELECT * FROM tickets WHERE status='locked'").fetchall():
+                completed = {r[0] for r in con.execute(
+                    "SELECT ticket FROM team_tickets WHERE team=? AND status='complete'", (team,))}
+                for lead in con.execute('''SELECT t.* FROM tickets t JOIN team_tickets tt
+                    ON tt.ticket=t.id WHERE tt.team=? AND tt.status='locked' ''', (team,)).fetchall():
                     if set(json.loads(lead['requires'])) <= completed:
-                        con.execute("UPDATE tickets SET status='available' WHERE id=?", (lead['id'],))
+                        con.execute("""UPDATE team_tickets SET status='available'
+                                       WHERE team=? AND ticket=?""", (team,lead['id']))
                         self.enqueue(con, 'ticket:'+lead['id'], 'ticket', ticket_delivery(lead['id'],lead['title']))
                 assessment_published=self._ensure_final_assessment(con,team,event)
             else:
@@ -574,12 +620,21 @@ class State:
     def snapshot(self, team=None):
         with self.transaction(write=False) as con:
             stamp=now();total=0;anchor=None
-            ticket_counts=con.execute("""SELECT COUNT(*) total,
-                SUM(CASE WHEN status='complete' THEN 1 ELSE 0 END) complete FROM tickets""").fetchone()
+            if team is not None:
+                ticket_counts=con.execute("""SELECT COUNT(*) total,
+                    SUM(CASE WHEN status='complete' THEN 1 ELSE 0 END) complete
+                    FROM team_tickets WHERE team=?""", (team,)).fetchone()
+            else:
+                ticket_counts=con.execute("""SELECT COUNT(*) total,
+                    SUM(CASE WHEN complete_count=team_count THEN 1 ELSE 0 END) complete
+                    FROM (SELECT ticket,COUNT(*) team_count,
+                      SUM(CASE WHEN status='complete' THEN 1 ELSE 0 END) complete_count
+                      FROM team_tickets GROUP BY ticket)""").fetchone()
             activity_complete=bool(ticket_counts['total'] and
                                    ticket_counts['complete']==ticket_counts['total'])
             final_row=con.execute("""SELECT timestamp FROM audit
-                WHERE action='final_assessment' ORDER BY id LIMIT 1""").fetchone()
+                WHERE action='final_assessment' AND (? IS NULL OR actor=?)
+                ORDER BY id LIMIT 1""", (team,team)).fetchone()
             # The activity clock is a participant pacing measure. Once the
             # capstone publishes, freeze it at that durable event even if the
             # facilitator leaves the exercise in running mode for review.
@@ -605,13 +660,32 @@ class State:
                 total+=max((cutoff_time-start).total_seconds(),0)
             if team is not None and team_started is None:
                 total=0
+            if team is not None:
+                ticket_rows=con.execute('''SELECT t.id,t.title,t.subject,
+                    CASE WHEN tt.status='active' THEN tt.team END owner,
+                    tt.status,t.iris_id,tt.generation FROM team_tickets tt
+                    JOIN tickets t ON t.id=tt.ticket WHERE tt.team=? AND tt.status!='locked'
+                    ORDER BY t.id''', (team,)).fetchall()
+            else:
+                ticket_rows=con.execute('''SELECT * FROM (SELECT t.id,t.title,t.subject,
+                    CASE WHEN SUM(CASE WHEN tt.status='active' THEN 1 ELSE 0 END)=1
+                      THEN MAX(CASE WHEN tt.status='active' THEN tt.team END) END owner,
+                    CASE WHEN MIN(tt.status='complete')=1 THEN 'complete'
+                         WHEN MAX(tt.status='active')=1 THEN 'active'
+                         WHEN MAX(tt.status='available')=1 THEN 'available' ELSE 'locked' END status,
+                    t.iris_id,MAX(tt.generation) generation
+                    FROM tickets t JOIN team_tickets tt ON tt.ticket=t.id
+                    GROUP BY t.id) WHERE status!='locked' ORDER BY id''').fetchall()
             return {'mode':con.execute('SELECT mode FROM run').fetchone()[0],
                     'elapsed_seconds':max(total,0),'server_time':stamp,
                     'activity_complete':activity_complete,
                     'announcements':[dict(id=r['id'],timestamp=r['timestamp'],kind=r['action'],
                                           text=json.loads(r['detail'])['text'])
-                                     for r in con.execute("SELECT * FROM audit WHERE action IN ('announcement','final_assessment') ORDER BY id")],
-                    'tickets':[dict(r) for r in con.execute("SELECT id,title,subject,owner,status,iris_id,generation FROM tickets WHERE status!='locked'")],
+                                     for r in con.execute("""SELECT * FROM audit
+                                       WHERE action='announcement' OR
+                                         (action='final_assessment' AND (? IS NULL OR actor=?))
+                                       ORDER BY id""", (team,team))],
+                    'tickets':[dict(r) for r in ticket_rows],
                     'scores':[dict(r) for r in con.execute('''SELECT t.id,t.name,COALESCE(SUM(a.value),0) points FROM teams t
                                   LEFT JOIN answers a ON a.team=t.id GROUP BY t.id ORDER BY points DESC,t.id''')],
                     'pending':con.execute('SELECT COUNT(*) FROM outbox WHERE done=0').fetchone()[0]}
@@ -692,7 +766,7 @@ class State:
         with self.transaction(write=False) as con:
             with destination.open('x', encoding='utf-8') as f:
                 f.write('{')
-                for number,name in enumerate(('run','teams','tickets','questions','answers','hint_usage',
+                for number,name in enumerate(('run','teams','tickets','team_tickets','questions','answers','hint_usage',
                                                'audit','outbox','delivery_dependencies')):
                     if number:
                         f.write(',')

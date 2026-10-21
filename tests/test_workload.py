@@ -19,16 +19,16 @@ class WorkloadTests(unittest.TestCase):
         self.assertEqual(data['tickets'], 20)
         self.assertEqual(data['questions'], 80)
         self.assertEqual(data['estimated_team_minutes'], 1300)
-        self.assertEqual(data['average_team_minutes'], 130.0)
+        self.assertEqual(data['average_team_minutes'], 1300)
         self.assertEqual(len(inventory(self.tickets)), 20)
 
     def test_critical_path_and_makespan_separate_estimate_from_quotient(self):
         data = summary(self.tickets, teams=10)
-        self.assertEqual(data['critical_path_minutes'], 195)
-        self.assertEqual(data['makespan_minutes'], 195)
-        self.assertGreater(data['makespan_minutes'], data['average_team_minutes'])
+        self.assertEqual(data['critical_path_minutes'], 325)
+        self.assertEqual(data['makespan_minutes'], 585)
+        self.assertLess(data['makespan_minutes'], data['average_team_minutes'])
 
-    def test_schedule_respects_dependencies_and_single_ownership(self):
+    def test_schedule_respects_dependencies_and_three_parallel_lanes(self):
         result = schedule(self.tickets, teams=10)
         by_id = {ticket['id']: ticket for ticket in self.tickets}
         completed = set()
@@ -37,11 +37,13 @@ class WorkloadTests(unittest.TestCase):
             ticket = by_id[event['ticket']]
             self.assertTrue(set(ticket.get('requires', [])) <= completed,
                             event['ticket'] + ' ran before its prerequisites')
-            self.assertNotIn((event['team'], event['minute']), busy)
-            busy[(event['team'], event['minute'])] = event['ticket']
+            self.assertNotIn((event['lane'], event['minute']), busy)
+            busy[(event['lane'], event['minute'])] = event['ticket']
             completed.add(event['ticket'])
         self.assertEqual(sorted(e['ticket'] for e in result['timeline']),
                          sorted(by_id))
+        self.assertTrue(all(len(entry['tickets']) == 20
+                            for entry in result['per_team'].values()))
 
     def test_flags_free_walkthroughs_and_superficial_questions(self):
         data = summary(self.tickets, teams=10)

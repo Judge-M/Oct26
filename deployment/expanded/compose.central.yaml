@@ -26,7 +26,7 @@ services:
       - iris-downloads:/home/iris/downloads
       - iris-templates:/home/iris/user_templates
       - iris-data:/home/iris/server_data
-      - ${RIDGE_REGISTRATION_DIR:?Set private registration state directory}:/registration
+      - ${RIDGE_REGISTRATION_DIR:?Set private registration state directory}:/registration:ro
     secrets: [ridge_iris]
     networks: [central, iris-backend, frontend]
     depends_on:
@@ -110,15 +110,17 @@ services:
       IRIS_PUBLIC_URL: ${IRIS_PUBLIC_URL:?Set participant IRIS URL}
       CTFD_PUBLIC_URL: ${CTFD_PUBLIC_URL:?Set participant CTFd URL}
       GUACAMOLE_PUBLIC_URL: ${GUACAMOLE_PUBLIC_URL:?Set participant Guacamole URL}
+      WAZUH_PUBLIC_URL: ${WAZUH_PUBLIC_URL:?Set participant Wazuh URL}
       RIDGE_REGISTRATION_DB: /registration/registrations.sqlite
       RIDGE_REGISTRATION_MAX_TEAMS: ${RIDGE_REGISTRATION_MAX_TEAMS:-10}
       RIDGE_REGISTRATION_MEMBERS: ${RIDGE_REGISTRATION_MEMBERS:-5}
+      RIDGE_REGISTRATION_CODE_FILE: /run/secrets/registration_enrollment
       CTFD_SESSION_COOKIE_NAME: ${CTFD_SESSION_COOKIE_NAME:-silent_ridge_ctfd_session}
       CTFD_SESSION_COOKIE_SECURE: ${CTFD_SESSION_COOKIE_SECURE:-false}
       UPLOAD_FOLDER: /var/uploads
       LOG_FOLDER: /var/log/CTFd
       WORKERS: 1
-    secrets: [ridge_ctfd]
+    secrets: [ridge_ctfd, registration_enrollment]
     volumes:
       - ctfd-uploads:/var/uploads
       - ctfd-logs:/var/log/CTFd
@@ -190,6 +192,8 @@ secrets:
     file: ${RIDGE_IRIS_SECRET_FILE:?Set private IRIS bridge secret file}
   ridge_ctfd:
     file: ${RIDGE_CTFD_SECRET_FILE:?Set private CTFd bridge secret file}
+  registration_enrollment:
+    file: ${RIDGE_REGISTRATION_CODE_FILE:?Set private registration enrollment code file}
 volumes:
   iris-downloads: {name: "${RIDGE_PROJECT:?Set run-scoped project}-iris-downloads"}
   iris-templates: {name: "${RIDGE_PROJECT:?Set run-scoped project}-iris-templates"}

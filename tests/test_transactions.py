@@ -122,7 +122,7 @@ class TransactionTests(unittest.TestCase):
         self.assertEqual(set(results), {1})
         self.assertEqual(len(self.server.records), 1)
 
-    def test_stale_generation_takeover_rejected(self):
+    def test_stale_generation_is_rejected_within_each_team_lane(self):
         self.state.provision('operator')
         self.server.drop = False
         while self.state.sync_once(self.sink()):
@@ -130,12 +130,15 @@ class TransactionTests(unittest.TestCase):
         self.state.mode('operator', 'running')
         self.state.claim('a', 'T01', 0)
         self.state.release('a', 'T01', 1)
-        self.state.claim('b', 'T01', 1)
+        self.state.claim('a', 'T01', 1)
         with self.assertRaises(Conflict):
-            self.state.release('b', 'T01', 0)
+            self.state.release('a', 'T01', 0)
         with self.assertRaises(Conflict):
             self.state.claim('a', 'T01', 1)
-        self.assertEqual(self.state.snapshot()['tickets'][0]['owner'], 'b')
+        # A second team has its own generation and can claim independently.
+        self.state.claim('b', 'T01', 0)
+        self.assertEqual(self.state.ticket_state('T01','a')['owner'], 'a')
+        self.assertEqual(self.state.ticket_state('T01','b')['owner'], 'b')
 
     def test_dead_worker_lease_replays_same_key(self):
         self.state.provision('operator')

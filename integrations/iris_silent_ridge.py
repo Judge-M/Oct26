@@ -49,6 +49,10 @@ def install(app):
                     abort(400)
                 payload={'ticket':request.form['ticket'],'generation':int(request.form['generation'])}
                 bridge('iris',current_user.id,action,**payload)
+                # A claim/release is a one-shot mutation.  Redirect so a
+                # browser refresh performs a harmless GET instead of
+                # replaying the form POST against the now-owned ticket.
+                return redirect('/silent-ridge',code=303)
             snapshot=bridge('iris',current_user.id,'snapshot')
             return render_template_string(PAGE,lane='iris',snapshot=snapshot,
                 queue=queue_state(snapshot),

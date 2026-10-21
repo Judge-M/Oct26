@@ -42,7 +42,7 @@ elements:
         - text: Open the prepared case on the desktop; browse files, search keywords, inspect the artifacts the question points at
       - - text: Wazuh
         - text: 24 of 80
-        - text: "In your own browser (:8443): Discover → historical data view → set the UTC range in the question, then filter one step at a time"
+        - text: "In your own browser (wazuh.cyberexperts.org): Discover → historical data view → set the UTC range in the question, then filter one step at a time"
       - - text: Wireshark
         - text: 8 of 80
         - text: Open the capture under /evidence/network; apply the display filter the question suggests (e.g. udp.port == 514)

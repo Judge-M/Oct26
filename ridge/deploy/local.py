@@ -28,15 +28,21 @@ The runtime directory is private and gitignored. Layout::
 from __future__ import annotations
 
 import csv
+import getpass
 import hashlib
 import ipaddress
 import json
 import logging
+import os
 import re
+import signal
 import shutil
 import sqlite3
+import stat
 import subprocess
 import sys
+import time
+import threading
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from pathlib import Path
@@ -65,9 +71,13 @@ INFRA_SERVICES = {
 }
 INFRA_ONE_SHOT = {'central': ('iris-db-init',)}
 APP_SERVICES = {
-    'central': ['iris', 'iris-worker', 'ctfd', 'participant-tls'],
     'wazuh': ['wazuh-dashboard'],
     'guacamole': ['guacamole'],
+    # participant-tls uses static proxy_pass targets when public TLS is
+    # terminated here. Start the other participant-facing upstreams first;
+    # these are separate Compose projects, so cross-file depends_on cannot
+    # express this cold-start ordering.
+    'central': ['iris', 'iris-worker', 'ctfd', 'participant-tls'],
 }
 IMAGE_COMPONENTS = ('iris', 'ctfd', 'integration', 'desktop')
 
@@ -87,6 +97,39 @@ def _windows_process_exists(pid):
         if len(row) > 1 and row[1].strip() == str(pid):
             return True
     return False
+
+
+def _process_exists(pid):
+    if os.name == 'nt':
+        return _windows_process_exists(pid)
+    try:
+        os.kill(pid, 0)
+        return True
+    except (OSError, ProcessLookupError):
+        return False
+
+
+def _secure_private(path):
+    """Enforce an owner/SYSTEM-only host ACL on an existing runtime file."""
+    path = Path(path)
+    os.chmod(path, stat.S_IRUSR | stat.S_IWUSR)
+    if os.name == 'nt':
+        user = getpass.getuser()
+        result = subprocess.run(
+            ['icacls', str(path), '/inheritance:r', '/grant:r',
+             '%s:(F)' % user, '*S-1-5-18:(F)'],
+            capture_output=True, text=True, timeout=15)
+        if result.returncode != 0:
+            raise LifecycleError('could not secure private runtime file %s: %s'
+                                 % (path, result.stderr.strip()[:200]))
+    return path
+
+
+def _write_private(path, value):
+    """Write a runtime secret and enforce an owner/SYSTEM-only host ACL."""
+    path = Path(path)
+    path.write_text(value, encoding='utf-8')
+    return _secure_private(path)
 
 # Upstream Wazuh single-node config files that compose.wazuh.yaml bind-mounts
 # out of the wazuh_config asset, with the format each must parse as. Issue #187:
@@ -111,6 +154,7 @@ SECRET_FILES = (
     'wazuh_admin', 'wazuh_writer', 'wazuh_reader', 'guac-db-password',
 )
 WAZUH_API_SECRET = 'wazuh-api-password'
+WAZUH_PARTICIPANT_DEFAULT_INDEX = 'silent-ridge-timed'
 
 
 def _set_unique_wazuh_option(source, section_name, option_name, value):
@@ -190,6 +234,42 @@ def offline_wazuh_config(source):
                 or (options[0].text or '').strip().lower() != 'no'):
             raise LifecycleError('Wazuh <%s>/<%s> must be uniquely disabled for the '
                                  'offline kit' % (section_name, option_name))
+    return rendered
+
+
+def offline_wazuh_dashboard_config(source):
+    """Pin the participant's prepared Discover view without granting UI writes.
+
+    Wazuh calls ``uiSettings.set('defaultIndex', ...)`` when this setting is
+    absent.  A participant must not be able to write the shared dashboard
+    tenant, so that otherwise-cosmetic first-login initialization correctly
+    returns 403 and produces an alarming toast.  An override is immutable from
+    the browser and prevents the write while retaining the read-only role.
+    """
+    if _yaml is not None:
+        try:
+            parsed = _yaml.safe_load(source)
+        except Exception as exc:
+            raise LifecycleError('vendored Wazuh dashboard config is invalid YAML: %s' % exc)
+        if not isinstance(parsed, dict):
+            raise LifecycleError('vendored Wazuh dashboard config must be a YAML mapping')
+    pattern = re.compile(
+        r'^[ \t]*uiSettings\.overrides\.defaultIndex[ \t]*:[^\r\n]*$',
+        flags=re.MULTILINE,
+    )
+    setting = ('uiSettings.overrides.defaultIndex: '
+               + WAZUH_PARTICIPANT_DEFAULT_INDEX)
+    matches = list(pattern.finditer(source))
+    if len(matches) > 1:
+        raise LifecycleError('vendored Wazuh dashboard config has duplicate defaultIndex overrides')
+    if matches:
+        rendered = pattern.sub(setting, source, count=1)
+    else:
+        rendered = source.rstrip('\r\n') + '\n' + setting + '\n'
+    if _yaml is not None:
+        verified = _yaml.safe_load(rendered)
+        if verified.get('uiSettings.overrides.defaultIndex') != WAZUH_PARTICIPANT_DEFAULT_INDEX:
+            raise LifecycleError('Wazuh dashboard defaultIndex override was not rendered')
     return rendered
 
 
@@ -603,11 +683,10 @@ http {
             raise LifecycleError('Wazuh API secret is missing from %s; restore the runtime'
                                  % path)
         if not path.is_file():
-            path.write_text('Aa1!' + self.host.randhex(20) + '\n', encoding='utf-8')
+            _write_private(path, 'Aa1!' + self.host.randhex(20) + '\n')
         password = self._wazuh_api_password()
         if not marker.is_file():
-            marker.write_text(hashlib.sha256(password.encode()).hexdigest() + '\n',
-                              encoding='utf-8')
+            _write_private(marker, hashlib.sha256(password.encode()).hexdigest() + '\n')
 
     # ------------------------------------------------------------------ docker
 
@@ -685,6 +764,7 @@ http {
         if existing and team_creds.is_file() and vnc_ok:
             self._ensure_wazuh_api_secret()
             self._ensure_facilitator_secrets()
+            self._ensure_registration_enrollment_code()
             return False
         if existing and (not team_creds.is_file() or not vnc_ok):
             raise LifecycleError('incomplete secrets in %s: team credentials or VNC passwords '
@@ -692,17 +772,20 @@ http {
         self.secrets_dir.mkdir(parents=True, exist_ok=True)
         vnc_dir.mkdir(exist_ok=True)
         for name in SECRET_FILES:
-            (self.secrets_dir / name).write_text(self.host.randhex(24) + '\n', encoding='utf-8')
-        # The operator account is intentionally simple for this classroom event.
-        # Keep infrastructure and bridge secrets generated below private.
-        (self.secrets_dir / 'iris-admin-password').write_text('admin\n', encoding='utf-8')
+            _write_private(self.secrets_dir / name, self.host.randhex(24) + '\n')
+        # Administrative and participant-service credentials are random even on
+        # an isolated classroom LAN. Friendly participant identities do not
+        # require predictable privileged passwords.
+        _write_private(self.secrets_dir / 'iris-admin-password', self.host.randhex(24) + '\n')
         # Wazuh credentials are "username:password". These are the accounts
         # shown to organizers/participants; machine-to-machine API secrets are
         # still generated independently below.
-        (self.secrets_dir / 'wazuh_admin').write_text('admin:admin', encoding='utf-8')
-        (self.secrets_dir / 'wazuh_writer').write_text('writer:writer', encoding='utf-8')
-        (self.secrets_dir / 'wazuh_reader').write_text(
-            'team1:team1', encoding='utf-8')
+        _write_private(self.secrets_dir / 'wazuh_admin',
+                       'admin:' + self.host.randhex(24))
+        _write_private(self.secrets_dir / 'wazuh_writer',
+                       'writer:' + self.host.randhex(24))
+        _write_private(self.secrets_dir / 'wazuh_reader',
+                       'participant:' + self.host.randhex(16))
         credentials = {'teams': {}, 'desktops': {}}
         import string
         import secrets as _secrets
@@ -711,31 +794,32 @@ http {
             tag = desktop['name'] if dynamic else 'team%02d' % (index + 1)
             friendly = 'team%d' % (index + 1)
             vnc = ''.join(_secrets.choice(alphabet) for _ in range(8))  # VncAuth truncates at 8
-            (vnc_dir / tag).write_text(vnc + '\n', encoding='utf-8')
+            _write_private(vnc_dir / tag, vnc + '\n')
             credentials['desktops'][desktop['name']] = {'password': vnc}
         if not dynamic:
             for index, team in enumerate(self.teams):
                 friendly = 'team%d' % (index + 1)
+                account_names = [
+                    (friendly if account_index == 0 else '%s-p%02d' %
+                     (friendly, account_index + 1))
+                    for account_index, _account in enumerate(team['accounts'])]
                 credentials['teams'][team['name']] = {
                     'iris_login': friendly,
-                    'iris_password': friendly,
+                    'iris_password': self.host.randhex(12),
                     'ctfd_name': friendly,
-                    'ctfd_password': friendly,
+                    'ctfd_password': self.host.randhex(12),
                     'guac_username': friendly,
-                    'guac_password': friendly,
+                    'guac_password': self.host.randhex(12),
                     # Publish the actual CTFd usernames.  The first seat uses the
                     # memorable team name; additional seats receive predictable
                     # suffixes.  The roster's internal team-XX-pNN names are not
                     # CTFd logins and must not leak into the participant inventory.
-                    'accounts': {
-                        (friendly if account_index == 0 else '%s-p%02d' %
-                         (friendly, account_index + 1)): friendly
-                        for account_index, _account in enumerate(team['accounts'])
-                    },
+                    'accounts': {name: self.host.randhex(12) for name in account_names},
                 }
-        team_creds.write_text(json.dumps(credentials, indent=2), encoding='utf-8')
+        _write_private(team_creds, json.dumps(credentials, indent=2))
         self._ensure_wazuh_api_secret()
         self._ensure_facilitator_secrets()
+        self._ensure_registration_enrollment_code()
         return True
 
     def _ensure_facilitator_secrets(self):
@@ -750,8 +834,18 @@ http {
             raise LifecycleError('partial facilitator secrets; restore the runtime before '
                                  'continuing')
         for name in missing:
-            (self.secrets_dir / name).write_text('admin\n', encoding='utf-8')
-        marker.write_text('ready\n', encoding='utf-8')
+            _write_private(self.secrets_dir / name, self.host.randhex(24) + '\n')
+        _write_private(marker, 'ready\n')
+
+    def _ensure_registration_enrollment_code(self):
+        """Create a short private code used to authorize one team reservation."""
+        path = self.secrets_dir / 'registration-enrollment-code'
+        if not path.is_file():
+            import secrets as _secrets
+            alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+            code = ''.join(_secrets.choice(alphabet) for _ in range(10))
+            _write_private(path, code + '\n')
+        return path
 
     def _team_credentials(self):
         path = self.secrets_dir / 'team-credentials.json'
@@ -843,11 +937,13 @@ http {
             'IRIS_PUBLIC_URL': public['iris'],
             'CTFD_PUBLIC_URL': public['ctfd'],
             'GUACAMOLE_PUBLIC_URL': public['guac'],
+            'WAZUH_PUBLIC_URL': public['wazuh'],
             'CTFD_SESSION_COOKIE_NAME': 'silent_ridge_ctfd_session',
             'CTFD_SESSION_COOKIE_SECURE': 'true',
             'RIDGE_REGISTRATION_MAX_TEAMS': str(self.profile.get('registration', {}).get('max_teams', 10)),
             'RIDGE_REGISTRATION_MEMBERS': str(self.profile.get('registration', {}).get('members_per_team', 5)),
             'RIDGE_REGISTRATION_DIR': self.registration_dir,
+            'RIDGE_REGISTRATION_CODE_FILE': self.secrets_dir / 'registration-enrollment-code',
         }
         # Placeholder IDs on first boot: IRIS services start before identities exist and
         # are recreated with the discovered IDs at the end of the identities stage.
@@ -865,6 +961,8 @@ http {
             'WAZUH_ADMIN_SECRET_FILE': self.secrets_dir / 'wazuh_admin',
             'WAZUH_API_PASSWORD': self._wazuh_api_password(),
             'BIND_IP': bind,
+            'WAZUH_INDEXER_BIND_IP': '127.0.0.1',
+            'WAZUH_DASHBOARD_BIND_IP': bind if self._tls_mode() != 'external' else '127.0.0.1',
             'RIDGE_CENTRAL_NETWORK': self.event + '-central',
             'WAZUH_DASHBOARD_PORT': str(ports['wazuh']),
             'WAZUH_INDEXER_PORT': str(ports['wazuh_indexer']),
@@ -913,17 +1011,25 @@ http {
         }
         for name, values in files.items():
             text = '\n'.join('%s=%s' % (key, value) for key, value in values.items()) + '\n'
-            (self.env_dir / (name + '.env')).write_text(text, encoding='utf-8')
+            _write_private(self.env_dir / (name + '.env'), text)
         return files
 
     def _render_wazuh_config(self):
         source = self.asset('wazuh_config') / 'wazuh_cluster' / 'wazuh_manager.conf'
         if not source.is_file():
             raise LifecycleError('vendored Wazuh manager config missing at %s' % source)
+        dashboard_source = (self.asset('wazuh_config') / 'wazuh_dashboard'
+                            / 'opensearch_dashboards.yml')
+        if not dashboard_source.is_file():
+            raise LifecycleError('vendored Wazuh dashboard config missing at %s'
+                                 % dashboard_source)
         target_dir = self.runtime / 'wazuh-config'
         target_dir.mkdir(parents=True, exist_ok=True)
         (target_dir / 'ossec.conf').write_text(
             offline_wazuh_config(source.read_text(encoding='utf-8')), encoding='utf-8')
+        (target_dir / 'opensearch_dashboards.yml').write_text(
+            offline_wazuh_dashboard_config(
+                dashboard_source.read_text(encoding='utf-8')), encoding='utf-8')
         users = target_dir / 'internal_users.yml'
         if not users.is_file():
             password = self._secret('wazuh_admin').split(':', 1)[1]
@@ -986,7 +1092,7 @@ http {
                      'password': credentials['teams'][team['name']]['iris_password']}
                     for team in self.teams],
             }
-            iris_path.write_text(json.dumps(iris_spec, indent=2), encoding='utf-8')
+            _write_private(iris_path, json.dumps(iris_spec, indent=2))
         ctfd_path = self.specs_dir / 'ctfd-provision-spec.json'
         if not ctfd_path.is_file():
             ctfd_users = []
@@ -1017,10 +1123,10 @@ http {
                                 'email': 'facilitator@silent-ridge.invalid',
                                 'password': self._secret('ctfd-facilitator-password')},
             }
-            ctfd_path.write_text(json.dumps(ctfd_spec, indent=2), encoding='utf-8')
+            _write_private(ctfd_path, json.dumps(ctfd_spec, indent=2))
         guac_config_path = self.specs_dir / 'guac-config.json'
         if not guac_config_path.is_file():
-            guac_config_path.write_text(json.dumps({
+            _write_private(guac_config_path, json.dumps({
                 'desktops': [{'id': desktop['name'], 'container': True,
                               'shared': desktop.get('shared', True),
                               'max_connections': desktop.get('max_connections',
@@ -1029,11 +1135,11 @@ http {
                 'teams': ([{'id': 'team%02d' % (i + 1), 'desktop': team['desktop']}
                            for i, team in enumerate(self.teams)]
                           if not dynamic else []),
-            }, indent=2), encoding='utf-8')
+            }, indent=2))
         guac_creds_path = self.specs_dir / 'guac-credentials.json'
         if not guac_creds_path.is_file():
             guac_config = json.loads(guac_config_path.read_text(encoding='utf-8'))
-            guac_creds_path.write_text(json.dumps({
+            _write_private(guac_creds_path, json.dumps({
                 'teams': ({tag: {'username': credentials['teams'][team['name']]['guac_username'],
                                  'password': credentials['teams'][team['name']]['guac_password']}
                            for tag, team in zip((t['id'] for t in guac_config['teams']), self.teams)}
@@ -1042,7 +1148,10 @@ http {
                              for name in credentials['desktops']},
                 'facilitator': {'username': 'admin',
                                 'password': self._secret('guac-facilitator-password')},
-            }, indent=2), encoding='utf-8')
+            }, indent=2))
+
+        for private_spec in (iris_path, ctfd_path, guac_config_path, guac_creds_path):
+            _secure_private(private_spec)
 
     # ----------------------------------------------------------------- stages
 
@@ -1188,9 +1297,9 @@ http {
     def _install_external_edge_certificate(self, certs):
         """Install and verify the public edge certificate for browser endpoints.
 
-        Only participant.pem and dashboard.pem are replaced.  The generated
-        root CA, manager, indexer and admin certificates remain available for
-        Wazuh's private backend trust graph.
+        Only participant.pem is replaced.  The generated root CA, dashboard,
+        manager, indexer and admin certificates remain available for Wazuh's
+        private backend trust graph.
         """
         tls = self.local['tls']
         source_cert = Path(tls['certificate']).resolve()
@@ -1257,6 +1366,47 @@ http {
                                      'URL %s; rotate the event CA and certificates'
                                      % (name, expected))
 
+    def _prepare_wazuh_certificates(self, certs, bind):
+        """Prepare internal node TLS and the participant-facing edge certificate.
+
+        In external TLS mode the configured public certificate replaces the
+        generated participant edge pair.  A later ``up`` must therefore not
+        ask the private-CA generator to validate that public certificate's CRL
+        extension.  Preserve the existing internal CA/node material, fail
+        closed if any of it is incomplete, and reinstall the configured edge
+        pair idempotently.
+        """
+        external_reuse = self._tls_mode() == 'external' and (certs / 'root-ca.pem').is_file()
+        if external_reuse:
+            internal = (
+                'root-ca.pem', 'root-ca-key.pem', 'root-ca.crl',
+                'dashboard.pem', 'dashboard-key.pem',
+                'indexer.pem', 'indexer-key.pem',
+                'manager.pem', 'manager-key.pem',
+                'admin.pem', 'admin-key.pem',
+            )
+            missing = [name for name in internal
+                       if not (certs / name).is_file() or (certs / name).stat().st_size == 0]
+            if missing:
+                raise LifecycleError(
+                    'external TLS runtime has incomplete internal Wazuh certificate material: '
+                    + ', '.join(missing) + '; restore the runtime backup or use a fresh runtime')
+        else:
+            self._run([
+                'docker', 'run', '--rm', '--network', 'none', '--pull', 'never',
+                '-e', 'RIDGE_CRL_PORT=%d' % self.port('crl', 8080),
+                '-v', str(WAZUH_DIR / 'generate-certs.sh') + ':/generate-certs.sh:ro',
+                '-v', str(certs) + ':/certs', '--entrypoint', 'bash',
+                'wazuh/wazuh-manager:4.9.2', '/generate-certs.sh', '/certs', bind,
+            ])
+        if self._tls_mode() == 'external':
+            self._install_external_edge_certificate(certs)
+            self._verify_public_certificate(certs, bind, 'dashboard')
+        else:
+            self._verify_public_certificate(certs, bind, 'dashboard')
+            self._verify_public_certificate(certs, bind, 'participant')
+            self._verify_revocation_material(certs, bind)
+
     def _apply_infrastructure(self):
         self._ensure_secrets()
         self._render_specs()
@@ -1266,20 +1416,7 @@ http {
         certs = self.runtime / 'wazuh-certs'
         bind = self._dashboard_bind_ip()
         certs.mkdir(parents=True, exist_ok=True)
-        self._run([
-            'docker', 'run', '--rm', '--network', 'none', '--pull', 'never',
-            '-e', 'RIDGE_CRL_PORT=%d' % self.port('crl', 8080),
-            '-v', str(WAZUH_DIR / 'generate-certs.sh') + ':/generate-certs.sh:ro',
-            '-v', str(certs) + ':/certs', '--entrypoint', 'bash',
-            'wazuh/wazuh-manager:4.9.2', '/generate-certs.sh', '/certs', bind,
-        ])
-        if self._tls_mode() == 'external':
-            self._install_external_edge_certificate(certs)
-            self._verify_public_certificate(certs, bind, 'dashboard')
-        else:
-            self._verify_public_certificate(certs, bind, 'dashboard')
-            self._verify_public_certificate(certs, bind, 'participant')
-            self._verify_revocation_material(certs, bind)
+        self._prepare_wazuh_certificates(certs, bind)
         guac_init = self.runtime / 'guac-init'
         guac_init.mkdir(parents=True, exist_ok=True)
         if not (guac_init / '001-initdb.sql').is_file():
@@ -1347,7 +1484,8 @@ http {
                      else '/setup')
         checks = ((self._public_url(hosts['iris'], self._public_port('iris', 8081)) + '/login', 'IRIS'),
                   (self._public_url(hosts['ctfd'], self._public_port('ctfd', 8083)) + ctfd_path, 'CTFd'),
-                  (self._public_url(hosts['guac'], self._public_port('guac', 8082)) + '/guacamole/', 'Guacamole'))
+                  (self._public_url(hosts['guac'], self._public_port('guac', 8082)) + '/guacamole/', 'Guacamole'),
+                  (self._public_url(hosts['wazuh'], self._public_port('wazuh', 8443)) + '/app/login', 'Wazuh'))
         ca_file = self._participant_ca_file()
         for url, name in checks:
             status, _ = self.host.http_json('GET', url, ca_file=ca_file)
@@ -1456,11 +1594,14 @@ http {
         """
         from ridge.registration import (RegistrationConfig, RegistrationStore,
                                         desktop_handout)
+        registration_path = self.registration_dir / 'registrations.sqlite'
         registration = RegistrationStore(
-            str(self.registration_dir / 'registrations.sqlite'),
+            str(registration_path),
             RegistrationConfig(
                 max_teams=self.profile['registration']['max_teams'],
-                members_per_team=self.profile['registration']['members_per_team']))
+                members_per_team=self.profile['registration']['members_per_team']),
+            enrollment_code=self._secret('registration-enrollment-code'))
+        _secure_private(registration_path)
         claimed = registration.claim_pending()
         if claimed is None:
             return None
@@ -1497,6 +1638,41 @@ http {
             registration.requeue(claimed['id'], str(exc))
             self._compose('desktops', 'stop', *services, check=False)
             raise
+
+    def registration_admin(self, action, registration_id=None):
+        """Audited host-side controls for the public allocator; never exposes passwords."""
+        if not self.profile.get('registration', {}).get('enabled', False):
+            raise LifecycleError('dynamic registration is not enabled for this profile')
+        from ridge.registration import RegistrationConfig, RegistrationStore
+        registration_path = self.registration_dir / 'registrations.sqlite'
+        store = RegistrationStore(
+            str(registration_path),
+            RegistrationConfig(
+                max_teams=self.profile['registration']['max_teams'],
+                members_per_team=self.profile['registration']['members_per_team']),
+            enrollment_code=self._secret('registration-enrollment-code'))
+        _secure_private(registration_path)
+        if action == 'status':
+            return {'open': store.is_open(), 'capacity': store.capacity(),
+                    'worker': self._registration_worker_status(),
+                    'registrations': store.list()}
+        if action in ('open', 'close'):
+            store.set_open(action == 'open')
+            return {'open': store.is_open(), 'capacity': store.capacity()}
+        if registration_id is None:
+            raise LifecycleError('registration ID is required for %s' % action)
+        if action == 'retry':
+            store.retry(registration_id)
+            return {'id': registration_id, 'status': 'pending'}
+        if action == 'cancel':
+            store.cancel(registration_id)
+            return {'id': registration_id, 'status': 'cancelled'}
+        if action == 'rotate-link':
+            code = store.rotate_access(registration_id)
+            return {'id': registration_id,
+                    'retrieve_path': '/silent-ridge/registration/' + code,
+                    'sensitive': True}
+        raise LifecycleError('unknown registration action %s' % action)
 
     @staticmethod
     def _last_json(output, label):
@@ -1548,31 +1724,69 @@ http {
 
     def registration_loop(self, interval=1.0):
         """Run the host allocator until interrupted; no participant code runs here."""
-        import time
-        while True:
-            try:
-                self.register_once()
-            except Exception as exc:
-                # Keep the service alive for later registrations; the failed
-                # row is visible through its retrieval page and in host logs.
-                logging.error('registration provisioning failed: %s', exc)
-            time.sleep(interval)
+        stopped = threading.Event()
+        def beat():
+            while not stopped.is_set():
+                self._write_registration_heartbeat()
+                stopped.wait(5)
+        heartbeat = threading.Thread(target=beat, daemon=True)
+        heartbeat.start()
+        try:
+            while True:
+                try:
+                    self.register_once()
+                except Exception as exc:
+                    # Keep the service alive for later registrations; the failed
+                    # row is visible through its retrieval page and in host logs.
+                    logging.error('registration provisioning failed: %s', exc)
+                time.sleep(interval)
+        finally:
+            stopped.set()
+            heartbeat.join(timeout=6)
 
     @property
     def registration_pid_path(self):
         return self.runtime / 'registration-worker.pid'
 
+    @property
+    def registration_heartbeat_path(self):
+        return self.runtime / 'registration-worker-heartbeat.json'
+
+    def _write_registration_heartbeat(self):
+        token = os.environ.get('RIDGE_REGISTRATION_WORKER_TOKEN', '')
+        _write_private(self.registration_heartbeat_path, json.dumps({
+            'pid': os.getpid(), 'token': token, 'updated': time.time()}) + '\n')
+
+    def _registration_worker_status(self):
+        if not self.profile.get('registration', {}).get('enabled', False):
+            return {'enabled': False, 'healthy': True}
+        try:
+            saved = json.loads(self.registration_pid_path.read_text(encoding='utf-8'))
+            heartbeat = json.loads(self.registration_heartbeat_path.read_text(encoding='utf-8'))
+            pid = int(saved['pid'])
+            token_ok = bool(saved.get('token')) and saved.get('token') == heartbeat.get('token')
+            fresh = time.time() - float(heartbeat.get('updated', 0)) < 15
+            alive = _process_exists(pid)
+            return {'enabled': True, 'healthy': bool(token_ok and fresh and alive),
+                    'pid': pid, 'alive': alive, 'heartbeat_fresh': fresh,
+                    'identity_verified': token_ok}
+        except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError):
+            return {'enabled': True, 'healthy': False,
+                    'error': 'registration worker PID/heartbeat is missing or invalid'}
+
     def _start_registration_worker(self):
         if not self.profile.get('registration', {}).get('enabled', False):
             return None
         if self.registration_pid_path.is_file():
-            try:
-                pid = int(self.registration_pid_path.read_text(encoding='utf-8').strip())
-                if pid > 0 and _windows_process_exists(pid):
-                    return pid
-            except (OSError, ValueError, subprocess.SubprocessError):
-                pass
+            status = self._registration_worker_status()
+            if status.get('healthy'):
+                return status['pid']
+            # Never kill an unverified reused PID. A verified stale worker is
+            # stopped before replacement; an unverified record is simply retired.
+            if status.get('identity_verified'):
+                self._stop_registration_worker()
             self.registration_pid_path.unlink(missing_ok=True)
+            self.registration_heartbeat_path.unlink(missing_ok=True)
         log_path = self.runtime / 'registration-worker.log'
         log = log_path.open('a', encoding='utf-8')
         command = [sys.executable, '-m', 'ridge.deploy.registration_worker',
@@ -1582,22 +1796,43 @@ http {
             json.dumps(self.profile, indent=2), encoding='utf-8')
         creationflags = (getattr(subprocess, 'CREATE_NEW_PROCESS_GROUP', 0) |
                          getattr(subprocess, 'DETACHED_PROCESS', 0))
+        token = self.host.randhex(24)
+        environment = dict(os.environ, RIDGE_REGISTRATION_WORKER_TOKEN=token)
         process = subprocess.Popen(command, cwd=str(ROOT), stdout=log, stderr=log,
-                                   creationflags=creationflags)
+                                   creationflags=creationflags, env=environment,
+                                   start_new_session=(os.name != 'nt'))
         log.close()
-        self.registration_pid_path.write_text(str(process.pid) + '\n', encoding='utf-8')
-        return process.pid
+        _write_private(self.registration_pid_path, json.dumps({
+            'pid': process.pid, 'token': token, 'started': time.time()}) + '\n')
+        for _ in range(50):
+            status = self._registration_worker_status()
+            if status.get('healthy'):
+                return process.pid
+            if process.poll() is not None:
+                break
+            time.sleep(.1)
+        raise LifecycleError('registration worker failed to publish a healthy heartbeat; '
+                             'inspect %s' % log_path)
 
     def _stop_registration_worker(self):
         if not self.registration_pid_path.is_file():
             return False
+        status = self._registration_worker_status()
+        if not status.get('identity_verified'):
+            self.registration_pid_path.unlink(missing_ok=True)
+            self.registration_heartbeat_path.unlink(missing_ok=True)
+            return False
         try:
-            pid = int(self.registration_pid_path.read_text(encoding='utf-8').strip())
-            subprocess.run(['taskkill', '/PID', str(pid), '/T', '/F'],
-                           capture_output=True, timeout=10)
+            pid = int(status['pid'])
+            if os.name == 'nt':
+                subprocess.run(['taskkill', '/PID', str(pid), '/T', '/F'],
+                               capture_output=True, timeout=10)
+            else:
+                os.killpg(pid, signal.SIGTERM)
         except (OSError, ValueError, subprocess.SubprocessError):
             pass
         self.registration_pid_path.unlink(missing_ok=True)
+        self.registration_heartbeat_path.unlink(missing_ok=True)
         return True
 
     def _probe_desktops(self):
@@ -1911,8 +2146,12 @@ http {
             actual = self._state_mode(state)
             if actual != 'running':
                 raise LifecycleError("mode transition did not persist (found %r)" % actual)
+            try:
+                worker = self._start_registration_worker()
+            except Exception:
+                state.mode(self.operator, 'paused')
+                raise
             journal.set_state('RUNNING')
-            worker = self._start_registration_worker()
             return {'state': 'RUNNING', 'mode': actual, **({'registration_worker_pid': worker}
                                                             if worker else {})}
 
@@ -1958,6 +2197,29 @@ http {
                                                 'pending': self._state_pending(exercise_state)}
             except Exception as exc:
                 document['live']['exercise'] = {'ok': False, 'error': str(exc)[:300]}
+        if self.profile.get('registration', {}).get('enabled', False):
+            worker = self._registration_worker_status()
+            try:
+                from ridge.registration import RegistrationConfig, RegistrationStore
+                registration_path = self.registration_dir / 'registrations.sqlite'
+                store = RegistrationStore(
+                    str(registration_path),
+                    RegistrationConfig(
+                        max_teams=self.profile['registration']['max_teams'],
+                        members_per_team=self.profile['registration']['members_per_team']),
+                    enrollment_code=self._secret('registration-enrollment-code'))
+                _secure_private(registration_path)
+                pending = store.list()
+                worker['queue'] = {
+                    'pending': sum(row['status']=='pending' for row in pending),
+                    'provisioning': sum(row['status']=='provisioning' for row in pending),
+                    'needs_operator': sum(row['status']=='needs_operator' for row in pending)}
+            except Exception as exc:
+                worker = {'enabled': True, 'healthy': False, 'error': str(exc)[:300]}
+            running_expected = journal is not None and journal.state == 'RUNNING'
+            document['live']['registration_worker'] = {
+                'ok': bool(worker.get('healthy')) if running_expected else True,
+                'detail': dict(worker, expected='running' if running_expected else 'stopped while paused')}
         steps_ok = (journal is not None
                     and all(s['state'] == 'verified' for s in journal.steps()))
         probes_ok = all(entry.get('ok') for entry in document['live'].values())
@@ -1973,7 +2235,6 @@ http {
         wipe must never take the event offline."""
         journal = Journal.open(self.runtime / 'deploy-journal.sqlite')
         with journal.lock(self.operator):
-            self._stop_registration_worker()
             verified = None
             if volumes:
                 from ridge.deploy import recovery
@@ -2001,6 +2262,7 @@ http {
                 # A fenced site is exempt from the freshness check: fencing only
                 # appends control-plane audit rows, and backup deliberately refuses
                 # fenced sites — the pre-fence set is the final state by design.
+            self._stop_registration_worker()
             stopped = []
             for kind in ('integration', 'desktops', 'guacamole', 'central', 'wazuh'):
                 if volumes:
@@ -2011,7 +2273,10 @@ http {
                 stopped.append(kind)
             removed = []
             if volumes:
-                names = recovery.event_volumes(self.event, self.teams)
+                names = recovery.event_volumes(
+                    self.event, self.teams,
+                    self.registration_dir / 'registrations.sqlite'
+                    if self.profile.get('registration', {}).get('enabled', False) else None)
                 before = set(self._run(
                     ['docker', 'volume', 'ls', '--format', '{{.Name}}']).splitlines())
                 for name in names:

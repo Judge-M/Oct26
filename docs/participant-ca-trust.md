@@ -1,4 +1,8 @@
-# Trust the event CA before participant login
+# Generated-CA fallback: trust the event CA before participant login
+
+The normal event route uses the public `*.cyberexperts.org` certificate on port
+443 and does not require participants to install a CA. Use this document only
+when the operator deliberately selects the generated-CA/IP-and-port fallback.
 
 The installed event generates a private certificate authority (CA). Its public
 certificate is `runtime/wazuh-certs/root-ca.pem`; the private key must never

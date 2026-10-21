@@ -64,19 +64,60 @@ class RegistrationStoreTests(unittest.TestCase):
         again = store.register('Red Comets', 'Jamie Lee')
         self.assertEqual(again['slots'], created['slots'])
 
+    def test_production_registration_starts_closed_and_requires_code(self):
+        store = RegistrationStore(self.path, RegistrationConfig(max_teams=1),
+                                  enrollment_code='LANTERN-42')
+        self.assertFalse(store.is_open())
+        with self.assertRaisesRegex(RegistrationError, 'closed'):
+            store.register('Blue Lanterns', 'Alex Morgan', enrollment_code='LANTERN-42')
+        store.set_open(True)
+        with self.assertRaisesRegex(RegistrationError, 'invalid'):
+            store.register('Blue Lanterns', 'Alex Morgan', enrollment_code='wrong')
+        created = store.register('Blue Lanterns', 'Alex Morgan',
+                                 enrollment_code='LANTERN-42')
+        self.assertEqual(created['status'], 'pending')
+
+    def test_failed_provisioning_stops_for_operator_and_can_be_retried(self):
+        store = RegistrationStore(self.path, RegistrationConfig(max_teams=1))
+        created = store.register('Blue Lanterns', 'Alex Morgan')
+        for attempt in range(store.MAX_ATTEMPTS):
+            claimed = store.claim_pending()
+            self.assertIsNotNone(claimed)
+            store.requeue(created['id'], 'temporary failure %d' % attempt)
+            if attempt < store.MAX_ATTEMPTS - 1:
+                with store._connect() as con:
+                    con.execute('UPDATE registrations SET retry_at=0 WHERE id=?',
+                                (created['id'],))
+        self.assertEqual(store.get(created['access_code'])['status'], 'needs_operator')
+        store.retry(created['id'])
+        self.assertEqual(store.get(created['access_code'])['status'], 'pending')
+
+    def test_rotating_retrieval_link_invalidates_old_link(self):
+        store = RegistrationStore(self.path, RegistrationConfig(max_teams=1))
+        created = store.register('Blue Lanterns', 'Alex Morgan')
+        replacement = store.rotate_access(created['id'])
+        with self.assertRaisesRegex(RegistrationError, 'not found'):
+            store.get(created['access_code'])
+        self.assertEqual(store.get(replacement)['id'], created['id'])
+
     def test_handout_has_three_distinct_tool_roles(self):
         handout = desktop_handout(['desktop-slot01', 'desktop-slot02', 'desktop-slot03'],
                                   'https://event:8082')
         self.assertEqual([row['role'] for row in handout],
                          ['forensics-a', 'forensics-b', 'analysis'])
         self.assertIn('Wireshark', handout[2]['tools'])
-        self.assertTrue(all(row['url'].startswith('https://event:8082/guacamole/')
-                            for row in handout))
+        self.assertIn('Wireshark', handout[0]['tools'])
+        self.assertTrue(all(row['guidance'] for row in handout))
+        self.assertEqual([row['connection_name'] for row in handout],
+                         ['desktop-slot01', 'desktop-slot02', 'desktop-slot03'])
 
     def test_private_handout_includes_wazuh_route_and_credentials(self):
         source = (Path(__file__).resolve().parents[1] /
                   'integrations/ctfd_silent_ridge/__init__.py').read_text(encoding='utf-8')
         self.assertIn("os.environ['WAZUH_PUBLIC_URL']", source)
+        self.assertIn('/app/data-explorer/discover#?', source)
+        self.assertNotIn('columns:!(_source)', source)
+        self.assertIn("2026-10-15T08:00:00.000Z", source)
         self.assertIn('credentials.wazuh.username', source)
         self.assertIn('credentials.wazuh.password', source)
 

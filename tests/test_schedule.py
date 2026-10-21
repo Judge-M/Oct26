@@ -48,7 +48,8 @@ class ScaledTicketsTests(unittest.TestCase):
 class PlanTests(unittest.TestCase):
     def test_accounts_segments_separately(self):
         result = plan(TICKETS, teams=2, multiplier=1.0)
-        self.assertEqual(result['investigation_minutes'], 195)  # T01||T02->T03->T04
+        self.assertEqual(result['investigation_minutes'], 280)
+        self.assertEqual(result['modeled_makespan_minutes'], 195)  # T01||T02->T03->T04
         self.assertEqual(result['facilitated_minutes'], 35)     # orientation + inject
         self.assertEqual(result['break_minutes'], 15)
         self.assertEqual(result['aar_minutes'], 30)
@@ -57,15 +58,17 @@ class PlanTests(unittest.TestCase):
 
     def test_fits_window_flags(self):
         result = plan(TICKETS, teams=2, multiplier=1.0)
-        self.assertEqual(result['total_minutes'], 275)
+        self.assertEqual(result['total_minutes'], 360)
         self.assertTrue(result['fits_window'])
+        self.assertTrue(result['fits_investigation_allocation'])
         stretched = plan(TICKETS, teams=2, multiplier=1.5)
-        self.assertEqual(stretched['investigation_minutes'], 294)
-        self.assertFalse(stretched['fits_window'])
+        self.assertEqual(stretched['modeled_makespan_minutes'], 294)
+        self.assertTrue(stretched['fits_window'])
+        self.assertFalse(stretched['fits_investigation_allocation'])
 
     def test_monotonic_in_multiplier(self):
         plans = sensitivity(TICKETS, teams=2, multipliers=(1.0, 1.5, 2.0))
-        makespans = [p['investigation_minutes'] for p in plans]
+        makespans = [p['modeled_makespan_minutes'] for p in plans]
         self.assertEqual(makespans, sorted(makespans))
 
     def test_deterministic(self):

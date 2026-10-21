@@ -33,7 +33,7 @@ elements:
       lineHeight: 1.4
       text: |
         <p><strong>1 · CLAIM</strong></p>
-        <p>Pick an open ticket in the IRIS queue. One active ticket per team.</p>
+        <p>Pick open tickets in the IRIS queue. Up to three active lanes per team.</p>
   - elementId: a1
     elementType: line
     bounds: [244, 220, 40, 12]
@@ -81,7 +81,7 @@ elements:
       lineHeight: 1.4
       text: |
         <p><strong>3 · ANSWER</strong></p>
-        <p>Submit the requested value in CTFd. One point per correct answer.</p>
+        <p>Submit the requested value in CTFd. Four points unassisted; one with Help 3.</p>
   - elementId: a3
     elementType: line
     bounds: [692, 220, 40, 12]
@@ -105,7 +105,7 @@ elements:
       lineHeight: 1.4
       text: |
         <p><strong>4 · SHARE</strong></p>
-        <p>The finding publishes to IRIS for every team. Closed tickets unlock new ones.</p>
+        <p>The finding publishes to IRIS. Your team's closed tickets unlock its next phase.</p>
   - elementId: notes-title
     elementType: text
     bounds: [64, 326, 300, 22]
@@ -117,9 +117,9 @@ elements:
       style: "$body"
       fontSize: 15
       text: |
-        <p>· <strong>Hints are free.</strong> Every question has help levels; using them costs nothing.</p>
+        <p>· <strong>Help 1 and 2 are free.</strong> Help 3 is the full walkthrough and permanently reduces that question from four points to one.</p>
         <p>· <strong>Wrong answers cost nothing.</strong> You only ever gain points — try, read the next hint, try again.</p>
-        <p>· <strong>Stuck?</strong> Relinquish the ticket in IRIS so another team can continue it. Your solved questions stay solved and your points stay yours.</p>
+        <p>· <strong>Stuck?</strong> Relinquish the ticket in IRIS to free one of your three lanes. Your solved questions and points remain.</p>
         <p>· <strong>No reports, no approvals.</strong> Answering questions and sharing findings is the whole job.</p>
   - elementId: footer
     elementType: text

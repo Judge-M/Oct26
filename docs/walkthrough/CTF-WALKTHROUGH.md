@@ -75,10 +75,10 @@ only real "configuration" step.
 
 | Tab | URL | Purpose | Learning objective it mainly serves |
 |---|---|---|---|
-| **CTFd** | `https://<LAN>:8083` | The question queue. Where you submit answers and see hints. | LO7 |
-| **IRIS** | `https://<LAN>:8081` | The case. Where you claim/release tickets and where findings land. | LO7, LO8 |
-| **Guacamole** | `https://<LAN>:8082/guacamole/` | Your team's Linux desktop — Wireshark, Autopsy, Cutter, evidence. | LO1, LO3 |
-| **Wazuh** | `https://<LAN>:8443` | The SIEM dashboard for querying telemetry. | LO5, LO6 |
+| **CTFd** | `https://ctfd.cyberexperts.org` | Your team's question queue. Submit answers and unlock help here. | LO7 |
+| **IRIS** | `https://iris.cyberexperts.org` | The case. Claim up to three team-local ticket lanes and review findings. | LO7, LO8 |
+| **Guacamole** | `https://guac.cyberexperts.org/guacamole/` | Your team's three Linux desktops — Wireshark, Autopsy, Cutter, evidence. | LO1, LO3 |
+| **Wazuh** | `https://wazuh.cyberexperts.org` | The SIEM dashboard for querying telemetry. | LO5, LO6 |
 
 ### 1.1 You must trust the event CA first
 
@@ -300,7 +300,9 @@ guessing, which is the opposite of the behaviour being taught.
 
 ## 5. Investigation — the desktop
 
-Open Guacamole (`:8082/guacamole/`), log in as your team, and your team desktop
+Open Guacamole (`https://guac.cyberexperts.org/guacamole/`), log in with the
+credentials on your private team handout, and choose one of your three desktop
+connections. The desktop
 appears:
 
 ![The team desktop](images/04-guacamole-team-desktop.png)
@@ -356,7 +358,7 @@ Also from LO3, and worth internalising early:
 
 ### 5.1 Querying the SIEM — Wazuh Discover
 
-The fourth tab (`:8443`) is the Wazuh Dashboard. Log in with the read-only
+The fourth tab (`https://wazuh.cyberexperts.org`) is the Wazuh Dashboard. Log in with the read-only
 account the organizer hands out from `secrets/wazuh_reader`, then open
 **Discover**.
 
@@ -777,7 +779,7 @@ Observed during live play — documented so they are not mistaken for breakage.
 
 ```
 1. Trust the event CA, restart the browser     (docs/participant-ca-trust.md)
-2. Open 4 tabs: :8083 CTFd · :8081 IRIS · :8082/guacamole · :8443 Wazuh
+2. Open the four port-443 URLs from the handout: CTFd, IRIS, Guacamole, and Wazuh
 3. IRIS  → Incident queue → Claim ticket        (one at a time)
 4. CTFd  → Questions and help → read the card
    · Tool + Evidence = where to start
