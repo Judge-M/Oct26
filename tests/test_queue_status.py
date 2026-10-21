@@ -73,6 +73,7 @@ class QueueStateTests(unittest.TestCase):
         self.assertIn('native IRIS task view is read-only for participants',PAGE)
         self.assertIn('View read-only IRIS tasks and shared findings',PAGE)
         self.assertIn('<strong>Start here</strong>',PAGE)
+        self.assertIn('for step in route.directions',PAGE)
 
 
 if __name__=='__main__':unittest.main()

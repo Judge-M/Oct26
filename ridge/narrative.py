@@ -5,28 +5,9 @@ from functools import lru_cache
 from pathlib import Path
 
 
-TICKET_ROUTES = {
-    'T01': {'tools': ['Wireshark'], 'evidence': ['/evidence/network/sensor.pcap', '/evidence/endpoint/events.csv']},
-    'T02': {'tools': ['Wireshark'], 'evidence': ['/evidence/network/dns.pcap']},
-    'T03': {'tools': ['Autopsy'], 'evidence': ['/evidence/browser/downloads.csv']},
-    'T04': {'tools': ['Autopsy'], 'evidence': ['/evidence/endpoint/events.csv']},
-    'T05': {'tools': ['Autopsy'], 'evidence': ['/evidence/disk/WS17-fat16.img']},
-    'T06': {'tools': ['Wazuh'], 'evidence': ['/evidence/wazuh/telemetry.jsonl']},
-    'T07': {'tools': ['Wazuh'], 'evidence': ['/evidence/identity/late-auth.csv', '/evidence/identity/policy.txt', '/evidence/wazuh/telemetry.jsonl']},
-    'T08': {'tools': ['Autopsy'], 'evidence': ['/evidence/server/access.csv']},
-    'T09': {'tools': ['Evidence file manager'], 'evidence': ['/evidence/server/version-comparison.csv']},
-    'T10': {'tools': ['Wazuh'], 'evidence': ['/evidence/wazuh/telemetry.jsonl']},
-    'T11': {'tools': ['Wazuh'], 'evidence': ['/evidence/wazuh/telemetry.jsonl']},
-    'T12': {'tools': ['Wazuh'], 'evidence': ['/evidence/server/collection.txt', '/evidence/wazuh/telemetry.jsonl']},
-    'T13': {'tools': ['Autopsy'], 'evidence': ['/evidence/prepared/windows-process.json']},
-    'T14': {'tools': ['Autopsy'], 'evidence': ['/evidence/prepared/windows-task.json']},
-    'T15': {'tools': ['Autopsy'], 'evidence': ['/evidence/prepared/memory-processes.json']},
-    'T16': {'tools': ['Autopsy'], 'evidence': ['/evidence/prepared/windows-connections.json']},
-    'T17': {'tools': ['Cutter'], 'evidence': ['/evidence/binary/brief-viewer-training']},
-    'T18': {'tools': ['Cutter'], 'evidence': ['/evidence/binary/brief-viewer-training']},
-    'T19': {'tools': ['Evidence file manager'], 'evidence': ['/evidence/network/dlp-metadata.json']},
-    'T20': {'tools': ['Wazuh'], 'evidence': ['/evidence/wazuh/telemetry.jsonl']},
-}
+@lru_cache(maxsize=1)
+def ticket_routes():
+    return json.loads(Path(__file__).with_name('ticket_routes_v1.json').read_text(encoding='utf-8'))
 
 
 @lru_cache(maxsize=1)
@@ -101,7 +82,7 @@ def participant_context(snapshot,questions=()):
             'premise':data['premise'],'discovery':data['discovery'],'stakes':data['stakes'],
             'participant_role':data['participant_role'],'operating_rule':data['operating_rule'],
             'roles':data['roles'],'tools':data['tools'],'ticket_context':mapping,
-            'ticket_routes':TICKET_ROUTES,
+            'ticket_routes':ticket_routes(),
             'completion':data['completion'],'completed':completed,'total':total,
             'operational_update':update if update_ready and completed<total else None,
             'timeline':[row for row in data['timeline'] if row['ticket'] in complete_ids],
