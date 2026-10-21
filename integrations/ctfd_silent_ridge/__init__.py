@@ -239,7 +239,10 @@ def load(app):
             if request.path not in ('/api/v1/scoreboard', '/api/v1/scoreboard/top/10') or request.method != 'GET':
                 abort(403)
         if request.path == '/challenges':
-            return redirect('/silent-ridge')
+            # CTFd sends every successful login to /challenges. Participants
+            # should enter the exercise, while administrators need the stock
+            # admin panel and have no team identity for /silent-ridge.
+            return redirect('/admin' if is_admin() else '/silent-ridge')
 
     @app.route('/silent-ridge/register', methods=['GET', 'POST'])
     def ridge_register():

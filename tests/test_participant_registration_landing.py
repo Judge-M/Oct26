@@ -87,6 +87,10 @@ class ParticipantRegistrationLandingTests(unittest.TestCase):
             self.assertIn(text, self.source)
         self.assertNotIn('credentials.ctfd.password', self.source)
 
+    def test_successful_admin_login_redirects_to_admin_panel(self):
+        self.assertIn("redirect('/admin' if is_admin() else '/silent-ridge')",
+                      self.source)
+
     def test_new_reservations_fail_closed_when_worker_heartbeat_is_stale(self):
         for text in (
             'registration-worker-heartbeat.json',
