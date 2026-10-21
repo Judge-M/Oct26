@@ -37,14 +37,14 @@ button,input{font:inherit;padding:.6rem;margin:.4rem}button{cursor:pointer}summa
 <p><strong>Room-wide closing brief ready:</strong> remain in place while the facilitator presents the conclusion to everyone together. Participant-controlled playback is intentionally unavailable.</p>
 </section>{% endif %}
 {% for a in snapshot.announcements %}<article><strong>{{'Published final assessment' if a.kind=='final_assessment' else 'Published announcement'}} · {{a.timestamp}}</strong><p>{{a.text}}</p></article>{% endfor %}
-{% if lane=='iris' %}{% if story.timeline %}<section class="timeline" aria-labelledby="timeline-title"><h2 id="timeline-title">Verified incident chronology</h2>
+{% if lane=='iris' %}<section class="card" aria-labelledby="ticket-workflow-title"><h2 id="ticket-workflow-title">How to mark a ticket as being worked</h2><p>Use <strong>Claim ticket — start working</strong> on this Incident queue. That records your team as the owner. The native IRIS task view is read-only for participants, so its status controls will deny changes.</p></section>{% if story.timeline %}<section class="timeline" aria-labelledby="timeline-title"><h2 id="timeline-title">Verified incident chronology</h2>
 <p>Events appear only after their supporting ticket is complete. Times are incident UTC, not participant submission times.</p><ol>
 {% for item in story.timeline %}<li><time>{{item.time}} UTC</time><div><strong>{{item.event}}</strong><br><small>{{item.ticket}} · {{item.source}}</small></div></li>{% endfor %}
 </ol></section>{% endif %}<h2>{{'Choose up to three available tickets' if queue.claimable else 'Ticket queue'}}</h2>
 {% for t in snapshot.tickets %}{% set context=story.ticket_context.get(t.id) %}<article><h3>{{t.id}} · {{t.title}}</h3><p>{{t.subject}} · {{t.status}} · Owner: {{t.owner or 'available'}}</p>
 {% if context %}<p class="phase">{{context.phase_title}}</p><p>{{context.briefing}}</p><p class="why"><strong>Why now:</strong> {{context.stakes}}</p><p><strong>Handoff:</strong> {{context.handoff}}</p>{% endif %}
-{% if t.iris_id %}<a href="{{iris}}/case/tasks?cid={{case}}">Open IRIS tasks and shared findings</a>{% endif %}
-{% if snapshot.mode=='running' and t.status=='available' and t.iris_id %}<form method="post"><input type="hidden" name="csrf_token" value="{{csrf}}"><input type="hidden" name="nonce" value="{{csrf}}"><input type="hidden" name="ticket" value="{{t.id}}"><input type="hidden" name="generation" value="{{t.generation}}"><button name="action" value="claim">Claim ticket</button></form>{% else %}<p class="why"><strong>Claiming:</strong> {{ queue.notes.get(t.id,'Claiming is not open for this ticket right now.') }}</p>{% endif %}
+{% if t.iris_id %}<a href="{{iris}}/case/tasks?cid={{case}}">View read-only IRIS tasks and shared findings</a>{% endif %}
+{% if snapshot.mode=='running' and t.status=='available' and t.iris_id %}<form method="post"><input type="hidden" name="csrf_token" value="{{csrf}}"><input type="hidden" name="nonce" value="{{csrf}}"><input type="hidden" name="ticket" value="{{t.id}}"><input type="hidden" name="generation" value="{{t.generation}}"><button name="action" value="claim">Claim ticket — start working</button></form>{% else %}<p class="why"><strong>Claiming:</strong> {{ queue.notes.get(t.id,'Claiming is not open for this ticket right now.') }}</p>{% endif %}
 {% if snapshot.mode=='running' and t.owner==snapshot.team %}<form method="post"><input type="hidden" name="csrf_token" value="{{csrf}}"><input type="hidden" name="nonce" value="{{csrf}}"><input type="hidden" name="ticket" value="{{t.id}}"><input type="hidden" name="generation" value="{{t.generation}}"><button name="action" value="release">Relinquish — keep completed answers</button></form><a href="{{ctfd}}/silent-ridge">Start this ticket's questions</a>{% endif %}</article>{% endfor %}
 {% else %}{% if story.correlation_workspace %}<section class="workspace" id="correlation-workspace" aria-labelledby="correlation-title"><h2 id="correlation-title">Process-to-network correlation board</h2>
 <p>Build the relationship from the T13–T16 records before treating adjacent fields as one event. This scratchpad stays in this browser and is never submitted.</p><div class="relation">
@@ -161,3 +161,4 @@ def queue_state(snapshot):
     return {'status':status,'notes':notes,'held':held,'claimable':claimable,
             'preparing':preparing,'paused':not running,
             'complete':bool(tickets) and len(complete)==len(tickets)}
+
