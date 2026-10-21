@@ -10,7 +10,7 @@
     "directions": [
       "Open Wireshark > File > Open > /evidence/network/sensor.pcap.",
       "Select View > Time Display Format > UTC Date and Time of Day.",
-      "Enter udp.port == 514 in the display filter and press Enter.",
+      "Enter udp.dstport == 514 in the display filter and press Enter. Do not use udp == 514; that is not the UDP port field.",
       "Select a packet and expand its protocol fields. For syslog, inspect the embedded proxy record; the outer collector addresses are not incident endpoints.",
       "The capture carries a requester address, not a workstation name. Record the requester address from the plan download, then open /evidence/identity/auth.csv and correlate that address to an account and session.",
       "Open /evidence/endpoint/events.csv and find rows for that account to read its workstation name. The address column in that file is not the same address, so correlate by account rather than assuming every address field has one meaning."

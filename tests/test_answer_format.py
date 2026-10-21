@@ -143,6 +143,23 @@ class AuthorFormatTests(unittest.TestCase):
                               'explicit session revocation'):
             self.assertNotIn(leaked_answer, ordinary_steps)
 
+    def test_help_level_two_is_question_specific_and_sensor_filter_works(self):
+        questions = {question['id']: question
+                     for ticket in build()
+                     for question in ticket['questions']}
+        second_hints = []
+        for question in questions.values():
+            self.assertGreaterEqual(len(question['hints']), 3)
+            self.assertNotEqual(question['hints'][0], question['hints'][1])
+            self.assertNotIn('Compare the selected record with adjacent events',
+                             question['hints'][1])
+            second_hints.append(question['hints'][1])
+        self.assertEqual(len(second_hints), len(set(second_hints)))
+        self.assertEqual(questions['T01-Q2']['selection'], 'udp.dstport == 514')
+        self.assertIn('24 matching packets', questions['T01-Q2']['hints'][1])
+        self.assertIn('not udp == 514', questions['T01-Q2']['hints'][1])
+
 
 if __name__ == '__main__':
     unittest.main()
+

@@ -43,7 +43,7 @@ packet list and press Enter. A red filter bar means the syntax needs correction;
 clear the bar to restore all packets. Select a packet and expand the protocol
 fields below it. View > Time Display Format controls displayed time conventions.
 
-Worked example: in the reconstructed sensor capture, `udp.port == 514` selects
+Worked example: in the reconstructed sensor capture, `udp.dstport == 514` selects
 syslog messages. The outer packet addresses identify collectors. Expand the
 syslog message to inspect the embedded proxy record and its own source/destination.
 The same packet can therefore contain two different pairs of addresses without
