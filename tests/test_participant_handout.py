@@ -31,7 +31,8 @@ class ParticipantHandoutTextTests(unittest.TestCase):
         return credential_handout_text(
             self.registration, self.credentials,
             retrieval_url='https://ctfd.example/silent-ridge/registration/private-token',
-            ctfd_url='https://ctfd.example', iris_url='https://iris.example',
+            ctfd_url='https://ctfd.example/login',
+            iris_url='https://iris.example/silent-ridge',
             wazuh_url='https://wazuh.example/app/discover',
             guac_url='https://guac.example')
 
@@ -40,10 +41,12 @@ class ParticipantHandoutTextTests(unittest.TestCase):
         for expected in (
             'Return to this handout: https://ctfd.example/silent-ridge/registration/private-token',
             'CTFd - questions, answers, and help',
+            'URL: https://ctfd.example/login',
             'Team ID: team-01',
             'Seat 1 username: team-01-p01',
             'Seat 1 password: seat-one-secret',
             'IRIS - incident queue and shared findings',
+            'URL: https://iris.example/silent-ridge',
             'Username: ridge-reader',
             'Wazuh Discover - prepared telemetry view',
             'Guacamole - three investigation desktops',
@@ -60,3 +63,4 @@ class ParticipantHandoutTextTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
