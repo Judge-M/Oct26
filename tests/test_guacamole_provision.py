@@ -62,6 +62,18 @@ class GuacamoleReconcileTests(unittest.TestCase):
         shared = guac.reconcile(config(shared=True), credentials())
         self.assertIn("'vnc',3,3", shared)
 
+    def test_remote_desktop_port_is_rendered(self):
+        remote = config()
+        remote['desktops'][0]['port'] = 5917
+        sql = guac.reconcile(remote, credentials())
+        self.assertIn("'port','5917'", sql)
+
+    def test_invalid_remote_desktop_port_is_rejected(self):
+        remote = config()
+        remote['desktops'][0]['port'] = 70000
+        with self.assertRaisesRegex(ValueError, 'VNC port'):
+            guac.reconcile(remote, credentials())
+
     def test_login_password_is_hashed_never_plaintext(self):
         sql = guac.reconcile(config(), credentials())
         self.assertNotIn('a-long-generated-password', sql)

@@ -40,6 +40,9 @@ facilitator guides.
    wildcard certificate, configure it before `up` using
    [public HTTPS certificates](docs/external-tls.md). Never commit the private
    key or runtime secrets.
+   To spread Guacamole desktops across multiple Docker machines, configure
+   [multi-host desktop workers](docs/multi-host-desktops.md) before creating
+   the runtime; single-host operation remains the default.
 4. **Provision and start the event.** For fixed teams, run `up --teams N`.
    For self-service registration, use `deployment/profiles/example-dynamic.json`
    and do not pass `--teams`:
@@ -137,8 +140,10 @@ a facilitated after-action review.
 
 ## What you need to host it locally
 
-One machine runs the whole event. Sized from live measurement of the real
-stack, not guesswork:
+One machine can run the whole event; optional
+[desktop workers](docs/multi-host-desktops.md) can carry excess Guacamole
+desktops while the browser services remain centralized. Sizing is based on live
+measurement of the real stack, not guesswork:
 
 - **32 GB RAM minimum; 64 GB is comfortable.** Measured on the running stack:
   central services use ~6 GiB; each team desktop idles at ~150 MiB and peaks

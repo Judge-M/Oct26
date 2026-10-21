@@ -51,9 +51,13 @@ when a task needs one of the assigned GUI desktops.
 
 ## Explicit limits and operational notes
 
-- This implementation uses one Docker host and a lazy-start slot pool. It does
-  not yet schedule slots across two separate Docker hosts; multi-host placement
-  needs a host-agent/control-plane design before event day.
+- The original implementation used one Docker host. Optional named desktop
+  workers now extend the same lazy-start pool through SSH-backed Docker
+  contexts; see `docs/multi-host-desktops.md`. Single-host profiles remain the
+  default.
+- Recovery schema 1 does not archive named volumes on remote workers, so
+  `down --volumes` refuses to run while workers are configured. Central state
+  remains covered; export or preserve worker workspaces separately.
 - Existing ticket/answer semantics remain unchanged. This removes fixed team
   provisioning; it does not yet convert the challenge into independent per-team
   copies of all 80 globally unique tickets.

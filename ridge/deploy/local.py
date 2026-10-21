@@ -487,7 +487,51 @@ class LocalStack:
             if not local.get('assets', {}).get(key):
                 raise LifecycleError('local.json assets.%s: required host path' % key)
         self._validate_tls_config(local)
+        self._validate_desktop_workers(local)
         return local
+
+    def _validate_desktop_workers(self, local):
+        """Validate host-local Docker context and remote bind-mount paths.
+
+        Placement belongs in the versioned profile, but Docker context names and
+        paths on another operator-owned machine are deliberately local.json-only.
+        This keeps credentials and host details out of reusable profiles.
+        """
+        workers = local.get('desktop_workers') or {}
+        if not isinstance(workers, dict):
+            raise LifecycleError('local.json desktop_workers: expected an object')
+        required = {desktop.get('worker', 'local') for desktop in self.profile['desktops']}
+        required.discard('local')
+        missing = sorted(required.difference(workers))
+        if missing:
+            raise LifecycleError('local.json desktop_workers: missing configuration for %s'
+                                 % ', '.join(missing))
+        for worker_id in sorted(required):
+            worker = workers[worker_id]
+            field = 'local.json desktop_workers.%s' % worker_id
+            if not isinstance(worker, dict):
+                raise LifecycleError('%s: expected an object' % field)
+            context = worker.get('docker_context')
+            if not isinstance(context, str) or not context.strip():
+                raise LifecycleError('%s.docker_context: required Docker context name' % field)
+            assets = worker.get('assets')
+            if not isinstance(assets, dict):
+                raise LifecycleError('%s.assets: expected an object of remote host paths' % field)
+            for key in ('case_template', 'evidence_public', 'originals'):
+                if not isinstance(assets.get(key), str) or not assets[key].strip():
+                    raise LifecycleError('%s.assets.%s: required remote host path' % (field, key))
+            password_dir = worker.get('vnc_password_dir')
+            if not isinstance(password_dir, str) or not password_dir.strip():
+                raise LifecycleError('%s.vnc_password_dir: required remote host path' % field)
+
+    def _remote_worker_ids(self):
+        return sorted({desktop.get('worker', 'local') for desktop in self.profile['desktops']
+                       if desktop.get('worker', 'local') != 'local'})
+
+    def _worker(self, worker_id):
+        if worker_id == 'local':
+            return None
+        return self.local['desktop_workers'][worker_id]
 
     @staticmethod
     def _validate_tls_config(local):
@@ -698,6 +742,66 @@ http {
         return self._run(['docker', 'compose', '--env-file', env_file,
                           '-f', COMPOSE_FILES[project_kind], *args], check=check)
 
+    def _desktop_compose(self, worker_id, *args, check=True):
+        """Run the desktop Compose project on its assigned Docker host."""
+        if worker_id == 'local':
+            return self._compose('desktops', *args, check=check)
+        worker = self._worker(worker_id)
+        return self._run([
+            'docker', '--context', worker['docker_context'], 'compose',
+            '--env-file', self.env_dir / ('desktops-%s.env' % worker_id),
+            '-f', COMPOSE_FILES['desktops'],
+            '-f', self.runtime / ('desktops-%s.override.yaml' % worker_id),
+            *args,
+        ], check=check)
+
+    def _desktop_spec(self, service):
+        """Resolve a Compose service to its normalized desktop profile row."""
+        by_name = {desktop['name']: desktop for desktop in self.profile['desktops']}
+        if service in by_name:
+            return by_name[service]
+        from ridge.docker_provider import team_service
+        for index, team in enumerate(self.teams):
+            if team_service('team%02d' % (index + 1)) == service:
+                return by_name[team['desktop']]
+        raise LifecycleError('desktop service %s has no profile placement' % service)
+
+    def _desktop_groups(self, services):
+        groups = {}
+        for service in services:
+            worker_id = self._desktop_spec(service).get('worker', 'local')
+            groups.setdefault(worker_id, []).append(service)
+        return groups
+
+    def _start_desktop_services(self, services):
+        started = []
+        for worker_id, names in self._desktop_groups(services).items():
+            self._desktop_compose(worker_id, 'up', '-d', '--wait', '--wait-timeout', '300',
+                                  *names)
+            started.extend((worker_id, name) for name in names)
+        return started
+
+    def _stop_desktop_services(self, services):
+        for worker_id, names in self._desktop_groups(services).items():
+            self._desktop_compose(worker_id, 'stop', *names, check=False)
+
+    def _desktop_ps(self, worker_id):
+        try:
+            out = self._desktop_compose(worker_id, 'ps', '-a', '--format', 'json')
+        except Exception:
+            return {}
+        services = {}
+        for line in out.splitlines():
+            line = line.strip().strip(',')
+            if not line or not line.startswith('{'):
+                continue
+            row = json.loads(line)
+            name = row.get('Service') or row.get('Name', '')
+            services[name] = {'state': row.get('State', ''),
+                              'health': row.get('Health') or row.get('Status', ''),
+                              'exit_code': row.get('ExitCode')}
+        return services
+
     def _ps(self, project_kind):
         """Compose ps as {service: {'state':..., 'health':...}}; empty when project absent."""
         try:
@@ -738,6 +842,28 @@ http {
                                  '. Run `python -m ridge.deploy up` to reconcile; '
                                  'state is never reset automatically')
         return services
+
+    def _require_desktop_services(self, names):
+        problems = []
+        result = {}
+        for worker_id, worker_names in self._desktop_groups(names).items():
+            services = self._desktop_ps(worker_id)
+            result.update(services)
+            label = 'desktops' if worker_id == 'local' else 'desktops@' + worker_id
+            for name in worker_names:
+                entry = services.get(name)
+                if entry is None:
+                    problems.append('%s/%s is absent' % (label, name))
+                elif entry['state'] != 'running':
+                    problems.append('%s/%s is %s' % (label, name, entry['state']))
+                elif (entry['health'] not in ('', 'healthy', 'running')
+                      and not entry['health'].startswith('Up')):
+                    problems.append('%s/%s health is %s' % (label, name, entry['health']))
+        if problems:
+            raise LifecycleError('services not ready: ' + '; '.join(problems) +
+                                 '. Run `python -m ridge.deploy up` to reconcile; '
+                                 'state is never reset automatically')
+        return result
 
     # ------------------------------------------------------------- generation
 
@@ -993,6 +1119,16 @@ http {
             'CTFD_PUBLIC_URL': public['ctfd'],
             'WAZUH_PUBLIC_URL': public['wazuh'],
         }
+        for worker_id in self._remote_worker_ids():
+            worker = self._worker(worker_id)
+            remote = dict(files['desktops'])
+            remote.update({
+                'RIDGE_VNC_PASSWORD_DIR': worker['vnc_password_dir'],
+                'RIDGE_CASE_DIR': worker['assets']['case_template'],
+                'RIDGE_EVIDENCE_DIR': worker['assets']['evidence_public'],
+                'RIDGE_ORIGINALS_DIR': worker['assets']['originals'],
+            })
+            files['desktops-' + worker_id] = remote
         files['integration'] = {
             'RIDGE_PROJECT': self.event,
             'RIDGE_IMAGE': 'silent-ridge-integration:dev',
@@ -1012,6 +1148,21 @@ http {
         for name, values in files.items():
             text = '\n'.join('%s=%s' % (key, value) for key, value in values.items()) + '\n'
             _write_private(self.env_dir / (name + '.env'), text)
+        for worker_id in self._remote_worker_ids():
+            rows = ['services:']
+            for service in self._configured_desktop_services():
+                desktop = self._desktop_spec(service)
+                if desktop.get('worker', 'local') != worker_id:
+                    continue
+                rows.extend([
+                    '  %s:' % service,
+                    '    ports:',
+                    '      - "%s:%d:5901"' % (desktop['address'], desktop['vnc_port']),
+                ])
+            if len(rows) == 1:
+                raise LifecycleError('desktop worker %s has no assigned services' % worker_id)
+            (self.runtime / ('desktops-%s.override.yaml' % worker_id)).write_text(
+                '\n'.join(rows) + '\n', encoding='utf-8')
         return files
 
     def _render_wazuh_config(self):
@@ -1068,6 +1219,20 @@ http {
                     extra_users.append((username, extra_hashes[0], role))
             users.write_text(render_indexer_admin(source_users, hash_lines[0], extra_users),
                              encoding='utf-8')
+
+    @staticmethod
+    def _guacamole_desktop(desktop):
+        row = {
+            'id': desktop['name'],
+            'shared': desktop.get('shared', True),
+            'max_connections': desktop.get(
+                'max_connections', 4 if desktop.get('shared', True) else 1),
+        }
+        if desktop.get('worker', 'local') == 'local':
+            row['container'] = True
+        else:
+            row.update(address=desktop['address'], port=desktop['vnc_port'])
+        return row
 
     def _render_specs(self):
         """Create missing bootstrap/provisioning specs from the runtime credentials.
@@ -1127,10 +1292,7 @@ http {
         guac_config_path = self.specs_dir / 'guac-config.json'
         if not guac_config_path.is_file():
             _write_private(guac_config_path, json.dumps({
-                'desktops': [{'id': desktop['name'], 'container': True,
-                              'shared': desktop.get('shared', True),
-                              'max_connections': desktop.get('max_connections',
-                                                             4 if desktop.get('shared', True) else 1)}
+                'desktops': [self._guacamole_desktop(desktop)
                              for desktop in self.profile['desktops']],
                 'teams': ([{'id': 'team%02d' % (i + 1), 'desktop': team['desktop']}
                            for i, team in enumerate(self.teams)]
@@ -1178,6 +1340,44 @@ http {
             if actual != recorded['image_id']:
                 problems.append('image %s changed since its receipt: rebuild component %s'
                                 % (recorded['image'], component))
+        desktop_receipt = self.receipts / 'desktop.json'
+        if desktop_receipt.is_file():
+            recorded = json.loads(desktop_receipt.read_text(encoding='utf-8'))
+            for worker_id in self._remote_worker_ids():
+                context = self._worker(worker_id)['docker_context']
+                try:
+                    actual = self._run(['docker', '--context', context, 'image', 'inspect',
+                                        '--format', '{{.Id}}', recorded['image']])
+                except Exception:
+                    problems.append('desktop image %s is not loaded on worker %s (Docker '
+                                    'context %s)' % (recorded['image'], worker_id, context))
+                    continue
+                if actual != recorded['image_id']:
+                    problems.append('desktop image %s on worker %s differs from the reviewed '
+                                    'build receipt; transfer the reviewed image instead of '
+                                    'rebuilding independently' % (recorded['image'], worker_id))
+                    continue
+                worker = self._worker(worker_id)
+                assigned = [desktop['name'] for desktop in self.profile['desktops']
+                            if desktop.get('worker', 'local') == worker_id]
+                checks = ['test -f /case/WS17.aut',
+                          'test -f /evidence/network/sensor.pcap',
+                          'test -d /originals']
+                checks.extend('test -s /vnc/%s' % name for name in assigned)
+                try:
+                    self._run([
+                        'docker', '--context', context, 'run', '--rm', '--pull', 'never',
+                        '--network', 'none', '--entrypoint', 'bash',
+                        '-v', worker['assets']['case_template'] + ':/case:ro',
+                        '-v', worker['assets']['evidence_public'] + ':/evidence:ro',
+                        '-v', worker['assets']['originals'] + ':/originals:ro',
+                        '-v', worker['vnc_password_dir'] + ':/vnc:ro',
+                        recorded['image'], '-c', ' && '.join(checks),
+                    ])
+                except Exception:
+                    problems.append('worker %s cannot read the staged case, evidence, originals, '
+                                    'or assigned VNC secrets; verify local.json remote paths'
+                                    % worker_id)
         for key, check in (('evidence_public', 'dir'), ('release_vault', 'dir'),
                            ('case_template', 'dir'), ('originals', 'dir')):
             if not self.asset(key).is_dir():
@@ -1267,6 +1467,13 @@ http {
                 self._run(['docker', 'network', 'inspect', name])
             except CommandError:
                 self._run(['docker', 'network', 'create', name])
+        desktop_network = self.event + '-desktop'
+        for worker_id in self._remote_worker_ids():
+            context = self._worker(worker_id)['docker_context']
+            try:
+                self._run(['docker', '--context', context, 'network', 'inspect', desktop_network])
+            except CommandError:
+                self._run(['docker', '--context', context, 'network', 'create', desktop_network])
 
     def _dashboard_bind_ip(self):
         bind = str(self.local.get('bind_ip') or '127.0.0.1')
@@ -1564,10 +1771,14 @@ http {
             return []
         return [team_service('team%02d' % (i + 1)) for i in range(len(self.teams))]
 
+    def _configured_desktop_services(self):
+        if self.profile.get('registration', {}).get('enabled', False):
+            return [desktop['name'] for desktop in self.profile['desktops']]
+        return self._desktop_services()
+
     def _apply_desktops(self):
         if not self.profile.get('registration', {}).get('enabled', False):
-            self._compose('desktops', 'up', '-d', '--wait', '--wait-timeout', '300',
-                          *self._desktop_services())
+            self._start_desktop_services(self._desktop_services())
         sql = (self.runtime / 'guac-init' / '002-provision.sql').read_text(encoding='utf-8')
         self._pipe(['docker', 'compose', '--env-file', self.env_dir / 'guacamole.env',
                     '-f', COMPOSE_FILES['guacamole'], 'exec', '-T', 'database',
@@ -1618,7 +1829,7 @@ http {
         }
         services = list(claimed['slots'])
         try:
-            self._compose('desktops', 'up', '-d', '--wait', '--wait-timeout', '300', *services)
+            self._start_desktop_services(services)
             ctfd = self._compose('central', 'exec', '-T', 'ctfd', 'flask',
                                  'silent-ridge-register', '--registration-id', str(claimed['id']))
             iris = self._compose('central', 'exec', '-T', 'iris', 'flask',
@@ -1636,7 +1847,7 @@ http {
             return {'id': claimed['id'], 'team': team_id, 'desktops': services}
         except Exception as exc:
             registration.requeue(claimed['id'], str(exc))
-            self._compose('desktops', 'stop', *services, check=False)
+            self._stop_desktop_services(services)
             raise
 
     def registration_admin(self, action, registration_id=None):
@@ -1705,9 +1916,9 @@ http {
         sys.path.insert(0, str(COMPOSE_DIR))
         import guacamole as guac_module
         all_credentials = self._team_credentials()
-        config = {'desktops': [
-            {'id': slot, 'container': True, 'shared': True, 'max_connections': 5}
-            for slot in services],
+        desktops = {desktop['name']: desktop for desktop in self.profile['desktops']}
+        config = {'desktops': [self._guacamole_desktop(desktops[slot])
+                               for slot in services],
             'teams': [{'id': team_id, 'desktops': services}]}
         guac_credentials = {
             'teams': {team_id: {'username': credentials['guacamole']['username'],
@@ -1836,7 +2047,7 @@ http {
         return True
 
     def _probe_desktops(self):
-        self._require_services('desktops', self._desktop_services())
+        self._require_desktop_services(self._desktop_services())
         out = self._compose('guacamole', 'exec', '-T', 'database', 'psql', '-U', 'guacamole',
                             '-d', 'guacamole', '-tA', '-c',
                             'SELECT count(*) FROM guacamole_connection')
@@ -1940,9 +2151,11 @@ http {
             return {'deferred': 'desktop evidence probe runs after each team registration'}
         for i in range(len(self.teams)):
             service = team_service('team%02d' % (i + 1))
-            out = self._compose('desktops', 'exec', '-T', service, 'bash', '-c',
-                                'ls /evidence/network/sensor.pcap /evidence/wazuh/telemetry.jsonl',
-                                check=False)
+            worker_id = self._desktop_spec(service).get('worker', 'local')
+            out = self._desktop_compose(
+                worker_id, 'exec', '-T', service, 'bash', '-c',
+                'ls /evidence/network/sensor.pcap /evidence/wazuh/telemetry.jsonl',
+                check=False)
             if 'sensor.pcap' not in out:
                 raise LifecycleError('evidence is not visible on desktop %s under /evidence'
                                      % service)
@@ -2235,6 +2448,12 @@ http {
         wipe must never take the event offline."""
         journal = Journal.open(self.runtime / 'deploy-journal.sqlite')
         with journal.lock(self.operator):
+            if volumes and self._remote_worker_ids():
+                raise LifecycleError(
+                    'down --volumes refused: remote desktop workers are configured and the '
+                    'current recovery-set format does not capture their named volumes. Stop '
+                    'without --volumes; do not erase worker volumes until a verified export '
+                    'has been collected from every worker. Nothing was stopped or removed.')
             verified = None
             if volumes:
                 from ridge.deploy import recovery
@@ -2264,6 +2483,9 @@ http {
                 # fenced sites — the pre-fence set is the final state by design.
             self._stop_registration_worker()
             stopped = []
+            for worker_id in self._remote_worker_ids():
+                self._desktop_compose(worker_id, 'stop', check=False)
+                stopped.append('desktops@' + worker_id)
             for kind in ('integration', 'desktops', 'guacamole', 'central', 'wazuh'):
                 if volumes:
                     # Remove containers and networks so volume removal is possible.

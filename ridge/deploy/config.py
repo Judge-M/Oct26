@@ -112,8 +112,19 @@ def _validate_capacity(profile):
     capacity = _require(profile, 'capacity', 'capacity')
     if not isinstance(capacity, dict):
         _fail('capacity', 'must be an object')
-    return {name: _validate_resources(_require(capacity, name, 'capacity.' + name), 'capacity.' + name)
-            for name in ('host', 'central', 'desktop')}
+    result = {name: _validate_resources(_require(capacity, name, 'capacity.' + name),
+                                        'capacity.' + name)
+              for name in ('host', 'central', 'desktop')}
+    workers = capacity.get('workers') or {}
+    if not isinstance(workers, dict):
+        _fail('capacity.workers', 'must be an object')
+    result['workers'] = {}
+    for worker_id, resources in workers.items():
+        if not isinstance(worker_id, str) or not NAME.match(worker_id) or worker_id == 'local':
+            _fail('capacity.workers', 'worker names must be short identifiers other than local')
+        result['workers'][worker_id] = _validate_resources(
+            resources, 'capacity.workers.' + worker_id)
+    return result
 
 
 def _validate_ip(value, field, profile_kind):
@@ -154,6 +165,7 @@ def _validate_desktops(profile, profile_kind):
     if not isinstance(desktops, list) or not desktops:
         _fail('desktops', 'must be a nonempty list')
     seen = set()
+    remote_endpoints = set()
     result = []
     for index, desktop in enumerate(desktops):
         field = 'desktops[%d]' % index
@@ -174,7 +186,23 @@ def _validate_desktops(profile, profile_kind):
             _fail(field + '.max_connections', 'must be a positive integer')
         if not shared and connections != 1:
             _fail(field + '.max_connections', 'an exclusive desktop allows exactly one connection')
-        result.append(dict(desktop, name=name, shared=shared, max_connections=connections))
+        worker = desktop.get('worker', 'local')
+        if not isinstance(worker, str) or not NAME.match(worker):
+            _fail(field + '.worker', 'must be a short identifier')
+        vnc_port = desktop.get('vnc_port', 5901)
+        if (not isinstance(vnc_port, int) or isinstance(vnc_port, bool)
+                or not 1 <= vnc_port <= 65535):
+            _fail(field + '.vnc_port', 'must be an integer between 1 and 65535')
+        if worker == 'local' and vnc_port != 5901:
+            _fail(field + '.vnc_port', 'local Docker-network desktops use port 5901')
+        if worker != 'local':
+            endpoint = (desktop['address'], vnc_port)
+            if endpoint in remote_endpoints:
+                _fail(field + '.vnc_port', 'duplicate remote VNC address and port')
+            remote_endpoints.add(endpoint)
+        result.append(dict(desktop, name=name, shared=shared,
+                           max_connections=connections, worker=worker,
+                           vnc_port=vnc_port))
     return result
 
 
@@ -388,19 +416,42 @@ def _assert_no_fixed_ids(node, field=''):
             _assert_no_fixed_ids(value, '%s[%d]' % (field, index))
 
 
-def _check_capacity(capacity, roster):
-    teams = len(roster['teams'])
-    for key in ('vcpus', 'disk_gib'):
-        needed = capacity['central'][key] + teams * capacity['desktop'][key]
-        if capacity['host'][key] < needed:
-            _fail('capacity.host.' + key, 'insufficient for %d teams: need %d' % (teams, needed))
-    # Memory carries a 20% headroom factor (F03 target: no OOM/swap collapse
-    # and at least 20% measured capacity reserve at peak). Reservations
-    # themselves are measured peaks, not limits, so the factor is the margin.
-    needed = (capacity['central']['memory_mib'] + teams * capacity['desktop']['memory_mib']) * 6 // 5
-    if capacity['host']['memory_mib'] < needed:
-        _fail('capacity.host.memory_mib',
-              'insufficient for %d teams with 20%% headroom: need %d' % (teams, needed))
+def _check_capacity(capacity, roster, desktops, dynamic=False):
+    """Check each Docker host, counting all dynamic slots rather than teams."""
+    by_name = {desktop['name']: desktop for desktop in desktops}
+    active = desktops if dynamic else [by_name[team['desktop']] for team in roster['teams']]
+    counts = {}
+    for desktop in active:
+        worker_id = desktop.get('worker', 'local')
+        counts[worker_id] = counts.get(worker_id, 0) + 1
+
+    def check(worker_id, count):
+        if worker_id == 'local':
+            available = capacity['host']
+            central = capacity['central']
+            field = 'capacity.host'
+        else:
+            available = capacity['workers'].get(worker_id)
+            field = 'capacity.workers.' + worker_id
+            if available is None:
+                _fail(field, 'required for desktops assigned to this worker')
+            central = {'vcpus': 0, 'memory_mib': 0, 'disk_gib': 0}
+        for key in ('vcpus', 'disk_gib'):
+            needed = central[key] + count * capacity['desktop'][key]
+            if available[key] < needed:
+                _fail(field + '.' + key,
+                      'insufficient for %d desktop slots: need %d' % (count, needed))
+        # Memory carries a 20% headroom factor (F03 target: no OOM/swap collapse).
+        needed = (central['memory_mib'] + count * capacity['desktop']['memory_mib']) * 6 // 5
+        if available['memory_mib'] < needed:
+            _fail(field + '.memory_mib',
+                  'insufficient for %d desktop slots with 20%% headroom: need %d'
+                  % (count, needed))
+
+    # The central host must carry central services even when every desktop is remote.
+    check('local', counts.pop('local', 0))
+    for worker_id, count in sorted(counts.items()):
+        check(worker_id, count)
 
 
 def validate(profile, kind=None):
@@ -427,14 +478,10 @@ def validate(profile, kind=None):
     _validate_secrets(profile)
     _validate_retention(profile)
     _validate_spending(profile)
-    effective_roster = roster
-    if registration['enabled']:
-        effective_roster = {'teams': [
-            {'name': 'registration-slot-%02d' % (index + 1)}
-            for index in range(registration['max_teams'])]}
-    _check_capacity(capacity, effective_roster)
+    _check_capacity(capacity, roster, desktops, dynamic=registration['enabled'])
     normalized = deepcopy(profile)
     normalized['profile_kind'] = profile_kind
+    normalized['desktops'] = desktops
     normalized['roster'] = roster
     normalized['registration'] = registration
     return normalized

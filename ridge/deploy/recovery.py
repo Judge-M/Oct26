@@ -349,7 +349,11 @@ def create(stack, destination, cipher=None, export_job=None):
         shutil.copytree(stack.asset('evidence_public'), destination / 'evidence')
         shutil.copytree(stack.asset('release_vault'), destination / 'release-vault')
         # 8. Secrets, encrypted separately; key reference recorded, key never stored.
-        with tempfile.TemporaryDirectory() as staging:
+        # Keep plaintext secret staging inside the private recovery-set
+        # directory. Windows Store/AppContainer Python may not be allowed to
+        # write the process-global temp directory, and secrets should not spill
+        # into a shared host temp location in any case.
+        with tempfile.TemporaryDirectory(dir=destination, prefix='.secrets-') as staging:
             archive = Path(staging) / 'secrets.tar.gz'
             with tarfile.open(archive, 'w:gz') as tar:
                 tar.add(stack.secrets_dir, arcname='secrets')
@@ -551,7 +555,7 @@ def restore(profile, runtime, backup, runner, host=None, operator='deploy',
                        receipts=receipts)
 
     # Materialize the runtime: secrets (decrypted), state, journal, inventories, specs.
-    with tempfile.TemporaryDirectory() as staging:
+    with tempfile.TemporaryDirectory(dir=runtime, prefix='.restore-secrets-') as staging:
         archive = Path(staging) / 'secrets.tar.gz'
         cipher.decrypt(backup / 'secrets.tar.gz.enc', archive)
         with tarfile.open(archive) as tar:
