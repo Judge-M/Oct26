@@ -133,7 +133,7 @@ persistent handout.</p>
 <div class="actions"><button type="button" onclick="copyValue({{ retrieve_url|tojson }},'operator-copy-status')">Copy private return link</button><button type="button" onclick="location.reload()">Check again</button><span id="operator-copy-status" role="status"></span></div>
 <script>async function copyValue(value,statusId){await navigator.clipboard.writeText(value);document.getElementById(statusId).textContent='Copied.';}</script>
 {% elif view == 'ready' %}
-<h1>{{ registration.team_name }} — team handout</h1>
+<h1>{{ registration.team_name }} — Team Handout</h1>
 <p>Registration is complete. Do not post this page, its link, or these passwords in a public chat.</p>
 <section class="recovery"><h2>Your permanent private return link</h2><p><a href="{{ retrieve_url }}">{{ retrieve_url }}</a></p><p>Bookmark this link. Anyone who has it can read your team credentials.</p></section>
 <div class="actions no-print"><button type="button" onclick="copyValue({{ retrieve_url|tojson }},'copy-status')">Copy return link</button><a class="button" href="{{ download_url }}" download>Download private handout</a><button type="button" onclick="window.print()">Print / save handout</button><button type="button" onclick="copyAll()">Copy labelled handout</button><span id="copy-status" role="status"></span></div>
