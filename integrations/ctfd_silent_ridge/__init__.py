@@ -69,7 +69,7 @@ class RidgeCredit(db.Model):
 
 REGISTRATION_PAGE = r'''
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Operation Silent Ridge — team registration</title>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><base target="_blank"><title>Operation Silent Ridge — team registration</title>
 <style>
 body{font:16px system-ui,sans-serif;max-width:960px;margin:2rem auto;padding:0 1rem;color:#17212b}
 main{border:1px solid #ccd6df;border-radius:12px;padding:2rem;box-shadow:0 4px 18px #0001}

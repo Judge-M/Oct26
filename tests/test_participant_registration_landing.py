@@ -41,6 +41,7 @@ class ParticipantRegistrationLandingTests(unittest.TestCase):
     def test_private_handout_repeats_the_first_actions(self):
         for text in (
             '— Team Handout',
+            '<base target="_blank">',
             'Your first five moves',
             'personal CTFd seat',
             'opens IRIS with the team login',
