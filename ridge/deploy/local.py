@@ -487,7 +487,102 @@ class LocalStack:
             if not local.get('assets', {}).get(key):
                 raise LifecycleError('local.json assets.%s: required host path' % key)
         self._validate_tls_config(local)
+        self._validate_desktop_workers(local)
         return local
+
+    def _validate_desktop_workers(self, local):
+        """Validate host-local Docker context and remote bind-mount paths.
+
+        Placement belongs in the versioned profile, but Docker context names and
+        paths on another operator-owned machine are deliberately local.json-only.
+        This keeps credentials and host details out of reusable profiles.
+        """
+        workers = local.get('desktop_workers') or {}
+        if not isinstance(workers, dict):
+            raise LifecycleError('local.json desktop_workers: expected an object')
+        required = {desktop.get('worker', 'local') for desktop in self.profile['desktops']}
+        required.discard('local')
+        missing = sorted(required.difference(workers))
+        if missing:
+            raise LifecycleError('local.json desktop_workers: missing configuration for %s'
+                                 % ', '.join(missing))
+        relay_ports = {}
+        for worker_id in sorted(required):
+            worker = workers[worker_id]
+            field = 'local.json desktop_workers.%s' % worker_id
+            if not isinstance(worker, dict):
+                raise LifecycleError('%s: expected an object' % field)
+            context = worker.get('docker_context')
+            if not isinstance(context, str) or not context.strip():
+                raise LifecycleError('%s.docker_context: required Docker context name' % field)
+            assets = worker.get('assets')
+            if not isinstance(assets, dict):
+                raise LifecycleError('%s.assets: expected an object of remote host paths' % field)
+            for key in ('case_template', 'evidence_public', 'originals'):
+                if not isinstance(assets.get(key), str) or not assets[key].strip():
+                    raise LifecycleError('%s.assets.%s: required remote host path' % (field, key))
+            password_dir = worker.get('vnc_password_dir')
+            if not isinstance(password_dir, str) or not password_dir.strip():
+                raise LifecycleError('%s.vnc_password_dir: required remote host path' % field)
+            relay = worker.get('guacamole_relay')
+            if relay is None:
+                continue
+            relay_field = field + '.guacamole_relay'
+            if not isinstance(relay, dict):
+                raise LifecycleError('%s: expected an object' % relay_field)
+            address = relay.get('address')
+            if (not isinstance(address, str) or not address.strip()
+                    or not re.fullmatch(
+                        r'[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?', address)):
+                raise LifecycleError(
+                    '%s.address: required Guacamole-visible hostname or IPv4 address'
+                    % relay_field)
+            listen_address = relay.get('listen_address', '0.0.0.0')
+            try:
+                listen_ip = ipaddress.IPv4Address(listen_address)
+            except ipaddress.AddressValueError as exc:
+                raise LifecycleError('%s.listen_address: expected an IPv4 address: %s'
+                                     % (relay_field, exc))
+            if not (listen_ip.is_unspecified or listen_ip.is_private or listen_ip.is_loopback):
+                raise LifecycleError('%s.listen_address: must be private, loopback, or 0.0.0.0'
+                                     % relay_field)
+            source_cidr = relay.get('source_cidr')
+            try:
+                source_network = ipaddress.IPv4Network(source_cidr, strict=False)
+            except (ipaddress.AddressValueError, TypeError) as exc:
+                raise LifecycleError('%s.source_cidr: required private IPv4 network: %s'
+                                     % (relay_field, exc))
+            if not source_network.is_private:
+                raise LifecycleError('%s.source_cidr: must be a private IPv4 network'
+                                     % relay_field)
+            ports = relay.get('ports')
+            if not isinstance(ports, dict) or not ports:
+                raise LifecycleError('%s.ports: expected a non-empty desktop-to-port object'
+                                     % relay_field)
+            assigned = {desktop['name'] for desktop in self.profile['desktops']
+                        if desktop.get('worker', 'local') == worker_id}
+            if set(ports) != assigned:
+                raise LifecycleError(
+                    '%s.ports: must map every desktop assigned to %s exactly (%s)'
+                    % (relay_field, worker_id, ', '.join(sorted(assigned))))
+            for desktop_name, port in ports.items():
+                if not isinstance(port, int) or isinstance(port, bool) or not 1024 <= port <= 65535:
+                    raise LifecycleError('%s.ports.%s: expected TCP port 1024-65535'
+                                         % (relay_field, desktop_name))
+                if port in relay_ports:
+                    raise LifecycleError(
+                        '%s.ports.%s: relay port %d is already assigned to %s'
+                        % (relay_field, desktop_name, port, relay_ports[port]))
+                relay_ports[port] = '%s/%s' % (worker_id, desktop_name)
+
+    def _remote_worker_ids(self):
+        return sorted({desktop.get('worker', 'local') for desktop in self.profile['desktops']
+                       if desktop.get('worker', 'local') != 'local'})
+
+    def _worker(self, worker_id):
+        if worker_id == 'local':
+            return None
+        return self.local['desktop_workers'][worker_id]
 
     @staticmethod
     def _validate_tls_config(local):
@@ -698,6 +793,66 @@ http {
         return self._run(['docker', 'compose', '--env-file', env_file,
                           '-f', COMPOSE_FILES[project_kind], *args], check=check)
 
+    def _desktop_compose(self, worker_id, *args, check=True):
+        """Run the desktop Compose project on its assigned Docker host."""
+        if worker_id == 'local':
+            return self._compose('desktops', *args, check=check)
+        worker = self._worker(worker_id)
+        return self._run([
+            'docker', '--context', worker['docker_context'], 'compose',
+            '--env-file', self.env_dir / ('desktops-%s.env' % worker_id),
+            '-f', COMPOSE_FILES['desktops'],
+            '-f', self.runtime / ('desktops-%s.override.yaml' % worker_id),
+            *args,
+        ], check=check)
+
+    def _desktop_spec(self, service):
+        """Resolve a Compose service to its normalized desktop profile row."""
+        by_name = {desktop['name']: desktop for desktop in self.profile['desktops']}
+        if service in by_name:
+            return by_name[service]
+        from ridge.docker_provider import team_service
+        for index, team in enumerate(self.teams):
+            if team_service('team%02d' % (index + 1)) == service:
+                return by_name[team['desktop']]
+        raise LifecycleError('desktop service %s has no profile placement' % service)
+
+    def _desktop_groups(self, services):
+        groups = {}
+        for service in services:
+            worker_id = self._desktop_spec(service).get('worker', 'local')
+            groups.setdefault(worker_id, []).append(service)
+        return groups
+
+    def _start_desktop_services(self, services):
+        started = []
+        for worker_id, names in self._desktop_groups(services).items():
+            self._desktop_compose(worker_id, 'up', '-d', '--wait', '--wait-timeout', '300',
+                                  *names)
+            started.extend((worker_id, name) for name in names)
+        return started
+
+    def _stop_desktop_services(self, services):
+        for worker_id, names in self._desktop_groups(services).items():
+            self._desktop_compose(worker_id, 'stop', *names, check=False)
+
+    def _desktop_ps(self, worker_id):
+        try:
+            out = self._desktop_compose(worker_id, 'ps', '-a', '--format', 'json')
+        except Exception:
+            return {}
+        services = {}
+        for line in out.splitlines():
+            line = line.strip().strip(',')
+            if not line or not line.startswith('{'):
+                continue
+            row = json.loads(line)
+            name = row.get('Service') or row.get('Name', '')
+            services[name] = {'state': row.get('State', ''),
+                              'health': row.get('Health') or row.get('Status', ''),
+                              'exit_code': row.get('ExitCode')}
+        return services
+
     def _ps(self, project_kind):
         """Compose ps as {service: {'state':..., 'health':...}}; empty when project absent."""
         try:
@@ -738,6 +893,28 @@ http {
                                  '. Run `python -m ridge.deploy up` to reconcile; '
                                  'state is never reset automatically')
         return services
+
+    def _require_desktop_services(self, names):
+        problems = []
+        result = {}
+        for worker_id, worker_names in self._desktop_groups(names).items():
+            services = self._desktop_ps(worker_id)
+            result.update(services)
+            label = 'desktops' if worker_id == 'local' else 'desktops@' + worker_id
+            for name in worker_names:
+                entry = services.get(name)
+                if entry is None:
+                    problems.append('%s/%s is absent' % (label, name))
+                elif entry['state'] != 'running':
+                    problems.append('%s/%s is %s' % (label, name, entry['state']))
+                elif (entry['health'] not in ('', 'healthy', 'running')
+                      and not entry['health'].startswith('Up')):
+                    problems.append('%s/%s health is %s' % (label, name, entry['health']))
+        if problems:
+            raise LifecycleError('services not ready: ' + '; '.join(problems) +
+                                 '. Run `python -m ridge.deploy up` to reconcile; '
+                                 'state is never reset automatically')
+        return result
 
     # ------------------------------------------------------------- generation
 
@@ -993,6 +1170,16 @@ http {
             'CTFD_PUBLIC_URL': public['ctfd'],
             'WAZUH_PUBLIC_URL': public['wazuh'],
         }
+        for worker_id in self._remote_worker_ids():
+            worker = self._worker(worker_id)
+            remote = dict(files['desktops'])
+            remote.update({
+                'RIDGE_VNC_PASSWORD_DIR': worker['vnc_password_dir'],
+                'RIDGE_CASE_DIR': worker['assets']['case_template'],
+                'RIDGE_EVIDENCE_DIR': worker['assets']['evidence_public'],
+                'RIDGE_ORIGINALS_DIR': worker['assets']['originals'],
+            })
+            files['desktops-' + worker_id] = remote
         files['integration'] = {
             'RIDGE_PROJECT': self.event,
             'RIDGE_IMAGE': 'silent-ridge-integration:dev',
@@ -1012,6 +1199,21 @@ http {
         for name, values in files.items():
             text = '\n'.join('%s=%s' % (key, value) for key, value in values.items()) + '\n'
             _write_private(self.env_dir / (name + '.env'), text)
+        for worker_id in self._remote_worker_ids():
+            rows = ['services:']
+            for service in self._configured_desktop_services():
+                desktop = self._desktop_spec(service)
+                if desktop.get('worker', 'local') != worker_id:
+                    continue
+                rows.extend([
+                    '  %s:' % service,
+                    '    ports:',
+                    '      - "%s:%d:5901"' % (desktop['address'], desktop['vnc_port']),
+                ])
+            if len(rows) == 1:
+                raise LifecycleError('desktop worker %s has no assigned services' % worker_id)
+            (self.runtime / ('desktops-%s.override.yaml' % worker_id)).write_text(
+                '\n'.join(rows) + '\n', encoding='utf-8')
         return files
 
     def _render_wazuh_config(self):
@@ -1069,9 +1271,37 @@ http {
             users.write_text(render_indexer_admin(source_users, hash_lines[0], extra_users),
                              encoding='utf-8')
 
+    def _relay_for_desktop(self, desktop):
+        worker_id = desktop.get('worker', 'local')
+        if worker_id == 'local':
+            return None
+        relay = self._worker(worker_id).get('guacamole_relay')
+        if relay is None:
+            return None
+        return relay['address'], relay['ports'][desktop['name']]
+
+    def _guacamole_desktop(self, desktop):
+        row = {
+            'id': desktop['name'],
+            'shared': desktop.get('shared', True),
+            'max_connections': desktop.get(
+                'max_connections', 4 if desktop.get('shared', True) else 1),
+        }
+        if desktop.get('worker', 'local') == 'local':
+            row['container'] = True
+        else:
+            relay = self._relay_for_desktop(desktop)
+            if relay is None:
+                row.update(address=desktop['address'], port=desktop['vnc_port'])
+            else:
+                row.update(address=relay[0], port=relay[1])
+        return row
+
     def _render_specs(self):
         """Create missing bootstrap/provisioning specs from the runtime credentials.
-        Existing specs are preserved byte-for-byte: credentials are never rotated."""
+        Existing credential-bearing specs are preserved: credentials are never rotated.
+        Guacamole connection endpoints are reconciled from host-local topology so
+        an intentional relay change can be applied after a clean stop."""
         self.specs_dir.mkdir(parents=True, exist_ok=True)
         credentials = self._team_credentials()
         dynamic = self.profile.get('registration', {}).get('enabled', False)
@@ -1127,15 +1357,31 @@ http {
         guac_config_path = self.specs_dir / 'guac-config.json'
         if not guac_config_path.is_file():
             _write_private(guac_config_path, json.dumps({
-                'desktops': [{'id': desktop['name'], 'container': True,
-                              'shared': desktop.get('shared', True),
-                              'max_connections': desktop.get('max_connections',
-                                                             4 if desktop.get('shared', True) else 1)}
+                'desktops': [self._guacamole_desktop(desktop)
                              for desktop in self.profile['desktops']],
                 'teams': ([{'id': 'team%02d' % (i + 1), 'desktop': team['desktop']}
                            for i, team in enumerate(self.teams)]
                           if not dynamic else []),
             }, indent=2))
+        else:
+            guac_config = json.loads(guac_config_path.read_text(encoding='utf-8'))
+            expected = {desktop['id']: desktop for desktop in
+                        (self._guacamole_desktop(row) for row in self.profile['desktops'])}
+            current = {desktop.get('id'): desktop
+                       for desktop in guac_config.get('desktops', [])}
+            if set(current) != set(expected):
+                raise LifecycleError(
+                    'existing Guacamole desktop inventory differs from the profile; '
+                    'restore the original profile/runtime instead of changing slot identity')
+            changed = False
+            for desktop_id, row in current.items():
+                before = dict(row)
+                for key in ('address', 'port', 'container'):
+                    row.pop(key, None)
+                row.update(expected[desktop_id])
+                changed = changed or row != before
+            if changed:
+                _write_private(guac_config_path, json.dumps(guac_config, indent=2))
         guac_creds_path = self.specs_dir / 'guac-credentials.json'
         if not guac_creds_path.is_file():
             guac_config = json.loads(guac_config_path.read_text(encoding='utf-8'))
@@ -1178,6 +1424,40 @@ http {
             if actual != recorded['image_id']:
                 problems.append('image %s changed since its receipt: rebuild component %s'
                                 % (recorded['image'], component))
+        desktop_receipt = self.receipts / 'desktop.json'
+        if desktop_receipt.is_file():
+            recorded = json.loads(desktop_receipt.read_text(encoding='utf-8'))
+            for worker_id in self._remote_worker_ids():
+                context = self._worker(worker_id)['docker_context']
+                try:
+                    actual = self._run(['docker', '--context', context, 'image', 'inspect',
+                                        '--format', '{{.Id}}', recorded['image']])
+                except Exception:
+                    problems.append('desktop image %s is not loaded on worker %s (Docker '
+                                    'context %s)' % (recorded['image'], worker_id, context))
+                    continue
+                if actual != recorded['image_id']:
+                    problems.append('desktop image %s on worker %s differs from the reviewed '
+                                    'build receipt; transfer the reviewed image instead of '
+                                    'rebuilding independently' % (recorded['image'], worker_id))
+                    continue
+                worker = self._worker(worker_id)
+                checks = ['test -f /case/WS17.aut',
+                          'test -f /evidence/network/sensor.pcap',
+                          'test -d /originals']
+                try:
+                    self._run([
+                        'docker', '--context', context, 'run', '--rm', '--pull', 'never',
+                        '--network', 'none', '--entrypoint', 'bash',
+                        '-v', worker['assets']['case_template'] + ':/case:ro',
+                        '-v', worker['assets']['evidence_public'] + ':/evidence:ro',
+                        '-v', worker['assets']['originals'] + ':/originals:ro',
+                        recorded['image'], '-c', ' && '.join(checks),
+                    ])
+                except Exception:
+                    problems.append('worker %s cannot read the staged case, evidence, or '
+                                    'originals; verify local.json remote asset paths'
+                                    % worker_id)
         for key, check in (('evidence_public', 'dir'), ('release_vault', 'dir'),
                            ('case_template', 'dir'), ('originals', 'dir')):
             if not self.asset(key).is_dir():
@@ -1267,6 +1547,192 @@ http {
                 self._run(['docker', 'network', 'inspect', name])
             except CommandError:
                 self._run(['docker', 'network', 'create', name])
+        desktop_network = self.event + '-desktop'
+        for worker_id in self._remote_worker_ids():
+            context = self._worker(worker_id)['docker_context']
+            try:
+                self._run(['docker', '--context', context, 'network', 'inspect', desktop_network])
+            except CommandError:
+                self._run(['docker', '--context', context, 'network', 'create', desktop_network])
+
+    def _stage_worker_vnc_secrets(self):
+        """Stream generated VNC passwords to worker-local bind paths.
+
+        The secret value travels on stdin through the authenticated Docker
+        context. It is never placed in an argv, Compose override, or Git file.
+        This runs only after ARTIFACTS_VERIFIED has confirmed that the exact
+        reviewed desktop image is present on each worker.
+        """
+        if not self._remote_worker_ids():
+            return
+        receipt = json.loads((self.receipts / 'desktop.json').read_text(encoding='utf-8'))
+        for worker_id in self._remote_worker_ids():
+            worker = self._worker(worker_id)
+            context = worker['docker_context']
+            for name in self._worker_vnc_secret_names(worker_id):
+                source = self.secrets_dir / 'vnc' / name
+                self._pipe([
+                    'docker', '--context', context, 'run', '--rm', '-i', '--pull', 'never',
+                    '--network', 'none', '--entrypoint', 'bash',
+                    '-v', worker['vnc_password_dir'] + ':/vnc',
+                    receipt['image'], '-c', 'umask 077; cat > /vnc/%s' % name,
+                ], source.read_text(encoding='utf-8'))
+
+    def _worker_vnc_secret_names(self, worker_id):
+        dynamic = self.profile.get('registration', {}).get('enabled', False)
+        result = []
+        for service in self._configured_desktop_services():
+            if self._desktop_spec(service).get('worker', 'local') != worker_id:
+                continue
+            result.append(service if dynamic else service.removeprefix('desktop-'))
+        return result
+
+    def _probe_worker_vnc_secrets(self):
+        if not self._remote_worker_ids():
+            return
+        receipt = json.loads((self.receipts / 'desktop.json').read_text(encoding='utf-8'))
+        for worker_id in self._remote_worker_ids():
+            worker = self._worker(worker_id)
+            checks = ' && '.join('test -s /vnc/%s' % name
+                                 for name in self._worker_vnc_secret_names(worker_id))
+            try:
+                self._run([
+                    'docker', '--context', worker['docker_context'], 'run', '--rm',
+                    '--pull', 'never', '--network', 'none', '--entrypoint', 'bash',
+                    '-v', worker['vnc_password_dir'] + ':/vnc:ro',
+                    receipt['image'], '-c', checks,
+                ])
+            except Exception:
+                raise LifecycleError(
+                    'worker %s is missing one or more generated VNC secrets at %s; '
+                    'rerun up to restage them through the Docker context'
+                    % (worker_id, worker['vnc_password_dir']))
+
+    def _guacamole_relays(self):
+        """Return configured Windows host relays in deterministic order.
+
+        Docker Desktop runs ``guacd`` behind its own VM/NAT boundary. On hosts
+        where that boundary cannot route directly to a LAN worker, an explicit
+        host-local relay gives Guacamole a reachable endpoint without exposing
+        worker VNC to participant devices.
+        """
+        rows = []
+        by_name = {desktop['name']: desktop for desktop in self.profile['desktops']}
+        for worker_id in self._remote_worker_ids():
+            worker = self._worker(worker_id)
+            relay = worker.get('guacamole_relay')
+            if relay is None:
+                continue
+            for desktop_name, relay_port in sorted(relay['ports'].items()):
+                rows.append((worker_id, by_name[desktop_name], relay, relay_port))
+        return rows
+
+    def _guacamole_relay_rule_name(self, worker_id, relay_port):
+        slug = re.sub(r'[^A-Za-z0-9_-]+', '-', '%s-%s' % (self.event, worker_id))
+        return 'Silent-Ridge-Guac-Relay-%s-%d' % (slug[:100], relay_port)
+
+    def _apply_guacamole_relays(self):
+        """Create narrowly scoped Windows portproxy and firewall entries.
+
+        Every relay is explicit in private ``local.json``. The firewall source
+        is the Guacamole Docker subnet, not the participant LAN, and cleanup
+        targets only the deterministic event-owned rule and portproxy tuple.
+        """
+        relays = self._guacamole_relays()
+        if not relays:
+            return
+        try:
+            self._run([
+                'powershell.exe', '-NoProfile', '-NonInteractive', '-Command',
+                'Start-Service -Name iphlpsvc -ErrorAction Stop',
+            ])
+            for worker_id, desktop, relay, relay_port in relays:
+                rule = self._guacamole_relay_rule_name(worker_id, relay_port)
+                source = str(ipaddress.IPv4Network(relay['source_cidr'], strict=False))
+                self._run([
+                    'powershell.exe', '-NoProfile', '-NonInteractive', '-Command',
+                    ("$Error.Clear(); $existing = Get-NetFirewallRule -Name '%s' "
+                     "-ErrorAction SilentlyContinue; if ($Error.Count -and "
+                     "$Error[0].FullyQualifiedErrorId -notlike 'CmdletizationQuery_NotFound*') "
+                     "{ throw $Error[0] }; if ($null -ne $existing) { $existing | "
+                     "Remove-NetFirewallRule -ErrorAction Stop }; exit 0") % rule,
+                ])
+                self._run([
+                    'powershell.exe', '-NoProfile', '-NonInteractive', '-Command',
+                    ("New-NetFirewallRule -Name '%s' -DisplayName '%s' "
+                     "-Direction Inbound -Action Allow -Enabled True -Profile Private "
+                     "-Protocol TCP -LocalPort %d -RemoteAddress '%s' -ErrorAction Stop"
+                     % (rule, rule, relay_port, source)),
+                ])
+                listen = relay.get('listen_address', '0.0.0.0')
+                self._run([
+                    'netsh', 'interface', 'portproxy', 'delete', 'v4tov4',
+                    'listenaddress=%s' % listen, 'listenport=%d' % relay_port,
+                ], check=False)
+                self._run([
+                    'netsh', 'interface', 'portproxy', 'add', 'v4tov4',
+                    'listenaddress=%s' % listen, 'listenport=%d' % relay_port,
+                    'connectaddress=%s' % desktop['address'],
+                    'connectport=%d' % desktop['vnc_port'], 'protocol=tcp',
+                ])
+        except CommandError as exc:
+            raise LifecycleError(
+                'could not configure the Windows Guacamole relay; run the lifecycle from '
+                'an elevated terminal and verify the IP Helper service is available: %s' % exc)
+
+    def _probe_guacamole_relays(self):
+        """Verify exact portproxy targets and source-scoped firewall rules."""
+        for worker_id, desktop, relay, relay_port in self._guacamole_relays():
+            rule = self._guacamole_relay_rule_name(worker_id, relay_port)
+            listen = relay.get('listen_address', '0.0.0.0')
+            source_network = ipaddress.IPv4Network(relay['source_cidr'], strict=False)
+            source = str(source_network)
+            source_netmask = '%s/%s' % (source_network.network_address,
+                                        source_network.netmask)
+            property_name = '%s/%d' % (listen, relay_port)
+            expected_target = '%s/%d' % (desktop['address'], desktop['vnc_port'])
+            script = (
+                "$path = 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\PortProxy\\v4tov4\\tcp'; "
+                "$item = Get-ItemProperty -LiteralPath $path -ErrorAction Stop; "
+                "$property = $item.PSObject.Properties['%s']; "
+                "if ($null -eq $property -or $property.Value -ne '%s') { exit 31 }; "
+                "$rule = Get-NetFirewallRule -Name '%s' -ErrorAction Stop; "
+                "$port = $rule | Get-NetFirewallPortFilter; "
+                "$address = $rule | Get-NetFirewallAddressFilter; "
+                "if ($rule.Enabled -ne 'True' -or $rule.Direction -ne 'Inbound' "
+                "-or $rule.Action -ne 'Allow' -or $port.Protocol -ne 'TCP' "
+                "-or $port.LocalPort -ne '%d' -or "
+                "(@($address.RemoteAddress) -notcontains '%s' -and "
+                "@($address.RemoteAddress) -notcontains '%s')) { exit 32 }"
+                % (property_name, expected_target, rule, relay_port, source,
+                   source_netmask))
+            try:
+                self._run([
+                    'powershell.exe', '-NoProfile', '-NonInteractive', '-Command', script,
+                ])
+            except CommandError as exc:
+                raise LifecycleError(
+                    'Guacamole relay %s:%d does not match %s:%d or its firewall source '
+                    '%s; rerun up from an elevated terminal: %s'
+                    % (listen, relay_port, desktop['address'], desktop['vnc_port'], source, exc))
+
+    def _remove_guacamole_relays(self):
+        """Remove only relay resources owned by this event runtime."""
+        for worker_id, _desktop, relay, relay_port in self._guacamole_relays():
+            listen = relay.get('listen_address', '0.0.0.0')
+            self._run([
+                'netsh', 'interface', 'portproxy', 'delete', 'v4tov4',
+                'listenaddress=%s' % listen, 'listenport=%d' % relay_port,
+            ], check=False)
+            rule = self._guacamole_relay_rule_name(worker_id, relay_port)
+            self._run([
+                'powershell.exe', '-NoProfile', '-NonInteractive', '-Command',
+                ("$Error.Clear(); $existing = Get-NetFirewallRule -Name '%s' "
+                 "-ErrorAction SilentlyContinue; if ($Error.Count -and "
+                 "$Error[0].FullyQualifiedErrorId -notlike 'CmdletizationQuery_NotFound*') "
+                 "{ throw $Error[0] }; if ($null -ne $existing) { $existing | "
+                 "Remove-NetFirewallRule -ErrorAction Stop }; exit 0") % rule,
+            ])
 
     def _dashboard_bind_ip(self):
         bind = str(self.local.get('bind_ip') or '127.0.0.1')
@@ -1409,10 +1875,12 @@ http {
 
     def _apply_infrastructure(self):
         self._ensure_secrets()
+        self._apply_guacamole_relays()
         self._render_specs()
         self._render_wazuh_config()
         self._render_env()
         self._ensure_networks()
+        self._stage_worker_vnc_secrets()
         certs = self.runtime / 'wazuh-certs'
         bind = self._dashboard_bind_ip()
         certs.mkdir(parents=True, exist_ok=True)
@@ -1423,14 +1891,16 @@ http {
             schema = self._run(['docker', 'run', '--rm', 'guacamole/guacamole:1.5.5',
                                 '/opt/guacamole/bin/initdb.sh', '--postgresql'])
             (guac_init / '001-initdb.sql').write_text(schema + '\n', encoding='utf-8')
-        if not (guac_init / '002-provision.sql').is_file():
-            import sys
-            sys.path.insert(0, str(COMPOSE_DIR))
-            import guacamole as guac_module
-            config = json.loads((self.specs_dir / 'guac-config.json').read_text(encoding='utf-8'))
-            credentials = json.loads((self.specs_dir / 'guac-credentials.json').read_text(encoding='utf-8'))
-            (guac_init / '002-provision.sql').write_text(
-                guac_module.generate(config, credentials), encoding='utf-8')
+        import sys
+        sys.path.insert(0, str(COMPOSE_DIR))
+        import guacamole as guac_module
+        config = json.loads((self.specs_dir / 'guac-config.json').read_text(encoding='utf-8'))
+        credentials = json.loads((self.specs_dir / 'guac-credentials.json').read_text(encoding='utf-8'))
+        # The generator is idempotent and refuses credential rotation. Rewrite
+        # this private SQL so a stopped deployment can adopt an intentional
+        # direct-to-relay endpoint change when DESKTOPS_READY is re-applied.
+        _write_private(guac_init / '002-provision.sql',
+                       guac_module.generate(config, credentials))
         for kind, services in INFRA_SERVICES.items():
             if kind in ('wazuh', 'guacamole'):
                 # A running manager can still have no Wazuh daemons, and the
@@ -1449,6 +1919,7 @@ http {
                                  % (self.secrets_dir,
                                     ', '.join(sorted(set(SECRET_FILES) - set(existing)))))
         self._wazuh_api_password()
+        self._probe_worker_vnc_secrets()
         private_users = self.runtime / 'wazuh-config' / 'internal_users.yml'
         if not private_users.is_file():
             raise LifecycleError('missing private Wazuh indexer users at %s; restore the '
@@ -1466,6 +1937,7 @@ http {
         for kind, services in INFRA_SERVICES.items():
             self._require_services(kind, services,
                                    allow_exit0=INFRA_ONE_SHOT.get(kind, ()))
+        self._probe_guacamole_relays()
         return {'services': sum(len(s) for s in INFRA_SERVICES.values())}
 
     # S3 ------------------------------------------------------- applications
@@ -1564,10 +2036,14 @@ http {
             return []
         return [team_service('team%02d' % (i + 1)) for i in range(len(self.teams))]
 
+    def _configured_desktop_services(self):
+        if self.profile.get('registration', {}).get('enabled', False):
+            return [desktop['name'] for desktop in self.profile['desktops']]
+        return self._desktop_services()
+
     def _apply_desktops(self):
         if not self.profile.get('registration', {}).get('enabled', False):
-            self._compose('desktops', 'up', '-d', '--wait', '--wait-timeout', '300',
-                          *self._desktop_services())
+            self._start_desktop_services(self._desktop_services())
         sql = (self.runtime / 'guac-init' / '002-provision.sql').read_text(encoding='utf-8')
         self._pipe(['docker', 'compose', '--env-file', self.env_dir / 'guacamole.env',
                     '-f', COMPOSE_FILES['guacamole'], 'exec', '-T', 'database',
@@ -1618,7 +2094,7 @@ http {
         }
         services = list(claimed['slots'])
         try:
-            self._compose('desktops', 'up', '-d', '--wait', '--wait-timeout', '300', *services)
+            self._start_desktop_services(services)
             ctfd = self._compose('central', 'exec', '-T', 'ctfd', 'flask',
                                  'silent-ridge-register', '--registration-id', str(claimed['id']))
             iris = self._compose('central', 'exec', '-T', 'iris', 'flask',
@@ -1636,7 +2112,7 @@ http {
             return {'id': claimed['id'], 'team': team_id, 'desktops': services}
         except Exception as exc:
             registration.requeue(claimed['id'], str(exc))
-            self._compose('desktops', 'stop', *services, check=False)
+            self._stop_desktop_services(services)
             raise
 
     def registration_admin(self, action, registration_id=None):
@@ -1705,9 +2181,9 @@ http {
         sys.path.insert(0, str(COMPOSE_DIR))
         import guacamole as guac_module
         all_credentials = self._team_credentials()
-        config = {'desktops': [
-            {'id': slot, 'container': True, 'shared': True, 'max_connections': 5}
-            for slot in services],
+        desktops = {desktop['name']: desktop for desktop in self.profile['desktops']}
+        config = {'desktops': [self._guacamole_desktop(desktops[slot])
+                               for slot in services],
             'teams': [{'id': team_id, 'desktops': services}]}
         guac_credentials = {
             'teams': {team_id: {'username': credentials['guacamole']['username'],
@@ -1836,7 +2312,7 @@ http {
         return True
 
     def _probe_desktops(self):
-        self._require_services('desktops', self._desktop_services())
+        self._require_desktop_services(self._desktop_services())
         out = self._compose('guacamole', 'exec', '-T', 'database', 'psql', '-U', 'guacamole',
                             '-d', 'guacamole', '-tA', '-c',
                             'SELECT count(*) FROM guacamole_connection')
@@ -1940,9 +2416,11 @@ http {
             return {'deferred': 'desktop evidence probe runs after each team registration'}
         for i in range(len(self.teams)):
             service = team_service('team%02d' % (i + 1))
-            out = self._compose('desktops', 'exec', '-T', service, 'bash', '-c',
-                                'ls /evidence/network/sensor.pcap /evidence/wazuh/telemetry.jsonl',
-                                check=False)
+            worker_id = self._desktop_spec(service).get('worker', 'local')
+            out = self._desktop_compose(
+                worker_id, 'exec', '-T', service, 'bash', '-c',
+                'ls /evidence/network/sensor.pcap /evidence/wazuh/telemetry.jsonl',
+                check=False)
             if 'sensor.pcap' not in out:
                 raise LifecycleError('evidence is not visible on desktop %s under /evidence'
                                      % service)
@@ -2235,6 +2713,12 @@ http {
         wipe must never take the event offline."""
         journal = Journal.open(self.runtime / 'deploy-journal.sqlite')
         with journal.lock(self.operator):
+            if volumes and self._remote_worker_ids():
+                raise LifecycleError(
+                    'down --volumes refused: remote desktop workers are configured and the '
+                    'current recovery-set format does not capture their named volumes. Stop '
+                    'without --volumes; do not erase worker volumes until a verified export '
+                    'has been collected from every worker. Nothing was stopped or removed.')
             verified = None
             if volumes:
                 from ridge.deploy import recovery
@@ -2264,6 +2748,9 @@ http {
                 # fenced sites — the pre-fence set is the final state by design.
             self._stop_registration_worker()
             stopped = []
+            for worker_id in self._remote_worker_ids():
+                self._desktop_compose(worker_id, 'stop', check=False)
+                stopped.append('desktops@' + worker_id)
             for kind in ('integration', 'desktops', 'guacamole', 'central', 'wazuh'):
                 if volumes:
                     # Remove containers and networks so volume removal is possible.
@@ -2271,6 +2758,7 @@ http {
                 else:
                     self._compose(kind, 'stop', check=False)
                 stopped.append(kind)
+            self._remove_guacamole_relays()
             removed = []
             if volumes:
                 names = recovery.event_volumes(
@@ -2321,8 +2809,11 @@ http {
                 state.fence(self.operator)
             except Conflict as exc:
                 raise LifecycleError(str(exc))
-            for kind in ('integration', 'desktops'):
-                self._compose(kind, 'stop', check=False)
+            self._compose('integration', 'stop', check=False)
+            for worker_id in self._remote_worker_ids():
+                self._desktop_compose(worker_id, 'stop', check=False)
+            self._compose('desktops', 'stop', check=False)
+            self._remove_guacamole_relays()
             journal.set_state('FENCED')
             return dict({'state': 'FENCED'}, **state.site_info())
 

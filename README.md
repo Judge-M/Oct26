@@ -65,8 +65,10 @@ a facilitated after-action review.
 
 ## What you need to host it locally
 
-One machine runs the whole event. Sized from live measurement of the real
-stack, not guesswork:
+One machine can run the whole event; optional
+[desktop workers](docs/multi-host-desktops.md) can carry excess Guacamole
+desktops while the browser services remain centralized. Sizing is based on live
+measurement of the real stack, not guesswork:
 
 - **32 GB RAM minimum; 64 GB is comfortable.** Measured on the running stack:
   central services use ~6 GiB; each team desktop idles at ~150 MiB and peaks

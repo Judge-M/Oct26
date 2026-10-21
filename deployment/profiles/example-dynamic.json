@@ -202,7 +202,7 @@
   ],
   "capacity": {
     "host": {
-      "vcpus": 32,
+      "vcpus": 40,
       "memory_mib": 131072,
       "disk_gib": 1200
     },

@@ -92,7 +92,10 @@ def reconcile(config,credentials):
                    ' WHERE NOT EXISTS (SELECT 1 FROM guacamole_connection WHERE connection_name='+quote(id)+' AND parent_id IS NULL);')
         sql.append('UPDATE guacamole_connection SET protocol=\'vnc\',max_connections='+str(maximum)+
                    ',max_connections_per_user='+str(maximum)+' WHERE connection_name='+quote(id)+' AND parent_id IS NULL;')
-        for key,value in {'hostname':d['address'],'port':'5901','password':vnc,
+        port = d.get('port', 5901)
+        if not isinstance(port, int) or isinstance(port, bool) or not 1 <= port <= 65535:
+            raise ValueError('Desktop VNC port must be between 1 and 65535 for '+id)
+        for key,value in {'hostname':d['address'],'port':str(port),'password':vnc,
                           'read-only':'false','clipboard-encoding':'UTF-8'}.items():
             sql.append('INSERT INTO guacamole_connection_parameter(connection_id,parameter_name,parameter_value) SELECT connection_id,'+
                        quote(key)+','+quote(value)+' FROM guacamole_connection WHERE connection_name='+quote(id)+

@@ -39,6 +39,53 @@ class DeployProfileTests(unittest.TestCase):
         self.assertEqual(normalized['roster']['teams'], [])
         self.assertEqual(normalized['registration']['max_teams'], 10)
         self.assertEqual(len(normalized['desktops']), 30)
+        self.assertTrue(all(desktop['worker'] == 'local' for desktop in normalized['desktops']))
+        self.assertTrue(all(desktop['vnc_port'] == 5901 for desktop in normalized['desktops']))
+
+        undersized = deepcopy(DYNAMIC)
+        undersized['capacity']['host']['vcpus'] = 35
+        with self.assertRaises(ProfileError) as caught:
+            validate(undersized)
+        self.assertEqual(caught.exception.field, 'capacity.host.vcpus')
+
+    def test_remote_worker_placement_and_unique_vnc_ports(self):
+        profile = deepcopy(DYNAMIC)
+        profile['desktops'][0].update(worker='worker-02', address='192.168.1.3',
+                                      vnc_port=5901)
+        profile['desktops'][1].update(worker='worker-02', address='192.168.1.3',
+                                      vnc_port=5902)
+        profile['capacity']['workers'] = {
+            'worker-02': {'vcpus': 20, 'memory_mib': 65536, 'disk_gib': 500}}
+        normalized = validate(profile)
+        self.assertEqual(normalized['desktops'][0]['worker'], 'worker-02')
+        self.assertEqual(normalized['desktops'][1]['vnc_port'], 5902)
+
+        duplicate = deepcopy(profile)
+        duplicate['desktops'][1]['vnc_port'] = 5901
+        with self.assertRaises(ProfileError) as caught:
+            validate(duplicate)
+        self.assertEqual(caught.exception.field, 'desktops[1].vnc_port')
+
+    def test_local_desktop_cannot_override_internal_vnc_port(self):
+        profile = deepcopy(TWO)
+        profile['desktops'][0]['vnc_port'] = 5902
+        with self.assertRaises(ProfileError) as caught:
+            validate(profile)
+        self.assertEqual(caught.exception.field, 'desktops[0].vnc_port')
+
+    def test_two_equal_event_hosts_accept_eleven_local_nineteen_remote_slots(self):
+        profile = deepcopy(DYNAMIC)
+        profile['capacity']['host'] = {
+            'vcpus': 20, 'memory_mib': 65536, 'disk_gib': 475}
+        profile['capacity']['workers'] = {
+            'worker-02': {'vcpus': 20, 'memory_mib': 65536, 'disk_gib': 475}}
+        for index, desktop in enumerate(profile['desktops'][11:]):
+            desktop.update(worker='worker-02', address='192.168.1.3',
+                           vnc_port=5901 + index)
+        normalized = validate(profile)
+        self.assertEqual(sum(d['worker'] == 'local' for d in normalized['desktops']), 11)
+        self.assertEqual(sum(d['worker'] == 'worker-02'
+                             for d in normalized['desktops']), 19)
 
     def test_neutral_roster_and_accounts_generated(self):
         teams = neutral_roster(3)

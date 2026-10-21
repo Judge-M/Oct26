@@ -28,8 +28,13 @@ use routable addresses, and stay outside Git.
   participant seats per team, and starts exactly three of the predeclared
   desktop slots for each registered team.
 - A dynamic profile must declare `max_teams * desktops_per_team` desktop slots.
-  `capacity.host` is checked against the full pool so event-day registration
-  cannot overcommit memory or CPU.
+  Capacity is checked against the full pool so event-day registration cannot
+  overcommit memory or CPU. Local slots use `capacity.host`; remote slots name
+  a `worker` and require a matching `capacity.workers.<worker>` entry.
+- A desktop without `worker` remains local and uses the internal VNC port 5901.
+  A remote desktop sets `worker` plus a unique `address`/`vnc_port` pair. The
+  corresponding Docker context and remote bind-mount paths live only in private
+  `RUNTIME/local.json`; see `docs/multi-host-desktops.md`.
 
 ## Required fields
 
