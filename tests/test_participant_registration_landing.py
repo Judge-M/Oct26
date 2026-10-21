@@ -42,6 +42,7 @@ class ParticipantRegistrationLandingTests(unittest.TestCase):
         for text in (
             '— Team Handout',
             '<base target="_blank">',
+            'Live scoreboard:',
             'Your first five moves',
             'personal CTFd seat',
             'opens IRIS with the team login',

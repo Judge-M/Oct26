@@ -173,6 +173,7 @@ persistent handout.</p>
 </table></div>
 <h2>Participant CTFd seats</h2>
 <p>Open <a href="{{ ctfd_url }}">{{ ctfd_url }}</a>. CTFd requires one of the personal seat logins below. Your internal team ID is <code>{{ credentials.ctfd.team }}</code>; your seats are already attached to it, so there is no team join password to enter.</p>
+<p><strong>Live scoreboard:</strong> <a href="{{ scoreboard_url }}">{{ scoreboard_url }}</a></p>
 <div class="table-wrap"><table><tr><th>Seat</th><th>Username</th><th>Password</th></tr>
 {% for member in credentials.ctfd.members %}<tr><td>{{ loop.index }}</td><td><code data-copy>{{ member.username }}</code></td><td><span class="secret" data-copy>{{ member.password }}</span></td></tr>{% endfor %}
 </table></div>
@@ -302,6 +303,7 @@ def load(app):
             response = make_response(render_template_string(
                 REGISTRATION_PAGE, view='ready', registration=registration,
                 credentials=credentials, iris_url=iris_url, ctfd_url=ctfd_url,
+                scoreboard_url=ctfd_base_url + '/scoreboard',
                 wazuh_url=wazuh_url, guac_url=guac_url,
                 retrieve_url=retrieve_url,
                 download_url=retrieve_url.rstrip('/') + '/download',
