@@ -1,4 +1,5 @@
 import json
+import re
 import tempfile
 import unittest
 from pathlib import Path
@@ -35,6 +36,14 @@ class RegistrationStoreTests(unittest.TestCase):
         self.assertEqual(pending['status'], 'pending')
         private = store.get(created['access_code'], include_private=True)
         self.assertEqual(len(private['credentials']['ctfd']['members']), 5)
+        passwords = [private['credentials']['iris']['password'],
+                     private['credentials']['ctfd']['password'],
+                     private['credentials']['guacamole']['password']]
+        passwords.extend(member['password']
+                         for member in private['credentials']['ctfd']['members'])
+        self.assertEqual(len(passwords), len(set(passwords)))
+        self.assertTrue(all(re.fullmatch(r'[A-Z][a-z]+[2-9][!&]', value)
+                            for value in passwords))
         self.assertEqual(store.capacity()['available'], 1)
 
     def test_claim_complete_requires_current_worker_lease_and_marks_slots_running(self):
@@ -199,3 +208,4 @@ class RegistrationStoreTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+

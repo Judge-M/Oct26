@@ -364,6 +364,8 @@ def load(app):
     @authed_only
     def ridge_questions():
         message = ''
+        message_kind = ''
+        message_question = ''
         try:
             # CTFd's stock CSRF session does not guarantee a value for this
             # event-specific nonce on every authenticated session.  Generate
@@ -383,26 +385,37 @@ def load(app):
                     result = bridge('ctfd', team, 'answer', question=request.form['question'], answer=request.form['answer'])
                     if result['correct']:
                         if result.get('assessment_published'):
-                            message = ('Correct — %d point%s earned. Capstone complete: the final incident '
+                            message = ('Correct. Your team earned %d point%s. Capstone complete: the final incident '
                                        'assessment and containment actions are now unlocked below.') % (
                                 result['value'], '' if result['value'] == 1 else 's')
                         else:
-                            message = 'Correct — %d point%s earned. Findings synchronization pending.' % (
+                            message = ('Correct. Your team earned %d point%s. The answer is saved for your '
+                                       'team; every other team still has its own independent copy. Findings '
+                                       'synchronization is pending.') % (
                                 result['value'], '' if result['value'] == 1 else 's')
+                        message_kind = 'correct'
                     else:
-                        message = 'Not yet. Try the next free help level or unlock the explicit walkthrough.'
+                        message = ('Not correct yet. No points were lost and you can try again. Check the answer '
+                                   'format, use the next free help level, or unlock the explicit walkthrough.')
+                        message_kind = 'incorrect'
                 else:
                     abort(400)
                 session['ridge_message'] = message
-                return redirect('/silent-ridge#' + request.form.get('question',''), code=303)
+                session['ridge_message_kind'] = message_kind
+                session['ridge_message_question'] = request.form.get('question', '')
+                return redirect('/silent-ridge#answer-result', code=303)
             message = session.pop('ridge_message', '')
+            message_kind = session.pop('ridge_message_kind', '')
+            message_question = session.pop('ridge_message_question', '')
             snapshot = bridge('ctfd', team, 'snapshot')
             questions = bridge('ctfd', team, 'questions', question=request.args.get('question'))
             response = make_response(render_template_string(
                 PAGE, lane='ctfd', snapshot=snapshot, questions=questions,
                 queue=queue_state(snapshot),
                 iris=os.environ['IRIS_PUBLIC_URL'], ctfd=os.environ['CTFD_PUBLIC_URL'], csrf=session['nonce'],
-                message=message, story=participant_context(snapshot, questions)))
+                message=message, message_kind=message_kind,
+                message_question=message_question,
+                story=participant_context(snapshot, questions)))
             # Claim and answer state is shared and changes outside the CTFd
             # process. Prevent a cached pre-claim page from hiding the current
             # ticket's question forms; the status poll already uses no-store.

@@ -80,9 +80,26 @@ def _token() -> str:
     return secrets.token_urlsafe(24)
 
 
-def _password(length: int = 18) -> str:
-    alphabet = string.ascii_letters + string.digits + '-_'
-    return ''.join(secrets.choice(alphabet) for _ in range(length))
+_PASSWORD_WORDS = (
+    'Anchor', 'Apple', 'Badger', 'Beacon', 'Berry', 'Cactus', 'Cedar', 'Cheese',
+    'Cherry', 'Cloud', 'Comet', 'Coral', 'Eagle', 'Falcon', 'Forest', 'Garden',
+    'Harbor', 'Hazel', 'Jasper', 'Koala', 'Lemon', 'Maple', 'Meadow', 'Mochi',
+    'Otter', 'Panda', 'Peach', 'Pepper', 'Robin', 'Rocket', 'Sunset', 'Tiger',
+)
+
+
+def _password() -> str:
+    """Return a short participant-friendly password such as ``Cheese4&``."""
+    return '%s%d%s' % (secrets.choice(_PASSWORD_WORDS), secrets.randbelow(8) + 2,
+                       secrets.choice('!&'))
+
+
+def _passwords(count: int) -> list[str]:
+    """Generate distinct memorable passwords for one team's handout."""
+    values: set[str] = set()
+    while len(values) < count:
+        values.add(_password())
+    return list(values)
 
 
 def _hash(value: str) -> str:
@@ -283,13 +300,14 @@ class RegistrationStore:
                 'member_count must be %d for this event' % self.config.members_per_team)
         access = _token()
         now = _utc()
+        generated = _passwords(member_count + 3)
         credentials = {
-            'iris': {'username': 'pending', 'password': _password()},
-            'ctfd': {'team': 'pending', 'password': _password(), 'members': []},
-            'guacamole': {'username': 'pending', 'password': _password()},
+            'iris': {'username': 'pending', 'password': generated[0]},
+            'ctfd': {'team': 'pending', 'password': generated[1], 'members': []},
+            'guacamole': {'username': 'pending', 'password': generated[2]},
         }
         credentials['ctfd']['members'] = [
-            {'username': 'pending-%02d' % index, 'password': _password()}
+            {'username': 'pending-%02d' % index, 'password': generated[index + 2]}
             for index in range(1, member_count + 1)
         ]
         with self._connect() as con:
@@ -561,3 +579,4 @@ def desktop_handout(slots: list[str], public_guacamole_url: str) -> list[dict[st
 def hmac_compare(left: str, right: str) -> bool:
     import hmac
     return hmac.compare_digest(str(left), str(right))
+
