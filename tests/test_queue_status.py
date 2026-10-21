@@ -74,6 +74,11 @@ class QueueStateTests(unittest.TestCase):
         self.assertIn('View read-only IRIS tasks and shared findings',PAGE)
         self.assertIn('<strong>Start here</strong>',PAGE)
         self.assertIn('for step in route.directions',PAGE)
+        self.assertIn('What each app is for',PAGE)
+        self.assertIn('IRIS — choose and coordinate work',PAGE)
+        self.assertIn('CTFd — do the questions and earn points',PAGE)
+        self.assertIn('Open {{t.id}} questions, hints &amp; scoring in CTFd',PAGE)
+        self.assertIn('class="primary-action"',PAGE)
 
 
 if __name__=='__main__':unittest.main()
