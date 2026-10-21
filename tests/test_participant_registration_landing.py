@@ -33,7 +33,7 @@ class ParticipantRegistrationLandingTests(unittest.TestCase):
             'opens IRIS with the team login',
             'prepared Wazuh view',
             'divide the three desktop connections',
-            'Claim one available IRIS ticket',
+            'Claim up to three available IRIS tickets',
             'Keep this page open.',
         ):
             self.assertIn(text, self.source)
@@ -89,3 +89,4 @@ class ParticipantRegistrationLandingTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+

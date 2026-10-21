@@ -143,7 +143,7 @@ persistent handout.</p>
     <li>One teammate opens IRIS with the team login and confirms that the incident queue appears.</li>
     <li>Open the prepared Wazuh view in a normal laptop browser. Use its historical time range when a question names Wazuh.</li>
     <li>Open Guacamole, divide the three desktop connections across the team, and use them only for the evidence tools.</li>
-    <li>Claim one available IRIS ticket, open its questions in CTFd, investigate the named evidence, and submit only the requested value.</li>
+    <li>Claim up to three available IRIS tickets, open their questions in CTFd, investigate the named evidence, and submit only the requested value.</li>
   </ol>
 </section>
 <p class="notice"><strong>Keep this page open.</strong> It is your permanent credential and recovery sheet. Help 1 and 2 are free; Help 3 is the full walkthrough and leaves the question worth 1 point.</p>

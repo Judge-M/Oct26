@@ -63,9 +63,17 @@ class QueueStateTests(unittest.TestCase):
 
     def test_page_template_renders_the_explanations(self):
         for text in ('id="queue-status"','{{queue.status}}','queue.notes.get',
-                     'Claim ticket</button></form>{% else %}',
+                     'Claim ticket — start working</button></form>{% else %}',
                      "'Choose up to three available tickets' if queue.claimable"):
             self.assertIn(text,PAGE)
 
+    def test_page_explains_native_iris_status_is_read_only(self):
+        self.assertIn('How to start work',PAGE)
+        self.assertIn('up to three tickets at the same time',PAGE)
+        self.assertIn('native IRIS task view is read-only for participants',PAGE)
+        self.assertIn('View read-only IRIS tasks and shared findings',PAGE)
+        self.assertIn('<strong>Start here</strong>',PAGE)
+
 
 if __name__=='__main__':unittest.main()
+
