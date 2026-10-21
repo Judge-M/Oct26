@@ -34,6 +34,7 @@ from contextlib import contextmanager
 DEFAULT_MAX_TEAMS = 10
 DEFAULT_MEMBERS_PER_TEAM = 5
 DEFAULT_DESKTOPS_PER_TEAM = 3
+DEFAULT_ENROLLMENT_CODE = 'SILENT-RIDGE'
 DESKTOP_ROLES = (
     ('forensics-a', 'Desktop 1 — disk and filesystem triage',
      'Start with disk images, recovered files, browser records, and document versions.',
@@ -205,12 +206,9 @@ class RegistrationStore:
             con.execute('PRAGMA foreign_keys=ON')
 
     def _configure_meta(self, con: sqlite3.Connection) -> None:
-        # Production runtimes provide an enrollment code and start closed so
-        # an exposed landing page cannot consume event capacity early.  Bare
-        # stores remain open for backwards-compatible library/test use.
-        default_open = '0' if self.enrollment_hash else '1'
-        con.execute("INSERT OR IGNORE INTO registration_meta(key,value) VALUES ('open',?)",
-                    (default_open,))
+        # The room enrollment code is the sole check-in gate.  It is printed
+        # on the projected opening slide and in the facilitator runbook, so a
+        # separate open/close switch only creates avoidable event-day state.
         stored = con.execute(
             "SELECT value FROM registration_meta WHERE key='enrollment_hash'"
         ).fetchone()
@@ -219,7 +217,11 @@ class RegistrationStore:
                         (self.enrollment_hash,))
         elif stored is not None and self.enrollment_hash and not hmac_compare(
                 stored['value'], self.enrollment_hash):
-            raise RegistrationError('configured enrollment code does not match this event runtime')
+            # Migrate runtimes created before the enrollment code became a
+            # stable event value.  Team reservations and credentials remain
+            # untouched; only the public room-code hash changes.
+            con.execute("UPDATE registration_meta SET value=? WHERE key='enrollment_hash'",
+                        (self.enrollment_hash,))
 
     def _ensure_slots(self, con: sqlite3.Connection) -> None:
         expected = self.config.max_teams * self.config.desktops_per_team
@@ -246,19 +248,6 @@ class RegistrationStore:
                 'registered': self.count(),
                 'available': self.config.max_teams - self.count()}
 
-    def is_open(self) -> bool:
-        with self._connect() as con:
-            row = con.execute("SELECT value FROM registration_meta WHERE key='open'").fetchone()
-            return bool(row and row['value'] == '1')
-
-    def set_open(self, value: bool) -> None:
-        if self.read_only:
-            raise RegistrationError('registration store is read-only')
-        with self._connect() as con:
-            con.execute("INSERT INTO registration_meta(key,value) VALUES ('open',?) "
-                        "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
-                        ('1' if value else '0',))
-
     def list(self) -> list[dict[str, Any]]:
         with self._connect() as con:
             return [self._public_row(row, False) for row in con.execute(
@@ -280,8 +269,6 @@ class RegistrationStore:
         """
         team_name = _team_slug(team_name)
         captain_name = _team_slug(captain_name)
-        if not self.is_open():
-            raise RegistrationError('team registration is currently closed; ask a facilitator')
         with self._connect() as con:
             expected = con.execute(
                 "SELECT value FROM registration_meta WHERE key='enrollment_hash'"

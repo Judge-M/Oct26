@@ -509,6 +509,10 @@ class LifecycleTests(unittest.TestCase):
         self.assertNotEqual(team_creds['teams']['team-01']['iris_password'], 'team1')
         self.assertEqual(team_creds['teams']['team-01']['guac_username'], 'team1')
         self.assertNotEqual(team_creds['teams']['team-01']['guac_password'], 'team1')
+        self.assertEqual(
+            (self.runtime / 'secrets' / 'registration-enrollment-code')
+            .read_text(encoding='utf-8').strip(),
+            'SILENT-RIDGE')
         self.assertEqual(team_creds['teams']['team-01']['ctfd_name'], 'team1')
         self.assertIn('guacamole_system_permission',
                       (self.runtime / 'guac-init' / '002-provision.sql')

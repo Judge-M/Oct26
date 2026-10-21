@@ -133,8 +133,10 @@ capacity is still checked against the requested count.
 
 For the event-day self-service roster, copy
 `deployment/profiles/example-dynamic.json` instead. Do not pass `--teams`.
-After `start`, open registration and send teams to
-`https://ctfd.cyberexperts.org/silent-ridge/register`.
+After `start`, send teams to
+`https://ctfd.cyberexperts.org/silent-ridge/register` and use the static room
+enrollment code `SILENT-RIDGE`. The opening deck and facilitator runbook show
+both values; no separate registration open/close command is required.
 The landing page contains the initial brief; each registration reserves five
 seats and three GUI-only desktops, starts those three slots through the
 host-side allocator, creates the CTFd/IRIS/Guacamole identities, and returns a

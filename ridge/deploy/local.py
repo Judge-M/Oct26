@@ -1015,13 +1015,12 @@ http {
         _write_private(marker, 'ready\n')
 
     def _ensure_registration_enrollment_code(self):
-        """Create a short private code used to authorize one team reservation."""
+        """Install the stable room code used to authorize one team reservation."""
+        from ridge.registration import DEFAULT_ENROLLMENT_CODE
         path = self.secrets_dir / 'registration-enrollment-code'
-        if not path.is_file():
-            import secrets as _secrets
-            alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
-            code = ''.join(_secrets.choice(alphabet) for _ in range(10))
-            _write_private(path, code + '\n')
+        expected = DEFAULT_ENROLLMENT_CODE + '\n'
+        if not path.is_file() or path.read_text(encoding='utf-8') != expected:
+            _write_private(path, expected)
         return path
 
     def _team_credentials(self):
@@ -2129,12 +2128,9 @@ http {
             enrollment_code=self._secret('registration-enrollment-code'))
         _secure_private(registration_path)
         if action == 'status':
-            return {'open': store.is_open(), 'capacity': store.capacity(),
+            return {'gate': 'enrollment_code', 'capacity': store.capacity(),
                     'worker': self._registration_worker_status(),
                     'registrations': store.list()}
-        if action in ('open', 'close'):
-            store.set_open(action == 'open')
-            return {'open': store.is_open(), 'capacity': store.capacity()}
         if registration_id is None:
             raise LifecycleError('registration ID is required for %s' % action)
         if action == 'retry':

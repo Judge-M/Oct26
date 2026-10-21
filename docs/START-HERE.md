@@ -86,34 +86,32 @@ Now do three human checks:
 - [ ] Open IRIS, Guacamole and Wazuh from that laptop.
 - [ ] Open the PowerPoint and confirm the room audio works.
 
-Do not open registration yet.
+Registration is protected by the room enrollment code; there is no separate
+open/close switch to manage.
 
 ## Participant check-in
 
-Start the event and open team registration:
+Start the event:
 
 ```powershell
 python -m ridge.deploy start --profile $EventProfile --runtime $EventRuntime
-python -m ridge.deploy registration-open --profile $EventProfile --runtime $EventRuntime
-Get-Content "$EventRuntime\secrets\registration-enrollment-code"
 ```
 
-Project this address:
+Project opening slide 5, which shows:
 
 ```text
 https://ctfd.cyberexperts.org/silent-ridge/register
+Enrollment code: SILENT-RIDGE
 ```
 
-Give the enrollment code only to team captains. Each captain registers one
-team and receives a private retrieval page containing five CTFd seats, service
-credentials and three Guacamole desktop names. Tell the captain to bookmark
-that private page.
+Each captain registers one team and receives a private retrieval page containing
+five CTFd seats, service credentials and three Guacamole desktop names. Tell the
+captain to bookmark that private page.
 
-Check registrations, then close registration when every team is in:
+Check registrations at any time:
 
 ```powershell
 python -m ridge.deploy registration-status --profile $EventProfile --runtime $EventRuntime
-python -m ridge.deploy registration-close --profile $EventProfile --runtime $EventRuntime
 ```
 
 ## Opening the room

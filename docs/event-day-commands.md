@@ -104,8 +104,8 @@ On Windows, backup and restore run OpenSSL from the already loaded
 `openssl.exe` installation is not required. Keep the exact image and backup
 key available during recovery.
 The host-side registration worker starts automatically when `start` succeeds.
-Registration is closed by default. The private enrollment code is at
-`R/secrets/registration-enrollment-code`; show it only to team captains. Each team receives
+Registration uses one stable room code, `SILENT-RIDGE`, as its only check-in
+gate. The opening deck and facilitator runbook both display it. Each team receives
 a private retrieval link containing its IRIS, CTFd, and Guacamole credentials
 plus the exact names of its three role-specific desktop connections. Do not hand out
 `R/secrets/team-credentials.json`; it remains an operator recovery artifact.
@@ -132,15 +132,19 @@ and the names must resolve locally.
 
 ```bash
 python -m ridge.deploy start --profile event-profile.json --runtime R
-python -m ridge.deploy registration-open --profile event-profile.json --runtime R
 ```
 
-Project `https://ctfd.cyberexperts.org/silent-ridge/register` and give captains
-the enrollment code. Close the window when check-in ends:
+Project opening slide 5. It contains both the registration address and code:
+
+```text
+https://ctfd.cyberexperts.org/silent-ridge/register
+SILENT-RIDGE
+```
+
+Check registrations at any time:
 
 ```bash
 python -m ridge.deploy registration-status --profile event-profile.json --runtime R
-python -m ridge.deploy registration-close --profile event-profile.json --runtime R
 ```
 
 Participant URLs in generated-CA mode (all in their own laptop browser):
