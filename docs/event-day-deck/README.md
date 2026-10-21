@@ -1,38 +1,72 @@
-# Event-day presentation
+# Event-day room briefs
 
-Use `event-day-deck.pptx` for the room presentation. It contains 15 slides:
+The room presentation is split into two short decks. Participant setup no longer
+lives in the slides. The public registration page and private team handout are
+the source of truth for logins, desktops, scoring, help, and troubleshooting.
 
-- slide 1: holding/title slide;
-- slide 2: embedded opening brief, set to play automatically;
-- slides 3–14: the participant story and setup walkthrough;
-- slide 15: embedded closing brief, set to play automatically.
+## Opening brief
 
-Stop on slide 14 after the opening walkthrough. Advance to slide 15 only when
-the exercise is ending. Play each video once over the room presentation system,
-not separately on participant devices.
+Use `opening-brief.pptx` in Microsoft PowerPoint or `opening-brief.odp` in
+LibreOffice Impress. It contains five slides:
 
-`event-day-deck.pdf` is the no-video fallback. `event-day-deck.pptd` and the
-files under `pages/` are the editable source for the 13 visual slides. PPTD does
-not support embedded video, so the final PowerPoint is assembled from the PDF
-render plus the two accepted MP4 files.
+1. Operation Silent Ridge title;
+2. the situation and mission;
+3. the high-level claim, investigate, answer, share workflow;
+4. the embedded introduction video, set to play automatically;
+5. the participant landing-page address.
 
-## Rebuild the PowerPoint
+After the video, leave slide 5 projected while captains open:
+
+```text
+https://ctfd.cyberexperts.org/silent-ridge/register
+```
+
+## Closing brief
+
+Use `closing-brief.pptx` in Microsoft PowerPoint or `closing-brief.odp` in
+LibreOffice Impress. It contains three slides:
+
+1. a neutral final-assessment holding slide;
+2. the embedded outro video, set to play automatically;
+3. an editable `And the winner is...` reveal.
+
+Replace `[TEAM NAME]` before presenting, or keep the placeholder hidden until
+the facilitator announces the winner live.
+
+Play each video once over the room presentation system. Do not ask participants
+to play either brief on their own devices.
+
+## Compatibility
+
+- The `.pptx` copies contain embedded MP4 media and are intended for Microsoft
+  PowerPoint.
+- The `.odp` copies contain the same embedded MP4 media in LibreOffice's native
+  presentation format. Use these in LibreOffice Impress. Do not open the PPTX in
+  LibreOffice and expect PowerPoint's media behavior to survive unchanged.
+- The accepted source videos are under `media/` so the decks can be rebuilt.
+
+## Rebuild both decks
 
 Requirements:
 
 - Windows with desktop Microsoft PowerPoint;
-- Poppler `pdftoppm` on `PATH`, or the bundled Codex desktop runtime;
-- the accepted intro and outro MP4 files.
+- LibreOffice at `C:\Program Files\LibreOffice\program\soffice.exe` when ODP
+  output is required.
 
 From the repository root:
 
 ```powershell
-.\scripts\build_event_day_deck.ps1 `
-  -IntroVideo 'C:\path\to\introbrief.mp4' `
-  -OutroVideo 'C:\path\to\outrobrief.mp4'
+.\scripts\build_event_day_deck.ps1
 ```
 
-The script renders the 13-source-slide PDF, keeps the square videos centered on
-the widescreen canvas, embeds both MP4s in the PowerPoint and enables automatic
-playback. The committed PowerPoint uses Git LFS because its embedded videos make
-it larger than GitHub's normal file limit.
+To use replacement videos or a different registration address:
+
+```powershell
+.\scripts\build_event_day_deck.ps1 `
+  -IntroVideo 'C:\path\to\introbrief.mp4' `
+  -OutroVideo 'C:\path\to\outrobrief.mp4' `
+  -LandingPage 'https://ctfd.cyberexperts.org/silent-ridge/register'
+```
+
+The old `event-day-deck.pdf`, `event-day-deck.pptd`, and `pages/` directory are
+retained as design-source history. Do not present the old monolithic deck.

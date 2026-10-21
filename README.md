@@ -25,14 +25,13 @@ Keep these open on event day:
 |---|---|
 | One complete beginner checklist | [Run Operation Silent Ridge](docs/START-HERE.md) |
 | Exact command reference | [Event-day command sheet](docs/event-day-commands.md) |
-| Projector deck with embedded intro and outro videos | [Event-day PowerPoint](docs/event-day-deck/event-day-deck.pptx) |
-| Slides if PowerPoint is unavailable | [PDF fallback](docs/event-day-deck/event-day-deck.pdf) |
+| Opening room brief with embedded intro video | [Opening PowerPoint](docs/event-day-deck/opening-brief.pptx) or [LibreOffice ODP](docs/event-day-deck/opening-brief.odp) |
+| Closing room brief, outro and winner reveal | [Closing PowerPoint](docs/event-day-deck/closing-brief.pptx) or [LibreOffice ODP](docs/event-day-deck/closing-brief.odp) |
 | Troubleshooting during play | [Operator runbook](docs/runbook.md) |
 
 Do not build from source on event day. Install the published offline release
-bundle, keep runtime secrets outside the repository, and use the PowerPoint for
-the room-wide briefs. The PDF has the same instructional slides but cannot play
-the embedded videos.
+bundle, keep runtime secrets outside the repository, and use the two room-wide
+brief decks. Use PPTX in PowerPoint and ODP in LibreOffice Impress.
 
 ### Participant start
 
@@ -174,11 +173,11 @@ docs, run-of-show, and runbook quick reference — one offline file.
 
 The [event-day command sheet](docs/event-day-commands.md) is the
 cold-machine → running-event → teardown checklist with exact commands.
-The [event-day PowerPoint](docs/event-day-deck/event-day-deck.pptx) is what
-you project: it contains the opening video, the participant setup walkthrough
-and the completion-gated closing video. The
-[13-slide PDF](docs/event-day-deck/event-day-deck.pdf) is the no-video
-fallback.
+The [opening room brief](docs/event-day-deck/opening-brief.pptx) introduces the
+scenario and workflow, plays the introduction, then directs captains to the
+participant landing page. The [closing room brief](docs/event-day-deck/closing-brief.pptx)
+plays the final assessment and provides the winner-reveal slide. Native
+LibreOffice copies are stored beside both PowerPoint files.
 The [facilitator closing brief](docs/facilitator-closing-brief.md) is the
 canonical ending used after T20. Completion automatically reveals the final
 assessment and containment actions in CTFd and publishes the same assessment
@@ -252,7 +251,7 @@ late-October event, the remaining work is tracked in `docs/handoff/NEXT.md`:
 | `deployment/` | Container builds, compose files, example profiles |
 | `docs/` | Architecture, operations, and planning documents |
 | `docs/event-day-commands.md` | **Run the event**: cold-machine → teardown checklist |
-| `docs/event-day-deck/` | **Brief participants**: 13-slide setup + story deck |
+| `docs/event-day-deck/` | **Brief the room**: separate opening and closing decks with PowerPoint and LibreOffice copies |
 | `docs/presenter-landing.html` | **Event-day hub on the presenter PC**: deck + URLs + operator docs, offline |
 | `docs/handoff/` | **Start here when picking up work**: `NEXT.md` (current position), receipts, evidence, and task cards |
 | `tests/` | Automated test suite (`python -m unittest discover -s tests`) |

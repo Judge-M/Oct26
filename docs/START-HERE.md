@@ -9,15 +9,15 @@ or invent replacement passwords on event day.
 | Need | Open this |
 |---|---|
 | Exact setup and start commands | [Event-day command sheet](event-day-commands.md) |
-| Projector deck with the intro and outro videos embedded | [Event-day PowerPoint](event-day-deck/event-day-deck.pptx) |
-| Slides when PowerPoint is unavailable | [PDF fallback](event-day-deck/event-day-deck.pdf) |
+| Opening projector brief and intro video | [Opening PowerPoint](event-day-deck/opening-brief.pptx) or [LibreOffice ODP](event-day-deck/opening-brief.odp) |
+| Closing projector brief, outro and winner reveal | [Closing PowerPoint](event-day-deck/closing-brief.pptx) or [LibreOffice ODP](event-day-deck/closing-brief.odp) |
 | Fast help while teams are playing | [Operator runbook](runbook.md) |
 | Detailed cold-machine installation | [Event-machine cold start](event-machine-cold-start.md) |
 
-The PowerPoint is the normal room presentation. Slide 2 contains the opening
-brief and slide 15 contains the closing brief. Both videos play automatically
-when their slide appears. Play each video once for the whole room. The PDF does
-not contain playable video.
+The two PowerPoint files are the normal room presentations. The opening video is
+slide 4 of the opening deck. The outro is slide 2 of the closing deck, followed
+by the winner reveal. Play each video once for the whole room. In LibreOffice,
+use the ODP copies instead of opening the PPTX files.
 
 ## Before event day
 
@@ -38,8 +38,8 @@ not contain playable video.
 
 - [ ] From a participant laptop, open all four names without a certificate
       warning.
-- [ ] Open the PowerPoint in the desktop version of Microsoft PowerPoint. Test
-      slide 2 and slide 15 through the room speakers.
+- [ ] Open both room briefs. Test opening slide 4 and closing slide 2 through
+      the room speakers, then verify that closing slide 3 is editable.
 - [ ] Keep the private runtime folder, TLS private key and backup key off GitHub
       and away from participant handouts.
 
@@ -118,10 +118,10 @@ python -m ridge.deploy registration-close --profile $EventProfile --runtime $Eve
 
 ## Opening the room
 
-1. Put slide 1 of the PowerPoint on the projector while people settle.
-2. Advance to slide 2. The Faye Maxwell opening brief plays automatically.
-3. Continue through slides 3–14 for the participant setup walkthrough.
-4. Stop on slide 14. Do not advance to slide 15 until the event is ending.
+1. Put slide 1 of the opening brief on the projector while people settle.
+2. Use slides 2 and 3 for the scenario and high-level workflow.
+3. Advance to slide 4. The Faye Maxwell opening brief plays automatically.
+4. Leave slide 5 projected while captains open the participant landing page.
 
 Participants use IRIS, CTFd and Wazuh in normal laptop browser tabs. They use
 Guacamole only for Autopsy, Wireshark, Cutter and the desktop file manager.
@@ -160,10 +160,11 @@ by hand.
 
 1. Pause the clock.
 2. Let the automatic final assessment publish.
-3. Advance the PowerPoint to slide 15. The Faye Maxwell closing brief plays
-   automatically for the whole room.
-4. Conduct the in-person after-action review.
-5. Create a verified backup before shutting anything down.
+3. Open the closing brief on slide 1, then advance to slide 2. The Faye Maxwell
+   closing brief plays automatically for the whole room.
+4. Advance to slide 3 and announce the winning team.
+5. Conduct the in-person after-action review.
+6. Create a verified backup before shutting anything down.
 
 ```powershell
 python -m ridge.deploy pause --profile $EventProfile --runtime $EventRuntime

@@ -7,7 +7,7 @@ This is the complete approved narrative package. It contains exactly two spoken 
 | Introduction | [brief-01-introduction.txt](spoken/brief-01-introduction.txt) | Teams assembled, before investigation | 256 words / 110 s |
 | Final assessment | [brief-02-exit.txt](spoken/brief-02-exit.txt) | 20/20 stages complete and final assessment visible | 508 words / 218 s |
 
-Only the two files under `spoken/` are canonical production inputs. The Markdown performance sheets, JSON metadata and announcement echoes must match them. The existing [introduction WAV](recordings/brief-01-introduction.wav) remains available for facilitator-only room playback. The accepted opening and closing videos are embedded in [`docs/event-day-deck/event-day-deck.pptx`](../../event-day-deck/event-day-deck.pptx); standalone MP4 files are not distributed from this package.
+Only the two files under `spoken/` are canonical production inputs. The Markdown performance sheets, JSON metadata and announcement echoes must match them. The existing [introduction WAV](recordings/brief-01-introduction.wav) remains available for facilitator-only room playback. The accepted opening and closing videos are embedded in the separate [opening](../../event-day-deck/opening-brief.pptx) and [closing](../../event-day-deck/closing-brief.pptx) room briefs. Their source MP4 files live under the deck's `media/` directory for reproducible builds and are not linked from participant pages.
 
 The introduction stays entirely inside the narrative and does not identify the scenario as an exercise. The conclusion is intentionally spoiler-bearing and must not be delivered early: it follows the participant-page assessment **LIMITED DISCLOSURE CONFIRMED — IMMEDIATE CONTAINMENT REQUIRED**.
 

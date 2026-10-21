@@ -8,11 +8,11 @@ The canonical narrative outro is [Faye Maxwell’s final assessment](handoff/aud
 
 Play the accepted audio or video once over the room presentation system. If final media is unavailable, Faye’s script can be read live. Do not distribute a playback URL, embed media on participant pages or allow each team to start the outro independently.
 
-The accepted outro video is embedded on slide 15 of
-[`event-day-deck.pptx`](event-day-deck/event-day-deck.pptx). It starts
-automatically when that slide appears. Stop on slide 14 until the sequence below
-is complete. The standalone production MP4 is intentionally not distributed to
-participants.
+The accepted outro video is embedded on slide 2 of the
+[`closing-brief.pptx`](event-day-deck/closing-brief.pptx). It starts
+automatically when that slide appears. Open the closing deck only after the
+sequence below is complete. The standalone production MP4 is not linked from
+participant pages.
 
 ## Operator sequence
 
@@ -21,7 +21,8 @@ participants.
 3. Confirm the integration queue has returned to zero and IRIS contains the final assessment comment.
 4. Get the room’s attention and pause unrelated activity.
 5. Play or read the outro once for everyone.
-6. Continue with the separate in-person administrative brief and AAR.
+6. Advance to the winner-reveal slide, then continue with the separate in-person
+   administrative brief and AAR.
 
 The outro restates findings already published by the platform. It must never be played early as a hint or evidence release.
 
