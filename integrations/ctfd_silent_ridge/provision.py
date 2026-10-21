@@ -1,8 +1,10 @@
 """CTFd 3.7.7 ORM adapter for ridge.ctfd_provision.
 
 Loaded only inside the extended CTFd image. It applies settings, creates or
-finds teams/users, assigns memberships and commits once. Existing awards and
-passwords are never modified.
+finds teams/users, assigns memberships and commits once. Existing awards are
+preserved. Dynamic-registration passwords converge to the allocator's private
+handout so surviving application volumes cannot make newly issued credentials
+unusable.
 
 The pinned CTFd image smoke tests this adapter against a disposable SQLite
 database, including the facilitator's real login and administrator page.
@@ -42,6 +44,26 @@ class OrmAdmin:
         db.session.flush()
         return {'id': int(row.id), 'name': row.name, 'banned': False, 'hidden': False}
 
+    def team_password_valid(self, team_id, password):
+        from CTFd.models import Teams, db
+        from CTFd.utils.crypto import verify_password
+        row = db.session.get(Teams, team_id)
+        if row is None:
+            return False
+        try:
+            return bool(verify_password(password, row.password))
+        except (TypeError, ValueError):
+            return False
+
+    def set_team_password(self, team_id, password):
+        from CTFd.models import Teams, db
+        row = db.session.get(Teams, team_id)
+        if row is None:
+            raise ValueError('Team does not exist')
+        # CTFd's model validator hashes plaintext assignments with its pinned
+        # bcrypt_sha256 implementation. Never assign a precomputed hash here.
+        row.password = password
+
     def find_user(self, name):
         from CTFd.models import Users
         row = Users.query.filter_by(name=name).first()
@@ -53,6 +75,25 @@ class OrmAdmin:
         db.session.add(row)
         db.session.flush()
         return {'id': int(row.id), 'name': row.name}
+
+    def user_password_valid(self, user_id, password):
+        from CTFd.models import Users, db
+        from CTFd.utils.crypto import verify_password
+        row = db.session.get(Users, user_id)
+        if row is None:
+            return False
+        try:
+            return bool(verify_password(password, row.password))
+        except (TypeError, ValueError):
+            return False
+
+    def set_user_password(self, user_id, password):
+        from CTFd.models import Users, db
+        row = db.session.get(Users, user_id)
+        if row is None:
+            raise ValueError('User does not exist')
+        # Users uses the same native SQLAlchemy password validator as Teams.
+        row.password = password
 
     def create_admin(self, name, email, password):
         from CTFd.models import Users, db
@@ -135,9 +176,8 @@ def register(app):
         admin = OrmAdmin()
         from CTFd.models import db
         try:
-            team = admin.find_team(registration['team_name'])
-            if team is None:
-                team = admin.create_team(registration['team_name'], credentials['password'])
+            team = _find_or_create_team_for_registration(
+                admin, registration['team_name'], credentials['password'])
             team_id = int(team['id'])
             users = []
             for member in credentials['members']:
@@ -157,9 +197,28 @@ def _find_or_create_user_for_registration(admin, member, team_id):
     if existing is not None:
         if admin.user_team(int(existing['id'])) != team_id:
             raise click.ClickException('participant login belongs to another team')
-        return existing
-    created = admin.create_user(member['username'],
-                                member['username'] + '@silent-ridge.invalid',
-                                member['password'])
-    admin.set_user_team(int(created['id']), team_id)
-    return created
+        user = existing
+    else:
+        user = admin.create_user(member['username'],
+                                 member['username'] + '@silent-ridge.invalid',
+                                 member['password'])
+        admin.set_user_team(int(user['id']), team_id)
+    user_id = int(user['id'])
+    if not admin.user_password_valid(user_id, member['password']):
+        admin.set_user_password(user_id, member['password'])
+    if not admin.user_password_valid(user_id, member['password']):
+        raise click.ClickException('CTFd participant credential verification failed')
+    return user
+
+
+def _find_or_create_team_for_registration(admin, name, password):
+    """Converge a dynamic CTFd team to its generated private credential."""
+    team = admin.find_team(name)
+    if team is None:
+        team = admin.create_team(name, password)
+    team_id = int(team['id'])
+    if not admin.team_password_valid(team_id, password):
+        admin.set_team_password(team_id, password)
+    if not admin.team_password_valid(team_id, password):
+        raise click.ClickException('CTFd team credential verification failed')
+    return team

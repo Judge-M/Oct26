@@ -81,6 +81,25 @@ class OrmAdmin:
         self.db.session.flush()
         return {'id': int(row.id), 'user': row.user}
 
+    def user_password_valid(self, user_id, password):
+        from app.models.authorization import User
+        from app import bc
+        row = self.db.session.get(User, user_id)
+        if row is None:
+            return False
+        try:
+            return bool(bc.check_password_hash(row.password, password))
+        except (TypeError, ValueError):
+            return False
+
+    def set_user_password(self, user_id, password):
+        from app.models.authorization import User
+        from app import bc
+        row = self.db.session.get(User, user_id)
+        if row is None:
+            raise ValueError('User does not exist')
+        row.password = bc.generate_password_hash(password).decode('utf-8')
+
     def set_case_access(self, user_id, case_id, level):
         from app.models.authorization import UserCaseAccess, UserCaseEffectiveAccess, CaseAccessLevel
         if level != 'read_only':
@@ -187,13 +206,25 @@ def register(app):
         admin = OrmAdmin(service_login)
         from app import db
         try:
-            user = admin.find_user(credentials['username'])
-            if user is None:
-                user = admin.create_user(credentials['username'], registration['team_name'],
-                                         credentials['password'])
+            user = _find_or_create_user_for_registration(
+                admin, credentials['username'], registration['team_name'],
+                credentials['password'])
             admin.set_case_access(int(user['id']), case_id, 'read_only')
             db.session.commit()
         except Exception:
             db.session.rollback()
             raise
         print(json.dumps({'iris_id': int(user['id']), 'login': credentials['username']}))
+
+
+def _find_or_create_user_for_registration(admin, login, name, password):
+    """Converge a dynamic IRIS identity to its generated private credential."""
+    user = admin.find_user(login)
+    if user is None:
+        user = admin.create_user(login, name, password)
+    user_id = int(user['id'])
+    if not admin.user_password_valid(user_id, password):
+        admin.set_user_password(user_id, password)
+    if not admin.user_password_valid(user_id, password):
+        raise click.ClickException('IRIS participant credential verification failed')
+    return user

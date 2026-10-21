@@ -2,7 +2,10 @@
 
 ## Product and source of truth
 
-Build a complete incident-response CTF for ten teams / thirty participants. All
+Build a complete incident-response CTF whose team count is bounded by the
+validated host capacity and declared desktop pool, not an arbitrary software
+constant. The current Compose pool contains 33 desktops, enough for eleven
+five-person teams at three desktops per team. All
 fictional content, published native evidence, prepared cases, images, manifests,
 build recipes and instructions belong on GitHub. Credentials, real rosters and
 live event state do not. A fresh computer must not need an earlier chat or an

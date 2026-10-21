@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "role": "primary",
+  "docker_cli_path": "C:\\Program Files\\Docker\\Docker\\resources\\bin\\docker.exe",
+  "docker_desktop_path": "C:\\Program Files\\Docker\\Docker\\Docker Desktop.exe",
+  "docker_config_path": "C:\\Users\\admin\\.docker",
+  "log_path": "C:\\ProgramData\\SilentRidge\\logs\\primary-boot.log",
+  "poll_interval_seconds": 5,
+  "local_docker_timeout_seconds": 600,
+  "remote_docker_timeout_seconds": 600,
+  "remote_docker_contexts": [
+    "ridge-worker-02"
+  ],
+  "source_path": "C:\\Oct26\\source",
+  "python_path": "C:\\Python311\\python.exe",
+  "profile_path": "C:\\Oct26\\event-profile.json",
+  "runtime_path": "C:\\Oct26\\event-runtime",
+  "build_receipts_path": "C:\\Oct26\\source\\work\\build-receipts",
+  "deployment_attempts": 6,
+  "deployment_retry_seconds": 20,
+  "deployment_command_timeout_seconds": 1800,
+  "status_attempts": 3,
+  "status_retry_seconds": 10
+}

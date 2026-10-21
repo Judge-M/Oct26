@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "profile_kind": "example",
+  "profile_id": "example-dynamic-two-host-11-team",
+  "provider": "local",
+  "event": {
+    "id": "ridge-oct26-dynamic-two-host",
+    "release_id": "silent-ridge-expanded-1",
+    "incident_date": "2026-10-15",
+    "event_start": "2026-10-26T09:00:00-04:00",
+    "duration_minutes": 360,
+    "activity_minutes": 360,
+    "timezone": "America/New_York"
+  },
+  "registration": {
+    "enabled": true,
+    "max_teams": 11,
+    "members_per_team": 5,
+    "desktops_per_team": 3
+  },
+  "desktops": [
+    {"name": "desktop-slot01", "address": "172.18.0.11", "shared": true, "max_connections": 5},
+    {"name": "desktop-slot02", "address": "172.18.0.12", "shared": true, "max_connections": 5},
+    {"name": "desktop-slot03", "address": "172.18.0.13", "shared": true, "max_connections": 5},
+    {"name": "desktop-slot04", "address": "172.18.0.14", "shared": true, "max_connections": 5},
+    {"name": "desktop-slot05", "address": "172.18.0.15", "shared": true, "max_connections": 5},
+    {"name": "desktop-slot06", "address": "172.18.0.16", "shared": true, "max_connections": 5},
+    {"name": "desktop-slot07", "address": "172.18.0.17", "shared": true, "max_connections": 5},
+    {"name": "desktop-slot08", "address": "172.18.0.18", "shared": true, "max_connections": 5},
+    {"name": "desktop-slot09", "address": "172.18.0.19", "shared": true, "max_connections": 5},
+    {"name": "desktop-slot10", "address": "172.18.0.20", "shared": true, "max_connections": 5},
+    {"name": "desktop-slot11", "address": "172.18.0.21", "shared": true, "max_connections": 5},
+    {"name": "desktop-slot12", "address": "172.18.0.22", "shared": true, "max_connections": 5},
+    {"name": "desktop-slot13", "address": "172.18.0.23", "shared": true, "max_connections": 5},
+    {"name": "desktop-slot14", "address": "172.18.0.24", "shared": true, "max_connections": 5},
+    {"name": "desktop-slot15", "address": "192.168.1.3", "vnc_port": 5901, "worker": "worker-02", "shared": true, "max_connections": 5},
+    {"name": "desktop-slot16", "address": "192.168.1.3", "vnc_port": 5902, "worker": "worker-02", "shared": true, "max_connections": 5},
+    {"name": "desktop-slot17", "address": "192.168.1.3", "vnc_port": 5903, "worker": "worker-02", "shared": true, "max_connections": 5},
+    {"name": "desktop-slot18", "address": "192.168.1.3", "vnc_port": 5904, "worker": "worker-02", "shared": true, "max_connections": 5},
+    {"name": "desktop-slot19", "address": "192.168.1.3", "vnc_port": 5905, "worker": "worker-02", "shared": true, "max_connections": 5},
+    {"name": "desktop-slot20", "address": "192.168.1.3", "vnc_port": 5906, "worker": "worker-02", "shared": true, "max_connections": 5},
+    {"name": "desktop-slot21", "address": "192.168.1.3", "vnc_port": 5907, "worker": "worker-02", "shared": true, "max_connections": 5},
+    {"name": "desktop-slot22", "address": "192.168.1.3", "vnc_port": 5908, "worker": "worker-02", "shared": true, "max_connections": 5},
+    {"name": "desktop-slot23", "address": "192.168.1.3", "vnc_port": 5909, "worker": "worker-02", "shared": true, "max_connections": 5},
+    {"name": "desktop-slot24", "address": "192.168.1.3", "vnc_port": 5910, "worker": "worker-02", "shared": true, "max_connections": 5},
+    {"name": "desktop-slot25", "address": "192.168.1.3", "vnc_port": 5911, "worker": "worker-02", "shared": true, "max_connections": 5},
+    {"name": "desktop-slot26", "address": "192.168.1.3", "vnc_port": 5912, "worker": "worker-02", "shared": true, "max_connections": 5},
+    {"name": "desktop-slot27", "address": "192.168.1.3", "vnc_port": 5913, "worker": "worker-02", "shared": true, "max_connections": 5},
+    {"name": "desktop-slot28", "address": "192.168.1.3", "vnc_port": 5914, "worker": "worker-02", "shared": true, "max_connections": 5},
+    {"name": "desktop-slot29", "address": "192.168.1.3", "vnc_port": 5915, "worker": "worker-02", "shared": true, "max_connections": 5},
+    {"name": "desktop-slot30", "address": "192.168.1.3", "vnc_port": 5916, "worker": "worker-02", "shared": true, "max_connections": 5},
+    {"name": "desktop-slot31", "address": "192.168.1.3", "vnc_port": 5917, "worker": "worker-02", "shared": true, "max_connections": 5},
+    {"name": "desktop-slot32", "address": "192.168.1.3", "vnc_port": 5918, "worker": "worker-02", "shared": true, "max_connections": 5},
+    {"name": "desktop-slot33", "address": "192.168.1.3", "vnc_port": 5919, "worker": "worker-02", "shared": true, "max_connections": 5}
+  ],
+  "capacity": {
+    "host": {"vcpus": 18, "memory_mib": 49152, "disk_gib": 475},
+    "central": {"vcpus": 4, "memory_mib": 6144, "disk_gib": 200},
+    "desktop": {"vcpus": 1, "memory_mib": 2048, "disk_gib": 15},
+    "workers": {
+      "worker-02": {"vcpus": 19, "memory_mib": 51200, "disk_gib": 475}
+    }
+  },
+  "addresses": {
+    "central_bind_ip": "192.0.2.10",
+    "iris_public_url": "https://iris.example.invalid",
+    "ctfd_public_url": "https://ctfd.example.invalid",
+    "guacamole_public_url": "https://guac.example.invalid"
+  },
+  "secret_refs": {
+    "iris_bridge": "file:/etc/silent-ridge/secrets/iris-bridge",
+    "ctfd_bridge": "file:/etc/silent-ridge/secrets/ctfd-bridge",
+    "guac_database": "file:/etc/silent-ridge/secrets/guac-database"
+  },
+  "retention": {"backup_days": 30, "export_days": 30, "min_free_bytes": 1073741824},
+  "spending": {"ttl_hours": 72, "budget_usd": 0, "currency": "USD"}
+}

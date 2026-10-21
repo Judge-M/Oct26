@@ -3,12 +3,28 @@
 These run without IRIS or SQLAlchemy. The ORM adapter in
 integrations/iris_bootstrap.py requires live IRIS 2.4.20 (BLOCKED here).
 """
+import importlib.util
+import sys
+import types
 import unittest
+from pathlib import Path
 
 from ridge.iris_bootstrap import (
     BootstrapError, BootstrapSpec, IdentitySpec, bootstrap, post_finding, post_task, preflight,
     resolve_statuses,
 )
+
+try:
+    import click  # noqa: F401
+except ModuleNotFoundError:
+    click = types.ModuleType('click')
+    click.ClickException = type('ClickException', (RuntimeError,), {})
+    sys.modules['click'] = click
+
+ADAPTER_PATH = Path(__file__).resolve().parents[1] / 'integrations/iris_bootstrap.py'
+adapter_spec = importlib.util.spec_from_file_location('iris_registration_adapter', ADAPTER_PATH)
+iris_adapter = importlib.util.module_from_spec(adapter_spec)
+adapter_spec.loader.exec_module(iris_adapter)
 
 
 class FakeAdmin:
@@ -55,6 +71,17 @@ class FakeAdmin:
                              'password': password, 'active': True}
         return {'id': self._next, 'user': login}
 
+    def user_password_valid(self, user_id, password):
+        return any(row['id'] == user_id and row['password'] == password
+                   for row in self.users.values())
+
+    def set_user_password(self, user_id, password):
+        for row in self.users.values():
+            if row['id'] == user_id:
+                row['password'] = password
+                return
+        raise ValueError('User does not exist')
+
     def set_case_access(self, user_id, case_id, level):
         self.access[(user_id, case_id)] = level
 
@@ -83,6 +110,26 @@ def spec():
 
 
 class BootstrapTests(unittest.TestCase):
+    def test_dynamic_registration_updates_stale_iris_password(self):
+        admin = FakeAdmin()
+        user = admin.create_user('iris-returning', 'Returning Team', 'stale-password')
+
+        reconciled = iris_adapter._find_or_create_user_for_registration(
+            admin, 'iris-returning', 'Returning Team', 'new-generated-password')
+
+        self.assertEqual(reconciled['id'], user['id'])
+        self.assertTrue(admin.user_password_valid(user['id'], 'new-generated-password'))
+
+    def test_dynamic_registration_fails_closed_without_leaking_password(self):
+        admin = FakeAdmin()
+        admin.create_user('iris-returning', 'Returning Team', 'stale-password')
+        admin.set_user_password = lambda _user_id, _password: None
+        with self.assertRaisesRegex(iris_adapter.click.ClickException,
+                                    'IRIS participant credential verification failed') as caught:
+            iris_adapter._find_or_create_user_for_registration(
+                admin, 'iris-returning', 'Returning Team', 'private-generated-password')
+        self.assertNotIn('private-generated-password', str(caught.exception))
+
     def test_bootstrap_is_idempotent_and_returns_inventory(self):
         admin = FakeAdmin()
         first = bootstrap(admin, spec())

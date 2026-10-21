@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 COMPOSE = ROOT / 'deployment/expanded/compose.desktops.yaml'
 GUACAMOLE = ROOT / 'deployment/expanded/guacamole.py'
 TEAMS = ['team%02d' % number for number in range(1, 11)]
-SLOTS = ['slot%02d' % number for number in range(1, 31)]
+SLOTS = ['slot%02d' % number for number in range(1, 34)]
 
 
 @unittest.skipIf(yaml is None, 'PyYAML is not installed')
@@ -24,7 +24,7 @@ class ComposeDesktopTests(unittest.TestCase):
     def test_project_name_scopes_the_run(self):
         self.assertEqual(self.document['name'], '${RIDGE_PROJECT:?Set event-scoped project}-desktops')
 
-    def test_ten_team_services_share_the_anchor(self):
+    def test_team_and_dynamic_slot_services_share_the_anchor(self):
         self.assertEqual(set(self.services),
                          {'desktop-' + team for team in TEAMS}
                          | {'desktop-' + slot for slot in SLOTS})
@@ -56,7 +56,7 @@ class ComposeDesktopTests(unittest.TestCase):
             self.assertTrue(any(entry.startswith('${RIDGE_ORIGINALS_DIR:?') and entry.endswith(':/originals:ro')
                                 for entry in volumes), volumes)
 
-    def test_per_team_volumes_are_declared_and_unique(self):
+    def test_per_desktop_volumes_are_declared_and_unique(self):
         declared = self.document['volumes']
         for team in TEAMS:
             volumes = self.services['desktop-' + team]['volumes']
@@ -64,8 +64,14 @@ class ComposeDesktopTests(unittest.TestCase):
                 name = '%s-%s' % (team, folder.lower())
                 self.assertIn('%s:/home/participant/%s' % (name, folder), volumes)
                 self.assertIn(name, declared)
+        for slot in SLOTS:
+            volumes = self.services['desktop-' + slot]['volumes']
+            for folder in ('Cases', 'Workspace', 'Scratch'):
+                name = 'desktop-%s-%s' % (slot, folder.lower())
+                self.assertIn('%s:/home/participant/%s' % (name, folder), volumes)
+                self.assertIn(name, declared)
         self.assertEqual(len(declared), len(set(declared)))
-        self.assertEqual(len(declared), 120)
+        self.assertEqual(len(declared), 129)
 
     def test_vnc_password_secret_per_team(self):
         secrets = self.document['secrets']
@@ -77,6 +83,8 @@ class ComposeDesktopTests(unittest.TestCase):
             entries = self.services['desktop-' + slot]['secrets']
             self.assertEqual(entries, [{'source': 'vnc_password_desktop-' + slot,
                                         'target': 'vnc_password'}])
+            secret = secrets['vnc_password_desktop-' + slot]
+            self.assertTrue(secret['file'].endswith('/desktop-' + slot))
 
     def test_external_desktop_network_matches_guacamole(self):
         network = self.document['networks']['desktop']

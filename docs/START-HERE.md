@@ -4,15 +4,16 @@ This is the event operator's starting page. If you have never seen this project
 before, follow this page from top to bottom. Do not build images, edit databases,
 or invent replacement passwords on event day.
 
-## The five files you need
+## Six handoff references
 
 | Need | Open this |
 |---|---|
-| Exact setup and start commands | [Event-day command sheet](event-day-commands.md) |
+| Operator-only setup and recovery commands | [Operator command sheet](event-day-commands.md) |
 | Opening projector brief and intro video | [Opening PowerPoint](event-day-deck/opening-brief.pptx) or [LibreOffice ODP](event-day-deck/opening-brief.odp) |
 | Closing projector brief, outro and winner reveal | [Closing PowerPoint](event-day-deck/closing-brief.pptx) or [LibreOffice ODP](event-day-deck/closing-brief.odp) |
 | Fast help while teams are playing | [Operator runbook](runbook.md) |
 | Detailed cold-machine installation | [Event-machine cold start](event-machine-cold-start.md) |
+| One-time automatic Windows startup | [Windows boot automation](windows-boot-automation.md) |
 
 The two PowerPoint files are the normal room presentations. The opening video is
 slide 4 of the opening deck. The outro is slide 2 of the closing deck, followed
@@ -23,10 +24,17 @@ use the ODP copies instead of opening the PPTX files.
 
 - [ ] Use the published offline release bundle. Do not plan to build from source
       at the venue.
-- [ ] Confirm Docker is installed and running on the event server.
-- [ ] Confirm the event server has at least 32 GB RAM, 16 CPU cores and 100 GB
-      free SSD space. The current 64 GB server is suitable.
-- [ ] Give the event server a fixed LAN address.
+- [ ] Prepare both Windows event servers. The current eleven-team shape uses a
+      64 GB / 20-thread primary and an equivalent worker; a single 64 GB host is
+      only for a smaller profile.
+- [ ] Copy
+      `deployment/profiles/example-dynamic-two-host-11-team.json` to the private
+      production profile and
+      `deployment/examples/two-host-11-team.local.example.json` to the primary
+      runtime as `local.json`. Edit the documented event dates, primary/worker
+      addresses, asset paths, Docker relay CIDR, and external-certificate paths.
+- [ ] Give the primary and worker fixed LAN addresses. The reusable examples
+      use `192.168.1.200` and `192.168.1.3` respectively.
 - [ ] Make these four names resolve to that address for participant laptops:
 
   ```text
@@ -36,12 +44,22 @@ use the ODP copies instead of opening the PPTX files.
   wazuh.cyberexperts.org
   ```
 
-- [ ] From a participant laptop, open all four names without a certificate
-      warning.
+- [ ] For the normal event configuration, install the valid
+      `*.cyberexperts.org` full chain and matching private key on the primary,
+      keep `tls.mode` set to `external`, and confirm all four names open on port
+      443 from a participant laptop without a certificate warning. The local
+      generated-CA/IP-and-port workflow is an explicit fallback, not the normal
+      path.
 - [ ] Open both room briefs. Test opening slide 4 and closing slide 2 through
       the room speakers, then verify that closing slide 3 is editable.
 - [ ] Keep the private runtime folder, TLS private key and backup key off GitHub
       and away from participant handouts.
+- [ ] Have an operator install the Windows boot automation on the worker and
+      primary, then pass its worker-first reboot test. This is a one-time setup;
+      facilitators do not install it or run deployment commands on event day.
+- [ ] Treat eleven teams as capacity-valid and representable, not
+      performance-certified, until the human/load rehearsal passes on both
+      event hosts.
 
 If the server has never been installed, stop here and follow
 [Event-machine cold start](event-machine-cold-start.md). Return to this page
@@ -49,7 +67,23 @@ when the install receipt exists.
 
 ## Thirty minutes before participants arrive
 
-Open PowerShell on the event server. Set these three paths once. Replace the
+Normal event-day path: power on the **worker first**, then the primary. The
+installed scheduled tasks start Docker/SSH, wait for both Docker engines, and
+run the safe `up`/`start` flow. A facilitator does not open PowerShell. Wait for
+the registration page, test it from a participant laptop, and continue to the
+room brief.
+
+That is the entire normal server workflow. Do **not** also run `doctor`, `up`,
+`status`, or `start`; the primary boot task replaces those event-day commands.
+If the page does not appear, give the primary boot log to the operator and let
+the scheduled retry run.
+
+## STOP: operator-only fallback after a boot failure
+
+Everything through the next heading is for the designated operator only, after
+boot automation has reported a failure. It is not a facilitator checklist.
+
+Open PowerShell on the primary event server. Set these three paths once. Replace the
 examples only if your installation uses different locations:
 
 ```powershell
@@ -91,7 +125,8 @@ open/close switch to manage.
 
 ## Participant check-in
 
-Start the event:
+Boot automation has already started the event. An operator may use this command
+only when deliberately resuming a paused event:
 
 ```powershell
 python -m ridge.deploy start --profile $EventProfile --runtime $EventRuntime
@@ -108,11 +143,33 @@ Each captain registers one team and receives a private retrieval page containing
 five CTFd seats, service credentials and three Guacamole desktop names. Tell the
 captain to bookmark that private page.
 
-Check registrations at any time:
+An operator—not the facilitator—can check registrations when diagnosing a
+problem:
 
 ```powershell
 python -m ridge.deploy registration-status --profile $EventProfile --runtime $EventRuntime
 ```
+
+### One password/link recovery procedure
+
+If a captain loses the private page, do not create another team and do not
+invent or reset any passwords:
+
+1. The operator runs the `registration-status` command above and identifies the
+   existing team and its registration ID.
+2. The operator runs the following command with that ID:
+
+   ```powershell
+   python -m ridge.deploy registration-rotate-link --registration-id N --profile $EventProfile --runtime $EventRuntime
+   ```
+
+3. Send the newly printed private return URL directly to that captain. The old
+   return URL is invalid. The captain downloads the labelled credential handout
+   and gives each teammate one of the five individual CTFd seats; the team uses
+   the labelled IRIS, Wazuh and Guacamole credentials from that same handout.
+
+Never hand participants `R\secrets\team-credentials.json`; it is operator-only
+recovery material.
 
 ## Opening the room
 
@@ -127,7 +184,12 @@ They should not browse the web inside a Guacamole desktop.
 
 ## While teams are working
 
-Check health at any time:
+Facilitators do not run commands during play. If something fails, give the
+operator the symptom and `C:\ProgramData\SilentRidge\logs\primary-boot.log`.
+The following controls are for an operator responding to an incident, not part
+of the normal room workflow.
+
+An operator can check health with:
 
 ```powershell
 python -m ridge.deploy status --profile $EventProfile --runtime $EventRuntime
@@ -156,13 +218,17 @@ by hand.
 
 ## Ending the event
 
-1. Pause the clock.
-2. Let the automatic final assessment publish.
-3. Open the closing brief on slide 1, then advance to slide 2. The Faye Maxwell
+The facilitator's entire closing workflow is in the deck:
+
+1. Let the automatic final assessment publish.
+2. Open the closing brief on slide 1, then advance to slide 2. The Faye Maxwell
    closing brief plays automatically for the whole room.
-4. Advance to slide 3 and announce the winning team.
-5. Conduct the in-person after-action review.
-6. Create a verified backup before shutting anything down.
+3. Advance to slide 3 and announce the winning team.
+4. Conduct the in-person after-action review.
+
+After the room is finished, an **operator—not the facilitator** pauses, creates
+a verified backup, and shuts down the stack. These are post-event operator
+commands and are not part of participant check-in or facilitation:
 
 ```powershell
 python -m ridge.deploy pause --profile $EventProfile --runtime $EventRuntime

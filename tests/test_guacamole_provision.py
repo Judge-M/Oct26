@@ -79,6 +79,18 @@ class GuacamoleReconcileTests(unittest.TestCase):
         self.assertNotIn('a-long-generated-password', sql)
         self.assertIn('password_hash', sql)
 
+    def test_existing_team_password_is_updated_and_verified(self):
+        sql = guac.reconcile(config(), credentials())
+        team_blocks = [line for line in sql.splitlines()
+                       if 'guacamole_user' in line and "'team-a-user'" in line]
+        self.assertTrue(any('ON CONFLICT (entity_id) DO UPDATE SET password_hash=EXCLUDED.password_hash'
+                            in line for line in team_blocks))
+        self.assertTrue(any('password_salt IS NOT NULL OR u.disabled OR u.expired'
+                            in line for line in team_blocks))
+        self.assertTrue(any("RAISE EXCEPTION 'team account credential reconciliation failed'"
+                            in line for line in team_blocks))
+        self.assertFalse(any('a-long-generated-password' in line for line in team_blocks))
+
     def test_vnc_passwords_are_required(self):
         bad = credentials()
         bad['desktops']['desk-a']['password'] = ''

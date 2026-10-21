@@ -5,12 +5,12 @@ The schema and validator live in `ridge/deploy/config.py` (`SCHEMA_VERSION = 1`,
 frozen for Wave 0). Validate with:
 
 ```text
-python -c "import json; from ridge.deploy import validate; print(validate(json.load(open('deployment/profiles/example-ten-team-aws.json'))))"
+python -c "import json; from ridge.deploy import validate; print(validate(json.load(open('deployment/profiles/example-dynamic-two-host-11-team.json'))))"
 ```
 
-The two files here are `profile_kind: example`; they use documentation-only addresses
-and are safe to publish. A real event profile must set `profile_kind: production`,
-use routable addresses, and stay outside Git.
+The files here are `profile_kind: example`; they use documentation-only
+addresses and are safe to publish. A real event profile must set
+`profile_kind: production`, use routable addresses, and stay outside Git.
 
 ## Contract
 
@@ -42,6 +42,14 @@ use routable addresses, and stay outside Git.
 `addresses`, `secret_refs`, `retention`, `spending`. `roster` is optional. Error
 messages from `ProfileError` name the exact JSON field.
 
-`deployment/profiles/example-dynamic.json` is the reference ten-team shape:
-five members per team, three GUI-only desktops per team, and a persistent
-registration handout at CTFd `/silent-ridge/register`.
+`deployment/profiles/example-dynamic-two-host-11-team.json` is the current
+two-host reference shape: eleven teams, five members per team, three GUI-only
+desktops per team, 14 local slots, and 19 `worker-02` slots. Pair it with
+`deployment/examples/two-host-11-team.local.example.json`; that host-local file
+contains the Docker context, worker paths, Guacamole relay map, and external TLS
+paths that do not belong in a reusable profile. The shape is capacity-valid and
+representable by the 33-slot Compose pool, but remains performance-uncertified
+until the human/load rehearsal passes.
+
+`deployment/profiles/example-dynamic.json` remains the smaller historical
+single-host dynamic example. Do not use it as the current event-day profile.

@@ -1,0 +1,67 @@
+{
+  "bind_ip": "192.168.1.200",
+  "assets": {
+    "evidence_public": "C:/Oct26/assets/evidence-public",
+    "release_vault": "C:/Oct26/assets/release-vault",
+    "case_template": "C:/Oct26/assets/case-template",
+    "originals": "C:/Oct26/assets/originals",
+    "wazuh_config": "C:/Oct26/assets/wazuh-config"
+  },
+  "ports": {
+    "crl": 8080,
+    "iris": 8081,
+    "ctfd": 8083,
+    "guac": 8082,
+    "wazuh_dashboard": 8443,
+    "wazuh_indexer": 9200
+  },
+  "index_name": "silent-ridge-oct26",
+  "tls": {
+    "mode": "external",
+    "certificate": "C:/Oct26/private/cyberexperts-fullchain.pem",
+    "key": "C:/Oct26/private/cyberexperts-private-key.pem",
+    "hostnames": {
+      "iris": "iris.cyberexperts.org",
+      "ctfd": "ctfd.cyberexperts.org",
+      "guac": "guac.cyberexperts.org",
+      "wazuh": "wazuh.cyberexperts.org"
+    }
+  },
+  "desktop_workers": {
+    "worker-02": {
+      "docker_context": "ridge-worker-02",
+      "vnc_password_dir": "C:/ProgramData/SilentRidge/runtime/vnc",
+      "assets": {
+        "case_template": "C:/ProgramData/SilentRidge/assets/case-template",
+        "evidence_public": "C:/ProgramData/SilentRidge/assets/evidence-public",
+        "originals": "C:/ProgramData/SilentRidge/assets/originals"
+      },
+      "guacamole_relay": {
+        "address": "host.docker.internal",
+        "listen_address": "0.0.0.0",
+        "source_cidr": "192.168.48.0/20",
+        "ports": {
+          "desktop-slot15": 15901,
+          "desktop-slot16": 15902,
+          "desktop-slot17": 15903,
+          "desktop-slot18": 15904,
+          "desktop-slot19": 15905,
+          "desktop-slot20": 15906,
+          "desktop-slot21": 15907,
+          "desktop-slot22": 15908,
+          "desktop-slot23": 15909,
+          "desktop-slot24": 15910,
+          "desktop-slot25": 15911,
+          "desktop-slot26": 15912,
+          "desktop-slot27": 15913,
+          "desktop-slot28": 15914,
+          "desktop-slot29": 15915,
+          "desktop-slot30": 15916,
+          "desktop-slot31": 15917,
+          "desktop-slot32": 15918,
+          "desktop-slot33": 15919
+        }
+      }
+    }
+  }
+}

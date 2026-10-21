@@ -1,6 +1,8 @@
 # Operation Silent Ridge
 
-A cooperative, defensive incident-response exercise for **up to ten teams of five**.
+A cooperative, defensive incident-response exercise with capacity derived from
+the validated event hardware. The current desktop pool supports **up to eleven
+teams of five** when all 33 desktop slots fit the deployment profile.
 Participants investigate a fictional breach using real forensics and detection
 tools — Autopsy, Wireshark, Cutter and Wazuh — coordinated through a shared
 IRIS case, with questions and scoring in CTFd. Teams claim investigation
@@ -19,15 +21,32 @@ to bottom.** It assumes the operator has never seen this repository. It covers
 the server, network, registration, projector brief, live controls, closing
 brief, backup and shutdown in event order.
 
-Keep these open on event day:
+The facilitator keeps START-HERE and the two room decks open. The designated
+operator may also keep the command sheet and runbook available for recovery:
 
 | What you need | File |
 |---|---|
 | One complete beginner checklist | [Run Operation Silent Ridge](docs/START-HERE.md) |
-| Exact command reference | [Event-day command sheet](docs/event-day-commands.md) |
+| Operator-only installation and recovery commands | [Operator command sheet](docs/event-day-commands.md) |
 | Opening room brief with embedded intro video | [Opening PowerPoint](docs/event-day-deck/opening-brief.pptx) or [LibreOffice ODP](docs/event-day-deck/opening-brief.odp) |
 | Closing room brief, outro and winner reveal | [Closing PowerPoint](docs/event-day-deck/closing-brief.pptx) or [LibreOffice ODP](docs/event-day-deck/closing-brief.odp) |
 | Troubleshooting during play | [Operator runbook](docs/runbook.md) |
+
+For the two Windows event servers, install the
+[one-time boot automation](docs/windows-boot-automation.md) before event day.
+It starts Docker Desktop on both machines, waits for the worker from the
+primary, and safely runs the existing `up`/`start` lifecycle. After its reboot
+test passes, facilitators do not run server commands: power on the worker and
+primary, present the opening deck, and tell participants to begin.
+
+The current reusable event shape is
+[`example-dynamic-two-host-11-team.json`](deployment/profiles/example-dynamic-two-host-11-team.json)
+plus its matching private-host template,
+[`two-host-11-team.local.example.json`](deployment/examples/two-host-11-team.local.example.json).
+It declares exactly 33 desktop slots: 13 on the primary and 20 on
+`worker-02`. Eleven teams are representable and pass the declared capacity
+model; they are **not performance-certified** until the human/load rehearsal
+passes on the event hardware.
 
 Do not build from source on event day. Install the published offline release
 bundle, keep runtime secrets outside the repository, and use the two room-wide
@@ -65,19 +84,22 @@ a facilitated after-action review.
 
 ## What you need to host it locally
 
-One machine can run the whole event; optional
-[desktop workers](docs/multi-host-desktops.md) can carry excess Guacamole
-desktops while the browser services remain centralized. Sizing is based on live
-measurement of the real stack, not guesswork:
+Smaller profiles can run on one machine. The current eleven-team shape uses a
+primary plus one [desktop worker](docs/multi-host-desktops.md); browser services
+remain centralized on the primary while the worker carries 20 Guacamole
+desktops. Sizing is based on live measurement of the real stack, not guesswork:
 
-- **32 GB RAM minimum; 64 GB is comfortable.** Measured on the running stack:
+- **32 GB RAM minimum for a smaller run; the current eleven-team event uses two
+  64 GB hosts.** Measured on the running stack:
   central services use ~6 GiB; each team desktop idles at ~150 MiB and peaks
-  at ~2 GiB with the Autopsy case open and its text index loaded. Thirty desktop
-  containers are available for ten teams; actual simultaneous loaded-tool use,
+  at ~2 GiB with the Autopsy case open and its text index loaded. Thirty-three
+  desktop containers are available for eleven teams; actual simultaneous loaded-tool use,
   central services, and the host OS must remain inside the verified host budget.
   Desktop containers carry a 4 GB memory *limit*, but a limit reserves
   nothing — the host only commits what is actually touched.
-- **16 CPU cores recommended**, gigabit LAN for participant browsers
+- **Two 20-thread hosts for the current eleven-team shape**, gigabit LAN for
+  participant browsers. Smaller rehearsals may use one host after validating a
+  smaller profile.
 - **100 GB free NVMe SSD** — measured: ~19 GB of container images, ~14 GB for
   the offline bundle, plus build cache and runtime growth
 - **Docker** (Docker Desktop on Windows, or Docker Engine on Linux)
@@ -114,9 +136,11 @@ python -m ridge.deploy build --component all   # build images (downloads depende
 python -m ridge.deploy verify-build         # verify the built artifacts
 ```
 
-Then create a deployment profile — copy `deployment/profiles/example-two-team.json`,
-adjust it (event id, dates, desktop count, host addresses), and bring the
-event up:
+Then create a deployment profile. For the current two-host event, copy
+`deployment/profiles/example-dynamic-two-host-11-team.json` and pair it with
+`deployment/examples/two-host-11-team.local.example.json`. For a smaller
+single-host rehearsal, start from `deployment/profiles/example-two-team.json`.
+Adjust the documented host-specific fields and bring the event up:
 
 ```bash
 python -m ridge.deploy up     --profile path/to/profile.json --runtime path/to/runtime
@@ -124,15 +148,14 @@ python -m ridge.deploy status --profile path/to/profile.json --runtime path/to/r
 python -m ridge.deploy start  --profile path/to/profile.json --runtime path/to/runtime
 ```
 
-Team count is a start-time switch, not a profile rewrite:
-`up --teams N` (1–10) provisions N neutral teams (team-01…team-N, three
-seats each) on N desktops no matter what the profile roster says. The
-choice is recorded in the runtime and reused by every later command; use
-a fresh runtime directory to change it. The profile's declared host
-capacity is still checked against the requested count.
+The legacy fixed-roster path may use `up --teams N`; it is separate from the
+event-day self-registration path and does not define the dynamic-team ceiling.
+Dynamic capacity comes from `registration.max_teams`, the exact desktop-slot
+set, and validated host/worker capacity.
 
-For the event-day self-service roster, copy
-`deployment/profiles/example-dynamic.json` instead. Do not pass `--teams`.
+For the current event-day self-service roster, copy
+`deployment/profiles/example-dynamic-two-host-11-team.json`. Do not pass
+`--teams`.
 After `start`, send teams to
 `https://ctfd.cyberexperts.org/silent-ridge/register` and use the static room
 enrollment code `SILENT-RIDGE`. The opening deck and facilitator runbook show
@@ -237,7 +260,7 @@ with links to receipts and evidence. Task cards live alongside it in
 Before the
 late-October event, the remaining work is tracked in `docs/handoff/NEXT.md`:
 
-- Ten-team capacity rehearsal on the actual event hardware
+- Eleven-team human/load rehearsal on the actual two-host event hardware
 - Desktop image rebuild with the measured Autopsy heap cap, then the final
   event release, operator freeze, and dress rehearsal
 - A beginner rehearsal to validate the 4–5 hour duration with real people
