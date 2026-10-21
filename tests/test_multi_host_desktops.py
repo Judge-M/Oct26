@@ -77,6 +77,17 @@ class MultiHostDesktopTests(unittest.TestCase):
         self.assertNotIn('desktop-team02', local[0])
         self.assertNotIn('desktop-team01', remote[0])
 
+    def test_worker_vnc_secret_is_streamed_on_stdin_not_argv(self):
+        self.stack._ensure_secrets()
+        self.stack._stage_worker_vnc_secrets()
+        calls = [call for call in self.runner.calls
+                 if call[:3] == ['docker', '--context', 'ridge-worker-02']
+                 and any('cat > /vnc/team02' in arg for arg in call)]
+        self.assertEqual(len(calls), 1)
+        secret = (self.stack.secrets_dir / 'vnc' / 'team02').read_text(
+            encoding='utf-8')
+        self.assertNotIn(secret, calls[0])
+
     def test_guacamole_uses_remote_lan_endpoint(self):
         remote = self.stack._guacamole_desktop(self.stack.profile['desktops'][1])
         self.assertNotIn('container', remote)

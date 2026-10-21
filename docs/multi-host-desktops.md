@@ -84,9 +84,10 @@ Add every non-local worker referenced by the profile to `RUNTIME/local.json`:
 ```
 
 These are paths as seen by the worker's Docker daemon. Stage the same reviewed
-evidence and prepared case at those paths. Copy all pre-generated VNC secret
-files to `vnc_password_dir` over the protected management channel; they are not
-participant credentials and must not be placed in Git.
+evidence and prepared case at those paths. During `up`, the lifecycle streams
+each generated VNC password over the authenticated Docker context into
+`vnc_password_dir`; the value is never placed in an argv, Compose override, or
+Git file.
 
 ## Worker preparation
 
@@ -104,8 +105,9 @@ participant credentials and must not be placed in Git.
      -RemoteAddress 192.168.1.200 -Profile Private
    ```
 
-6. Stage the source/release assets and private VNC directory at the paths in
-   `local.json`.
+6. Stage the source/release assets at the paths in `local.json`. Ensure the
+   parent of `vnc_password_dir` is writable by Docker; `up` creates and verifies
+   the individual secret files through the worker context.
 7. Transfer the reviewed desktop image; do not independently rebuild it:
 
    ```text

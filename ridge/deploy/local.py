@@ -1358,12 +1358,9 @@ http {
                                     'rebuilding independently' % (recorded['image'], worker_id))
                     continue
                 worker = self._worker(worker_id)
-                assigned = [desktop['name'] for desktop in self.profile['desktops']
-                            if desktop.get('worker', 'local') == worker_id]
                 checks = ['test -f /case/WS17.aut',
                           'test -f /evidence/network/sensor.pcap',
                           'test -d /originals']
-                checks.extend('test -s /vnc/%s' % name for name in assigned)
                 try:
                     self._run([
                         'docker', '--context', context, 'run', '--rm', '--pull', 'never',
@@ -1371,12 +1368,11 @@ http {
                         '-v', worker['assets']['case_template'] + ':/case:ro',
                         '-v', worker['assets']['evidence_public'] + ':/evidence:ro',
                         '-v', worker['assets']['originals'] + ':/originals:ro',
-                        '-v', worker['vnc_password_dir'] + ':/vnc:ro',
                         recorded['image'], '-c', ' && '.join(checks),
                     ])
                 except Exception:
-                    problems.append('worker %s cannot read the staged case, evidence, originals, '
-                                    'or assigned VNC secrets; verify local.json remote paths'
+                    problems.append('worker %s cannot read the staged case, evidence, or '
+                                    'originals; verify local.json remote asset paths'
                                     % worker_id)
         for key, check in (('evidence_public', 'dir'), ('release_vault', 'dir'),
                            ('case_template', 'dir'), ('originals', 'dir')):
@@ -1474,6 +1470,59 @@ http {
                 self._run(['docker', '--context', context, 'network', 'inspect', desktop_network])
             except CommandError:
                 self._run(['docker', '--context', context, 'network', 'create', desktop_network])
+
+    def _stage_worker_vnc_secrets(self):
+        """Stream generated VNC passwords to worker-local bind paths.
+
+        The secret value travels on stdin through the authenticated Docker
+        context. It is never placed in an argv, Compose override, or Git file.
+        This runs only after ARTIFACTS_VERIFIED has confirmed that the exact
+        reviewed desktop image is present on each worker.
+        """
+        if not self._remote_worker_ids():
+            return
+        receipt = json.loads((self.receipts / 'desktop.json').read_text(encoding='utf-8'))
+        for worker_id in self._remote_worker_ids():
+            worker = self._worker(worker_id)
+            context = worker['docker_context']
+            for name in self._worker_vnc_secret_names(worker_id):
+                source = self.secrets_dir / 'vnc' / name
+                self._pipe([
+                    'docker', '--context', context, 'run', '--rm', '-i', '--pull', 'never',
+                    '--network', 'none', '--entrypoint', 'bash',
+                    '-v', worker['vnc_password_dir'] + ':/vnc',
+                    receipt['image'], '-c', 'umask 077; cat > /vnc/%s' % name,
+                ], source.read_text(encoding='utf-8'))
+
+    def _worker_vnc_secret_names(self, worker_id):
+        dynamic = self.profile.get('registration', {}).get('enabled', False)
+        result = []
+        for service in self._configured_desktop_services():
+            if self._desktop_spec(service).get('worker', 'local') != worker_id:
+                continue
+            result.append(service if dynamic else service.removeprefix('desktop-'))
+        return result
+
+    def _probe_worker_vnc_secrets(self):
+        if not self._remote_worker_ids():
+            return
+        receipt = json.loads((self.receipts / 'desktop.json').read_text(encoding='utf-8'))
+        for worker_id in self._remote_worker_ids():
+            worker = self._worker(worker_id)
+            checks = ' && '.join('test -s /vnc/%s' % name
+                                 for name in self._worker_vnc_secret_names(worker_id))
+            try:
+                self._run([
+                    'docker', '--context', worker['docker_context'], 'run', '--rm',
+                    '--pull', 'never', '--network', 'none', '--entrypoint', 'bash',
+                    '-v', worker['vnc_password_dir'] + ':/vnc:ro',
+                    receipt['image'], '-c', checks,
+                ])
+            except Exception:
+                raise LifecycleError(
+                    'worker %s is missing one or more generated VNC secrets at %s; '
+                    'rerun up to restage them through the Docker context'
+                    % (worker_id, worker['vnc_password_dir']))
 
     def _dashboard_bind_ip(self):
         bind = str(self.local.get('bind_ip') or '127.0.0.1')
@@ -1620,6 +1669,7 @@ http {
         self._render_wazuh_config()
         self._render_env()
         self._ensure_networks()
+        self._stage_worker_vnc_secrets()
         certs = self.runtime / 'wazuh-certs'
         bind = self._dashboard_bind_ip()
         certs.mkdir(parents=True, exist_ok=True)
@@ -1656,6 +1706,7 @@ http {
                                  % (self.secrets_dir,
                                     ', '.join(sorted(set(SECRET_FILES) - set(existing)))))
         self._wazuh_api_password()
+        self._probe_worker_vnc_secrets()
         private_users = self.runtime / 'wazuh-config' / 'internal_users.yml'
         if not private_users.is_file():
             raise LifecycleError('missing private Wazuh indexer users at %s; restore the '
