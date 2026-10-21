@@ -160,7 +160,10 @@ function Get-DeploymentStatus {
                 (@('-m', 'ridge.deploy', 'status') + $CommonArguments) `
                 $TimeoutSeconds -Quiet
             if ($result.ExitCode -ne 0) {
-                throw "status returned exit code $($result.ExitCode)"
+                $detail = (($result.Stderr + "`n" + $result.Stdout).Trim() -replace '\s+', ' ')
+                if ($detail.Length -gt 1000) { $detail = $detail.Substring(0, 1000) + '...' }
+                if ([string]::IsNullOrWhiteSpace($detail)) { $detail = 'no process output' }
+                throw "status returned exit code $($result.ExitCode): $detail"
             }
             $document = $result.Stdout | ConvertFrom-Json -ErrorAction Stop
             if ($null -eq $document.PSObject.Properties['journal'] -or
