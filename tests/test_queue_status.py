@@ -62,17 +62,18 @@ class QueueStateTests(unittest.TestCase):
             self.assertIn(fragment,state['status'])
 
     def test_page_template_renders_the_explanations(self):
-        for text in ('id="queue-status"','else queue.status',
+        for text in ('id="queue-status"','Progress: %s of %s questions answered',
                      'All tickets for your team',
-                     'Ticket claiming has been removed',
                      'All unfinished tickets are open to your team'):
             self.assertIn(text,PAGE)
 
-    def test_page_explains_native_iris_status_is_read_only(self):
+    def test_page_provides_team_local_iris_status_controls(self):
         self.assertIn('Four-person team workflow',PAGE)
-        self.assertIn('no claiming or status change is required',PAGE)
-        self.assertIn('view-only evidence log',PAGE)
-        self.assertIn('Open shared evidence log (view only)',PAGE)
+        self.assertIn('name="action" value="work_status"',PAGE)
+        self.assertIn("('working','Working')",PAGE)
+        self.assertIn("('needs_review','Needs review')",PAGE)
+        self.assertIn('never hide questions or limit parallel work',PAGE)
+        self.assertIn('Open shared evidence log',PAGE)
         self.assertIn("Your team's status:",PAGE)
         self.assertIn('Live scoreboard display',PAGE)
         self.assertIn('{{ctfd}}/scoreboard',PAGE)
@@ -87,6 +88,19 @@ class QueueStateTests(unittest.TestCase):
         self.assertIn('CTFd — do the questions and earn points',PAGE)
         self.assertIn('Open {{t.id}} questions, hints &amp; scoring in CTFd',PAGE)
         self.assertIn('class="primary-action"',PAGE)
+
+    def test_correlation_and_capstone_workspaces_are_in_question_sequence(self):
+        current=PAGE.index('<section id="current-questions">')
+        self.assertGreater(PAGE.index('{{correlation_workspace()}}'),current)
+        self.assertGreater(PAGE.index('{{capstone_workspace()}}'),current)
+        self.assertIn("q.ticket > 'T16'",PAGE)
+        self.assertIn("q.ticket == 'T20'",PAGE)
+
+    def test_feedback_banners_have_a_dismiss_button(self):
+        self.assertIn('id="dismiss-answer-result"',PAGE)
+        self.assertIn('aria-label="Dismiss message"',PAGE)
+        self.assertIn("message_kind=='hint' else 'Try again'",PAGE)
+        self.assertIn("dismissAnswerResult.addEventListener('click'",PAGE)
 
 
 if __name__=='__main__':unittest.main()

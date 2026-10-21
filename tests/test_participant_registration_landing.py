@@ -60,7 +60,7 @@ class ParticipantRegistrationLandingTests(unittest.TestCase):
                      'Person 2 — network and Wazuh analyst',
                      'Person 3 — disk and endpoint analyst',
                      'Person 4 — binary and file analyst',
-                     'No claim or status change is required',
+                     'marks it Working in IRIS',
                      'If the captain leaves'):
             self.assertIn(text,self.source)
 
@@ -90,6 +90,13 @@ class ParticipantRegistrationLandingTests(unittest.TestCase):
     def test_successful_admin_login_redirects_to_admin_panel(self):
         self.assertIn("redirect('/admin' if is_admin() else '/silent-ridge')",
                       self.source)
+
+    def test_hint_unlock_uses_its_own_feedback_style(self):
+        self.assertIn("message_kind = 'hint'", self.source)
+
+    def test_registration_error_banners_are_dismissible(self):
+        self.assertGreaterEqual(self.source.count('aria-label="Dismiss error"'), 2)
+        self.assertIn('this.parentElement.remove()', self.source)
 
     def test_new_reservations_fail_closed_when_worker_heartbeat_is_stale(self):
         for text in (

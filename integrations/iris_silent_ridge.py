@@ -26,7 +26,31 @@ class RidgeReceipt(db.Model):
     remote=db.Column(db.BigInteger,nullable=False)
 
 
+class RidgeWorkStatus(db.Model):
+    __tablename__='silent_ridge_work_status'
+    user_id=db.Column(db.BigInteger,primary_key=True)
+    ticket=db.Column(db.String(16),primary_key=True)
+    status=db.Column(db.String(24),nullable=False)
+
+
+def participant_snapshot(identity):
+    snapshot=bridge('iris',identity,'snapshot')
+    query=getattr(RidgeWorkStatus,'query',None)
+    statuses={} if query is None else {row.ticket:row.status for row in
+              query.filter_by(user_id=int(identity)).all()}
+    for ticket in snapshot.get('tickets',[]):
+        ticket['work_status']=('complete' if ticket.get('status')=='complete' else
+                               statuses.get(ticket['id'],'not_started'))
+    return snapshot
+
+
 def install(app):
+    # Test harnesses use a minimal app stand-in; the real IRIS application
+    # provides an application context and creates this small coordination table
+    # idempotently on worker load.
+    if hasattr(app,'app_context'):
+        with app.app_context():
+            RidgeWorkStatus.__table__.create(db.engine,checkfirst=True)
     @app.cli.command('silent-ridge-init')
     def initialize():
         RidgeReceipt.__table__.create(db.engine,checkfirst=True)
@@ -45,15 +69,32 @@ def install(app):
                 except ValidationError:
                     abort(403)
                 action=request.form.get('action')
-                if action not in ('claim','release'):
+                if action not in ('claim','release','work_status'):
                     abort(400)
-                payload={'ticket':request.form['ticket'],'generation':int(request.form['generation'])}
-                bridge('iris',current_user.id,action,**payload)
+                if action=='work_status':
+                    status=request.form.get('status')
+                    if status not in ('not_started','working','needs_review'):
+                        abort(400)
+                    snapshot=participant_snapshot(current_user.id)
+                    ticket=next((row for row in snapshot['tickets']
+                                 if row['id']==request.form.get('ticket')),None)
+                    if ticket is None or ticket.get('status')=='complete':
+                        abort(409)
+                    row=RidgeWorkStatus.query.filter_by(
+                        user_id=current_user.id,ticket=ticket['id']).one_or_none()
+                    if row is None:
+                        row=RidgeWorkStatus(user_id=current_user.id,ticket=ticket['id'])
+                        db.session.add(row)
+                    row.status=status
+                    db.session.commit()
+                else:
+                    bridge('iris',current_user.id,action,ticket=request.form['ticket'],
+                           generation=int(request.form['generation']))
                 # A claim/release is a one-shot mutation.  Redirect so a
                 # browser refresh performs a harmless GET instead of
                 # replaying the form POST against the now-owned ticket.
                 return redirect('/silent-ridge',code=303)
-            snapshot=bridge('iris',current_user.id,'snapshot')
+            snapshot=participant_snapshot(current_user.id)
             return render_template_string(PAGE,lane='iris',snapshot=snapshot,
                 queue=queue_state(snapshot),
                 iris=os.environ['IRIS_PUBLIC_URL'],ctfd=os.environ['CTFD_PUBLIC_URL'],
@@ -68,7 +109,7 @@ def install(app):
     @login_required
     def ridge_status():
         try:
-            return jsonify(bridge('iris',current_user.id,'snapshot'))
+            return jsonify(participant_snapshot(current_user.id))
         except TRANSPORT_ERRORS:
             return jsonify(error='Queue temporarily unavailable'),503
 

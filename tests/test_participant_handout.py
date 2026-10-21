@@ -68,7 +68,7 @@ class ParticipantHandoutTextTests(unittest.TestCase):
                          'Person 2 - network/Wazuh analyst',
                          'Person 3 - disk/endpoint analyst',
                          'Person 4 - binary/file analyst',
-                         'no claim or status change is required',
+                         'Mark assigned tickets Working in IRIS',
                          'If the captain leaves'):
             self.assertIn(expected,text)
 

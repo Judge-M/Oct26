@@ -1,9 +1,10 @@
 # Getting started with the investigation
 
 Open **Incident queue** in IRIS and divide three different ticket IDs among the
-three investigators. Every unfinished ticket is already open to your team, so
-there is no claim or status-change step. IRIS is the team's incident-management
-view and collects verified findings into the shared case.
+three investigators. Every unfinished ticket is already open to your team. Mark
+assigned tickets **Working** and use **Needs review** for coordinator handoff.
+IRIS is the team's incident-management view and collects verified findings into
+the shared case.
 
 Open **Questions and help** in CTFd to investigate any open ticket, submit
 answers, use hints, and earn points. Each question starts at **4 points**. Help

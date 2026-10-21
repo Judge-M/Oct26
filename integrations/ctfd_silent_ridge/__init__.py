@@ -74,7 +74,7 @@ REGISTRATION_PAGE = r'''
 body{font:16px system-ui,sans-serif;max-width:960px;margin:2rem auto;padding:0 1rem;color:#17212b}
 main{border:1px solid #ccd6df;border-radius:12px;padding:2rem;box-shadow:0 4px 18px #0001}
 h1{margin-top:0}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem}
-.card{background:#f4f7fa;border-radius:8px;padding:1rem}.error{background:#fee9e7;color:#8c1d18;padding:1rem;border-radius:8px}
+.card{background:#f4f7fa;border-radius:8px;padding:1rem}.error{position:relative;background:#fee9e7;color:#8c1d18;padding:1rem 3rem 1rem 1rem;border-radius:8px}.banner-close{position:absolute;right:.4rem;top:.25rem;margin:0;padding:.1rem .5rem;background:transparent;color:inherit;font-size:1.5rem}
 .start{background:#eaf2fb;border-left:5px solid #1257a6;border-radius:8px;padding:1rem 1.25rem;margin:1.25rem 0}
 .start h2{margin-top:0}.start ol{padding-left:1.4rem}.start li{margin:.65rem 0;line-height:1.45}
 .notice{background:#fff6cf;border-radius:8px;padding:.85rem 1rem;margin:1rem 0}.recovery{background:#e8f5ec;border-left:5px solid #287a3d;border-radius:8px;padding:1rem 1.25rem;margin:1rem 0}.recovery p{overflow-wrap:anywhere}.compact li{margin:.45rem 0}
@@ -100,7 +100,7 @@ persistent handout.</p>
   <ol>
     <li><strong>Register once.</strong> One captain enters the team name, a contact name, and the enrollment code below.</li>
     <li><strong>Save the private handout.</strong> Bookmark its retrieval link and use <em>Print / save handout</em>. It is the way back to every generated login.</li>
-    <li><strong>Use IRIS to divide work and review shared findings.</strong> Every ticket is open to every team; there is no claiming step. Assign ticket IDs aloud and avoid duplicating work inside your own team.</li>
+    <li><strong>Use IRIS to divide work and review shared findings.</strong> Every ticket is open to every team. Mark assigned tickets Working and use Needs review for coordinator handoff.</li>
     <li><strong>Use CTFd for the investigation workflow.</strong> Open any ticket's questions, hints, answer forms, and scoring. Correct answers publish findings back to IRIS.</li>
     <li><strong>Use Guacamole only for investigation tools.</strong> Open the three team desktops for Autopsy, Wireshark, Cutter, and the evidence files. Do not browse ordinary websites inside those desktops.</li>
     <li><strong>Repeat the investigation loop.</strong> Choose a ticket in IRIS, investigate the named evidence, answer in CTFd, and review the verified finding that publishes back to IRIS.</li>
@@ -111,8 +111,8 @@ persistent handout.</p>
   <div class="card"><strong>Read-only work</strong><br>Do not execute recovered programs, scan or contact external systems, or change the original evidence.</div>
   <div class="card"><strong>Need a facilitator?</strong><br>Raise a hand for a lost retrieval link, failed login, stuck desktop, or service outage. Your accepted answers are retained.</div>
 </div>
-{% if error %}<p class="error">{{ error }}</p>{% endif %}
-{% if not registration_open and not error %}<p class="error"><strong>Team setup is temporarily unavailable.</strong> Please wait a minute and try again. If this message remains, raise your hand for a facilitator. Do not submit a second registration.</p>{% endif %}
+{% if error %}<p class="error" role="alert"><button type="button" class="banner-close" aria-label="Dismiss error" onclick="this.parentElement.remove()">×</button>{{ error }}</p>{% endif %}
+{% if not registration_open and not error %}<p class="error" role="alert"><button type="button" class="banner-close" aria-label="Dismiss error" onclick="this.parentElement.remove()">×</button><strong>Team setup is temporarily unavailable.</strong> Please wait a minute and try again. If this message remains, raise your hand for a facilitator. Do not submit a second registration.</p>{% endif %}
 <h2>Register your team</h2>
 <form method="post">
 <input type="hidden" name="nonce" value="{{ nonce }}">
@@ -158,7 +158,7 @@ persistent handout.</p>
   </div>
   <ol>
     <li>Each of the four people signs into CTFd using seats 1–4. Keep seat 5 unused as a recovery login.</li>
-    <li>The coordinator assigns one different ticket ID to each of the three investigators. No claim or status change is required.</li>
+    <li>The coordinator assigns one different ticket ID to each investigator. Each investigator marks it Working in IRIS, then Needs review when handing results to the coordinator.</li>
     <li>Each analyst follows the ticket's <strong>Start here</strong> directions and reports the answer, source path, and any limitation to the recorder.</li>
     <li>The coordinator submits in CTFd, confirms the finding in IRIS, and assigns the next unfinished ticket.</li>
     <li>If someone is stuck, rotate the ticket or desktop. If the captain leaves, another teammate uses this same handout and continues the coordinator checklist.</li>
@@ -385,6 +385,7 @@ def load(app):
                 if action == 'unlock_hint':
                     bridge('ctfd', team, 'hint', question=request.form['question'])
                     message = 'Explicit walkthrough unlocked. Assisted scoring is active: this question is now worth 1 of 4 points.'
+                    message_kind = 'hint'
                 elif action == 'answer':
                     result = bridge('ctfd', team, 'answer', question=request.form['question'], answer=request.form['answer'])
                     if result['correct']:

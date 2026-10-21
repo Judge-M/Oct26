@@ -78,6 +78,7 @@ def participant_context(snapshot,questions=()):
     elapsed=max(float(snapshot.get('elapsed_seconds') or 0),0)
     hours,rem=divmod(int(elapsed),3600)
     minutes,seconds=divmod(rem,60)
+    answered=sum(1 for q in questions or () if q.get('solved_by'))
     return {'title':data['title'],'fiction_notice':data['fiction_notice'],
             'premise':data['premise'],'discovery':data['discovery'],'stakes':data['stakes'],
             'participant_role':data['participant_role'],'operating_rule':data['operating_rule'],
@@ -93,5 +94,4 @@ def participant_context(snapshot,questions=()):
             # Do not ship the conclusion in pre-completion HTML. It is a reveal,
             # not a hidden client-side element that curious participants can read.
             'conclusion':data['conclusion'] if completed==total else None,
-            'question_count':len(questions or ())}
-
+            'question_count':len(questions or ()),'answered_questions':answered}

@@ -66,7 +66,7 @@ def credential_handout_text(
         'Person 2 - network/Wazuh analyst: take one desktop and handle Wireshark or Wazuh tickets.',
         'Person 3 - disk/endpoint analyst: take one desktop and handle Autopsy tickets.',
         'Person 4 - binary/file analyst: take the third desktop and handle Cutter or Evidence file manager tickets.',
-        'Workflow: all tickets are already open to every team; no claim or status change is required. The three analysts report the answer, source path, and limitation; the coordinator submits in CTFd, confirms the IRIS finding, and assigns the next ticket.',
+        'Workflow: all tickets are already open to every team. Mark assigned tickets Working in IRIS and Needs review for coordinator handoff. The three analysts report the answer, source path, and limitation; the coordinator submits in CTFd, confirms the IRIS finding, and assigns the next ticket.',
         'If someone is stuck, rotate the ticket or desktop. If the captain leaves, another teammate continues the same coordinator checklist with this handout.',
     ])
     return '\n'.join(lines) + '\n'
