@@ -103,37 +103,45 @@ function Invoke-BoundedProcess {
         [int]$TimeoutSeconds = 60,
         [switch]$Quiet
     )
-    $stdoutPath = [IO.Path]::GetTempFileName()
-    $stderrPath = [IO.Path]::GetTempFileName()
+    $process = $null
     try {
         $argumentLine = ($Arguments | ForEach-Object { ConvertTo-NativeArgument ([string]$_) }) -join ' '
-        $process = Start-Process -FilePath $FilePath -ArgumentList $argumentLine -PassThru -NoNewWindow `
-            -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath
+        # Windows PowerShell 5.1's Start-Process can leave ExitCode null when
+        # stdout/stderr are redirected, even after WaitForExit and Refresh.
+        # Use ProcessStartInfo directly so readiness checks have a dependable
+        # numeric exit code and both streams remain bounded by this process.
+        $startInfo = New-Object Diagnostics.ProcessStartInfo
+        $startInfo.FileName = $FilePath
+        $startInfo.Arguments = $argumentLine
+        $startInfo.UseShellExecute = $false
+        $startInfo.CreateNoWindow = $true
+        $startInfo.RedirectStandardOutput = $true
+        $startInfo.RedirectStandardError = $true
+        $process = New-Object Diagnostics.Process
+        $process.StartInfo = $startInfo
+        if (-not $process.Start()) { throw "could not start process: $FilePath" }
+        $stdoutTask = $process.StandardOutput.ReadToEndAsync()
+        $stderrTask = $process.StandardError.ReadToEndAsync()
         if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
             Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
             throw "process exceeded ${TimeoutSeconds}s timeout: $FilePath"
         }
-        # PowerShell 5.1 can return from the timed overload before the
-        # redirected output handlers and Process object's exit-code cache are
-        # finalized.  Complete the parameterless wait and refresh the object
-        # before reading ExitCode; otherwise a successful command can appear
-        # to have a null exit code and every Docker readiness probe fails.
         $process.WaitForExit()
-        $process.Refresh()
-        $stdout = Get-Content -LiteralPath $stdoutPath -Raw -ErrorAction SilentlyContinue
-        $stderr = Get-Content -LiteralPath $stderrPath -Raw -ErrorAction SilentlyContinue
+        $stdout = $stdoutTask.GetAwaiter().GetResult()
+        $stderr = $stderrTask.GetAwaiter().GetResult()
+        $exitCode = $process.ExitCode
         if (-not $Quiet) {
             foreach ($line in (($stdout + "`n" + $stderr) -split "`r?`n")) {
                 if (-not [string]::IsNullOrWhiteSpace($line)) { Write-BootLog $line.Trim() }
             }
         }
         return [pscustomobject]@{
-            ExitCode = $process.ExitCode
+            ExitCode = $exitCode
             Stdout = [string]$stdout
             Stderr = [string]$stderr
         }
     } finally {
-        Remove-Item -LiteralPath $stdoutPath, $stderrPath -Force -ErrorAction SilentlyContinue
+        if ($null -ne $process) { $process.Dispose() }
     }
 }
 
