@@ -8,7 +8,11 @@ The canonical narrative outro is [Faye Maxwell’s final assessment](handoff/aud
 
 Play the accepted audio or video once over the room presentation system. If final media is unavailable, Faye’s script can be read live. Do not distribute a playback URL, embed media on participant pages or allow each team to start the outro independently.
 
-The current repository contains the final script but no final outro WAV or video. Candidate media stays outside the repository until it passes production and human listening acceptance.
+The accepted outro video is embedded on slide 15 of
+[`event-day-deck.pptx`](event-day-deck/event-day-deck.pptx). It starts
+automatically when that slide appears. Stop on slide 14 until the sequence below
+is complete. The standalone production MP4 is intentionally not distributed to
+participants.
 
 ## Operator sequence
 

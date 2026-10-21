@@ -4,13 +4,13 @@
 
 1. Confirm the only active scripts are the two files under `spoken/`.
 2. Run `python docs/handoff/audio-briefs/validate.py`.
-3. Confirm `recordings/brief-01-introduction.wav` is the only bundled media and that no voice-rendering scripts or superseded brief directories are present.
-4. Test the introduction on the facilitator's presentation machine and confirm the room output. Do not publish its URL to participants. Plan to read the conclusion live unless separately accepted outro audio or video is available.
-5. Open [player.html](player.html) on the facilitator machine.
+3. Confirm no voice-rendering scripts or superseded brief directories are present.
+4. Open [`event-day-deck.pptx`](../../event-day-deck/event-day-deck.pptx) in desktop PowerPoint. Test slides 2 and 15 and confirm the room output. Do not publish standalone playback URLs to participants.
+5. Keep [player.html](player.html) available as a fallback for the introduction WAV and canonical scripts.
 
 ## Cue 01 — introduction
 
-Play [brief-01-introduction.wav](recordings/brief-01-introduction.wav) once for the room after teams assemble and before investigative work begins, or read [brief-01-introduction.txt](spoken/brief-01-introduction.txt) live. The cue does not start the event clock and does not release evidence.
+Show slide 2 of the event-day PowerPoint once for the room after teams assemble and before investigative work begins. If video playback is unavailable, play [brief-01-introduction.wav](recordings/brief-01-introduction.wav) or read [brief-01-introduction.txt](spoken/brief-01-introduction.txt) live. The cue does not start the event clock and does not release evidence.
 
 ## Cue 02 — final assessment
 
@@ -21,7 +21,7 @@ Do not deliver the conclusion until all of the following are true:
 - The full final-assessment panel and containment actions are visible.
 - IRIS has accepted the final assessment publication.
 
-Then deliver [brief-02-exit.txt](spoken/brief-02-exit.txt) or play separately accepted matching audio. The script restates the published conclusion; it must never be used to help participants reach that conclusion.
+Then show slide 15 of the event-day PowerPoint. If video playback is unavailable, deliver [brief-02-exit.txt](spoken/brief-02-exit.txt) live. The script restates the published conclusion; it must never be used to help participants reach that conclusion.
 
 If the final assessment is not visible, do not improvise or use a generic handover. Diagnose the completion/publication problem and retain the facilitator’s in-person administrative close separately.
 

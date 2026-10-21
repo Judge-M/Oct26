@@ -79,11 +79,11 @@ All on the same stack, still offline:
 
 - [ ] **Briefing walkthrough**: a facilitator who has not run the system
       opens the presenter landing page (`docs/presenter-landing.html`),
-      projects `docs/event-day-deck/event-day-deck.pdf` from it, and follows
-      the four setup slides against the real stack; every step must work as
-      the slide says. Confirm the page's substituted participant URLs match
-      the deck's `<event-address>`. Any mismatch is a deck bug or a stack
-      bug — file it.
+      projects `docs/event-day-deck/event-day-deck.pptx`, verifies the opening
+      and closing video slides with room audio, and follows the four setup
+      slides against the real stack; every step must work as the slide says.
+      Confirm the page's substituted participant URLs match the deck's
+      `<event-address>`. Any mismatch is a deck bug or a stack bug — file it.
 - [ ] **Handout dry-run**: print/copy team credentials from
       `R/secrets/team-credentials.json`; confirm a cold reader can find
       every login kind from the handout + deck alone

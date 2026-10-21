@@ -149,10 +149,19 @@ Participant URLs in generated-CA mode (all in their own laptop browser):
 their configured hostnames on port 443; see [public HTTPS certificates](external-tls.md).
 Certificate revocation: `http://<LAN-IP>:8080/root-ca.crl` (signed CRL only).
 
-Opening briefing: project **`docs/event-day-deck/event-day-deck.pdf`**
-(13 slides, story + click-by-click setup — plays anywhere, no software
-needed). The editable source is `event-day-deck.pptd` in the same folder.
-The `<event-address>` shown in the deck is the `<LAN-IP>` above.
+Opening and closing briefing: project
+**`docs/event-day-deck/event-day-deck.pptx`** in desktop PowerPoint. It contains
+15 slides: the 13 instructional slides plus the accepted opening video on
+slide 2 and closing video on slide 15. Both videos are embedded for offline
+playback and start automatically when their slide appears. Stop on slide 14
+after onboarding; show slide 15 only when the event is wrapping up. Test both
+video slides and room audio before participants arrive.
+
+Use **`docs/event-day-deck/event-day-deck.pdf`** only when PowerPoint is
+unavailable. The PDF contains the 13 instructional slides but cannot play the
+videos. The editable visual source remains `event-day-deck.pptd`; the
+PowerPoint is built from that deck's PDF plus the accepted MP4 files. The
+`<event-address>` shown in the deck is the `<LAN-IP>` above.
 
 ## 5. During the event
 
