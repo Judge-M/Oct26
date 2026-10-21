@@ -7,7 +7,7 @@ Approved decisions, 2026-10-19:
 - Spoken narration remains entirely inside the incident narrative. Administrative exercise framing is delivered separately in person.
 - The conclusion is **LIMITED DISCLOSURE CONFIRMED — IMMEDIATE CONTAINMENT REQUIRED**.
 - The conclusion follows, and does not precede, the automatic final-assessment publication.
-- The existing introduction WAV is included unchanged for room-wide facilitator playback. No outro WAV or video is included yet.
+- The existing introduction WAV remains unchanged. The accepted opening and closing videos are embedded in the event-day PowerPoint for room-wide facilitator playback.
 
 The conclusion must preserve the evidentiary distinctions already encoded in `ridge/scenario_narrative_v1.json`: v3 transmission is confirmed; the roster disclosure, controller of S-41 and adversary intent are not established; WS-31 remains unresolved; CEDAR rotation, S-41 revocation, WS-17 preservation, WS-31 collection and relay monitoring/blocking are required.
 

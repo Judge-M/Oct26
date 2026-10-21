@@ -157,4 +157,3 @@ yet archive worker-local named volumes. Preserve worker volumes and export any
 participant work before retiring a worker. Central databases, scores, evidence,
 credentials, and registration state remain covered by the existing verified
 backup.
-
