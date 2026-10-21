@@ -55,6 +55,9 @@ def credential_handout_text(
             desktop['connection_name'], desktop['name'], desktop['guidance']))
     lines.extend([
         '',
-        'First action: choose one CTFd seat per participant, then open IRIS and claim one available ticket.',
+        'First action: choose one CTFd seat per participant, then open IRIS and claim up to three available tickets.',
+        'IRIS manages ticket ownership and shared verified findings; CTFd contains questions, hints, answers, and scoring.',
+        'Scoring: each question starts at 4 points; Help 1 and 2 are free; Help 3 costs 3 points and leaves the answer worth 1 point.',
     ])
     return '\n'.join(lines) + '\n'
+

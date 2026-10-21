@@ -17,7 +17,8 @@ class ParticipantRegistrationLandingTests(unittest.TestCase):
             'Start here',
             'Register once.',
             'Save the private handout.',
-            'Work from your own laptop browser.',
+            'Use IRIS for ownership and shared findings.',
+            'Use CTFd for the investigation workflow.',
             'Use Guacamole only for investigation tools.',
             'Repeat the investigation loop.',
             'Scoring and help',
@@ -25,6 +26,17 @@ class ParticipantRegistrationLandingTests(unittest.TestCase):
             'Need a facilitator?',
         ):
             self.assertIn(text, self.source)
+
+    def test_start_guide_explains_scoring_and_platform_roles(self):
+        guide=(ROOT/'expanded'/'guides.md').read_text(encoding='utf-8')
+        for text in ('Each question starts at **4 points**',
+                     'levels 1 and 2 are free',
+                     "**3 of the question's 4 points**",
+                     'IRIS is the team\'s incident-management view',
+                     'CTFd to investigate a claimed ticket'):
+            self.assertIn(text,guide)
+        self.assertNotIn('without a\npoint penalty',guide)
+        self.assertNotIn('one ticket at a time',guide)
 
     def test_private_handout_repeats_the_first_actions(self):
         for text in (

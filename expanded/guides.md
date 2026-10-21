@@ -1,10 +1,18 @@
 # Getting started with the investigation
 
-Open **Incident queue** and claim an available ticket. Open **Questions and help**
-to see that ticket's questions. Your team can work on one ticket at a time. Every
-correct answer earns one point and automatically records a finding. There is no
-report to write. Use any help level, including the final walkthrough, without a
-point penalty. If you relinquish a ticket, its completed answers are preserved.
+Open **Incident queue** in IRIS and claim up to three available tickets. IRIS is
+the team's incident-management view: it records which tickets your team is
+working, prevents duplicate work, and collects verified findings into the shared
+case. Do not use the native IRIS task status controls; use **Claim ticket — start
+working** on the Incident queue.
+
+Open **Questions and help** in CTFd to investigate a claimed ticket, submit
+answers, use hints, and earn points. Each question starts at **4 points**. Help
+levels 1 and 2 are free. Help level 3 is the explicit walkthrough and costs
+**3 of the question's 4 points**, leaving the correct answer worth 1 point.
+Wrong answers cost nothing. There is no separate report to write. Correct
+answers automatically publish verified findings back to IRIS. If you relinquish
+a ticket, its completed answers are preserved.
 
 Sign in to CTFd with your team's credentials and **stay signed in**. CTFd
 accepts at most **10 sign-in attempts per minute per network address**, and the
@@ -96,3 +104,4 @@ are ignored. If the answer is not accepted, inspect the next free help level.
 Accepted work is retained even when a connection fails; return to the queue and
 history to check progress. When the last question is answered, the ticket closes
 for all teams. Choose another available ticket and use the findings already shared.
+

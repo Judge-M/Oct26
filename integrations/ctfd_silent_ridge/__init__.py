@@ -100,9 +100,10 @@ persistent handout.</p>
   <ol>
     <li><strong>Register once.</strong> One captain enters the team name, a contact name, and the enrollment code below.</li>
     <li><strong>Save the private handout.</strong> Bookmark its retrieval link and use <em>Print / save handout</em>. It is the way back to every generated login.</li>
-    <li><strong>Work from your own laptop browser.</strong> Use IRIS to claim tickets, CTFd to answer questions and view help, and Wazuh to search the prepared telemetry.</li>
+    <li><strong>Use IRIS for ownership and shared findings.</strong> Claim up to three tickets in the IRIS Incident queue. IRIS records what your team is working and receives verified findings; its native task status controls are read-only.</li>
+    <li><strong>Use CTFd for the investigation workflow.</strong> Open the claimed tickets' questions, hints, answer forms, and scoring in CTFd. Correct answers publish findings back to IRIS.</li>
     <li><strong>Use Guacamole only for investigation tools.</strong> Open the three team desktops for Autopsy, Wireshark, Cutter, and the evidence files. Do not browse ordinary websites inside those desktops.</li>
-    <li><strong>Repeat the investigation loop.</strong> Claim in IRIS, investigate the named evidence, answer in CTFd, and read the verified finding that publishes back to IRIS.</li>
+    <li><strong>Repeat the investigation loop.</strong> Claim in IRIS, investigate the named evidence, answer in CTFd, and review the verified finding that publishes back to IRIS.</li>
   </ol>
 </section>
 <div class="grid">
@@ -140,7 +141,7 @@ persistent handout.</p>
   <h2>Your first five moves</h2>
   <ol>
     <li>Every participant chooses one personal CTFd seat below and signs in. Do not use the IRIS team login in CTFd.</li>
-    <li>One teammate opens IRIS with the team login and confirms that the incident queue appears.</li>
+    <li>One teammate opens IRIS with the team login. IRIS controls ticket ownership and displays the team's shared verified findings; CTFd holds the questions, hints, answers, and scoring.</li>
     <li>Open the prepared Wazuh view in a normal laptop browser. Use its historical time range when a question names Wazuh.</li>
     <li>Open Guacamole, divide the three desktop connections across the team, and use them only for the evidence tools.</li>
     <li>Claim up to three available IRIS tickets, open their questions in CTFd, investigate the named evidence, and submit only the requested value.</li>
