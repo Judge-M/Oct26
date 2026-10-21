@@ -101,6 +101,8 @@ class QueueStateTests(unittest.TestCase):
         self.assertIn('aria-label="Dismiss message"',PAGE)
         self.assertIn("message_kind=='hint' else 'Try again'",PAGE)
         self.assertIn("dismissAnswerResult.addEventListener('click'",PAGE)
+        self.assertIn('aria-label="Dismiss operational update"',PAGE)
+        self.assertIn("dismissUpdateX.addEventListener('click'",PAGE)
 
 
 if __name__=='__main__':unittest.main()
