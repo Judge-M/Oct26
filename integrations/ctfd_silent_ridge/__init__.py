@@ -93,17 +93,17 @@ persistent handout.</p>
 <div class="grid">
   <div class="card"><strong>Browser services</strong><br>IRIS, CTFd, and Wazuh run from your own laptop browser.</div>
   <div class="card"><strong>Three GUI workstations</strong><br>Two Autopsy seats plus one Wireshark/Cutter/Linux seat.</div>
-  <div class="card"><strong>Five seats</strong><br>Each team receives five participant CTFd accounts.</div>
+  <div class="card"><strong>Four-person teams</strong><br>Use CTFd seats 1–4. Seat 5 is a spare recovery login.</div>
 </div>
 <section class="start">
   <h2>Start here</h2>
   <ol>
     <li><strong>Register once.</strong> One captain enters the team name, a contact name, and the enrollment code below.</li>
     <li><strong>Save the private handout.</strong> Bookmark its retrieval link and use <em>Print / save handout</em>. It is the way back to every generated login.</li>
-    <li><strong>Use IRIS for ownership and shared findings.</strong> Claim up to three tickets in the IRIS Incident queue. IRIS records what your team is working and receives verified findings; its native task status controls are read-only.</li>
-    <li><strong>Use CTFd for the investigation workflow.</strong> Open the claimed tickets' questions, hints, answer forms, and scoring in CTFd. Correct answers publish findings back to IRIS.</li>
+    <li><strong>Use IRIS to divide work and review shared findings.</strong> Every ticket is open to every team; there is no claiming step. Assign ticket IDs aloud and avoid duplicating work inside your own team.</li>
+    <li><strong>Use CTFd for the investigation workflow.</strong> Open any ticket's questions, hints, answer forms, and scoring. Correct answers publish findings back to IRIS.</li>
     <li><strong>Use Guacamole only for investigation tools.</strong> Open the three team desktops for Autopsy, Wireshark, Cutter, and the evidence files. Do not browse ordinary websites inside those desktops.</li>
-    <li><strong>Repeat the investigation loop.</strong> Claim in IRIS, investigate the named evidence, answer in CTFd, and review the verified finding that publishes back to IRIS.</li>
+    <li><strong>Repeat the investigation loop.</strong> Choose a ticket in IRIS, investigate the named evidence, answer in CTFd, and review the verified finding that publishes back to IRIS.</li>
   </ol>
 </section>
 <div class="grid">
@@ -141,27 +141,26 @@ persistent handout.</p>
   <h2>Your first five moves</h2>
   <ol>
     <li>Every participant chooses one personal CTFd seat below and signs in. Do not use the IRIS team login in CTFd.</li>
-    <li>One teammate opens IRIS with the team login. IRIS controls ticket ownership and displays the team's shared verified findings; CTFd holds the questions, hints, answers, and scoring.</li>
+    <li>One teammate opens IRIS with the team login. IRIS shows every ticket and the team's shared verified findings; CTFd holds the questions, hints, answers, and scoring.</li>
     <li>Open the prepared Wazuh view in a normal laptop browser. Use its historical time range when a question names Wazuh.</li>
     <li>Open Guacamole, divide the three desktop connections across the team, and use them only for the evidence tools.</li>
-    <li>Claim up to three available IRIS tickets, open their questions in CTFd, investigate the named evidence, and submit only the requested value.</li>
+    <li>Assign three different ticket IDs to the investigators, open their questions in CTFd, and submit only the requested value.</li>
   </ol>
 </section>
 <section class="start" aria-labelledby="delegation-title">
   <h2 id="delegation-title">Divide the work before anyone starts</h2>
   <p><strong>The captain is not a required technical role.</strong> Any teammate with this private handout can take over coordination. Say the assignments out loud and keep the handout open on at least two team laptops.</p>
   <div class="grid">
-    <div class="card"><strong>Person 1 — queue coordinator</strong><br>Open IRIS with the shared team login. Claim up to three tickets, announce each ticket ID and assigned analyst, watch ownership, and claim replacements as tickets finish.</div>
+    <div class="card"><strong>Person 1 — coordinator and CTFd recorder</strong><br>Keep IRIS and CTFd open. Assign three different ticket IDs, read questions and answer formats aloud, submit the analysts' values, confirm accepted answers, and assign replacement work.</div>
     <div class="card"><strong>Person 2 — network and Wazuh analyst</strong><br>Take one Guacamole desktop. Start with tickets naming Wireshark or Wazuh. Follow the ticket's exact filter, query, and evidence path.</div>
     <div class="card"><strong>Person 3 — disk and endpoint analyst</strong><br>Take one Guacamole desktop. Start with tickets naming Autopsy and use the prepared case and evidence path shown on the ticket.</div>
     <div class="card"><strong>Person 4 — binary and file analyst</strong><br>Take the third Guacamole desktop. Start with Cutter or Evidence file manager tickets, and do not execute recovered files.</div>
-    <div class="card"><strong>Person 5 — CTFd recorder and verifier</strong><br>Keep CTFd open. Read questions and answer formats aloud, submit the analysts' values, track free Help 1–2 versus paid Help 3, and confirm accepted findings.</div>
   </div>
   <ol>
-    <li>Each person signs into a different numbered CTFd seat.</li>
-    <li>The coordinator claims up to three tickets and assigns one analyst to each ticket ID.</li>
+    <li>Each of the four people signs into CTFd using seats 1–4. Keep seat 5 unused as a recovery login.</li>
+    <li>The coordinator assigns one different ticket ID to each of the three investigators. No claim or status change is required.</li>
     <li>Each analyst follows the ticket's <strong>Start here</strong> directions and reports the answer, source path, and any limitation to the recorder.</li>
-    <li>The recorder submits in CTFd and tells the coordinator when a ticket closes. The coordinator confirms the finding in IRIS and assigns the next available ticket.</li>
+    <li>The coordinator submits in CTFd, confirms the finding in IRIS, and assigns the next unfinished ticket.</li>
     <li>If someone is stuck, rotate the ticket or desktop. If the captain leaves, another teammate uses this same handout and continues the coordinator checklist.</li>
   </ol>
 </section>
@@ -178,7 +177,7 @@ persistent handout.</p>
 {% for member in credentials.ctfd.members %}<tr><td>{{ loop.index }}</td><td><code data-copy>{{ member.username }}</code></td><td><span class="secret" data-copy>{{ member.password }}</span></td></tr>{% endfor %}
 </table></div>
 <h2>GUI workstations</h2>
-  <p>Log into Guacamole once with the account below. All three desktops contain the same complete evidence toolbox. The labels are suggested starting roles so five people can divide the work; they are not tool restrictions. <strong>No separate VNC or desktop password is needed:</strong> Guacamole provides the participant-facing connection.</p>
+  <p>Log into Guacamole once with the account below. The three investigators each take one desktop; the coordinator works in IRIS and CTFd. All three desktops contain the complete evidence toolbox. <strong>No separate VNC or desktop password is needed:</strong> Guacamole provides the participant-facing connection.</p>
 <p>Guacamole username: <code data-copy>{{ credentials.guacamole.username }}</code><br>Password: <span class="secret" data-copy>{{ credentials.guacamole.password }}</span><br><a href="{{ guac_url }}">Open Guacamole</a></p>
   <div class="table-wrap"><table><tr><th>Connection name</th><th>Suggested role</th><th>Best starting work</th><th>Installed tools</th></tr>
   {% for desktop in registration.result.desktop_urls %}<tr><td><code>{{ desktop.connection_name }}</code></td><td>{{ desktop.name }}</td><td>{{ desktop.guidance }}</td><td>{{ desktop.tools|join(', ') }}</td></tr>{% endfor %}
@@ -491,4 +490,3 @@ def invalidate_scores():
     # Retry invalidation even when the receipt already exists after an ambiguous commit.
     from CTFd.cache import clear_standings
     clear_standings()
-

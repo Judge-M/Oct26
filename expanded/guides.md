@@ -1,18 +1,17 @@
 # Getting started with the investigation
 
-Open **Incident queue** in IRIS and claim up to three available tickets. IRIS is
-the team's incident-management view: it records which tickets your team is
-working, prevents duplicate work, and collects verified findings into the shared
-case. Do not use the native IRIS task status controls; use **Claim ticket — start
-working** on the Incident queue.
+Open **Incident queue** in IRIS and divide three different ticket IDs among the
+three investigators. Every unfinished ticket is already open to your team, so
+there is no claim or status-change step. IRIS is the team's incident-management
+view and collects verified findings into the shared case.
 
-Open **Questions and help** in CTFd to investigate a claimed ticket, submit
+Open **Questions and help** in CTFd to investigate any open ticket, submit
 answers, use hints, and earn points. Each question starts at **4 points**. Help
 levels 1 and 2 are free. Help level 3 is the explicit walkthrough and costs
 **3 of the question's 4 points**, leaving the correct answer worth 1 point.
 Wrong answers cost nothing. There is no separate report to write. Correct
-answers automatically publish verified findings back to IRIS. If you relinquish
-a ticket, its completed answers are preserved.
+answers automatically publish verified findings back to IRIS. Completed answers
+are preserved for the whole team.
 
 Sign in to CTFd with your team's credentials and **stay signed in**. CTFd
 accepts at most **10 sign-in attempts per minute per network address**, and the
@@ -103,5 +102,4 @@ Answer only the requested value in the stated format. Case and outer whitespace
 are ignored. If the answer is not accepted, inspect the next free help level.
 Accepted work is retained even when a connection fails; return to the queue and
 history to check progress. When the last question is answered, the ticket closes
-for all teams. Choose another available ticket and use the findings already shared.
-
+for your team. Choose another unfinished ticket and use the findings already shared.

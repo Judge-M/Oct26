@@ -17,7 +17,7 @@ class ParticipantRegistrationLandingTests(unittest.TestCase):
             'Start here',
             'Register once.',
             'Save the private handout.',
-            'Use IRIS for ownership and shared findings.',
+            'Use IRIS to divide work and review shared findings.',
             'Use CTFd for the investigation workflow.',
             'Use Guacamole only for investigation tools.',
             'Repeat the investigation loop.',
@@ -32,8 +32,8 @@ class ParticipantRegistrationLandingTests(unittest.TestCase):
         for text in ('Each question starts at **4 points**',
                      'levels 1 and 2 are free',
                      "**3 of the question's 4 points**",
-                     "team's incident-management view",
-                     'CTFd to investigate a claimed ticket'):
+                     "team's incident-management",
+                     'CTFd to investigate any open ticket'):
             self.assertIn(text,guide)
         self.assertNotIn('without a\npoint penalty',guide)
         self.assertNotIn('one ticket at a time',guide)
@@ -48,19 +48,19 @@ class ParticipantRegistrationLandingTests(unittest.TestCase):
             'opens IRIS with the team login',
             'prepared Wazuh view',
             'divide the three desktop connections',
-            'Claim up to three available IRIS tickets',
+            'Assign three different ticket IDs',
             'Keep this page open.',
         ):
             self.assertIn(text, self.source)
 
-    def test_private_handout_has_a_five_person_delegation_plan(self):
+    def test_private_handout_has_a_four_person_delegation_plan(self):
         for text in ('Divide the work before anyone starts',
                      'captain is not a required technical role',
-                     'Person 1 — queue coordinator',
+                     'Person 1 — coordinator and CTFd recorder',
                      'Person 2 — network and Wazuh analyst',
                      'Person 3 — disk and endpoint analyst',
                      'Person 4 — binary and file analyst',
-                     'Person 5 — CTFd recorder and verifier',
+                     'No claim or status change is required',
                      'If the captain leaves'):
             self.assertIn(text,self.source)
 
@@ -115,4 +115,3 @@ class ParticipantRegistrationLandingTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-

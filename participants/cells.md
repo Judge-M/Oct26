@@ -5,14 +5,15 @@ your team handout for addresses and logins). Your team's three desktops are
 for the native investigation tools only.
 
 Teams are general-purpose investigation groups. Open the shared IRIS queue and
-claim up to three available tickets so the team can use its three desktop lanes
-in parallel. Every team completes all 20 tickets and all 80 questions; another
-team's progress never removes work from your queue. Open CTFd to see the
-unanswered questions for your active tickets.
+divide three different ticket IDs among the investigators so the team can use
+its three desktop lanes in parallel. Every unfinished ticket is already open;
+there is no claim or status-change step. Every team completes all 20 tickets and
+all 80 questions; another team's progress never removes work from your queue.
+Open CTFd to see all unanswered questions for your team.
 Use the **Incident queue** shortcut or `/silent-ridge` in IRIS; the queue links
 to the correct native case for this installation. Do not guess a numeric case
-ID from another installation. Before claiming a ticket, CTFd may show no
-questions and the native IRIS tasks may show To do/Unassigned.
+ID from another installation. The native IRIS tasks are a view-only evidence
+log; use the Silent Ridge incident queue and CTFd questions for the exercise.
 
 Investigate the released evidence using the desktop file manager, Autopsy,
 Wireshark, Cutter and the configured Wazuh view as directed by the question.

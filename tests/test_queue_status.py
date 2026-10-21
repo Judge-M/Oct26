@@ -62,17 +62,17 @@ class QueueStateTests(unittest.TestCase):
             self.assertIn(fragment,state['status'])
 
     def test_page_template_renders_the_explanations(self):
-        for text in ('id="queue-status"','{{queue.status}}','queue.notes.get',
-                     'Set status to Working</button></form>{% elif',
-                     "'Choose up to three available tickets' if queue.claimable"):
+        for text in ('id="queue-status"','else queue.status',
+                     'All tickets for your team',
+                     'Ticket claiming has been removed',
+                     'All unfinished tickets are open to your team'):
             self.assertIn(text,PAGE)
 
     def test_page_explains_native_iris_status_is_read_only(self):
-        self.assertIn('Captain ticket status controls',PAGE)
-        self.assertIn('up to three tickets at the same time',PAGE)
-        self.assertIn('status dropdown is read-only',PAGE)
+        self.assertIn('Four-person team workflow',PAGE)
+        self.assertIn('no claiming or status change is required',PAGE)
+        self.assertIn('view-only evidence log',PAGE)
         self.assertIn('Open shared evidence log (view only)',PAGE)
-        self.assertIn('Set status back to Available',PAGE)
         self.assertIn("Your team's status:",PAGE)
         self.assertIn('Live scoreboard display',PAGE)
         self.assertIn('{{ctfd}}/scoreboard',PAGE)
@@ -80,7 +80,7 @@ class QueueStateTests(unittest.TestCase):
         self.assertIn('for step in route.directions',PAGE)
         self.assertIn('How these tools fit together',PAGE)
         self.assertIn('Follow this loop for every ticket',PAGE)
-        self.assertIn('claim the work in IRIS',PAGE)
+        self.assertIn('choose work from the full IRIS queue',PAGE)
         self.assertIn('return to IRIS to see the verified finding',PAGE)
         self.assertNotIn('<details><summary>How the tools fit together</summary>',PAGE)
         self.assertIn('IRIS — choose and coordinate work',PAGE)
@@ -90,4 +90,3 @@ class QueueStateTests(unittest.TestCase):
 
 
 if __name__=='__main__':unittest.main()
-

@@ -64,15 +64,14 @@ class ParticipantHandoutTextTests(unittest.TestCase):
         text=self.render()
         for expected in ('DIVIDE THE WORK BEFORE STARTING',
                          'captain is not a required technical role',
-                         'Person 1 - queue coordinator',
+                         'Person 1 - coordinator and CTFd recorder',
                          'Person 2 - network/Wazuh analyst',
                          'Person 3 - disk/endpoint analyst',
                          'Person 4 - binary/file analyst',
-                         'Person 5 - CTFd recorder/verifier',
+                         'no claim or status change is required',
                          'If the captain leaves'):
             self.assertIn(expected,text)
 
 
 if __name__ == '__main__':
     unittest.main()
-
