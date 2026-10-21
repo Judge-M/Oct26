@@ -1685,7 +1685,10 @@ http {
         for worker_id, desktop, relay, relay_port in self._guacamole_relays():
             rule = self._guacamole_relay_rule_name(worker_id, relay_port)
             listen = relay.get('listen_address', '0.0.0.0')
-            source = str(ipaddress.IPv4Network(relay['source_cidr'], strict=False))
+            source_network = ipaddress.IPv4Network(relay['source_cidr'], strict=False)
+            source = str(source_network)
+            source_netmask = '%s/%s' % (source_network.network_address,
+                                        source_network.netmask)
             property_name = '%s/%d' % (listen, relay_port)
             expected_target = '%s/%d' % (desktop['address'], desktop['vnc_port'])
             script = (
@@ -1698,9 +1701,11 @@ http {
                 "$address = $rule | Get-NetFirewallAddressFilter; "
                 "if ($rule.Enabled -ne 'True' -or $rule.Direction -ne 'Inbound' "
                 "-or $rule.Action -ne 'Allow' -or $port.Protocol -ne 'TCP' "
-                "-or $port.LocalPort -ne '%d' "
-                "-or @($address.RemoteAddress) -notcontains '%s') { exit 32 }"
-                % (property_name, expected_target, rule, relay_port, source))
+                "-or $port.LocalPort -ne '%d' -or "
+                "(@($address.RemoteAddress) -notcontains '%s' -and "
+                "@($address.RemoteAddress) -notcontains '%s')) { exit 32 }"
+                % (property_name, expected_target, rule, relay_port, source,
+                   source_netmask))
             try:
                 self._run([
                     'powershell.exe', '-NoProfile', '-NonInteractive', '-Command', script,
