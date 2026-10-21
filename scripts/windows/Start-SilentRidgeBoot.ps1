@@ -113,6 +113,11 @@ function Invoke-BoundedProcess {
         $startInfo = New-Object Diagnostics.ProcessStartInfo
         $startInfo.FileName = $FilePath
         $startInfo.Arguments = $argumentLine
+        # PowerShell's provider location is not the Win32 process current
+        # directory.  Scheduled tasks begin in System32, so explicitly pass
+        # the active filesystem location after Push-Location has selected the
+        # repository; otherwise `python -m ridge.deploy` cannot import ridge.
+        $startInfo.WorkingDirectory = (Get-Location).ProviderPath
         $startInfo.UseShellExecute = $false
         $startInfo.CreateNoWindow = $true
         $startInfo.RedirectStandardOutput = $true
