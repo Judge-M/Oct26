@@ -8,12 +8,32 @@ from pathlib import Path
 from unittest.mock import patch
 
 from ridge.deploy import Journal, LockError
-from ridge.deploy.__main__ import IMAGES, base_images, build, verify_build
+from ridge.deploy.__main__ import IMAGES, base_images, build, fingerprint, verify_build
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 class ConsolidationTests(unittest.TestCase):
+    def test_release_fingerprint_covers_all_expanded_deployment_inputs(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            for folder in ('ridge', 'integrations', 'deployment/expanded'):
+                (root / folder).mkdir(parents=True)
+            (root / '.dockerignore').write_text('fixture\n', encoding='utf-8')
+            (root / 'bounded_http.py').write_text('fixture\n', encoding='utf-8')
+            compose = root / 'deployment/expanded/compose.desktops.yaml'
+            guacamole = root / 'deployment/expanded/guacamole.py'
+            compose.write_text('services: {}\n', encoding='utf-8')
+            guacamole.write_text('def provision(): pass\n', encoding='utf-8')
+
+            original = fingerprint(root)
+            for path in (compose, guacamole):
+                with self.subTest(path=path.name):
+                    old = path.read_text(encoding='utf-8')
+                    path.write_text(old + '# changed\n', encoding='utf-8')
+                    self.assertNotEqual(fingerprint(root), original)
+                    path.write_text(old, encoding='utf-8')
+
     def test_elapsed_wall_clock_cannot_steal_a_live_lock(self):
         profile = json.loads((ROOT / 'deployment/profiles/example-two-team.json').read_text())
         with tempfile.TemporaryDirectory() as temp:

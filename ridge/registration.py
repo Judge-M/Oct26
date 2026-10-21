@@ -63,8 +63,9 @@ class RegistrationConfig:
     desktops_per_team: int = DEFAULT_DESKTOPS_PER_TEAM
 
     def validate(self) -> None:
-        if not 1 <= self.max_teams <= 10:
-            raise RegistrationError('max_teams must be between 1 and 10')
+        if (not isinstance(self.max_teams, int) or isinstance(self.max_teams, bool)
+                or self.max_teams < 1):
+            raise RegistrationError('max_teams must be a positive integer')
         if not 1 <= self.members_per_team <= 10:
             raise RegistrationError('members_per_team must be between 1 and 10')
         if self.desktops_per_team != len(DESKTOP_ROLES):
@@ -382,7 +383,7 @@ class RegistrationStore:
             return self._private_row(row, status='provisioning', worker_token=token,
                                      attempt_count=int(row['attempt_count']) + 1)
 
-    def activate_credentials(self, registration_id: int) -> dict[str, Any]:
+    def activate_credentials(self, registration_id: int, worker_token: str) -> dict[str, Any]:
         """Assign stable application usernames to a claimed registration.
 
         Passwords were generated at reservation time and are preserved.  The
@@ -395,6 +396,10 @@ class RegistrationStore:
                               (registration_id,)).fetchone()
             if row is None:
                 raise RegistrationError('registration not found')
+            if (row['status'] != 'provisioning'
+                    or not worker_token
+                    or row['worker_token'] != worker_token):
+                raise RegistrationError('registration worker lease is no longer active')
             credentials = json.loads(row['credentials_json'])
             team_id = 'team-%02d' % int(registration_id)
             credentials['iris']['username'] = team_id
@@ -407,21 +412,22 @@ class RegistrationStore:
                         (json.dumps(credentials), _utc(), registration_id))
             return credentials
 
-    def complete(self, registration_id: int, result: dict[str, Any],
+    def complete(self, registration_id: int, result: dict[str, Any], worker_token: str,
                  credentials: dict[str, Any] | None = None) -> None:
         """Mark a provisioned registration ready, preserving its credentials."""
         if not isinstance(result, dict) or not result.get('desktop_urls'):
             raise RegistrationError('result.desktop_urls is required')
         with self._connect() as con:
             con.execute('BEGIN IMMEDIATE')
-            row = con.execute('SELECT status,slots_json FROM registrations WHERE id=?',
+            row = con.execute(
+                'SELECT status,slots_json,worker_token FROM registrations WHERE id=?',
                               (registration_id,)).fetchone()
             if row is None:
                 raise RegistrationError('registration not found')
-            if row['status'] == 'ready':
-                return
-            if row['status'] != 'provisioning':
-                raise RegistrationError('registration is not being provisioned')
+            if (row['status'] != 'provisioning'
+                    or not worker_token
+                    or row['worker_token'] != worker_token):
+                raise RegistrationError('registration worker lease is no longer active')
             slots = json.loads(row['slots_json'])
             now = _utc()
             if credentials is None:
@@ -437,21 +443,37 @@ class RegistrationStore:
     def cancel(self, registration_id: int, error: str = 'cancelled by facilitator') -> None:
         with self._connect() as con:
             con.execute('BEGIN IMMEDIATE')
-            row = con.execute('SELECT slots_json FROM registrations WHERE id=?',
+            row = con.execute('SELECT status,slots_json FROM registrations WHERE id=?',
                               (registration_id,)).fetchone()
             if row is None:
                 raise RegistrationError('registration not found')
+            if row['status'] == 'cancelled':
+                return
+            if row['status'] == 'provisioning':
+                raise RegistrationError(
+                    'cannot cancel while registration provisioning is in progress')
+            if row['status'] == 'ready':
+                raise RegistrationError(
+                    'cannot cancel a ready registration before host-side deprovisioning')
+            if row['status'] != 'pending':
+                raise RegistrationError(
+                    'cannot cancel a partially provisioned registration before host-side cleanup')
             slots = json.loads(row['slots_json'])
-            con.execute("UPDATE registrations SET status='cancelled',error=?,updated_at=?,worker_token=NULL,lease_until=0 WHERE id=?",
-                         (str(error)[:500], _utc(), registration_id))
+            updated = con.execute(
+                """UPDATE registrations SET status='cancelled',error=?,updated_at=?,
+                    worker_token=NULL,lease_until=0 WHERE id=? AND status='pending'""",
+                (str(error)[:500], _utc(), registration_id))
+            if updated.rowcount != 1:
+                raise RegistrationError('registration state changed before cancellation')
             con.executemany(
-                "UPDATE desktop_slots SET registration_id=NULL,status='available' WHERE slot=?",
-                [(slot,) for slot in slots])
+                """UPDATE desktop_slots SET registration_id=NULL,status='available'
+                    WHERE slot=? AND registration_id=? AND status='reserved'""",
+                [(slot, registration_id) for slot in slots])
 
     # Backwards-compatible name used by earlier tests/operator scripts.
     fail = cancel
 
-    def requeue(self, registration_id: int, error: str) -> None:
+    def requeue(self, registration_id: int, error: str, worker_token: str) -> bool:
         """Return a transient provisioning failure to the worker queue.
 
         Reserved slots and generated passwords are preserved, so an IRIS or
@@ -459,22 +481,33 @@ class RegistrationStore:
         """
         with self._connect() as con:
             con.execute('BEGIN IMMEDIATE')
-            row = con.execute('SELECT status,attempt_count FROM registrations WHERE id=?',
+            row = con.execute(
+                'SELECT status,attempt_count,worker_token FROM registrations WHERE id=?',
                               (registration_id,)).fetchone()
             if row is None:
                 raise RegistrationError('registration not found')
-            if row['status'] == 'ready':
-                return
+            if row['status'] in ('ready', 'cancelled'):
+                return False
+            if (row['status'] != 'provisioning'
+                    or not worker_token
+                    or row['worker_token'] != worker_token):
+                raise RegistrationError('registration worker lease is no longer active')
             attempts = int(row['attempt_count'])
             if attempts >= self.MAX_ATTEMPTS:
-                con.execute("""UPDATE registrations SET status='needs_operator',error=?,
-                    updated_at=?,worker_token=NULL,lease_until=0 WHERE id=?""",
-                            (str(error)[:500], _utc(), registration_id))
+                updated = con.execute("""UPDATE registrations SET status='needs_operator',error=?,
+                    updated_at=?,worker_token=NULL,lease_until=0
+                    WHERE id=? AND status='provisioning' AND worker_token=?""",
+                            (str(error)[:500], _utc(), registration_id, worker_token))
             else:
                 delay = min(120, 2 ** max(attempts, 1))
-                con.execute("""UPDATE registrations SET status='pending',error=?,updated_at=?,
-                    retry_at=?,worker_token=NULL,lease_until=0 WHERE id=?""",
-                            (str(error)[:500], _utc(), time.time() + delay, registration_id))
+                updated = con.execute("""UPDATE registrations SET status='pending',error=?,updated_at=?,
+                    retry_at=?,worker_token=NULL,lease_until=0
+                    WHERE id=? AND status='provisioning' AND worker_token=?""",
+                            (str(error)[:500], _utc(), time.time() + delay,
+                             registration_id, worker_token))
+            if updated.rowcount != 1:
+                raise RegistrationError('registration worker lease is no longer active')
+            return True
 
     def retry(self, registration_id: int) -> None:
         with self._connect() as con:

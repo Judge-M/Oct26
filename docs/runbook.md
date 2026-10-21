@@ -11,14 +11,34 @@ runtime directory (secrets, state, inventories — never commit it, never give i
 to participants). Windows operators may use `.\ridge.ps1 <action> -Profile P
 -Runtime R` instead of `python -m ridge.deploy`.
 
-## Event day, in order
+## Normal facilitator path: no server commands
+
+Before event day, an operator installs and reboot-tests the
+[Windows boot automation](windows-boot-automation.md) on both servers. On event
+day the facilitator powers on the worker and then the primary, waits for the
+registration page, presents the opening PowerPoint, and tells participants to
+begin. Docker/SSH readiness and the existing `up`/`start` lifecycle are handled
+by the scheduled tasks. Do not also run `doctor`, `up`, `status`, or `start` on
+a normal event-day boot. The command sequence below is for operators performing
+installation, troubleshooting, pause/recovery, backup, or teardown—not routine
+facilitator check-in.
+
+The current event uses
+`deployment/profiles/example-dynamic-two-host-11-team.json` with its matching
+`deployment/examples/two-host-11-team.local.example.json`: 13 desktop slots on
+the primary, 20 on `worker-02`, and external wildcard TLS on port 443. The
+33-slot shape is capacity-valid and representable, not performance-certified
+until the eleven-team human/load rehearsal passes.
+
+## Operator-only manual fallback and maintenance sequence
 
 1. **Verify the host and deployment inputs** — `python -m ridge.deploy doctor
    --profile P --runtime R`. It checks Docker, the profile, build receipts,
    images, assets and `RIDGE_BACKUP_KEY`; when the stack is up it also reports
    live stage probes. Without `--profile`, doctor checks Docker only.
-   Hardware floor for ten teams, from live measurement: 32 GB RAM
-   minimum (64 GB comfortable), 16 cores recommended, 100 GB free NVMe.
+   Capacity is computed from the profile and desktop pool. The current
+   eleven-team live layout uses two 64 GB / 20-thread hosts and 33 desktops;
+   do not substitute the old ten-team number as a software ceiling.
 2. **Bring the stack up** — `python -m ridge.deploy up --profile P --runtime R`.
    Ends at `PROVISIONED_PAUSED`; participants see nothing yet. Safe to re-run:
    it re-probes, it never resets state.
@@ -29,7 +49,8 @@ to participants). Windows operators may use `.\ridge.ps1 <action> -Profile P
    - enrollment code: `SILENT-RIDGE`
    Facilitator and participant passwords remain random and must never be
    replaced with `admin/admin` or `teamN/teamN`.
-5. **Start the exercise** — run
+5. **Manual fallback start** — only when boot automation has failed or an
+   operator is deliberately resuming a paused event, run
    `python -m ridge.deploy start --profile P --runtime R`. Registration uses
    the enrollment code as its only gate; there is no separate open/close step.
    Each private retrieval page supplies five CTFd seats and the team's IRIS,
@@ -85,6 +106,13 @@ adds VNC lag.
   Dynamic-team accounts are retrieved through each team's private registration
   link; the runtime files are operator recovery material, not handouts. None of
   this is in git.
+- Lost-link/password recovery has one supported path: run
+  `registration-status`, identify the existing registration ID, then run
+  `python -m ridge.deploy registration-rotate-link --registration-id N
+  --profile P --runtime R`. Send the newly printed URL privately to the captain;
+  the old URL is invalid. The captain downloads the labelled handout and gives
+  each teammate one of its five individual CTFd seats. Do not create another
+  team, invent passwords, or hand out `R/secrets/team-credentials.json`.
 - Backups: `R/backups/<UTC timestamp>/`, each with `manifest.json`,
   `SHA256SUMS.json`, and `RECOVERY-COMPLETE.json` when complete. Secrets inside
   a recovery set are encrypted (`RIDGE_BACKUP_KEY` env at backup/restore time;
@@ -137,8 +165,9 @@ before any cloud run.
 
 ## Known limitations (as of this writing)
 
-- Ten-team capacity and the 4–5 h duration are model-backed but not yet
-  rehearsal-proven on the event hardware (F03/F06 pending).
+- Eleven teams are representable by the 33-slot two-host profile and pass the
+  declared capacity model. Eleven-team performance and the 4–5 h duration are
+  not certified until the human/load rehearsal passes on the event hardware.
 - AWS provider, site switch, and off-box backup copy are not built.
 - The Windows launcher `prepare` path is verified on this host only; a
   clean-host run is scheduled with the cold-cache install test.

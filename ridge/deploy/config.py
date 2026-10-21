@@ -14,6 +14,7 @@ import json
 import re
 from copy import deepcopy
 from datetime import date, datetime
+from pathlib import Path
 from urllib.parse import urlsplit
 
 SCHEMA_VERSION = 1
@@ -23,6 +24,10 @@ DEFAULT_TEAM_COUNT = 10
 DEFAULT_MEMBERS = 3
 DEFAULT_REGISTRATION_MEMBERS = 5
 DEFAULT_REGISTRATION_DESKTOPS = 3
+DESKTOP_COMPOSE_FILE = (
+    Path(__file__).resolve().parents[2] / 'deployment' / 'expanded' /
+    'compose.desktops.yaml'
+)
 
 SECRET_REF = re.compile(r'^(env|file|vault|ref):[A-Za-z0-9_./@-]+$')
 SECRET_KEY = re.compile(r'password|secret|token|api[_-]?key|access[_-]?key|private[_-]?key|credential', re.I)
@@ -218,8 +223,8 @@ def _validate_registration(profile):
     max_teams = registration.get('max_teams', DEFAULT_TEAM_COUNT)
     members = registration.get('members_per_team', DEFAULT_REGISTRATION_MEMBERS)
     desktops = registration.get('desktops_per_team', DEFAULT_REGISTRATION_DESKTOPS)
-    if not isinstance(max_teams, int) or isinstance(max_teams, bool) or not 1 <= max_teams <= 10:
-        _fail('registration.max_teams', 'must be an integer between 1 and 10')
+    if not isinstance(max_teams, int) or isinstance(max_teams, bool) or max_teams < 1:
+        _fail('registration.max_teams', 'must be a positive integer')
     if not isinstance(members, int) or isinstance(members, bool) or not 1 <= members <= 10:
         _fail('registration.members_per_team', 'must be an integer between 1 and 10')
     if desktops != DEFAULT_REGISTRATION_DESKTOPS:
@@ -227,6 +232,71 @@ def _validate_registration(profile):
     result = dict(registration, enabled=enabled, max_teams=max_teams,
                   members_per_team=members, desktops_per_team=desktops)
     return result
+
+
+def _compose_service_names(source):
+    """Return simple service keys from the top-level Compose ``services`` block.
+
+    The checked-in desktop Compose file deliberately uses the conventional
+    controlled form ``services:\n  service-name:``.  Capacity validation only
+    needs those mapping keys, so importing a general YAML parser on an event
+    host would add an unnecessary runtime dependency.  Exact indentation keeps
+    nested keys and identically named entries in later top-level sections from
+    being counted.
+    """
+    if not isinstance(source, str):
+        _fail('deployment.desktop_services',
+              'desktop compose source must be text')
+    section_found = False
+    in_services = False
+    names = []
+    service_key = re.compile(r'^  ([A-Za-z0-9][A-Za-z0-9._-]*):(?:[ \t]*(?:#.*)?)?$')
+    for line in source.splitlines():
+        stripped = line.strip()
+        if not in_services:
+            if re.match(r'^services:[ \t]*(?:#.*)?$', line):
+                if section_found:
+                    _fail('deployment.desktop_services',
+                          'desktop compose file has duplicate top-level services mappings')
+                section_found = True
+                in_services = True
+            continue
+        if not stripped or line.lstrip().startswith('#'):
+            continue
+        if line == line.lstrip():
+            in_services = False
+            if re.match(r'^services:[ \t]*(?:#.*)?$', line):
+                _fail('deployment.desktop_services',
+                      'desktop compose file has duplicate top-level services mappings')
+            continue
+        match = service_key.match(line)
+        if match:
+            names.append(match.group(1))
+    if not section_found:
+        _fail('deployment.desktop_services',
+              'desktop compose file has no top-level services mapping')
+    if len(names) != len(set(names)):
+        _fail('deployment.desktop_services',
+              'desktop compose services must use unique names')
+    return tuple(names)
+
+
+def _dynamic_desktop_service_names():
+    """Return the canonical contiguous dynamic desktop services in Compose."""
+    try:
+        source = DESKTOP_COMPOSE_FILE.read_text(encoding='utf-8')
+    except OSError as error:
+        _fail('deployment.desktop_services',
+              'cannot read %s: %s' % (DESKTOP_COMPOSE_FILE, error))
+    names = tuple(name for name in _compose_service_names(source)
+                  if re.fullmatch(r'desktop-slot[0-9]{2}', name))
+    expected = tuple('desktop-slot%02d' % number
+                     for number in range(1, len(names) + 1))
+    if not names or set(names) != set(expected) or len(names) != len(set(names)):
+        _fail('deployment.desktop_services',
+              'dynamic desktop services must be the canonical contiguous '
+              'desktop-slot01..desktop-slotNN pool')
+    return expected
 
 
 def neutral_accounts(team_name, members=DEFAULT_MEMBERS):
@@ -280,8 +350,25 @@ def _validate_roster(profile, desktops, registration=None):
         if supplied and (not isinstance(supplied, dict) or supplied.get('teams')):
             _fail('roster', 'must be omitted when dynamic registration is enabled')
         needed = registration['max_teams'] * registration['desktops_per_team']
-        if len(desktops) < needed:
-            _fail('desktops', 'dynamic registration requires at least %d desktop slots' % needed)
+        available_services = _dynamic_desktop_service_names()
+        available = len(available_services)
+        if needed > available:
+            _fail('registration.max_teams',
+                  'requires %d dynamic desktop slots, but the desktop compose file '
+                  'defines %d' % (needed, available))
+        required_names = set(available_services[:needed])
+        supplied_names = {desktop['name'] for desktop in desktops}
+        if len(desktops) != needed or supplied_names != required_names:
+            missing = sorted(required_names - supplied_names)
+            unexpected = sorted(supplied_names - required_names)
+            details = []
+            if missing:
+                details.append('missing ' + ', '.join(missing))
+            if unexpected:
+                details.append('unexpected ' + ', '.join(unexpected))
+            _fail('desktops',
+                  'dynamic registration requires exactly %d canonical desktop '
+                  'placements (%s)' % (needed, '; '.join(details) or 'wrong count'))
         return {'team_count': 0, 'teams': []}
     desktop_names = [desktop['name'] for desktop in desktops]
     roster = profile.get('roster')

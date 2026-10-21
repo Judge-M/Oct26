@@ -3,7 +3,9 @@ import json
 import unittest
 from copy import deepcopy
 from pathlib import Path
+from unittest.mock import patch
 
+from ridge.deploy import config as deploy_config
 from ridge.deploy.config import (ProfileError, apply_team_override, desired_inventory,
                                  fingerprint, neutral_roster, resolve_inventory, validate)
 
@@ -47,6 +49,113 @@ class DeployProfileTests(unittest.TestCase):
         with self.assertRaises(ProfileError) as caught:
             validate(undersized)
         self.assertEqual(caught.exception.field, 'capacity.host.vcpus')
+
+    def test_dynamic_team_limit_uses_declared_compose_slot_capacity(self):
+        eleven = deepcopy(DYNAMIC)
+        eleven['registration']['max_teams'] = 11
+        for number in range(31, 34):
+            eleven['desktops'].append({
+                'name': 'desktop-slot%02d' % number,
+                'address': '172.18.0.%d' % (10 + number),
+                'shared': True,
+                'max_connections': 5,
+            })
+        normalized = validate(eleven)
+        self.assertEqual(normalized['registration']['max_teams'], 11)
+        self.assertEqual(len(normalized['desktops']), 33)
+
+        twelve = deepcopy(eleven)
+        twelve['registration']['max_teams'] = 12
+        for number in range(34, 37):
+            twelve['desktops'].append({
+                'name': 'desktop-slot%02d' % number,
+                'address': '172.18.0.%d' % (10 + number),
+                'shared': True,
+                'max_connections': 5,
+            })
+        with self.assertRaises(ProfileError) as caught:
+            validate(twelve)
+        self.assertEqual(caught.exception.field, 'registration.max_teams')
+        self.assertIn('requires 36 dynamic desktop slots', str(caught.exception))
+        self.assertIn('defines 33', str(caught.exception))
+
+    def test_dynamic_profile_requires_exact_canonical_slot_placements(self):
+        invalid = deepcopy(DYNAMIC)
+        invalid['desktops'][-1]['name'] = 'arbitrary-30'
+        with self.assertRaises(ProfileError) as caught:
+            validate(invalid)
+        self.assertEqual(caught.exception.field, 'desktops')
+        self.assertIn('missing desktop-slot30', str(caught.exception))
+        self.assertIn('unexpected arbitrary-30', str(caught.exception))
+
+        extra = deepcopy(DYNAMIC)
+        extra['desktops'].append({
+            'name': 'arbitrary-extra',
+            'address': '172.18.1.31',
+            'shared': True,
+            'max_connections': 5,
+        })
+        with self.assertRaises(ProfileError) as caught:
+            validate(extra)
+        self.assertEqual(caught.exception.field, 'desktops')
+        self.assertIn('requires exactly 30', str(caught.exception))
+        self.assertIn('unexpected arbitrary-extra', str(caught.exception))
+
+    def test_compose_capacity_reads_only_canonical_top_level_services(self):
+        source = '''
+services:
+  desktop-slot01:
+    image: example
+  desktop-slot02:
+    image: example
+    desktop-slot29:
+  desktop-slot2:
+    image: malformed-and-ignored
+secrets:
+  desktop-slot03:
+    file: ignored
+volumes:
+  desktop-slot04:
+'''
+        with patch.object(Path, 'read_text', return_value=source):
+            self.assertEqual(deploy_config._dynamic_desktop_service_names(),
+                             ('desktop-slot01', 'desktop-slot02'))
+
+        malformed = 'services:\n  desktop-slot1:\n    image: example\n'
+        with patch.object(Path, 'read_text', return_value=malformed):
+            with self.assertRaises(ProfileError) as caught:
+                deploy_config._dynamic_desktop_service_names()
+        self.assertEqual(caught.exception.field, 'deployment.desktop_services')
+        self.assertIn('canonical contiguous', str(caught.exception))
+
+    def test_compose_capacity_parser_has_no_yaml_runtime_dependency(self):
+        source = '''
+name: dependency-free
+services:
+  desktop-slot01:
+    image: example
+  desktop-slot02: # inline comments are allowed
+    image: example
+volumes:
+  desktop-slot03:
+'''
+        self.assertEqual(deploy_config._compose_service_names(source),
+                         ('desktop-slot01', 'desktop-slot02'))
+        self.assertFalse(hasattr(deploy_config, 'yaml'))
+
+    def test_compose_capacity_requires_contiguous_canonical_services(self):
+        source = '''
+services:
+  desktop-slot01:
+    image: example
+  desktop-slot03:
+    image: example
+'''
+        with patch.object(Path, 'read_text', return_value=source):
+            with self.assertRaises(ProfileError) as caught:
+                deploy_config._dynamic_desktop_service_names()
+        self.assertEqual(caught.exception.field, 'deployment.desktop_services')
+        self.assertIn('canonical contiguous', str(caught.exception))
 
     def test_remote_worker_placement_and_unique_vnc_ports(self):
         profile = deepcopy(DYNAMIC)

@@ -23,13 +23,12 @@ IMAGES = {
 
 def fingerprint(root=ROOT):
     digest = hashlib.sha256()
-    for folder in ('ridge', 'integrations', 'deployment/expanded/desktop',
-                   'deployment/expanded/wazuh'):
+    for folder in ('ridge', 'integrations', 'deployment/expanded'):
         for path in sorted((root / folder).rglob('*')):
             if path.is_file() and '__pycache__' not in path.parts and path.suffix != '.pyc':
                 digest.update(path.relative_to(root).as_posix().encode())
                 digest.update(path.read_bytes())
-    for name in ('.dockerignore', 'bounded_http.py', *IMAGES.values()):
+    for name in ('.dockerignore', 'bounded_http.py'):
         digest.update((root / name).read_bytes())
     return digest.hexdigest()
 

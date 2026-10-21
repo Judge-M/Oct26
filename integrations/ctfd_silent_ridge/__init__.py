@@ -3,7 +3,10 @@
 Do not also create stock challenges for this run: stock solve semantics are per team.
 """
 import hmac
+import json
 import os
+import time
+from pathlib import Path
 from urllib.parse import urlsplit
 from urllib.error import HTTPError, URLError
 from flask import abort, jsonify, make_response, redirect, render_template_string, request, session
@@ -16,6 +19,7 @@ from ridge.narrative import participant_context
 from ridge.web import PAGE, queue_state
 from ridge.registration import (RegistrationConfig, RegistrationError,
                                  RegistrationStore, desktop_handout)
+from ridge.participant_handout import credential_handout_text
 
 
 WAZUH_DISCOVER_PATH = (
@@ -25,10 +29,36 @@ WAZUH_DISCOVER_PATH = (
     "_q=(filters:!(),query:(language:kuery,query:''))"
 )
 
+REGISTRATION_WORKER_HEARTBEAT_MAX_AGE = 15
+
+
+def _registration_worker_ready(registration_path, *, now=None):
+    """Fail closed unless the host worker recently published shared readiness."""
+    configured = os.environ.get('RIDGE_REGISTRATION_WORKER_HEARTBEAT')
+    heartbeat_path = (Path(configured) if configured else
+                      Path(registration_path).parent / 'registration-worker-heartbeat.json')
+    try:
+        heartbeat = json.loads(heartbeat_path.read_text(encoding='utf-8'))
+        updated = float(heartbeat['updated'])
+        age = (time.time() if now is None else float(now)) - updated
+        return heartbeat.get('ready') is True and -5 <= age < REGISTRATION_WORKER_HEARTBEAT_MAX_AGE
+    except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError):
+        return False
+
 
 def participant_wazuh_url(base_url):
     """Land participants in the prepared Discover view, not the admin wizard."""
     return base_url.rstrip('/') + WAZUH_DISCOVER_PATH
+
+
+def _private_handout_response(response):
+    """Prevent browsers and intermediaries from retaining credential pages."""
+    response.headers['Cache-Control'] = 'no-store, private'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Referrer-Policy'] = 'no-referrer'
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Robots-Tag'] = 'noindex, nofollow'
+    return response
 
 
 class RidgeCredit(db.Model):
@@ -47,9 +77,9 @@ h1{margin-top:0}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(
 .card{background:#f4f7fa;border-radius:8px;padding:1rem}.error{background:#fee9e7;color:#8c1d18;padding:1rem;border-radius:8px}
 .start{background:#eaf2fb;border-left:5px solid #1257a6;border-radius:8px;padding:1rem 1.25rem;margin:1.25rem 0}
 .start h2{margin-top:0}.start ol{padding-left:1.4rem}.start li{margin:.65rem 0;line-height:1.45}
-.notice{background:#fff6cf;border-radius:8px;padding:.85rem 1rem;margin:1rem 0}.compact li{margin:.45rem 0}
+.notice{background:#fff6cf;border-radius:8px;padding:.85rem 1rem;margin:1rem 0}.recovery{background:#e8f5ec;border-left:5px solid #287a3d;border-radius:8px;padding:1rem 1.25rem;margin:1rem 0}.recovery p{overflow-wrap:anywhere}.compact li{margin:.45rem 0}
 label{display:block;font-weight:600;margin:.8rem 0}.field{display:block;width:100%;box-sizing:border-box;padding:.65rem;border:1px solid #aab7c4;border-radius:6px;font-size:1rem}
-button{margin-top:1rem;padding:.7rem 1.2rem;border:0;border-radius:6px;background:#1257a6;color:#fff;font-weight:700;cursor:pointer}
+button,.button{display:inline-block;margin-top:1rem;padding:.7rem 1.2rem;border:0;border-radius:6px;background:#1257a6;color:#fff;font-weight:700;cursor:pointer;text-decoration:none}
 code{background:#eef1f4;padding:.15rem .3rem;border-radius:4px}.secret{font-family:ui-monospace,monospace;background:#fff6cf;padding:.15rem .3rem}
 table{border-collapse:collapse;width:100%}td,th{border-bottom:1px solid #d7dee5;text-align:left;padding:.55rem}.table-wrap{overflow-x:auto}.copy{margin:.15rem;padding:.25rem .5rem;background:#46596b}.actions{display:flex;gap:.7rem;flex-wrap:wrap;align-items:center}@media print{button,.no-print{display:none}main{border:0;box-shadow:none}}
 </style></head><body><main>
@@ -81,23 +111,31 @@ persistent handout.</p>
   <div class="card"><strong>Need a facilitator?</strong><br>Raise a hand for a lost retrieval link, failed login, stuck desktop, or service outage. Your accepted answers are retained.</div>
 </div>
 {% if error %}<p class="error">{{ error }}</p>{% endif %}
+{% if not registration_open and not error %}<p class="error"><strong>Team setup is temporarily unavailable.</strong> Please wait a minute and try again. If this message remains, raise your hand for a facilitator. Do not submit a second registration.</p>{% endif %}
 <h2>Register your team</h2>
 <form method="post">
 <input type="hidden" name="nonce" value="{{ nonce }}">
 <label>Team name<input class="field" name="team_name" maxlength="48" required value="{{ team_name }}"></label>
 <label>Captain / facilitator contact<input class="field" name="captain_name" maxlength="48" required value="{{ captain_name }}"></label>
 <label>Event enrollment code<input class="field" name="enrollment_code" maxlength="64" required autocomplete="one-time-code"></label>
-<button type="submit">Reserve our team</button>
+<button type="submit"{% if not registration_open %} disabled aria-disabled="true"{% endif %}>Reserve our team</button>
 </form>
 {% elif view == 'pending' %}
 <h1>{{ registration.team_name }}</h1><p>Your team slot is reserved. The event host is starting your three workstations and creating the application accounts.</p>
 <p>Status: <strong id="registration-status">{{ registration.status }}</strong>. This page will update when provisioning finishes.</p>
-<p>Your retrieval path is <code>{{ retrieve_path }}</code>. Bookmark it.</p>
-<button type="button" onclick="location.reload()">Check now</button><script>setInterval(async()=>{try{const r=await fetch({{ status_url|tojson }},{cache:'no-store'}),s=await r.json();document.getElementById('registration-status').textContent=s.status;if(!['pending','provisioning'].includes(s.status))location.reload();}catch(e){}},5000);</script>
+<section class="recovery"><h2>Save your private return link now</h2><p><a href="{{ retrieve_url }}">{{ retrieve_url }}</a></p><p>This unguessable link is the only participant-facing way back to your generated credentials. Bookmark it or copy it somewhere private.</p></section>
+<div class="actions"><button type="button" onclick="copyValue({{ retrieve_url|tojson }},'pending-copy-status')">Copy private return link</button><button type="button" onclick="location.reload()">Check now</button><span id="pending-copy-status" role="status"></span></div><script>async function copyValue(value,statusId){await navigator.clipboard.writeText(value);document.getElementById(statusId).textContent='Copied.';}setInterval(async()=>{try{const r=await fetch({{ status_url|tojson }},{cache:'no-store'}),s=await r.json();document.getElementById('registration-status').textContent=s.status;if(!['pending','provisioning'].includes(s.status))location.reload();}catch(e){}},5000);</script>
+{% elif view == 'needs_operator' %}
+<h1>{{ registration.team_name }} — facilitator assistance needed</h1>
+<p>Your team registration is saved, but automated setup could not finish. <strong>Raise your hand for a facilitator.</strong> Do not register again.</p>
+<section class="recovery"><h2>Keep your private return link</h2><p><a href="{{ retrieve_url }}">{{ retrieve_url }}</a></p><p>Bookmark or copy this link. Return to it after a facilitator repairs your team setup.</p></section>
+<div class="actions"><button type="button" onclick="copyValue({{ retrieve_url|tojson }},'operator-copy-status')">Copy private return link</button><button type="button" onclick="location.reload()">Check again</button><span id="operator-copy-status" role="status"></span></div>
+<script>async function copyValue(value,statusId){await navigator.clipboard.writeText(value);document.getElementById(statusId).textContent='Copied.';}</script>
 {% elif view == 'ready' %}
 <h1>{{ registration.team_name }} — team handout</h1>
-<p>Registration is complete. Bookmark or print this page. Do not post these passwords in a public chat.</p>
-<div class="actions no-print"><button type="button" onclick="window.print()">Print / save handout</button><button type="button" onclick="copyAll()">Copy all credentials</button></div>
+<p>Registration is complete. Do not post this page, its link, or these passwords in a public chat.</p>
+<section class="recovery"><h2>Your permanent private return link</h2><p><a href="{{ retrieve_url }}">{{ retrieve_url }}</a></p><p>Bookmark this link. Anyone who has it can read your team credentials.</p></section>
+<div class="actions no-print"><button type="button" onclick="copyValue({{ retrieve_url|tojson }},'copy-status')">Copy return link</button><a class="button" href="{{ download_url }}" download>Download private handout</a><button type="button" onclick="window.print()">Print / save handout</button><button type="button" onclick="copyAll()">Copy labelled handout</button><span id="copy-status" role="status"></span></div>
 <section class="start">
   <h2>Your first five moves</h2>
   <ol>
@@ -115,17 +153,17 @@ persistent handout.</p>
   <tr><td>Wazuh Discover</td><td><a href="{{ wazuh_url }}">Open prepared telemetry view</a></td><td><code>{{ credentials.wazuh.username }}</code></td><td><span class="secret">{{ credentials.wazuh.password }}</span></td></tr>
 </table></div>
 <h2>Participant CTFd seats</h2>
-<p>Open <a href="{{ ctfd_url }}">{{ ctfd_url }}</a>. CTFd requires one of the personal seat logins below; <strong>the internal team identifier is not a login</strong>.</p>
+<p>Open <a href="{{ ctfd_url }}">{{ ctfd_url }}</a>. CTFd requires one of the personal seat logins below. Your internal team ID is <code>{{ credentials.ctfd.team }}</code>; your seats are already attached to it, so there is no team join password to enter.</p>
 <div class="table-wrap"><table><tr><th>Seat</th><th>Username</th><th>Password</th></tr>
 {% for member in credentials.ctfd.members %}<tr><td>{{ loop.index }}</td><td><code data-copy>{{ member.username }}</code></td><td><span class="secret" data-copy>{{ member.password }}</span></td></tr>{% endfor %}
 </table></div>
 <h2>GUI workstations</h2>
-  <p>Log into Guacamole once with the account below. All three desktops contain the same complete evidence toolbox. The labels are suggested starting roles so five people can divide the work; they are not tool restrictions.</p>
+  <p>Log into Guacamole once with the account below. All three desktops contain the same complete evidence toolbox. The labels are suggested starting roles so five people can divide the work; they are not tool restrictions. <strong>No separate VNC or desktop password is needed:</strong> Guacamole provides the participant-facing connection.</p>
 <p>Guacamole username: <code data-copy>{{ credentials.guacamole.username }}</code><br>Password: <span class="secret" data-copy>{{ credentials.guacamole.password }}</span><br><a href="{{ guac_url }}">Open Guacamole</a></p>
   <div class="table-wrap"><table><tr><th>Connection name</th><th>Suggested role</th><th>Best starting work</th><th>Installed tools</th></tr>
   {% for desktop in registration.result.desktop_urls %}<tr><td><code>{{ desktop.connection_name }}</code></td><td>{{ desktop.name }}</td><td>{{ desktop.guidance }}</td><td>{{ desktop.tools|join(', ') }}</td></tr>{% endfor %}
 </table></div>
-<script>async function copyAll(){const values=[...document.querySelectorAll('[data-copy]')].map(x=>x.textContent.trim());await navigator.clipboard.writeText(values.join('\n'));}</script>
+<script>async function copyValue(value,statusId){await navigator.clipboard.writeText(value);document.getElementById(statusId).textContent='Copied.';}async function copyAll(){await copyValue({{ copy_text|tojson }},'copy-status');}</script>
 {% else %}<h1>Registration unavailable</h1><p>{{ registration.error or 'The registration code is invalid.' }}</p>{% endif %}
 </main></body></html>
 '''
@@ -196,10 +234,19 @@ def load(app):
         error = ''
         team_name = request.form.get('team_name', '')
         captain_name = request.form.get('captain_name', '')
+        registration_open = _registration_worker_ready(registration_path)
         if request.method == 'POST':
             if not hmac.compare_digest(request.form.get('nonce', ''),
                                        session.get('nonce', '!')):
                 abort(403)
+            if not registration_open:
+                error = ('Team setup is temporarily unavailable. Please wait a minute and '
+                         'try again. If it remains unavailable, raise your hand for a '
+                         'facilitator. Do not submit a second registration.')
+                return render_template_string(
+                    REGISTRATION_PAGE, view='register', error=error,
+                    team_name=team_name, captain_name=captain_name,
+                    nonce=session['nonce'], registration_open=False), 503
             try:
                 created = registration_store.register(
                     team_name, captain_name,
@@ -209,7 +256,8 @@ def load(app):
                 error = str(exc)
         return render_template_string(REGISTRATION_PAGE, view='register', error=error,
                                       team_name=team_name, captain_name=captain_name,
-                                      nonce=session['nonce'])
+                                      nonce=session['nonce'],
+                                      registration_open=registration_open)
 
     @app.route('/silent-ridge/registration/<access_code>')
     def ridge_registration(access_code):
@@ -221,25 +269,72 @@ def load(app):
             private = registration_store.get(access_code, include_private=True)
             registration['result'] = registration.get('result') or {}
             credentials = private['credentials']
-            return render_template_string(
+            iris_url = os.environ['IRIS_PUBLIC_URL']
+            ctfd_url = os.environ['CTFD_PUBLIC_URL']
+            wazuh_url = participant_wazuh_url(os.environ['WAZUH_PUBLIC_URL'])
+            guac_url = os.environ.get(
+                'GUACAMOLE_PUBLIC_URL', ctfd_url.rstrip('/') + ':8082')
+            retrieve_url = ctfd_url.rstrip('/') + request.path
+            copy_text = credential_handout_text(
+                registration, credentials, retrieval_url=retrieve_url,
+                ctfd_url=ctfd_url, iris_url=iris_url, wazuh_url=wazuh_url,
+                guac_url=guac_url)
+            response = make_response(render_template_string(
                 REGISTRATION_PAGE, view='ready', registration=registration,
-                credentials=credentials, iris_url=os.environ['IRIS_PUBLIC_URL'],
-                ctfd_url=os.environ['CTFD_PUBLIC_URL'],
-                wazuh_url=participant_wazuh_url(os.environ['WAZUH_PUBLIC_URL']),
-                guac_url=os.environ.get('GUACAMOLE_PUBLIC_URL',
-                                        os.environ.get('CTFD_PUBLIC_URL', '').rstrip('/') + ':8082'))
+                credentials=credentials, iris_url=iris_url, ctfd_url=ctfd_url,
+                wazuh_url=wazuh_url, guac_url=guac_url,
+                retrieve_url=retrieve_url,
+                download_url=retrieve_url.rstrip('/') + '/download',
+                copy_text=copy_text))
+            return _private_handout_response(response)
         if registration.get('status') in ('pending', 'provisioning'):
-            return render_template_string(REGISTRATION_PAGE, view='pending',
-                                          registration=registration,
-                                          retrieve_path=request.path,
-                                          status_url=request.path.rstrip('/') + '/status')
+            retrieve_url = os.environ['CTFD_PUBLIC_URL'].rstrip('/') + request.path
+            response = make_response(render_template_string(
+                REGISTRATION_PAGE, view='pending', registration=registration,
+                retrieve_url=retrieve_url,
+                status_url=request.path.rstrip('/') + '/status'))
+            return _private_handout_response(response)
+        if registration.get('status') == 'needs_operator':
+            retrieve_url = os.environ['CTFD_PUBLIC_URL'].rstrip('/') + request.path
+            response = make_response(render_template_string(
+                REGISTRATION_PAGE, view='needs_operator', registration=registration,
+                retrieve_url=retrieve_url))
+            return _private_handout_response(response)
         return render_template_string(REGISTRATION_PAGE, view='error', registration=registration), 404
+
+    @app.route('/silent-ridge/registration/<access_code>/download')
+    def ridge_registration_download(access_code):
+        try:
+            registration = registration_store.get(access_code)
+        except RegistrationError:
+            abort(404)
+        if registration.get('status') != 'ready':
+            return _private_handout_response(
+                make_response('The private handout is not ready yet.\n', 409))
+        credentials = registration_store.get(access_code, include_private=True)['credentials']
+        ctfd_url = os.environ['CTFD_PUBLIC_URL']
+        text = credential_handout_text(
+            registration, credentials,
+            retrieval_url=(ctfd_url.rstrip('/') +
+                           request.path.rsplit('/download', 1)[0]),
+            ctfd_url=ctfd_url, iris_url=os.environ['IRIS_PUBLIC_URL'],
+            wazuh_url=participant_wazuh_url(os.environ['WAZUH_PUBLIC_URL']),
+            guac_url=os.environ.get('GUACAMOLE_PUBLIC_URL',
+                                    ctfd_url.rstrip('/') + ':8082'))
+        response = make_response(text)
+        response.headers['Content-Type'] = 'text/plain; charset=utf-8'
+        response.headers['Content-Disposition'] = (
+            'attachment; filename="silent-ridge-private-team-handout.txt"')
+        return _private_handout_response(response)
 
     @app.route('/silent-ridge/registration/<access_code>/status')
     def ridge_registration_status(access_code):
         try:
             registration = registration_store.get(access_code)
-            return jsonify(status=registration['status'], error=registration.get('error'))
+            if registration['status'] == 'needs_operator':
+                return jsonify(status='needs_operator',
+                               message='Raise your hand for a facilitator. Do not register again.')
+            return jsonify(status=registration['status'])
         except RegistrationError:
             return jsonify(status='invalid', error='registration not found'), 404
 

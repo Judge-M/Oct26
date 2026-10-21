@@ -24,28 +24,41 @@ This is an opt-in extension of the single-host deployment. Profiles without a
 
 ## Capacity planning
 
-Every dynamic team receives three desktops. A ten-team pool therefore has 30
-slots even though only registered teams are started. The validator checks all
-30 slots and applies 20% memory headroom on each host.
+Every dynamic team receives three desktops. An eleven-team pool therefore has
+33 slots even though only registered teams are started. The deployment compose
+file represents all 33 slots, and the validator applies 20% memory headroom on
+each host. Compose representation does not override capacity validation: an
+eleven-team profile must still place all 33 slots on hosts with enough declared
+CPU, memory, and disk.
 
-For two 64 GiB / 20-thread machines with roughly 475 GiB of usable disk each,
-a conservative starting placement is 11 slots on the primary and 19 on the
-worker. The primary also carries CTFd, IRIS, Wazuh, Guacamole, and the
-integration services. With the sample reservations below, 12 local slots would
-require 490 GiB on the primary and is therefore rejected by the validator.
+For the measured event hosts (two physical 64 GiB / 20-thread machines), the
+safe usable allocations are 48 GiB / 475 GiB on the primary and 50 GiB /
+475 GiB on the worker. The eleven-team layout places 13 slots on the primary
+and 20 on the worker. The primary also carries CTFd, IRIS, Wazuh,
+Guacamole, and the integration services. Its Docker/WSL memory allocation must
+be at least 48 GiB. With the current 200 GiB central-disk and 15 GiB-per-desktop
+reservations, the primary's modeled requirement is 395 GiB; the worker's 20 slots consume its
+20-thread CPU allowance. A twelfth team would exceed the validated placement.
 
 Declare each remote worker's usable capacity under `capacity.workers`:
 
 ```json
 "capacity": {
-  "host": {"vcpus": 20, "memory_mib": 65536, "disk_gib": 475},
-  "central": {"vcpus": 6, "memory_mib": 8192, "disk_gib": 250},
-  "desktop": {"vcpus": 1, "memory_mib": 2048, "disk_gib": 20},
+  "host": {"vcpus": 20, "memory_mib": 49152, "disk_gib": 475},
+  "central": {"vcpus": 4, "memory_mib": 6144, "disk_gib": 200},
+  "desktop": {"vcpus": 1, "memory_mib": 2048, "disk_gib": 15},
   "workers": {
-    "worker-02": {"vcpus": 20, "memory_mib": 65536, "disk_gib": 475}
+    "worker-02": {"vcpus": 20, "memory_mib": 51200, "disk_gib": 475}
   }
 }
 ```
+
+The complete reusable pair is
+`deployment/profiles/example-dynamic-two-host-11-team.json` and
+`deployment/examples/two-host-11-team.local.example.json`. Use those files
+instead of expanding the abbreviated snippets below by hand. The pair maps the
+20 worker desktops to VNC ports 5901–5920 and their primary-host Guacamole
+relays to 15901–15920.
 
 ## Profile placement
 
@@ -144,12 +157,12 @@ the relay ports from participant devices.
    verify `docker run --rm hello-world` locally.
 3. Install and start OpenSSH. Use key authentication for the event controller.
 4. Restrict inbound SSH to the primary host.
-5. Restrict the assigned VNC range to the primary host. For slots mapped to
-   ports 5901 through 5919 on a Windows worker:
+5. Restrict the assigned VNC range to the primary host. For the current 20
+   worker slots mapped to ports 5901 through 5920 on a Windows worker:
 
    ```powershell
    New-NetFirewallRule -DisplayName "Silent Ridge VNC from primary" `
-     -Direction Inbound -Action Allow -Protocol TCP -LocalPort 5901-5919 `
+      -Direction Inbound -Action Allow -Protocol TCP -LocalPort 5901-5920 `
      -RemoteAddress 192.168.1.200 -Profile Private
    ```
 

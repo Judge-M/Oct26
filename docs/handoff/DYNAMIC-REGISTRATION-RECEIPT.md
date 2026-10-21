@@ -2,8 +2,9 @@
 
 ## Objective
 
-Replace the fixed team roster with a self-service event entry point that supports
-up to ten teams of five. A team registers once, receives a durable retrieval link,
+Replace the fixed team roster with a self-service event entry point whose team
+count is bounded by validated host resources and the declared desktop pool. The
+current pool supports up to eleven teams of five. A team registers once, receives a durable retrieval link,
 and is assigned three GUI-only desktop slots:
 
 - two Autopsy/evidence-browser desktops;
@@ -26,7 +27,7 @@ when a task needs one of the assigned GUI desktops.
 4. The retrieval page shows the team’s CTFd, IRIS, and Guacamole credentials plus
    the three desktop roles and links. The access code is stored hashed; the
    retrieval URL is the team’s durable bookmark for the event.
-5. The desktop Compose file predeclares a 30-slot capacity pool but starts no
+5. The desktop Compose file predeclares a 33-slot capacity pool but starts no
    dynamic desktops at initial event startup. Registration lazily starts only the
    three slots assigned to that team.
 
@@ -37,8 +38,8 @@ when a task needs one of the assigned GUI desktops.
 - `ridge/deploy/registration_worker.py`: host-side provisioning worker.
 - `ridge/deploy/local.py`: dynamic lifecycle, slot startup, application identity,
   Guacamole, and state integration.
-- `deployment/expanded/compose.desktops.yaml`: 30 lazy-start desktop slots.
-- `deployment/profiles/example-dynamic.json`: ten-team example profile.
+- `deployment/expanded/compose.desktops.yaml`: 33 lazy-start desktop slots.
+- `deployment/profiles/example-dynamic.json`: capacity-validated dynamic example profile.
 
 ## Validation performed
 

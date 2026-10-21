@@ -1,6 +1,9 @@
 """Execute inside the actual extended CTFd 3.7.7 image, using a disposable database."""
 import concurrent.futures
+import json
 import os
+import sqlite3
+import time
 from urllib.parse import urlsplit
 from unittest.mock import patch
 from pathlib import Path
@@ -11,13 +14,18 @@ os.environ.update(DATABASE_URL='sqlite:////tmp/ctfd-smoke.sqlite',SECRET_KEY='di
     RIDGE_REGISTRATION_DB='/tmp/ctfd-registration-smoke.sqlite')
 os.environ.setdefault('CTFD_PUBLIC_URL','http://ctfd.invalid')
 Path('/tmp/ridge-ctfd-secret').write_text('c'*40)
+Path('/tmp/registration-worker-heartbeat.json').write_text(json.dumps({
+    'ready':True,'pid':os.getpid(),'updated':time.time()}))
 
 from CTFd import create_app
 from CTFd.models import db,Awards,Teams,Users
 from CTFd.utils import get_config,set_config
 from flask import session
 from ridge.ctfd_provision import ProvisionSpec,TeamSpec,UserSpec,provision
-from CTFd.plugins.ctfd_silent_ridge.provision import OrmAdmin
+from CTFd.plugins.ctfd_silent_ridge.provision import (
+    OrmAdmin, _find_or_create_team_for_registration,
+    _find_or_create_user_for_registration,
+)
 
 app=create_app()
 assert app.config['SESSION_COOKIE_NAME']=='silent_ridge_ctfd_session'
@@ -38,7 +46,15 @@ with app.app_context():
     provision(OrmAdmin(),ProvisionSpec(
         teams=(TeamSpec('smoke','Smoke team','disposable password'),),
         users=(UserSpec('smoke-user','smoke@example.test','smoke','disposable password'),)))
+    dynamic_team=_find_or_create_team_for_registration(
+        OrmAdmin(),'Smoke team','new-disposable-team-password')
+    dynamic_user=_find_or_create_user_for_registration(
+        OrmAdmin(),{'username':'smoke-user','password':'new-disposable-user-password'},
+        dynamic_team['id'])
     db.session.commit()
+    from CTFd.utils.crypto import verify_password
+    assert verify_password('new-disposable-team-password',db.session.get(Teams,dynamic_team['id']).password)
+    assert verify_password('new-disposable-user-password',db.session.get(Users,dynamic_user['id']).password)
 with app.test_client() as cookie_client:
     cookie_response=cookie_client.get('/ridge-smoke-cookie')
     assert cookie_response.status_code==200,cookie_response.status_code
@@ -59,6 +75,24 @@ with app.test_client() as registration_client:
     registration_location=urlsplit(registration.headers['Location']).path
     assert registration_location.startswith('/silent-ridge/registration/'),(
         registration.headers['Location'])
+    Path('/tmp/registration-worker-heartbeat.json').write_text(json.dumps({
+        'ready':True,'pid':os.getpid(),'updated':0}))
+    stale=registration_client.post('/silent-ridge/register',data={
+        'team_name':'Second smoke team','captain_name':'Smoke facilitator',
+        'nonce':registration_nonce})
+    assert stale.status_code==503,stale.status_code
+    assert b'Team setup is temporarily unavailable' in stale.data
+    existing=registration_client.get(registration_location)
+    assert existing.status_code==200,existing.status_code
+    with sqlite3.connect('/tmp/ctfd-registration-smoke.sqlite') as registration_db:
+        registration_db.execute(
+            "UPDATE registrations SET status='needs_operator', error=?",
+            ('raw internal exception that participants must never see',))
+    operator=registration_client.get(registration_location)
+    assert operator.status_code==200,operator.status_code
+    assert b'facilitator assistance needed' in operator.data
+    assert b'Do not register again' in operator.data
+    assert b'raw internal exception' not in operator.data
 
 body={'key':'smoke-run:point:T01-Q1','kind':'point','payload':{
     'question':'T01-Q1','ctfd_team':team_id,'value':1,'event':'smoke-event'}}

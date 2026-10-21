@@ -28,6 +28,7 @@ The runtime directory is private and gitignored. Layout::
 from __future__ import annotations
 
 import csv
+import ctypes
 import getpass
 import hashlib
 import ipaddress
@@ -44,6 +45,7 @@ import sys
 import time
 import threading
 import xml.etree.ElementTree as ET
+from ctypes import wintypes
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -107,6 +109,108 @@ def _process_exists(pid):
         return True
     except (OSError, ProcessLookupError):
         return False
+
+
+def _normalize_process_identity(document):
+    """Return the stable fields used to bind a saved PID to one OS process."""
+    if not isinstance(document, dict):
+        return None
+    creation_time = str(document.get('creation_time', '')).strip()
+    executable = str(document.get('executable', '')).strip()
+    if not creation_time or not executable:
+        return None
+    normalized = {
+        'creation_time': creation_time,
+        'executable': os.path.normcase(executable),
+    }
+    command_line = str(document.get('command_line', '')).strip()
+    if command_line:
+        normalized['command_line'] = command_line
+    return normalized
+
+
+def _windows_process_identity(pid, api=None):
+    """Read kernel creation time and executable path for one Windows PID.
+
+    A PID and registration token can both survive in private files across a
+    reboot while Windows reuses the PID.  The limited-information process APIs
+    supply OS-owned identity without relying on CIM/WMI availability.
+    """
+    kernel32 = api
+    try:
+        if kernel32 is None:
+            kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
+        kernel32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+        kernel32.OpenProcess.restype = wintypes.HANDLE
+        kernel32.GetProcessTimes.argtypes = [
+            wintypes.HANDLE, ctypes.POINTER(wintypes.FILETIME),
+            ctypes.POINTER(wintypes.FILETIME), ctypes.POINTER(wintypes.FILETIME),
+            ctypes.POINTER(wintypes.FILETIME)]
+        kernel32.GetProcessTimes.restype = wintypes.BOOL
+        kernel32.QueryFullProcessImageNameW.argtypes = [
+            wintypes.HANDLE, wintypes.DWORD, wintypes.LPWSTR,
+            ctypes.POINTER(wintypes.DWORD)]
+        kernel32.QueryFullProcessImageNameW.restype = wintypes.BOOL
+        kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+        kernel32.CloseHandle.restype = wintypes.BOOL
+
+        handle = kernel32.OpenProcess(0x1000, False, int(pid))
+        if not handle:
+            return None
+        try:
+            creation = wintypes.FILETIME()
+            exit_time = wintypes.FILETIME()
+            kernel = wintypes.FILETIME()
+            user = wintypes.FILETIME()
+            if not kernel32.GetProcessTimes(
+                    handle, ctypes.byref(creation), ctypes.byref(exit_time),
+                    ctypes.byref(kernel), ctypes.byref(user)):
+                return None
+            size = wintypes.DWORD(32768)
+            executable = ctypes.create_unicode_buffer(size.value)
+            if not kernel32.QueryFullProcessImageNameW(
+                    handle, 0, executable, ctypes.byref(size)):
+                return None
+            ticks = (int(creation.dwHighDateTime) << 32) | int(creation.dwLowDateTime)
+            return _normalize_process_identity({
+                'creation_time': str(ticks),
+                'executable': executable.value,
+            })
+        finally:
+            kernel32.CloseHandle(handle)
+    except (OSError, ValueError, AttributeError):
+        return None
+
+
+def _posix_process_identity(pid):
+    """Read a Linux process identity tied to the current kernel boot."""
+    process = Path('/proc') / str(int(pid))
+    try:
+        stat_text = (process / 'stat').read_text(encoding='utf-8')
+        end = stat_text.rfind(')')
+        if end < 0:
+            return None
+        fields = stat_text[end + 2:].split()
+        # fields starts with proc(5) field 3; starttime is field 22.
+        start_ticks = fields[19]
+        boot_id = Path('/proc/sys/kernel/random/boot_id').read_text(
+            encoding='ascii').strip()
+        executable = str((process / 'exe').resolve(strict=True))
+        command_line = (process / 'cmdline').read_bytes().replace(b'\0', b' ').decode(
+            'utf-8', errors='surrogateescape').strip()
+        return _normalize_process_identity({
+            'creation_time': '%s:%s' % (boot_id, start_ticks),
+            'executable': executable,
+            'command_line': command_line,
+        })
+    except (OSError, ValueError, IndexError):
+        return None
+
+
+def _process_identity(pid):
+    if os.name == 'nt':
+        return _windows_process_identity(pid)
+    return _posix_process_identity(pid)
 
 
 def _secure_private(path):
@@ -2080,7 +2184,8 @@ http {
         claimed = registration.claim_pending()
         if claimed is None:
             return None
-        credentials = registration.activate_credentials(claimed['id'])
+        worker_token = claimed['worker_token']
+        credentials = registration.activate_credentials(claimed['id'], worker_token)
         wazuh_username, separator, wazuh_password = self._secret('wazuh_reader').partition(':')
         if not separator or not wazuh_username or not wazuh_password:
             raise LifecycleError('wazuh_reader must contain username:password')
@@ -2107,11 +2212,12 @@ http {
                                            credentials)
             result = {'desktop_urls': desktop_handout(
                 services, self.profile['addresses']['guacamole_public_url'])}
-            registration.complete(claimed['id'], result, credentials=credentials)
+            registration.complete(claimed['id'], result, worker_token,
+                                  credentials=credentials)
             return {'id': claimed['id'], 'team': team_id, 'desktops': services}
         except Exception as exc:
-            registration.requeue(claimed['id'], str(exc))
-            self._stop_desktop_services(services)
+            if registration.requeue(claimed['id'], str(exc), worker_token):
+                self._stop_desktop_services(services)
             raise
 
     def registration_admin(self, action, registration_id=None):
@@ -2237,11 +2343,17 @@ http {
             heartbeat = json.loads(self.registration_heartbeat_path.read_text(encoding='utf-8'))
             pid = int(saved['pid'])
             token_ok = bool(saved.get('token')) and saved.get('token') == heartbeat.get('token')
+            heartbeat_pid_ok = int(heartbeat['pid']) == pid
             fresh = time.time() - float(heartbeat.get('updated', 0)) < 15
-            alive = _process_exists(pid)
-            return {'enabled': True, 'healthy': bool(token_ok and fresh and alive),
+            saved_identity = _normalize_process_identity(saved.get('identity'))
+            current_identity = _process_identity(pid)
+            alive = current_identity is not None
+            identity_ok = (saved_identity is not None and
+                           current_identity == saved_identity)
+            identity_verified = bool(token_ok and heartbeat_pid_ok and identity_ok)
+            return {'enabled': True, 'healthy': bool(identity_verified and fresh),
                     'pid': pid, 'alive': alive, 'heartbeat_fresh': fresh,
-                    'identity_verified': token_ok}
+                    'identity_verified': identity_verified}
         except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError):
             return {'enabled': True, 'healthy': False,
                     'error': 'registration worker PID/heartbeat is missing or invalid'}
@@ -2274,8 +2386,29 @@ http {
                                    creationflags=creationflags, env=environment,
                                    start_new_session=(os.name != 'nt'))
         log.close()
+        identity = None
+        for _ in range(20):
+            if process.poll() is not None:
+                break
+            identity = _process_identity(process.pid)
+            if identity is not None:
+                break
+            time.sleep(.1)
+        if identity is None:
+            try:
+                process.terminate()
+                process.wait(timeout=5)
+            except (OSError, subprocess.SubprocessError, subprocess.TimeoutExpired):
+                try:
+                    process.kill()
+                except OSError:
+                    pass
+            self.registration_heartbeat_path.unlink(missing_ok=True)
+            raise LifecycleError('registration worker process identity could not be verified; '
+                                 'the worker was stopped before publishing a PID record')
         _write_private(self.registration_pid_path, json.dumps({
-            'pid': process.pid, 'token': token, 'started': time.time()}) + '\n')
+            'pid': process.pid, 'token': token, 'started': time.time(),
+            'identity': identity}) + '\n')
         for _ in range(50):
             status = self._registration_worker_status()
             if status.get('healthy'):

@@ -544,6 +544,45 @@ services:
       - source: vnc_password_desktop-slot30
         target: vnc_password
 
+  desktop-slot31:
+    <<: *desktop
+    volumes:
+      - ${RIDGE_CASE_DIR:?Set verified prepared case directory}:/opt/silent-ridge/prepared-case:ro
+      - ${RIDGE_EVIDENCE_DIR:?Set published evidence directory}:/evidence:ro
+      - ${RIDGE_ORIGINALS_DIR:?Set original evidence directory}:/originals:ro
+      - desktop-slot31-cases:/home/participant/Cases
+      - desktop-slot31-workspace:/home/participant/Workspace
+      - desktop-slot31-scratch:/home/participant/Scratch
+    secrets:
+      - source: vnc_password_desktop-slot31
+        target: vnc_password
+
+  desktop-slot32:
+    <<: *desktop
+    volumes:
+      - ${RIDGE_CASE_DIR:?Set verified prepared case directory}:/opt/silent-ridge/prepared-case:ro
+      - ${RIDGE_EVIDENCE_DIR:?Set published evidence directory}:/evidence:ro
+      - ${RIDGE_ORIGINALS_DIR:?Set original evidence directory}:/originals:ro
+      - desktop-slot32-cases:/home/participant/Cases
+      - desktop-slot32-workspace:/home/participant/Workspace
+      - desktop-slot32-scratch:/home/participant/Scratch
+    secrets:
+      - source: vnc_password_desktop-slot32
+        target: vnc_password
+
+  desktop-slot33:
+    <<: *desktop
+    volumes:
+      - ${RIDGE_CASE_DIR:?Set verified prepared case directory}:/opt/silent-ridge/prepared-case:ro
+      - ${RIDGE_EVIDENCE_DIR:?Set published evidence directory}:/evidence:ro
+      - ${RIDGE_ORIGINALS_DIR:?Set original evidence directory}:/originals:ro
+      - desktop-slot33-cases:/home/participant/Cases
+      - desktop-slot33-workspace:/home/participant/Workspace
+      - desktop-slot33-scratch:/home/participant/Scratch
+    secrets:
+      - source: vnc_password_desktop-slot33
+        target: vnc_password
+
 secrets:
   vnc_password_team01:
     file: ${RIDGE_VNC_PASSWORD_DIR:?Set private per-team VNC password directory}/team01
@@ -654,6 +693,15 @@ secrets:
 
   vnc_password_desktop-slot30:
     file: ${RIDGE_VNC_PASSWORD_DIR:?Set private per-slot VNC password directory}/desktop-slot30
+
+  vnc_password_desktop-slot31:
+    file: ${RIDGE_VNC_PASSWORD_DIR:?Set private per-slot VNC password directory}/desktop-slot31
+
+  vnc_password_desktop-slot32:
+    file: ${RIDGE_VNC_PASSWORD_DIR:?Set private per-slot VNC password directory}/desktop-slot32
+
+  vnc_password_desktop-slot33:
+    file: ${RIDGE_VNC_PASSWORD_DIR:?Set private per-slot VNC password directory}/desktop-slot33
 
 volumes:
   team01-cases:
@@ -776,6 +824,15 @@ volumes:
   desktop-slot30-cases:
   desktop-slot30-workspace:
   desktop-slot30-scratch:
+  desktop-slot31-cases:
+  desktop-slot31-workspace:
+  desktop-slot31-scratch:
+  desktop-slot32-cases:
+  desktop-slot32-workspace:
+  desktop-slot32-scratch:
+  desktop-slot33-cases:
+  desktop-slot33-workspace:
+  desktop-slot33-scratch:
 
 networks:
   desktop:

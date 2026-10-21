@@ -1,9 +1,15 @@
-# Event-day command sheet
+# Operator installation and recovery command sheet
 
-One page, cold machine → running event → teardown. Tested end-to-end on the
-dev host (dress rehearsal, 2026-09-23). Replace `<LAN-IP>` with the event
-machine's LAN address and `R` with your chosen runtime directory (private —
-it holds secrets and state; never commit it).
+This is the command reference for one-time installation, operator recovery and
+post-event teardown. It is **not** the normal facilitator path. After the two
+boot tasks have passed their worker-first reboot test, event day requires no
+server commands: power on the worker, power on the primary, wait for the
+registration page, present the opening deck, and tell teams to begin. The
+primary boot task performs `up` and `start`.
+
+For preparation and recovery, replace `<LAN-IP>` with the primary's LAN address
+and `R` with the private runtime directory. It holds secrets and state; never
+commit it.
 
 Timings are honest: first `up` takes 10–20 minutes including image loads.
 Guacd now probes every 10 seconds. Re-run any `up` that reports "services not
@@ -12,12 +18,14 @@ ready" — it is an idempotent reconcile, not a failure.
 ## 0. One-time host prep (before event week)
 
 **On a fresh machine, use the fully spelled-out copy-paste version of this
-section: `docs/event-machine-cold-start.md` (tailored to the
-`v0.10.0-rehearsal` release assets).** The summary below is the reference.
+section: `docs/event-machine-cold-start.md`, using the release that contains
+this profile and its 33-slot Compose pool.** The summary below is the reference.
 
 - Docker Desktop / Docker Engine running, Python 3.11+, Git + Git LFS
-- 32 GB RAM / 16 cores minimum for 10 teams (validated by the capacity
-  model with 20% memory headroom; 64 GB is comfortable)
+- Capacity is profile- and hardware-bounded. The current 33-slot / eleven-team
+  event uses two physical 64 GB, 20-thread hosts with measured safe Docker
+  allocations of 49152 MiB on the primary and 51200 MiB on the worker, while
+  retaining 20% memory headroom.
 - **Install from the offline release bundle** (the supported cold path):
   download every asset of the latest release, assemble the bundle directory
   exactly as its release notes show, then from a repo checkout run
@@ -39,28 +47,43 @@ container images, not the content assets; the full content pipeline is a
 developer path documented in `docs/handoff/BUILD-FIRST.md`. Event hosts
 should use the bundle.)
 
-## 1. Profile (once per host)
+## 1. Current two-host profile (one-time preparation)
 
-From `<install-dir>/source`, copy `deployment/profiles/example-dynamic.json`
-to `../event-profile.json` and edit
-**only**:
+From `<install-dir>/source`, copy
+`deployment/profiles/example-dynamic-two-host-11-team.json` to
+`../event-profile.json`. It contains exactly 33 slots: `desktop-slot01` through
+`desktop-slot13` on the primary and `desktop-slot14` through
+`desktop-slot33` on `worker-02`, using worker VNC ports 5901–5920. Edit only:
 
 - `event.event_start` / `duration_minutes`
 - `addresses`: set `central_bind_ip` to `<LAN-IP>` and use
   `https://iris.cyberexperts.org`, `https://ctfd.cyberexperts.org`, and
   `https://guac.cyberexperts.org` for the three public URLs. Wazuh uses
   `https://wazuh.cyberexperts.org`.
+- the worker address only if it is not `192.168.1.3`;
+- declared capacity only after measuring a different host.
 
 For the dynamic profile, do **not** add a roster and do **not** pass `--teams`:
-the registration page admits up to ten teams at runtime. Each registered team
+the registration page admits the profile's validated `max_teams`. The current
+Compose pool and profile contain 33 exact slots, so they represent at most
+eleven teams. This is capacity-valid, not yet performance-certified; retain
+that qualification until the human/load rehearsal passes. Each registered team
 gets five participant seats and three GUI-only desktop slots. The landing page
 is `https://ctfd.cyberexperts.org/silent-ridge/register`.
 
-## 2. Runtime local.json (once per host)
+## 2. Primary runtime local.json (one-time preparation)
 
-Copy `<install-dir>/runtime-local.example.json` to `R/local.json`, then replace
-`REPLACE_WITH_LAN_IP` with the event host's LAN address. The generated file
-already points at the asset directories materialized in step 0:
+Copy `deployment/examples/two-host-11-team.local.example.json` to
+`R/local.json`. It already contains the `worker-02` Docker context, worker asset
+paths, all 20 Guacamole relay mappings, and the normal external-TLS shape. Edit:
+
+- `bind_ip` and asset paths for the installed primary;
+- the worker asset and VNC-password paths if its installation differs;
+- `guacamole_relay.source_cidr` to the measured Docker network containing
+  `guacd`;
+- the wildcard full-chain and private-key paths.
+
+The relevant top-level structure is:
 
 ```json
 {
@@ -74,9 +97,14 @@ already points at the asset directories materialized in step 0:
   },
   "ports": {"crl": 8080, "iris": 8081, "ctfd": 8083, "guac": 8082,
             "wazuh_dashboard": 8443, "wazuh_indexer": 9200},
-  "index_name": "silent-ridge-oct26"
+  "index_name": "silent-ridge-oct26",
+  "tls": {"mode": "external", "certificate": "...", "key": "..."},
+  "desktop_workers": {"worker-02": {"docker_context": "ridge-worker-02"}}
 }
 ```
+
+Do not remove the full worker/relay maps from the reusable example. The
+abbreviated object above is orientation only.
 
 Keep the `wazuh_config` directory and the runtime secrets from the same
 generation (it embeds the hashed admin password; a mismatch fails with
@@ -84,7 +112,7 @@ HTTP 401 from the indexer job). After first boot, editing the file or secret
 and restarting does **not** rotate the live security-index credential. Use
 [Wazuh admin rotation](wazuh-admin-rotation.md) during maintenance instead.
 
-## 3. Bring the event up (T-minus ~30 min)
+## 3. Prove the installation before event day
 
 ```bash
 python -m ridge.deploy doctor --profile event-profile.json --runtime R
@@ -110,8 +138,13 @@ a private retrieval link containing its IRIS, CTFd, and Guacamole credentials
 plus the exact names of its three role-specific desktop connections. Do not hand out
 `R/secrets/team-credentials.json`; it remains an operator recovery artifact.
 
-With the default generated TLS mode, after `up` generates the final
-certificates and before any participant login, run
+The normal current-event path uses the pre-issued
+`*.cyberexperts.org` certificate with `tls.mode: external`. All four public
+names resolve locally to the primary and use port 443; no participant CA
+installation or Internet access is required on event day.
+
+Generated TLS is a fallback only. If external TLS cannot be used, after `up`
+generates the final certificates and before any participant login, run
 `python scripts/export_participant_ca.py --runtime R --output <new-pack>`.
 Follow [participant CA trust](participant-ca-trust.md): distribute the public
 certificate over a trusted offline channel, independently verify its SHA-256
@@ -121,18 +154,18 @@ participant devices; it is the signed offline CRL embedded in every generated
 participant certificate. Do not ask participants to click through TLS warnings
 or disable revocation checks.
 
-For a pre-issued public certificate, follow
-[public HTTPS certificates](external-tls.md) before `up`, set `tls.mode` to
-`external` in the host-local `R/local.json`, and make the configured hostnames
-resolve to the event server's LAN address. No participant CA installation or
-Internet access is needed on event day; the certificate must already be valid
-and the names must resolve locally.
+Certificate installation and local name resolution are detailed in
+[public HTTPS certificates](external-tls.md). The certificate must already be
+valid and the names must resolve locally before the reboot acceptance test.
 
-## 4. Start the event
+## 4. Normal event-day start: no commands
 
-```bash
-python -m ridge.deploy start --profile event-profile.json --runtime R
-```
+Power on the worker first, then the primary. Boot automation waits for both
+Docker engines, runs the safe `up`/`start` sequence, and retries bounded
+failures. Do not also run `doctor`, `up`, `status`, or `start`. If the
+registration page does not appear, give the operator
+`C:\ProgramData\SilentRidge\logs\primary-boot.log` and use this sheet only for
+operator recovery.
 
 Project opening slide 5. It contains both the registration address and code:
 
@@ -141,7 +174,7 @@ https://ctfd.cyberexperts.org/silent-ridge/register
 SILENT-RIDGE
 ```
 
-Check registrations at any time:
+An operator may check registrations while diagnosing a problem:
 
 ```bash
 python -m ridge.deploy registration-status --profile event-profile.json --runtime R
@@ -175,28 +208,42 @@ python -m ridge.deploy pause --profile event-profile.json --runtime R   # freeze
 python -m ridge.cli --state R/state/state.sqlite recover T03 --team team-03 --generation 1 --operator EXCON --reason "..."
 ```
 
-Registration recovery is explicit and preserves the original reserved slots
-and passwords:
+Use one recovery procedure for a lost private page. Do not register a second
+team and do not invent or reset passwords:
 
 ```bash
 python -m ridge.deploy registration-status --profile event-profile.json --runtime R
-python -m ridge.deploy registration-retry --registration-id 3 --profile event-profile.json --runtime R
 python -m ridge.deploy registration-rotate-link --registration-id 3 --profile event-profile.json --runtime R
+```
+
+Identify the existing team in `registration-status`, rotate that registration's
+link, and send the newly printed private return URL directly to the captain.
+The old URL is invalid. The captain downloads the labelled handout, distributes
+one of the five individual CTFd seats to each teammate, and uses the labelled
+IRIS, Wazuh, Guacamole, and desktop details from that handout. Never give
+participants `R/secrets/team-credentials.json`.
+
+For a provisioning failure, repair the named service and retry the same
+registration so its reserved slots and generated credentials are preserved:
+
+```bash
+python -m ridge.deploy registration-retry --registration-id 3 --profile event-profile.json --runtime R
 # Cancel only when the team is abandoning the slot:
 python -m ridge.deploy registration-cancel --registration-id 3 --profile event-profile.json --runtime R
 ```
 
 Symptom → action table: `docs/runbook.md`.
 
-## 6. Capacity rehearsal (F03, before or during a quiet window)
+## 6. Capacity rehearsal (before event day, never during participant play)
 
 ```bash
 PYTHONPATH=. python -m expanded.load --config f03-config.json --duration 1800 --output work/f03/event-run
 ```
 
-Config template and acceptance checks: `docs/f03-rehearsal.md`. The run
-self-labels CERTIFYING only at 10 teams on a ≥32 GiB host. Manual desktop
-usability pass in parallel (open 2–3 desktops, launch Autopsy, search).
+Config template and acceptance checks: `docs/f03-rehearsal.md`. The 33-slot
+profile is representable and passes declared capacity validation, but eleven
+teams remain performance-uncertified until an eleven-team human/load run passes
+on the two event hosts. Include a manual desktop usability pass in parallel.
 
 ## 7. Teardown
 

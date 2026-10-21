@@ -3,12 +3,28 @@
 These run without CTFd or SQLAlchemy. The ORM adapter in
 integrations/ctfd_silent_ridge/provision.py requires live CTFd 3.7.7 (BLOCKED).
 """
+import importlib.util
+import sys
+import types
 import unittest
 from dataclasses import replace
+from pathlib import Path
 
 from ridge.ctfd_provision import (
     FacilitatorSpec, ProvisionError, ProvisionSpec, TeamSpec, UserSpec, preflight, provision,
 )
+
+try:
+    import click  # noqa: F401
+except ModuleNotFoundError:
+    click = types.ModuleType('click')
+    click.ClickException = type('ClickException', (RuntimeError,), {})
+    sys.modules['click'] = click
+
+ADAPTER_PATH = Path(__file__).resolve().parents[1] / 'integrations/ctfd_silent_ridge/provision.py'
+adapter_spec = importlib.util.spec_from_file_location('ctfd_registration_adapter', ADAPTER_PATH)
+ctfd_adapter = importlib.util.module_from_spec(adapter_spec)
+adapter_spec.loader.exec_module(ctfd_adapter)
 
 
 class FakeAdmin:
@@ -37,6 +53,17 @@ class FakeAdmin:
                             'password': password}
         return dict(self.teams[name])
 
+    def team_password_valid(self, team_id, password):
+        return any(row['id'] == team_id and row['password'] == password
+                   for row in self.teams.values())
+
+    def set_team_password(self, team_id, password):
+        for row in self.teams.values():
+            if row['id'] == team_id:
+                row['password'] = password
+                return
+        raise ValueError('Team does not exist')
+
     def find_user(self, name):
         row = self.users.get(name)
         return None if row is None else {'id': row['id'], 'name': row['name']}
@@ -47,6 +74,17 @@ class FakeAdmin:
         self.users[name] = {'id': self._next, 'name': name, 'email': email,
                             'password': password, 'team_id': None}
         return {'id': self._next, 'name': name}
+
+    def user_password_valid(self, user_id, password):
+        return any(row['id'] == user_id and row['password'] == password
+                   for row in self.users.values())
+
+    def set_user_password(self, user_id, password):
+        for row in self.users.values():
+            if row['id'] == user_id:
+                row['password'] = password
+                return
+        raise ValueError('User does not exist')
 
     def create_admin(self, name, email, password):
         row = self.create_user(name, email, password)
@@ -83,6 +121,33 @@ def spec():
 
 
 class CtfdProvisionTests(unittest.TestCase):
+    def test_dynamic_registration_updates_stale_team_and_user_passwords(self):
+        admin = FakeAdmin()
+        team = admin.create_team('Returning Team', 'stale-team-password')
+        user = admin.create_user('returning-seat', 'seat@example.test', 'stale-user-password')
+        admin.set_user_team(user['id'], team['id'])
+
+        reconciled_team = ctfd_adapter._find_or_create_team_for_registration(
+            admin, 'Returning Team', 'new-team-password')
+        reconciled_user = ctfd_adapter._find_or_create_user_for_registration(
+            admin, {'username': 'returning-seat', 'password': 'new-user-password'},
+            team['id'])
+
+        self.assertEqual(reconciled_team['id'], team['id'])
+        self.assertEqual(reconciled_user['id'], user['id'])
+        self.assertTrue(admin.team_password_valid(team['id'], 'new-team-password'))
+        self.assertTrue(admin.user_password_valid(user['id'], 'new-user-password'))
+
+    def test_dynamic_registration_fails_closed_when_password_cannot_converge(self):
+        admin = FakeAdmin()
+        team = admin.create_team('Returning Team', 'stale-team-password')
+        admin.set_team_password = lambda _team_id, _password: None
+        with self.assertRaisesRegex(ctfd_adapter.click.ClickException,
+                                    'CTFd team credential verification failed') as caught:
+            ctfd_adapter._find_or_create_team_for_registration(
+                admin, 'Returning Team', 'private-generated-password')
+        self.assertNotIn('private-generated-password', str(caught.exception))
+
     def test_facilitator_admin_is_idempotent_and_authenticates(self):
         admin = FakeAdmin()
         desired = replace(spec(), facilitator=FacilitatorSpec(
