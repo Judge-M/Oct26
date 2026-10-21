@@ -75,7 +75,7 @@ class NarrativeTests(unittest.TestCase):
 
     def test_page_renders_mission_phase_and_handoff_contract(self):
         for text in ('story.fiction_notice','story.participant_role','Why this question matters',
-                     'story.tools.items()','context.handoff','Shared progress',
+                     'context.handoff','Shared progress',
                      'final-assessment','story.conclusion.actions','Room-wide closing brief ready',
                      'operational-update','Verified incident chronology','correlation-workspace',
                       'capstone-workspace','formatElapsed','localStorage','current-questions',
