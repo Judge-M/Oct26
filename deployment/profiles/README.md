@@ -44,7 +44,7 @@ messages from `ProfileError` name the exact JSON field.
 
 `deployment/profiles/example-dynamic-two-host-11-team.json` is the current
 two-host reference shape: eleven teams, five members per team, three GUI-only
-desktops per team, 13 local slots, and 20 `worker-02` slots. Pair it with
+desktops per team, 14 local slots, and 19 `worker-02` slots. Pair it with
 `deployment/examples/two-host-11-team.local.example.json`; that host-local file
 contains the Docker context, worker paths, Guacamole relay map, and external TLS
 paths that do not belong in a reusable profile. The shape is capacity-valid and

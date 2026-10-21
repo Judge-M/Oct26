@@ -38,8 +38,8 @@ The automation is deliberately narrow:
 6. For the current event, begin with
    `deployment/profiles/example-dynamic-two-host-11-team.json` and
    `deployment/examples/two-host-11-team.local.example.json`. Confirm all 33
-   slots, the `ridge-worker-02` context, VNC ports 5901–5920, relay ports
-   15901–15920, and external wildcard TLS work before installing the tasks.
+   slots, the `ridge-worker-02` context, VNC ports 5901–5919, relay ports
+   15901–15919, and external wildcard TLS work before installing the tasks.
 
 Docker Desktop is a per-user product. The installer creates a separate logon
 task with an actual Task Scheduler `InteractiveToken` principal. Docker Desktop

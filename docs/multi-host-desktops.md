@@ -32,23 +32,25 @@ eleven-team profile must still place all 33 slots on hosts with enough declared
 CPU, memory, and disk.
 
 For the measured event hosts (two physical 64 GiB / 20-thread machines), the
-safe usable allocations are 48 GiB / 475 GiB on the primary and 50 GiB /
-475 GiB on the worker. The eleven-team layout places 13 slots on the primary
-and 20 on the worker. The primary also carries CTFd, IRIS, Wazuh,
+safe usable allocations are 18 event vCPUs / 48 GiB / 475 GiB on the primary
+and 19 event vCPUs / 50 GiB / 475 GiB on the worker, reserving host capacity
+for Windows and Docker Desktop. The eleven-team layout places 14 slots on the
+primary and 19 on the worker. The primary also carries CTFd, IRIS, Wazuh,
 Guacamole, and the integration services. Its Docker/WSL memory allocation must
 be at least 48 GiB. With the current 200 GiB central-disk and 15 GiB-per-desktop
-reservations, the primary's modeled requirement is 395 GiB; the worker's 20 slots consume its
-20-thread CPU allowance. A twelfth team would exceed the validated placement.
+reservations, the primary's modeled requirement is 410 GiB. Both hosts consume
+their declared event CPU allowance. A twelfth team would exceed the validated
+placement after the host reserve is applied.
 
 Declare each remote worker's usable capacity under `capacity.workers`:
 
 ```json
 "capacity": {
-  "host": {"vcpus": 20, "memory_mib": 49152, "disk_gib": 475},
+  "host": {"vcpus": 18, "memory_mib": 49152, "disk_gib": 475},
   "central": {"vcpus": 4, "memory_mib": 6144, "disk_gib": 200},
   "desktop": {"vcpus": 1, "memory_mib": 2048, "disk_gib": 15},
   "workers": {
-    "worker-02": {"vcpus": 20, "memory_mib": 51200, "disk_gib": 475}
+    "worker-02": {"vcpus": 19, "memory_mib": 51200, "disk_gib": 475}
   }
 }
 ```
@@ -57,8 +59,8 @@ The complete reusable pair is
 `deployment/profiles/example-dynamic-two-host-11-team.json` and
 `deployment/examples/two-host-11-team.local.example.json`. Use those files
 instead of expanding the abbreviated snippets below by hand. The pair maps the
-20 worker desktops to VNC ports 5901–5920 and their primary-host Guacamole
-relays to 15901–15920.
+19 worker desktops to VNC ports 5901–5919 and their primary-host Guacamole
+relays to 15901–15919.
 
 ## Profile placement
 
@@ -162,7 +164,7 @@ the relay ports from participant devices.
 
    ```powershell
    New-NetFirewallRule -DisplayName "Silent Ridge VNC from primary" `
-      -Direction Inbound -Action Allow -Protocol TCP -LocalPort 5901-5920 `
+      -Direction Inbound -Action Allow -Protocol TCP -LocalPort 5901-5919 `
      -RemoteAddress 192.168.1.200 -Profile Private
    ```
 

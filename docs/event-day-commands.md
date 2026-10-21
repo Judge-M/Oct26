@@ -52,8 +52,8 @@ should use the bundle.)
 From `<install-dir>/source`, copy
 `deployment/profiles/example-dynamic-two-host-11-team.json` to
 `../event-profile.json`. It contains exactly 33 slots: `desktop-slot01` through
-`desktop-slot13` on the primary and `desktop-slot14` through
-`desktop-slot33` on `worker-02`, using worker VNC ports 5901–5920. Edit only:
+`desktop-slot14` on the primary and `desktop-slot15` through
+`desktop-slot33` on `worker-02`, using worker VNC ports 5901–5919. Edit only:
 
 - `event.event_start` / `duration_minutes`
 - `addresses`: set `central_bind_ip` to `<LAN-IP>` and use
