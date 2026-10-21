@@ -45,6 +45,9 @@ body{font:16px system-ui,sans-serif;max-width:960px;margin:2rem auto;padding:0 1
 main{border:1px solid #ccd6df;border-radius:12px;padding:2rem;box-shadow:0 4px 18px #0001}
 h1{margin-top:0}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem}
 .card{background:#f4f7fa;border-radius:8px;padding:1rem}.error{background:#fee9e7;color:#8c1d18;padding:1rem;border-radius:8px}
+.start{background:#eaf2fb;border-left:5px solid #1257a6;border-radius:8px;padding:1rem 1.25rem;margin:1.25rem 0}
+.start h2{margin-top:0}.start ol{padding-left:1.4rem}.start li{margin:.65rem 0;line-height:1.45}
+.notice{background:#fff6cf;border-radius:8px;padding:.85rem 1rem;margin:1rem 0}.compact li{margin:.45rem 0}
 label{display:block;font-weight:600;margin:.8rem 0}.field{display:block;width:100%;box-sizing:border-box;padding:.65rem;border:1px solid #aab7c4;border-radius:6px;font-size:1rem}
 button{margin-top:1rem;padding:.7rem 1.2rem;border:0;border-radius:6px;background:#1257a6;color:#fff;font-weight:700;cursor:pointer}
 code{background:#eef1f4;padding:.15rem .3rem;border-radius:4px}.secret{font-family:ui-monospace,monospace;background:#fff6cf;padding:.15rem .3rem}
@@ -62,7 +65,23 @@ persistent handout.</p>
   <div class="card"><strong>Three GUI workstations</strong><br>Two Autopsy seats plus one Wireshark/Cutter/Linux seat.</div>
   <div class="card"><strong>Five seats</strong><br>Each team receives five participant CTFd accounts.</div>
 </div>
+<section class="start">
+  <h2>Start here</h2>
+  <ol>
+    <li><strong>Register once.</strong> One captain enters the team name, a contact name, and the enrollment code below.</li>
+    <li><strong>Save the private handout.</strong> Bookmark its retrieval link and use <em>Print / save handout</em>. It is the way back to every generated login.</li>
+    <li><strong>Work from your own laptop browser.</strong> Use IRIS to claim tickets, CTFd to answer questions and view help, and Wazuh to search the prepared telemetry.</li>
+    <li><strong>Use Guacamole only for investigation tools.</strong> Open the three team desktops for Autopsy, Wireshark, Cutter, and the evidence files. Do not browse ordinary websites inside those desktops.</li>
+    <li><strong>Repeat the investigation loop.</strong> Claim in IRIS, investigate the named evidence, answer in CTFd, and read the verified finding that publishes back to IRIS.</li>
+  </ol>
+</section>
+<div class="grid">
+  <div class="card"><strong>Scoring and help</strong><br>Wrong answers cost nothing. Help 1 and Help 2 are free. Help 3 gives the full walkthrough and reduces that question from 4 points to 1.</div>
+  <div class="card"><strong>Read-only work</strong><br>Do not execute recovered programs, scan or contact external systems, or change the original evidence.</div>
+  <div class="card"><strong>Need a facilitator?</strong><br>Raise a hand for a lost retrieval link, failed login, stuck desktop, or service outage. Your accepted answers are retained.</div>
+</div>
 {% if error %}<p class="error">{{ error }}</p>{% endif %}
+<h2>Register your team</h2>
 <form method="post">
 <input type="hidden" name="nonce" value="{{ nonce }}">
 <label>Team name<input class="field" name="team_name" maxlength="48" required value="{{ team_name }}"></label>
@@ -79,6 +98,17 @@ persistent handout.</p>
 <h1>{{ registration.team_name }} — team handout</h1>
 <p>Registration is complete. Bookmark or print this page. Do not post these passwords in a public chat.</p>
 <div class="actions no-print"><button type="button" onclick="window.print()">Print / save handout</button><button type="button" onclick="copyAll()">Copy all credentials</button></div>
+<section class="start">
+  <h2>Your first five moves</h2>
+  <ol>
+    <li>Every participant chooses one personal CTFd seat below and signs in. Do not use the IRIS team login in CTFd.</li>
+    <li>One teammate opens IRIS with the team login and confirms that the incident queue appears.</li>
+    <li>Open the prepared Wazuh view in a normal laptop browser. Use its historical time range when a question names Wazuh.</li>
+    <li>Open Guacamole, divide the three desktop connections across the team, and use them only for the evidence tools.</li>
+    <li>Claim one available IRIS ticket, open its questions in CTFd, investigate the named evidence, and submit only the requested value.</li>
+  </ol>
+</section>
+<p class="notice"><strong>Keep this page open.</strong> It is your permanent credential and recovery sheet. Help 1 and 2 are free; Help 3 is the full walkthrough and leaves the question worth 1 point.</p>
 <h2>Browser services</h2>
 <div class="table-wrap"><table><tr><th>Service</th><th>URL</th><th>Username</th><th>Password</th></tr>
 <tr><td>IRIS</td><td><a href="{{ iris_url }}">{{ iris_url }}</a></td><td><code data-copy>{{ credentials.iris.username }}</code></td><td><span class="secret" data-copy>{{ credentials.iris.password }}</span></td></tr>

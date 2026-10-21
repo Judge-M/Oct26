@@ -60,12 +60,12 @@ class PresenterLandingTests(unittest.TestCase):
     def test_deck_and_operator_docs_are_linked(self):
         text = page()
         hrefs = set(local_hrefs(text))
-        # The deck, front and center, opening in its own window.
-        self.assertIn('event-day-deck/event-day-deck.pdf', hrefs)
-        self.assertRegex(
-            text,
-            r'href="event-day-deck/event-day-deck\.pdf"[^>]*target="_blank"',
-        )
+        # Both room briefs and both application-native formats are front and center.
+        for deck in ('event-day-deck/opening-brief.pptx',
+                     'event-day-deck/opening-brief.odp',
+                     'event-day-deck/closing-brief.pptx',
+                     'event-day-deck/closing-brief.odp'):
+            self.assertIn(deck, hrefs)
         for doc in ('event-day-commands.md', 'runbook.md',
                     'participant-ca-trust.md', 'event-machine-cold-start.md',
                     'dress-rehearsal-plan.md', 'schedule-model.md'):
@@ -137,8 +137,10 @@ class PresenterLandingTests(unittest.TestCase):
         self.assertNotIn('Participant deck PDF and facilitator runbook copied',
                          plan)
         self.assertIn('docs/presenter-landing.html', plan)
-        # The walkthrough now validates the page against the deck.
-        self.assertIn('<event-address>', plan)
+        # The walkthrough now validates the participant landing page against
+        # the live service URLs instead of duplicating setup in the deck.
+        self.assertIn('participant landing page', plan)
+        self.assertIn('displayed URLs match the running services', plan)
 
     def test_readme_links_the_page(self):
         self.assertIn('docs/presenter-landing.html', read('README.md'))

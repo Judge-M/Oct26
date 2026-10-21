@@ -12,106 +12,34 @@ This repository contains the full event: the authored scenario and evidence,
 the tooling that builds and runs it, the participant materials, and the
 facilitator guides.
 
-## Start here
+## Running the event? Start here
 
-### Event organizer: fastest supported path
+**Open [Run Operation Silent Ridge](docs/START-HERE.md) and follow it from top
+to bottom.** It assumes the operator has never seen this repository. It covers
+the server, network, registration, projector brief, live controls, closing
+brief, backup and shutdown in event order.
 
-1. **Prepare the event network first.** Give the event host a stable LAN
-   address. For public HTTPS mode, configure the event network's DHCP to hand
-   out the event DNS service, with these names resolving to the event host:
+Keep these open on event day:
 
-   ```text
-   ctfd.cyberexperts.org   192.168.1.200
-   iris.cyberexperts.org   192.168.1.200
-   guac.cyberexperts.org   192.168.1.200
-   wazuh.cyberexperts.org  192.168.1.200
-   ```
+| What you need | File |
+|---|---|
+| One complete beginner checklist | [Run Operation Silent Ridge](docs/START-HERE.md) |
+| Exact command reference | [Event-day command sheet](docs/event-day-commands.md) |
+| Opening room brief with embedded intro video | [Opening PowerPoint](docs/event-day-deck/opening-brief.pptx) or [LibreOffice ODP](docs/event-day-deck/opening-brief.odp) |
+| Closing room brief, outro and winner reveal | [Closing PowerPoint](docs/event-day-deck/closing-brief.pptx) or [LibreOffice ODP](docs/event-day-deck/closing-brief.odp) |
+| Troubleshooting during play | [Operator runbook](docs/runbook.md) |
 
-   Use an event-owned router/access point when possible. Do not run a second
-   DHCP server on a shared venue network. If the venue DNS/DHCP cannot be
-   changed, use the hosts-file onboarding fallback described in
-   [public HTTPS certificates](docs/external-tls.md).
-2. **Install the offline release bundle** from the
-   [latest release](https://github.com/Judge-M/Oct26/releases). This is the
-   event-day path; source builds are for a connected preparation machine.
-3. **Configure the private runtime.** Copy the example runtime configuration,
-   set the host address and asset paths, and follow the
-   [event-day command sheet](docs/event-day-commands.md). If using the trusted
-   wildcard certificate, configure it before `up` using
-   [public HTTPS certificates](docs/external-tls.md). Never commit the private
-   key or runtime secrets.
-4. **Provision and start the event.** For fixed teams, run `up --teams N`.
-   For self-service registration, use `deployment/profiles/example-dynamic.json`
-   and do not pass `--teams`:
+Do not build from source on event day. Install the published offline release
+bundle, keep runtime secrets outside the repository, and use the two room-wide
+brief decks. Use PPTX in PowerPoint and ODP in LibreOffice Impress.
 
-   ```bash
-   python -m ridge.deploy doctor --profile PROFILE --runtime RUNTIME
-   python -m ridge.deploy up --profile PROFILE --runtime RUNTIME
-   python -m ridge.deploy status --profile PROFILE --runtime RUNTIME
-   python -m ridge.deploy start --profile PROFILE --runtime RUNTIME
-   python -m ridge.deploy registration-open --profile PROFILE --runtime RUNTIME
-   ```
+### Participant start
 
-5. **Put the registration page on the screen.** In trusted public HTTPS mode,
-   open `https://ctfd.cyberexperts.org/silent-ridge/register` (or the CTFd
-   hostname configured in `local.json`). If you want a friendlier `event.`
-   alias, add it to the local DNS records and TLS hostnames before `up`. In
-   generated-CA mode, use
-   `https://HOST:8083/silent-ridge/register` after distributing the participant
-   CA. The page contains the initial brief and gives each registered team a
-   bookmarkable handout with five personal CTFd seats, its service credentials,
-   and the names of its three isolated desktop connections. Registration starts
-   closed; give captains the enrollment code from
-   `RUNTIME/secrets/registration-enrollment-code`, then open the window with the
-   command above.
-
-### Participant: how to begin
-
-Connect to the event network, open the registration URL provided by the
-organizer, read the initial brief, and register one team. Bookmark the private
-retrieval link shown after registration. Use the three Guacamole desktop links
-for GUI-only tools; use the IRIS, CTFd, and Wazuh links directly in browser tabs.
-No software should be installed on participant laptops in the containerized
-desktop path.
-
-## I want to run the event — where do I start?
-
-You do not need to know anything about how this project is built. You need
-one capable machine, Docker, and about half a day of preparation. Follow
-these steps in order; each one tells you when it is done.
-
-1. **Check your machine.** 32 GB RAM (64 GB comfortable), 16 CPU cores,
-   100 GB free SSD, Docker installed and running. Details and the
-   measurements behind these numbers:
-   [What you need to host it locally](#what-you-need-to-host-it-locally).
-2. **Get the software onto that machine.** Download the offline bundle
-   from the
-   [latest release](https://github.com/Judge-M/Oct26/releases) and install
-   it — no internet needed afterwards, and no build step. This is the
-   intended path for event day; the exact install commands are in the
-   [command sheet](docs/event-day-commands.md). (Building from source is a
-   developer path — see [Quick start](#quick-start).)
-3. **Bring the event up.** Follow
-   **[docs/event-day-commands.md](docs/event-day-commands.md)** — it is the
-   complete cold-machine → running-event → teardown checklist with exact
-   commands, written to be followed literally. It covers install, the
-   pre-flight check (`doctor`), starting the stack with your team count
-   (`up --teams N`), verifying it is ready, and what to hand out.
-4. **Brief the participants.** Project
-   **[docs/event-day-deck/event-day-deck.pdf](docs/event-day-deck/event-day-deck.pdf)**
-   — 13 slides that tell the story and walk participants through every
-   login, click by click, assuming zero prior knowledge. It is a plain PDF,
-   so it projects anywhere with no software to install. Hand each team its
-   account sheet (the command sheet says where those files are).
-5. **Run the day.** The command sheet covers starting the clock, messaging
-   all teams, pausing, and recovering a stuck team. The
-   [operator runbook](docs/runbook.md) is the one-page symptom → action
-   reference while the event is live.
-6. **Afterwards.** One command makes a verified backup; one more tears
-   down. See [Backup, restore, teardown](#backup-restore-teardown).
-
-If something breaks, the command sheet links the troubleshooting table, and
-the participant deck has a "what to try before raising a hand" slide.
+Connect to the event network and open the registration address shown by the
+facilitator. A team captain registers once and bookmarks the private retrieval
+page. That page contains the team's logins and three Guacamole desktop names.
+Use IRIS, CTFd and Wazuh in normal laptop browser tabs. Use Guacamole only for
+Autopsy, Wireshark, Cutter and the desktop file manager.
 
 ## What participants experience
 
@@ -245,9 +173,11 @@ docs, run-of-show, and runbook quick reference — one offline file.
 
 The [event-day command sheet](docs/event-day-commands.md) is the
 cold-machine → running-event → teardown checklist with exact commands.
-The [participant briefing deck](docs/event-day-deck/event-day-deck.pdf)
-(13 slides, PDF) is what you project at the start: it explains the
-scenario and walks participants through setup click by click.
+The [opening room brief](docs/event-day-deck/opening-brief.pptx) introduces the
+scenario and workflow, plays the introduction, then directs captains to the
+participant landing page. The [closing room brief](docs/event-day-deck/closing-brief.pptx)
+plays the final assessment and provides the winner-reveal slide. Native
+LibreOffice copies are stored beside both PowerPoint files.
 The [facilitator closing brief](docs/facilitator-closing-brief.md) is the
 canonical ending used after T20. Completion automatically reveals the final
 assessment and containment actions in CTFd and publishes the same assessment
@@ -321,7 +251,7 @@ late-October event, the remaining work is tracked in `docs/handoff/NEXT.md`:
 | `deployment/` | Container builds, compose files, example profiles |
 | `docs/` | Architecture, operations, and planning documents |
 | `docs/event-day-commands.md` | **Run the event**: cold-machine → teardown checklist |
-| `docs/event-day-deck/` | **Brief participants**: 13-slide setup + story deck |
+| `docs/event-day-deck/` | **Brief the room**: separate opening and closing decks with PowerPoint and LibreOffice copies |
 | `docs/presenter-landing.html` | **Event-day hub on the presenter PC**: deck + URLs + operator docs, offline |
 | `docs/handoff/` | **Start here when picking up work**: `NEXT.md` (current position), receipts, evidence, and task cards |
 | `tests/` | Automated test suite (`python -m unittest discover -s tests`) |
