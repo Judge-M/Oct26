@@ -1651,7 +1651,9 @@ http {
                 source = str(ipaddress.IPv4Network(relay['source_cidr'], strict=False))
                 self._run([
                     'powershell.exe', '-NoProfile', '-NonInteractive', '-Command',
-                    "Remove-NetFirewallRule -Name '%s' -ErrorAction SilentlyContinue" % rule,
+                    ("$existing = Get-NetFirewallRule -Name '%s' "
+                     "-ErrorAction SilentlyContinue; if ($null -ne $existing) { "
+                     "$existing | Remove-NetFirewallRule -ErrorAction Stop }") % rule,
                 ])
                 self._run([
                     'powershell.exe', '-NoProfile', '-NonInteractive', '-Command',
@@ -1718,7 +1720,9 @@ http {
             rule = self._guacamole_relay_rule_name(worker_id, relay_port)
             self._run([
                 'powershell.exe', '-NoProfile', '-NonInteractive', '-Command',
-                "Remove-NetFirewallRule -Name '%s' -ErrorAction SilentlyContinue" % rule,
+                ("$existing = Get-NetFirewallRule -Name '%s' "
+                 "-ErrorAction SilentlyContinue; if ($null -ne $existing) { "
+                 "$existing | Remove-NetFirewallRule -ErrorAction Stop }") % rule,
             ])
 
     def _dashboard_bind_ip(self):
