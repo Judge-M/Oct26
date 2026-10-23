@@ -522,7 +522,7 @@ class State:
               h.team hint_team FROM questions q JOIN team_tickets tt ON tt.ticket=q.ticket AND tt.team=?
               LEFT JOIN answers a ON a.question=q.id AND a.team=?
               LEFT JOIN hint_usage h ON h.question=q.id AND h.team=?
-              WHERE (tt.status='active' OR tt.status='complete') AND (? IS NULL OR q.id=?)''',
+              WHERE tt.status IN ('available','active','complete') AND (? IS NULL OR q.id=?)''',
               (team,team,team,question,question)).fetchall()
             if question and not rows:
                 raise PermissionError('Question is not available')
@@ -533,7 +533,7 @@ class State:
                 unlocked=row['hint_team'] is not None
                 body['hints']=hints if unlocked else hints[:-1]
                 result.append(dict(body, ticket=row['ticket'], solved_by=row['solver'],
-                    answered_at=row['timestamp'], answerable=row['status']=='active' and row['solver'] is None,
+                    answered_at=row['timestamp'], answerable=row['status'] in ('available','active') and row['solver'] is None,
                     finding=json.loads(row['finding']) if row['solver'] else None,
                     hint_unlocked=unlocked, paid_hint_available=bool(hints) and not unlocked,
                     full_points=FULL_QUESTION_POINTS,
@@ -549,8 +549,8 @@ class State:
                 FROM questions q JOIN team_tickets tt ON tt.ticket=q.ticket AND tt.team=?
                 LEFT JOIN answers a ON a.question=q.id AND a.team=? WHERE q.id=?''',
                 (team,team,question)).fetchone()
-            if row is None or row['owner'] != team or row['status'] != 'active' or row['solved']:
-                raise PermissionError('Claim the corresponding unsolved IRIS ticket first')
+            if row is None or row['status'] not in ('available','active') or row['solved']:
+                raise PermissionError('This question is not currently available')
             if not (json.loads(row['body']).get('hints') or []):
                 raise Conflict('This question has no explicit walkthrough')
             stamp=now()
@@ -571,9 +571,10 @@ class State:
             row = con.execute('''SELECT q.*,tt.team owner,tt.status FROM questions q
                 JOIN team_tickets tt ON q.ticket=tt.ticket AND tt.team=? WHERE q.id=?''',
                 (team,question)).fetchone()
-            # Ownership is checked before the correctness oracle, even on duplicate submissions.
-            if row is None or row['owner'] != team or row['status'] != 'active':
-                raise PermissionError('Claim the corresponding IRIS ticket first')
+            # Release availability is checked before the correctness oracle,
+            # even on duplicate submissions.
+            if row is None or row['status'] not in ('available','active'):
+                raise PermissionError('This question is not currently available')
             if con.execute('SELECT 1 FROM answers WHERE team=? AND question=?',
                            (team,question)).fetchone():
                 raise Conflict('Question already answered; points are preserved')

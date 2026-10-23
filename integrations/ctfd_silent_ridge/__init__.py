@@ -124,19 +124,19 @@ persistent handout.</p>
 {% elif view == 'pending' %}
 <h1>{{ registration.team_name }}</h1><p>Your team slot is reserved. The event host is starting your three workstations and creating the application accounts.</p>
 <p>Status: <strong id="registration-status">{{ registration.status }}</strong>. This page will update when provisioning finishes.</p>
-<section class="recovery"><h2>Save your private return link now</h2><p><a href="{{ retrieve_url }}">{{ retrieve_url }}</a></p><p>This unguessable link is the only participant-facing way back to your generated credentials. Bookmark it or copy it somewhere private.</p></section>
+<section class="recovery"><h2>Save your private return link now</h2><p><a href="{{ retrieve_url }}" target="_blank" rel="noopener">{{ retrieve_url }}</a></p><p>This unguessable link is the only participant-facing way back to your generated credentials. Bookmark it or copy it somewhere private.</p></section>
 <div class="actions"><button type="button" onclick="copyValue({{ retrieve_url|tojson }},'pending-copy-status')">Copy private return link</button><button type="button" onclick="location.reload()">Check now</button><span id="pending-copy-status" role="status"></span></div><script>async function copyValue(value,statusId){await navigator.clipboard.writeText(value);document.getElementById(statusId).textContent='Copied.';}setInterval(async()=>{try{const r=await fetch({{ status_url|tojson }},{cache:'no-store'}),s=await r.json();document.getElementById('registration-status').textContent=s.status;if(!['pending','provisioning'].includes(s.status))location.reload();}catch(e){}},5000);</script>
 {% elif view == 'needs_operator' %}
 <h1>{{ registration.team_name }} — facilitator assistance needed</h1>
 <p>Your team registration is saved, but automated setup could not finish. <strong>Raise your hand for a facilitator.</strong> Do not register again.</p>
-<section class="recovery"><h2>Keep your private return link</h2><p><a href="{{ retrieve_url }}">{{ retrieve_url }}</a></p><p>Bookmark or copy this link. Return to it after a facilitator repairs your team setup.</p></section>
+<section class="recovery"><h2>Keep your private return link</h2><p><a href="{{ retrieve_url }}" target="_blank" rel="noopener">{{ retrieve_url }}</a></p><p>Bookmark or copy this link. Return to it after a facilitator repairs your team setup.</p></section>
 <div class="actions"><button type="button" onclick="copyValue({{ retrieve_url|tojson }},'operator-copy-status')">Copy private return link</button><button type="button" onclick="location.reload()">Check again</button><span id="operator-copy-status" role="status"></span></div>
 <script>async function copyValue(value,statusId){await navigator.clipboard.writeText(value);document.getElementById(statusId).textContent='Copied.';}</script>
 {% elif view == 'ready' %}
 <h1>{{ registration.team_name }} — Team Handout</h1>
 <p>Registration is complete. Do not post this page, its link, or these passwords in a public chat.</p>
-<section class="recovery"><h2>Your permanent private return link</h2><p><a href="{{ retrieve_url }}">{{ retrieve_url }}</a></p><p>Bookmark this link. Anyone who has it can read your team credentials.</p></section>
-<div class="actions no-print"><button type="button" onclick="copyValue({{ retrieve_url|tojson }},'copy-status')">Copy return link</button><a class="button" href="{{ download_url }}" download>Download private handout</a><button type="button" onclick="window.print()">Print / save handout</button><button type="button" onclick="copyAll()">Copy labelled handout</button><span id="copy-status" role="status"></span></div>
+<section class="recovery"><h2>Your permanent private return link</h2><p><a href="{{ retrieve_url }}" target="_blank" rel="noopener">{{ retrieve_url }}</a></p><p>Bookmark this link. Anyone who has it can read your team credentials.</p></section>
+<div class="actions no-print"><button type="button" onclick="copyValue({{ retrieve_url|tojson }},'copy-status')">Copy return link</button><a class="button" href="{{ download_url }}" target="_blank" rel="noopener" download>Download private handout</a><button type="button" onclick="window.print()">Print / save handout</button><button type="button" onclick="copyAll()">Copy labelled handout</button><span id="copy-status" role="status"></span></div>
 <section class="start">
   <h2>Your first five moves</h2>
   <ol>
@@ -167,18 +167,18 @@ persistent handout.</p>
 <p class="notice"><strong>Keep this page open.</strong> It is your permanent credential and recovery sheet. Help 1 and 2 are free; Help 3 is the full walkthrough and leaves the question worth 1 point.</p>
 <h2>Browser services</h2>
 <div class="table-wrap"><table><tr><th>Service</th><th>URL</th><th>Username</th><th>Password</th></tr>
-<tr><td>IRIS</td><td><a href="{{ iris_url }}">{{ iris_url }}</a></td><td><code data-copy>{{ credentials.iris.username }}</code></td><td><span class="secret" data-copy>{{ credentials.iris.password }}</span></td></tr>
-  <tr><td>Wazuh Discover</td><td><a href="{{ wazuh_url }}">Open prepared telemetry view</a></td><td><code>{{ credentials.wazuh.username }}</code></td><td><span class="secret">{{ credentials.wazuh.password }}</span></td></tr>
+<tr><td>IRIS</td><td><a href="{{ iris_url }}" target="_blank" rel="noopener">{{ iris_url }}</a></td><td><code data-copy>{{ credentials.iris.username }}</code></td><td><span class="secret" data-copy>{{ credentials.iris.password }}</span></td></tr>
+  <tr><td>Wazuh Discover</td><td><a href="{{ wazuh_url }}" target="_blank" rel="noopener">Open prepared telemetry view</a></td><td><code>{{ credentials.wazuh.username }}</code></td><td><span class="secret">{{ credentials.wazuh.password }}</span></td></tr>
 </table></div>
 <h2>Participant CTFd seats</h2>
-<p>Open <a href="{{ ctfd_url }}">{{ ctfd_url }}</a>. CTFd requires one of the personal seat logins below. Your internal team ID is <code>{{ credentials.ctfd.team }}</code>; your seats are already attached to it, so there is no team join password to enter.</p>
-<p><strong>Live scoreboard:</strong> <a href="{{ scoreboard_url }}">{{ scoreboard_url }}</a></p>
+<p>Open <a href="{{ ctfd_url }}" target="_blank" rel="noopener">{{ ctfd_url }}</a>. CTFd requires one of the personal seat logins below. Your internal team ID is <code>{{ credentials.ctfd.team }}</code>; your seats are already attached to it, so there is no team join password to enter.</p>
+<p><strong>Live scoreboard:</strong> <a href="{{ scoreboard_url }}" target="_blank" rel="noopener">{{ scoreboard_url }}</a></p>
 <div class="table-wrap"><table><tr><th>Seat</th><th>Username</th><th>Password</th></tr>
 {% for member in credentials.ctfd.members %}<tr><td>{{ loop.index }}</td><td><code data-copy>{{ member.username }}</code></td><td><span class="secret" data-copy>{{ member.password }}</span></td></tr>{% endfor %}
 </table></div>
 <h2>GUI workstations</h2>
   <p>Log into Guacamole once with the account below. The three investigators each take one desktop; the coordinator works in IRIS and CTFd. All three desktops contain the complete evidence toolbox. <strong>No separate VNC or desktop password is needed:</strong> Guacamole provides the participant-facing connection.</p>
-<p>Guacamole username: <code data-copy>{{ credentials.guacamole.username }}</code><br>Password: <span class="secret" data-copy>{{ credentials.guacamole.password }}</span><br><a href="{{ guac_url }}">Open Guacamole</a></p>
+<p>Guacamole username: <code data-copy>{{ credentials.guacamole.username }}</code><br>Password: <span class="secret" data-copy>{{ credentials.guacamole.password }}</span><br><a href="{{ guac_url }}" target="_blank" rel="noopener">Open Guacamole</a></p>
   <div class="table-wrap"><table><tr><th>Connection name</th><th>Suggested role</th><th>Best starting work</th><th>Installed tools</th></tr>
   {% for desktop in registration.result.desktop_urls %}<tr><td><code>{{ desktop.connection_name }}</code></td><td>{{ desktop.name }}</td><td>{{ desktop.guidance }}</td><td>{{ desktop.tools|join(', ') }}</td></tr>{% endfor %}
 </table></div>
