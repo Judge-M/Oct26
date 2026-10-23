@@ -2162,8 +2162,9 @@ http {
         """Run argv with stdin text through the real subprocess runner."""
         if hasattr(self.runner, 'run_stdin'):
             return self.runner.run_stdin([str(a) for a in argv], text, check=True)
+        creationflags = getattr(subprocess, 'CREATE_NO_WINDOW', 0) if os.name == 'nt' else 0
         completed = subprocess.run([str(a) for a in argv], input=text, capture_output=True,
-                                   text=True, timeout=120)
+                                   text=True, timeout=120, creationflags=creationflags)
         if completed.returncode != 0:
             raise LifecycleError('provisioning SQL failed: %s' % completed.stderr.strip()[:300])
         return completed.stdout.strip()
@@ -2384,7 +2385,8 @@ http {
         (self.runtime / 'registration-profile.json').write_text(
             json.dumps(self.profile, indent=2), encoding='utf-8')
         creationflags = (getattr(subprocess, 'CREATE_NEW_PROCESS_GROUP', 0) |
-                         getattr(subprocess, 'DETACHED_PROCESS', 0))
+                         getattr(subprocess, 'DETACHED_PROCESS', 0) |
+                         getattr(subprocess, 'CREATE_NO_WINDOW', 0))
         token = self.host.randhex(24)
         environment = dict(os.environ, RIDGE_REGISTRATION_WORKER_TOKEN=token)
         process = subprocess.Popen(command, cwd=str(ROOT), stdout=log, stderr=log,
