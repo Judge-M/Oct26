@@ -482,6 +482,8 @@ class LifecycleTests(unittest.TestCase):
         iris_env = (self.runtime / 'env' / 'iris.env').read_text(encoding='utf-8')
         self.assertIn('POSTGRES_USER=postgres', iris_env)
         self.assertIn('POSTGRES_ADMIN_USER=iris', iris_env)
+        self.assertIn('IRIS_ADM_USERNAME=admin', iris_env)
+        self.assertIn('IRIS_ADM_PASSWORD=Access4n/a', iris_env)
         central_env = (self.runtime / 'env' / 'central.env').read_text(encoding='utf-8')
         for rendered in (ctfd_env, central_env):
             self.assertIn('CTFD_SESSION_COOKIE_NAME=silent_ridge_ctfd_session', rendered)
@@ -489,16 +491,15 @@ class LifecycleTests(unittest.TestCase):
         facilitator = json.loads((self.runtime / 'specs' / 'ctfd-provision-spec.json')
                                  .read_text(encoding='utf-8'))['facilitator']
         self.assertEqual(facilitator['name'], 'admin')
-        self.assertEqual(facilitator['password'],
-                         (self.runtime / 'secrets' / 'ctfd-facilitator-password')
-                         .read_text(encoding='utf-8').strip())
+        self.assertEqual(facilitator['password'], 'Access4n/a')
         guac = json.loads((self.runtime / 'specs' / 'guac-credentials.json')
                           .read_text(encoding='utf-8'))
         self.assertEqual(guac['facilitator']['username'], 'admin')
+        self.assertEqual(guac['facilitator']['password'], 'Access4n/a')
         wazuh_admin = (self.runtime / 'secrets' / 'wazuh_admin').read_text().strip()
         wazuh_writer = (self.runtime / 'secrets' / 'wazuh_writer').read_text().strip()
         wazuh_reader = (self.runtime / 'secrets' / 'wazuh_reader').read_text().strip()
-        self.assertTrue(wazuh_admin.startswith('admin:'))
+        self.assertEqual(wazuh_admin, 'admin:Access4n/a')
         self.assertTrue(wazuh_writer.startswith('writer:'))
         self.assertTrue(wazuh_reader.startswith('participant:'))
         self.assertNotEqual(wazuh_admin, 'admin:admin')

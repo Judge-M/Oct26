@@ -7,7 +7,6 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $PasswordSha256 = 'eab97514e6ec29e4bbe85dbaea651488926caef3932e82fc11b2c14ed7987e72'
-$FacilitatorPassword = 'Access4n/a'
 
 function Show-Message([string]$Text, [string]$Title, [System.Windows.Forms.MessageBoxIcon]$Icon) {
     [void][System.Windows.Forms.MessageBox]::Show(
@@ -178,17 +177,6 @@ try {
     [IO.File]::WriteAllText((Join-Path $runtime 'registration-profile.json'), $profileText)
     [IO.File]::WriteAllText((Join-Path $runtime 'local.json'), $localText)
     [IO.File]::WriteAllText((Join-Path $runtime 'secrets\recovery-backup-key.txt'), $keyText)
-    foreach ($secretName in @(
-        'ctfd-facilitator-password',
-        'iris-admin-password',
-        'guac-facilitator-password'
-    )) {
-        [IO.File]::WriteAllText(
-            (Join-Path $runtime "secrets\$secretName"),
-            "$FacilitatorPassword`n"
-        )
-    }
-
     Push-Location $source
     & .\ridge.ps1 up -Profile (Join-Path $runtime 'registration-profile.json') -Runtime $runtime -Operator 'facilitator-reset'
     if ($LASTEXITCODE -ne 0) { throw 'The archived run is safe, but the clean rehearsal did not start.' }

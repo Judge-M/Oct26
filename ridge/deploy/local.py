@@ -82,6 +82,8 @@ APP_SERVICES = {
     'central': ['iris', 'iris-worker', 'ctfd', 'participant-tls'],
 }
 IMAGE_COMPONENTS = ('iris', 'ctfd', 'integration', 'desktop')
+FACILITATOR_USERNAME = 'admin'
+FACILITATOR_PASSWORD = 'Access4n/a'
 
 
 def _windows_process_exists(pid):
@@ -1054,15 +1056,15 @@ http {
         vnc_dir.mkdir(exist_ok=True)
         for name in SECRET_FILES:
             _write_private(self.secrets_dir / name, self.host.randhex(24) + '\n')
-        # Administrative and participant-service credentials are random even on
-        # an isolated classroom LAN. Friendly participant identities do not
-        # require predictable privileged passwords.
-        _write_private(self.secrets_dir / 'iris-admin-password', self.host.randhex(24) + '\n')
+        # Facilitators use one memorable room credential across the four admin
+        # interfaces. Internal service and database credentials remain random.
+        _write_private(self.secrets_dir / 'iris-admin-password',
+                       FACILITATOR_PASSWORD + '\n')
         # Wazuh credentials are "username:password". These are the accounts
         # shown to organizers/participants; machine-to-machine API secrets are
         # still generated independently below.
         _write_private(self.secrets_dir / 'wazuh_admin',
-                       'admin:' + self.host.randhex(24))
+                       FACILITATOR_USERNAME + ':' + FACILITATOR_PASSWORD)
         _write_private(self.secrets_dir / 'wazuh_writer',
                        'writer:' + self.host.randhex(24))
         _write_private(self.secrets_dir / 'wazuh_reader',
@@ -1115,7 +1117,7 @@ http {
             raise LifecycleError('partial facilitator secrets; restore the runtime before '
                                  'continuing')
         for name in missing:
-            _write_private(self.secrets_dir / name, self.host.randhex(24) + '\n')
+            _write_private(self.secrets_dir / name, FACILITATOR_PASSWORD + '\n')
         _write_private(marker, 'ready\n')
 
     def _ensure_registration_enrollment_code(self):
@@ -1173,6 +1175,7 @@ http {
             'POSTGRES_DB': 'iris_db',
             'POSTGRES_ADMIN_USER': 'iris', 'POSTGRES_ADMIN_PASSWORD': postgres_pw,
             'POSTGRES_SERVER': 'iris-db', 'POSTGRES_PORT': '5432',
+            'IRIS_ADM_USERNAME': FACILITATOR_USERNAME,
             'IRIS_SECRET_KEY': self._secret('iris-secret-key'),
             'IRIS_SECURITY_PASSWORD_SALT': self._secret('iris-password-salt'),
             'IRIS_ADM_PASSWORD': self._secret('iris-admin-password'),
@@ -1452,7 +1455,7 @@ http {
                           for team in self.teams],
                 'users': ctfd_users,
                 'user_mode': 'teams', 'registration_visible': dynamic, 'schema': 'ctfd-3.7.7',
-                'facilitator': {'name': 'admin',
+                'facilitator': {'name': FACILITATOR_USERNAME,
                                 'email': 'facilitator@silent-ridge.invalid',
                                 'password': self._secret('ctfd-facilitator-password')},
             }
@@ -1495,7 +1498,7 @@ http {
                           if not dynamic else {}),
                 'desktops': {name: {'password': credentials['desktops'][name]['password']}
                              for name in credentials['desktops']},
-                'facilitator': {'username': 'admin',
+                'facilitator': {'username': FACILITATOR_USERNAME,
                                 'password': self._secret('guac-facilitator-password')},
             }, indent=2))
 
