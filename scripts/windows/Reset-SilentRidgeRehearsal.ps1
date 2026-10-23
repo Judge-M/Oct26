@@ -44,7 +44,7 @@ $form.MinimizeBox = $false
 $intro = [System.Windows.Forms.Label]::new()
 $intro.Location = [Drawing.Point]::new(20, 15)
 $intro.Size = [Drawing.Size]::new(395, 55)
-$intro.Text = "This archives the current rehearsal, resets event data, and prepares a clean paused rehearsal.`r`nFacilitator login: admin / Access4n/a"
+$intro.Text = "This archives the current rehearsal, resets event data, and starts a clean rehearsal ready for team registration.`r`nFacilitator login: admin / Access4n/a"
 $form.Controls.Add($intro)
 
 $userLabel = [System.Windows.Forms.Label]::new()
@@ -156,9 +156,11 @@ try {
         -not (Test-Path -LiteralPath $statePath)) {
         & .\ridge.ps1 up -Profile $profile -Runtime $runtime -Operator 'facilitator-reset'
         if ($LASTEXITCODE -ne 0) { throw 'Could not resume the clean rehearsal setup.' }
+        & .\ridge.ps1 start -Profile $profile -Runtime $runtime -Operator 'facilitator-reset'
+        if ($LASTEXITCODE -ne 0) { throw 'The clean rehearsal was prepared, but registration could not be started.' }
         Pop-Location
         [IO.File]::WriteAllText($ActiveRuntimeFile, $runtime)
-        Show-Message "Reset recovery complete.`r`n`r`nClean rehearsal: $runtime`r`nThe rehearsal is paused." 'Silent Ridge ready' ([System.Windows.Forms.MessageBoxIcon]::Information)
+        Show-Message "Reset recovery complete.`r`n`r`nClean rehearsal: $runtime`r`nTeam registration is open and the rehearsal is running." 'Silent Ridge ready' ([System.Windows.Forms.MessageBoxIcon]::Information)
         exit 0
     }
     & .\ridge.ps1 pause -Profile $profile -Runtime $runtime -Operator 'facilitator-reset'
@@ -180,9 +182,11 @@ try {
     Push-Location $source
     & .\ridge.ps1 up -Profile (Join-Path $runtime 'registration-profile.json') -Runtime $runtime -Operator 'facilitator-reset'
     if ($LASTEXITCODE -ne 0) { throw 'The archived run is safe, but the clean rehearsal did not start.' }
+    & .\ridge.ps1 start -Profile (Join-Path $runtime 'registration-profile.json') -Runtime $runtime -Operator 'facilitator-reset'
+    if ($LASTEXITCODE -ne 0) { throw 'The clean rehearsal was prepared, but registration could not be started.' }
     Pop-Location
     [IO.File]::WriteAllText($ActiveRuntimeFile, $runtime)
-    Show-Message "Reset complete.`r`n`r`nClean rehearsal: $runtime`r`nArchived run: $archive`r`nThe new rehearsal is paused." 'Silent Ridge ready' ([System.Windows.Forms.MessageBoxIcon]::Information)
+    Show-Message "Reset complete.`r`n`r`nClean rehearsal: $runtime`r`nArchived run: $archive`r`nTeam registration is open and the new rehearsal is running." 'Silent Ridge ready' ([System.Windows.Forms.MessageBoxIcon]::Information)
 } catch {
     try { Pop-Location } catch {}
     Show-Message ("Reset stopped safely: {0}`r`n`r`nLog: {1}" -f $_.Exception.Message, $log) 'Reset needs attention' ([System.Windows.Forms.MessageBoxIcon]::Error)
