@@ -221,10 +221,12 @@ def _secure_private(path):
     os.chmod(path, stat.S_IRUSR | stat.S_IWUSR)
     if os.name == 'nt':
         user = getpass.getuser()
+        creationflags = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
         result = subprocess.run(
             ['icacls', str(path), '/inheritance:r', '/grant:r',
              '%s:(F)' % user, '*S-1-5-18:(F)'],
-            capture_output=True, text=True, timeout=15)
+            capture_output=True, text=True, timeout=15,
+            creationflags=creationflags)
         if result.returncode != 0:
             raise LifecycleError('could not secure private runtime file %s: %s'
                                  % (path, result.stderr.strip()[:200]))
@@ -2186,7 +2188,9 @@ http {
                 max_teams=self.profile['registration']['max_teams'],
                 members_per_team=self.profile['registration']['members_per_team']),
             enrollment_code=self._secret('registration-enrollment-code'))
-        _secure_private(registration_path)
+        if not getattr(self, '_registration_acl_secured', False):
+            _secure_private(registration_path)
+            self._registration_acl_secured = True
         claimed = registration.claim_pending()
         if claimed is None:
             return None
@@ -2338,8 +2342,14 @@ http {
 
     def _write_registration_heartbeat(self):
         token = os.environ.get('RIDGE_REGISTRATION_WORKER_TOKEN', '')
-        _write_private(self.registration_heartbeat_path, json.dumps({
-            'pid': os.getpid(), 'token': token, 'updated': time.time()}) + '\n')
+        value = json.dumps({
+            'pid': os.getpid(), 'token': token, 'updated': time.time()}) + '\n'
+        if getattr(self, '_registration_heartbeat_acl_secured', False):
+            self.registration_heartbeat_path.write_text(value, encoding='utf-8')
+            os.chmod(self.registration_heartbeat_path, stat.S_IRUSR | stat.S_IWUSR)
+        else:
+            _write_private(self.registration_heartbeat_path, value)
+            self._registration_heartbeat_acl_secured = True
 
     def _registration_worker_status(self):
         if not self.profile.get('registration', {}).get('enabled', False):
