@@ -26,7 +26,7 @@ if (-not (Test-Administrator)) {
         '-InitialRuntime', ('"{0}"' -f $InitialRuntime),
         '-ActiveRuntimeFile', ('"{0}"' -f $ActiveRuntimeFile)
     )
-    Start-Process powershell.exe -Verb RunAs -ArgumentList $arguments
+    Start-Process powershell.exe -Verb RunAs -WindowStyle Hidden -ArgumentList $arguments
     exit 0
 }
 
