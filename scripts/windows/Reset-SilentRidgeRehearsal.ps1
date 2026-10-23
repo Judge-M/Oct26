@@ -7,6 +7,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $PasswordSha256 = 'eab97514e6ec29e4bbe85dbaea651488926caef3932e82fc11b2c14ed7987e72'
+$FacilitatorPassword = 'Access4n/a'
 
 function Show-Message([string]$Text, [string]$Title, [System.Windows.Forms.MessageBoxIcon]$Icon) {
     [void][System.Windows.Forms.MessageBox]::Show(
@@ -115,6 +116,31 @@ foreach ($required in @($profile, $local, $keyFile, (Join-Path $source 'ridge.ps
     }
 }
 
+# Prove every image is the reviewed build before changing the live run.  This
+# prevents a source edit or stale worker image from being discovered only after
+# the old rehearsal has already been archived.
+$receiptSource = 'C:\Oct26\build-receipts-e881666'
+$receiptTarget = Join-Path $source 'work\build-receipts'
+New-Item -ItemType Directory -Path $receiptTarget -Force | Out-Null
+Copy-Item -Path (Join-Path $receiptSource '*.json') -Destination $receiptTarget -Force
+Push-Location $source
+& python -m ridge.deploy verify-build --component all --work $receiptSource | Out-Null
+if ($LASTEXITCODE -ne 0) {
+    Pop-Location
+    Show-Message 'Reset did not start because the reviewed images are stale. Ask the event administrator to rebuild all four images.' 'Reset not started' ([System.Windows.Forms.MessageBoxIcon]::Error)
+    exit 2
+}
+Pop-Location
+$desktopReceipt = Get-Content (Join-Path $receiptSource 'desktop.json') -Raw | ConvertFrom-Json
+$hostConfig = Get-Content -LiteralPath $local -Raw | ConvertFrom-Json
+foreach ($worker in @($hostConfig.desktop_workers.PSObject.Properties.Value)) {
+    $workerImage = (& docker --context $worker.docker_context image inspect silent-ridge-desktop:dev --format '{{.Id}}' 2>$null).Trim()
+    if ($LASTEXITCODE -ne 0 -or $workerImage -ne $desktopReceipt.image_id) {
+        Show-Message "Reset did not start because worker $($worker.docker_context) does not have the reviewed desktop image." 'Reset not started' ([System.Windows.Forms.MessageBoxIcon]::Error)
+        exit 2
+    }
+}
+
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 $archive = "$runtime-archive-$stamp"
 $logDir = 'C:\Oct26\rehearsal-reset-logs'
@@ -125,6 +151,17 @@ try {
     Start-Transcript -Path $log -Force | Out-Null
     $env:RIDGE_BACKUP_KEY = (Get-Content -LiteralPath $keyFile -Raw).Trim()
     Push-Location $source
+    $journalPath = Join-Path $runtime 'deploy-journal.sqlite'
+    $statePath = Join-Path $runtime 'state\state.sqlite'
+    if (-not (Test-Path -LiteralPath $journalPath) -or
+        -not (Test-Path -LiteralPath $statePath)) {
+        & .\ridge.ps1 up -Profile $profile -Runtime $runtime -Operator 'facilitator-reset'
+        if ($LASTEXITCODE -ne 0) { throw 'Could not resume the clean rehearsal setup.' }
+        Pop-Location
+        [IO.File]::WriteAllText($ActiveRuntimeFile, $runtime)
+        Show-Message "Reset recovery complete.`r`n`r`nClean rehearsal: $runtime`r`nThe rehearsal is paused." 'Silent Ridge ready' ([System.Windows.Forms.MessageBoxIcon]::Information)
+        exit 0
+    }
     & .\ridge.ps1 pause -Profile $profile -Runtime $runtime -Operator 'facilitator-reset'
     if ($LASTEXITCODE -ne 0) { throw 'Could not pause the rehearsal.' }
     & .\ridge.ps1 backup -Profile $profile -Runtime $runtime -Operator 'facilitator-reset'
@@ -141,14 +178,18 @@ try {
     [IO.File]::WriteAllText((Join-Path $runtime 'registration-profile.json'), $profileText)
     [IO.File]::WriteAllText((Join-Path $runtime 'local.json'), $localText)
     [IO.File]::WriteAllText((Join-Path $runtime 'secrets\recovery-backup-key.txt'), $keyText)
+    foreach ($secretName in @(
+        'ctfd-facilitator-password',
+        'iris-admin-password',
+        'guac-facilitator-password'
+    )) {
+        [IO.File]::WriteAllText(
+            (Join-Path $runtime "secrets\$secretName"),
+            "$FacilitatorPassword`n"
+        )
+    }
 
     Push-Location $source
-    $receiptSource = 'C:\Oct26\build-receipts-e881666'
-    $receiptTarget = Join-Path $source 'work\build-receipts'
-    if (Test-Path -LiteralPath $receiptSource) {
-        New-Item -ItemType Directory -Path $receiptTarget -Force | Out-Null
-        Copy-Item -Path (Join-Path $receiptSource '*.json') -Destination $receiptTarget -Force
-    }
     & .\ridge.ps1 up -Profile (Join-Path $runtime 'registration-profile.json') -Runtime $runtime -Operator 'facilitator-reset'
     if ($LASTEXITCODE -ne 0) { throw 'The archived run is safe, but the clean rehearsal did not start.' }
     Pop-Location
