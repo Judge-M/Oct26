@@ -1,10 +1,18 @@
 # Getting started with the investigation
 
-Open **Incident queue** and claim an available ticket. Open **Questions and help**
-to see that ticket's questions. Your team can work on one ticket at a time. Every
-correct answer earns one point and automatically records a finding. There is no
-report to write. Use any help level, including the final walkthrough, without a
-point penalty. If you relinquish a ticket, its completed answers are preserved.
+Open **Incident queue** in IRIS and divide three different ticket IDs among the
+three investigators. Every unfinished ticket is already open to your team. Mark
+assigned tickets **Working** and use **Needs review** for coordinator handoff.
+IRIS is the team's incident-management view and collects verified findings into
+the shared case.
+
+Open **Questions and help** in CTFd to investigate any open ticket, submit
+answers, use hints, and earn points. Each question starts at **4 points**. Help
+levels 1 and 2 are free. Help level 3 is the explicit walkthrough and costs
+**3 of the question's 4 points**, leaving the correct answer worth 1 point.
+Wrong answers cost nothing. There is no separate report to write. Correct
+answers automatically publish verified findings back to IRIS. Completed answers
+are preserved for the whole team.
 
 Sign in to CTFd with your team's credentials and **stay signed in**. CTFd
 accepts at most **10 sign-in attempts per minute per network address**, and the
@@ -35,7 +43,7 @@ packet list and press Enter. A red filter bar means the syntax needs correction;
 clear the bar to restore all packets. Select a packet and expand the protocol
 fields below it. View > Time Display Format controls displayed time conventions.
 
-Worked example: in the reconstructed sensor capture, `udp.port == 514` selects
+Worked example: in the reconstructed sensor capture, `udp.dstport == 514` selects
 syslog messages. The outer packet addresses identify collectors. Expand the
 syslog message to inspect the embedded proxy record and its own source/destination.
 The same packet can therefore contain two different pairs of addresses without
@@ -95,4 +103,4 @@ Answer only the requested value in the stated format. Case and outer whitespace
 are ignored. If the answer is not accepted, inspect the next free help level.
 Accepted work is retained even when a connection fails; return to the queue and
 history to check progress. When the last question is answered, the ticket closes
-for all teams. Choose another available ticket and use the findings already shared.
+for your team. Choose another unfinished ticket and use the findings already shared.

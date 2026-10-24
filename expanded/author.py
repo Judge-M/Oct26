@@ -16,7 +16,7 @@ from expanded.native import question_overrides
 
 # title, subject/tool, evidence, selection, dependencies, question/answer pairs.
 SPECS = [
-('Trace document traffic','Wireshark','network/sensor.pcap','udp.port == 514',[],[
+('Trace document traffic','Wireshark','network/sensor.pcap','udp.dstport == 514',[],[
 ('Which workstation requested plan-v3?','WS-17'),('What request identifier links the plan download?','req-71'),
 ('What request identifier records the upload?','req-72'),('Which external address appears in the upload record?','198.51.100.77')]),
 ('Resolve names and compare conversations','Wireshark','network/dns.pcap','dns',[],[
@@ -215,6 +215,59 @@ def answer_format(prompt, answer):
     return base + 'Times use HH:MM:SS UTC.'
 
 
+def help_level_two(tool, evidence, selection, prompt, extra_steps):
+    """Give a question-specific second step instead of repeating Help 1."""
+    if extra_steps:
+        return 'Next step: ' + extra_steps[-1]
+    focus = 'To answer “%s”' % prompt
+    if tool == 'Wireshark':
+        if evidence == 'network/sensor.pcap':
+            return (focus + ', use the display filter udp.dstport == 514 (not udp == 514). '
+                    'The capture contains 24 matching packets. Select one, expand UDP, then read '
+                    'the syslog text in the packet payload; the outer collector IPs are not the '
+                    'incident endpoints.')
+        return (focus + ', keep the display filter %s, select a matching response packet, and '
+                'expand Domain Name System. Read the Queries and Answers fields rather than the '
+                'packet-list summary.' % selection)
+    if tool == 'Wazuh':
+        return (focus + ', keep the query %s, open the matching document, and expand its data '
+                'fields. Read the exact field named by the question; timestamps in Wazuh are '
+                'already normalized UTC.' % selection)
+    if tool == 'Autopsy':
+        return (focus + ', open %s in the prepared case, use the table search or column sort to '
+                'locate the named record, then read the exact value from that row. Apply the '
+                'documented clock correction only when the question asks for corrected time.' % evidence)
+    if tool == 'Cutter':
+        return (focus + ', use Search > Strings for the term named in the prompt, open its '
+                'cross-reference, and inspect the surrounding comparison or return value. Keep '
+                'the file in static analysis; do not run or debug it.')
+    return (focus + ', open %s, locate the row or paragraph named in the prompt, and compare its '
+            'exact field with the answer format shown below the question.' % evidence)
+
+
+def help_level_one(tool, evidence, prompt):
+    """Add a diagnostic clue that does not repeat the question instructions."""
+    focus='For “%s”, ' % prompt
+    if tool=='Wireshark':
+        if evidence=='network/dns.pcap':
+            lower=prompt.lower()
+            if 'name resolved' in lower:
+                return focus+'pair the response Answer record with its Query name; packet source and destination columns are not the requested hostname.'
+            if 'address' in lower:
+                return focus+'read the IPv4 A record inside the name-service Answer section, not either endpoint shown in the packet list.'
+            if 'client' in lower:
+                return focus+'match the response transaction ID to its request; the request source is the client that made the lookup.'
+            return focus+'sort the matching request packets by displayed UTC time and use the first lookup, not the later response time.'
+        return focus+'expand the syslog text carried inside UDP. The embedded incident record matters; the outer packet addresses belong to the collectors.'
+    if tool=='Wazuh':
+        return focus+'expand one matching document and use the exact data field named by the prompt. Do not infer the value from the surrounding event summary.'
+    if tool=='Autopsy':
+        return focus+'use the prepared record’s column or Text view and its cited source path. A tree label or neighboring row is only navigation context.'
+    if tool=='Cutter':
+        return focus+'decide whether the prompt asks for a literal string or a function result, then follow the relevant cross-reference without executing the sample.'
+    return focus+'identify the column or paragraph that directly states the requested fact, then keep metadata, document content, and interpretation separate.'
+
+
 def build(config=None):
     config = config or json.loads(Path(__file__).with_name('config.json').read_text(encoding='utf-8'))
     day = incident_day(config['exercise_date'])
@@ -266,8 +319,9 @@ def build(config=None):
                 purpose='Use '+title.lower()+' to answer this specific question and identify the limits of the evidence.',
                 steps=steps,format=answer_format(prompt, answer),
                 recovery='If no results appear, clear filters, check the evidence release and absolute UTC range, and reopen your writable case. Never re-ingest a large image during the activity.',
-                hints=['Start with '+question_selection+' and read the fields named in the question.',
-                       'Compare the selected record with adjacent events; apply clock correction only to device_time.',
+                hints=[help_level_one(tool, question_evidence, prompt),
+                       help_level_two(tool, question_evidence, question_selection, prompt,
+                                      EXTRA_STEPS.get(qid, [])),
                        'Walkthrough: '+prompt+' The supplied record/comparison yields '+answer+'. Enter '+answer+'. '+limitation],
                 finding=dict(text=findings[i-1],
                              evidence=[question_evidence+' ('+question_selection+')'],

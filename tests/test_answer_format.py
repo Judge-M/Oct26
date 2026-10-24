@@ -143,6 +143,35 @@ class AuthorFormatTests(unittest.TestCase):
                               'explicit session revocation'):
             self.assertNotIn(leaked_answer, ordinary_steps)
 
+    def test_help_level_two_is_question_specific_and_sensor_filter_works(self):
+        questions = {question['id']: question
+                     for ticket in build()
+                     for question in ticket['questions']}
+        second_hints = []
+        for question in questions.values():
+            self.assertGreaterEqual(len(question['hints']), 3)
+            self.assertNotEqual(question['hints'][0], question['hints'][1])
+            self.assertNotIn('Compare the selected record with adjacent events',
+                             question['hints'][1])
+            second_hints.append(question['hints'][1])
+        self.assertEqual(len(second_hints), len(set(second_hints)))
+        self.assertEqual(questions['T01-Q2']['selection'], 'udp.dstport == 514')
+        self.assertIn('24 matching packets', questions['T01-Q2']['hints'][1])
+        self.assertIn('not udp == 514', questions['T01-Q2']['hints'][1])
+
+    def test_help_level_one_adds_a_clue_instead_of_repeating_instructions(self):
+        questions = {question['id']: question
+                     for ticket in build()
+                     for question in ticket['questions']}
+        for question in questions.values():
+            steps=' '.join(question['steps']).lower()
+            selection=question['selection'].strip().lower()
+            if selection and selection in steps:
+                self.assertNotIn(selection,question['hints'][0].lower(),question['id'])
+        self.assertIn('response Answer record',questions['T02-Q1']['hints'][0])
+        self.assertIn('IPv4 A record',questions['T02-Q2']['hints'][0])
+        self.assertIn('request source',questions['T02-Q3']['hints'][0])
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -6,6 +6,11 @@ from pathlib import Path
 
 
 @lru_cache(maxsize=1)
+def ticket_routes():
+    return json.loads(Path(__file__).with_name('ticket_routes_v1.json').read_text(encoding='utf-8'))
+
+
+@lru_cache(maxsize=1)
 def contract():
     data=json.loads(Path(__file__).with_name('scenario_narrative_v1.json').read_text(encoding='utf-8'))
     required=('title','fiction_notice','premise','discovery','stakes','participant_role',
@@ -73,10 +78,12 @@ def participant_context(snapshot,questions=()):
     elapsed=max(float(snapshot.get('elapsed_seconds') or 0),0)
     hours,rem=divmod(int(elapsed),3600)
     minutes,seconds=divmod(rem,60)
+    answered=sum(1 for q in questions or () if q.get('solved_by'))
     return {'title':data['title'],'fiction_notice':data['fiction_notice'],
             'premise':data['premise'],'discovery':data['discovery'],'stakes':data['stakes'],
             'participant_role':data['participant_role'],'operating_rule':data['operating_rule'],
             'roles':data['roles'],'tools':data['tools'],'ticket_context':mapping,
+            'ticket_routes':ticket_routes(),
             'completion':data['completion'],'completed':completed,'total':total,
             'operational_update':update if update_ready and completed<total else None,
             'timeline':[row for row in data['timeline'] if row['ticket'] in complete_ids],
@@ -87,4 +94,4 @@ def participant_context(snapshot,questions=()):
             # Do not ship the conclusion in pre-completion HTML. It is a reveal,
             # not a hidden client-side element that curious participants can read.
             'conclusion':data['conclusion'] if completed==total else None,
-            'question_count':len(questions or ())}
+            'question_count':len(questions or ()),'answered_questions':answered}

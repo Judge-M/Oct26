@@ -17,7 +17,8 @@ class ParticipantRegistrationLandingTests(unittest.TestCase):
             'Start here',
             'Register once.',
             'Save the private handout.',
-            'Work from your own laptop browser.',
+            'Use IRIS to divide work and review shared findings.',
+            'Use CTFd for the investigation workflow.',
             'Use Guacamole only for investigation tools.',
             'Repeat the investigation loop.',
             'Scoring and help',
@@ -26,17 +27,42 @@ class ParticipantRegistrationLandingTests(unittest.TestCase):
         ):
             self.assertIn(text, self.source)
 
+    def test_start_guide_explains_scoring_and_platform_roles(self):
+        guide=(ROOT/'expanded'/'guides.md').read_text(encoding='utf-8')
+        for text in ('Each question starts at **4 points**',
+                     'levels 1 and 2 are free',
+                     "**3 of the question's 4 points**",
+                     "team's incident-management",
+                     'CTFd to investigate any open ticket'):
+            self.assertIn(text,guide)
+        self.assertNotIn('without a\npoint penalty',guide)
+        self.assertNotIn('one ticket at a time',guide)
+
     def test_private_handout_repeats_the_first_actions(self):
         for text in (
+            '— Team Handout',
+            '<base target="_blank">',
+            'Live scoreboard:',
             'Your first five moves',
             'personal CTFd seat',
             'opens IRIS with the team login',
             'prepared Wazuh view',
             'divide the three desktop connections',
-            'Claim one available IRIS ticket',
+            'Assign three different ticket IDs',
             'Keep this page open.',
         ):
             self.assertIn(text, self.source)
+
+    def test_private_handout_has_a_four_person_delegation_plan(self):
+        for text in ('Divide the work before anyone starts',
+                     'captain is not a required technical role',
+                     'Person 1 — coordinator and CTFd recorder',
+                     'Person 2 — network and Wazuh analyst',
+                     'Person 3 — disk and endpoint analyst',
+                     'Person 4 — binary and file analyst',
+                     'marks it Working in IRIS',
+                     'If the captain leaves'):
+            self.assertIn(text,self.source)
 
     def test_private_handout_has_persistent_safe_recovery_actions(self):
         for text in (
@@ -60,6 +86,17 @@ class ParticipantRegistrationLandingTests(unittest.TestCase):
         ):
             self.assertIn(text, self.source)
         self.assertNotIn('credentials.ctfd.password', self.source)
+
+    def test_successful_admin_login_redirects_to_admin_panel(self):
+        self.assertIn("redirect('/admin' if is_admin() else '/silent-ridge')",
+                      self.source)
+
+    def test_hint_unlock_uses_its_own_feedback_style(self):
+        self.assertIn("message_kind = 'hint'", self.source)
+
+    def test_registration_error_banners_are_dismissible(self):
+        self.assertGreaterEqual(self.source.count('aria-label="Dismiss error"'), 2)
+        self.assertIn('this.parentElement.remove()', self.source)
 
     def test_new_reservations_fail_closed_when_worker_heartbeat_is_stale(self):
         for text in (

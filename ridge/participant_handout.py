@@ -55,6 +55,18 @@ def credential_handout_text(
             desktop['connection_name'], desktop['name'], desktop['guidance']))
     lines.extend([
         '',
-        'First action: choose one CTFd seat per participant, then open IRIS and claim one available ticket.',
+        'First action: use CTFd seats 1-4, then open IRIS and assign three different ticket IDs to the investigators. Seat 5 is a spare recovery login.',
+        'IRIS manages ticket ownership and shared verified findings; CTFd contains questions, hints, answers, and scoring.',
+        'Scoring: each question starts at 4 points; Help 1 and 2 are free; Help 3 costs 3 points and leaves the answer worth 1 point.',
+        '',
+        'DIVIDE THE WORK BEFORE STARTING',
+        'The captain is not a required technical role. Any teammate with this private handout can coordinate if the captain is unavailable.',
+        'Keep this handout open on at least two team laptops and say assignments out loud.',
+        'Person 1 - coordinator and CTFd recorder: keep IRIS and CTFd open, assign three ticket IDs, submit answers, confirm accepted findings, and assign replacement work.',
+        'Person 2 - network/Wazuh analyst: take one desktop and handle Wireshark or Wazuh tickets.',
+        'Person 3 - disk/endpoint analyst: take one desktop and handle Autopsy tickets.',
+        'Person 4 - binary/file analyst: take the third desktop and handle Cutter or Evidence file manager tickets.',
+        'Workflow: all tickets are already open to every team. Mark assigned tickets Working in IRIS and Needs review for coordinator handoff. The three analysts report the answer, source path, and limitation; the coordinator submits in CTFd, confirms the IRIS finding, and assigns the next ticket.',
+        'If someone is stuck, rotate the ticket or desktop. If the captain leaves, another teammate continues the same coordinator checklist with this handout.',
     ])
     return '\n'.join(lines) + '\n'

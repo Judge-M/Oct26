@@ -41,6 +41,12 @@ class NarrativeTests(unittest.TestCase):
         self.assertIsNone(story['conclusion'])
         self.assertIsNone(story['operational_update'])
         self.assertEqual(story['elapsed_display'],'00:00:00')
+        self.assertEqual(set(story['ticket_routes']),
+                         {'T%02d' % number for number in range(1,21)})
+        for route in story['ticket_routes'].values():
+            self.assertTrue(route['tools'])
+            self.assertTrue(route['evidence'])
+            self.assertGreaterEqual(len(route['directions']),3)
 
     def test_midpoint_update_and_verified_timeline_are_completion_gated(self):
         story=participant_context({'team':'team-01','elapsed_seconds':3661,'tickets':[
@@ -69,7 +75,7 @@ class NarrativeTests(unittest.TestCase):
 
     def test_page_renders_mission_phase_and_handoff_contract(self):
         for text in ('story.fiction_notice','story.participant_role','Why this question matters',
-                     'story.tools.items()','context.handoff','Shared progress',
+                     'context.handoff','Shared progress',
                      'final-assessment','story.conclusion.actions','Room-wide closing brief ready',
                      'operational-update','Verified incident chronology','correlation-workspace',
                       'capstone-workspace','formatElapsed','localStorage','current-questions',
@@ -80,3 +86,4 @@ class NarrativeTests(unittest.TestCase):
 
 
 if __name__=='__main__':unittest.main()
+

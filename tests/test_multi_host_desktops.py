@@ -165,13 +165,31 @@ class MultiHostDesktopTests(unittest.TestCase):
         self.assertIn('Silent-Ridge-Guac-Relay-silent-ridge-test-worker-02-15902',
                       firewall[0])
 
-    def test_volume_wipe_is_refused_before_any_worker_is_stopped(self):
+    def test_volume_wipe_with_empty_worker_reaches_backup_gate(self):
         Journal.create(self.runtime / 'deploy-journal.sqlite', self.profile,
                        self.profile['event']['release_id'], 'test-release-fingerprint')
-        before = list(self.runner.calls)
-        with self.assertRaisesRegex(LifecycleError, 'down --volumes refused'):
+        with self.assertRaisesRegex(LifecycleError, 'backup first'):
             self.stack.down(volumes=True)
-        self.assertEqual(self.runner.calls, before)
+        self.assertTrue(any(call[:4] == ['docker', '--context', 'ridge-worker-02',
+                                        'volume'] for call in self.runner.calls))
+        self.assertFalse(any(' stop ' in (' ' + ' '.join(call) + ' ')
+                             for call in self.runner.calls))
+
+    def test_volume_wipe_is_refused_before_stop_when_worker_owns_event_volume(self):
+        Journal.create(self.runtime / 'deploy-journal.sqlite', self.profile,
+                       self.profile['event']['release_id'], 'test-release-fingerprint')
+        original_run = self.runner.run
+        def run(argv, check=True):
+            if list(argv)[:5] == ['docker', '--context', 'ridge-worker-02',
+                                  'volume', 'ls']:
+                self.runner.calls.append([str(value) for value in argv])
+                return 'silent-ridge-test-desktops_desktop-slot02-workspace\n'
+            return original_run(argv, check=check)
+        self.runner.run = run
+        with self.assertRaisesRegex(LifecycleError, 'worker-02:.*workspace'):
+            self.stack.down(volumes=True)
+        self.assertFalse(any(' stop ' in (' ' + ' '.join(call) + ' ')
+                             for call in self.runner.calls))
 
 
 if __name__ == '__main__':

@@ -82,6 +82,8 @@ APP_SERVICES = {
     'central': ['iris', 'iris-worker', 'ctfd', 'participant-tls'],
 }
 IMAGE_COMPONENTS = ('iris', 'ctfd', 'integration', 'desktop')
+FACILITATOR_USERNAME = 'admin'
+FACILITATOR_PASSWORD = 'Access4n/a'
 
 
 def _windows_process_exists(pid):
@@ -219,10 +221,12 @@ def _secure_private(path):
     os.chmod(path, stat.S_IRUSR | stat.S_IWUSR)
     if os.name == 'nt':
         user = getpass.getuser()
+        creationflags = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
         result = subprocess.run(
             ['icacls', str(path), '/inheritance:r', '/grant:r',
              '%s:(F)' % user, '*S-1-5-18:(F)'],
-            capture_output=True, text=True, timeout=15)
+            capture_output=True, text=True, timeout=15,
+            creationflags=creationflags)
         if result.returncode != 0:
             raise LifecycleError('could not secure private runtime file %s: %s'
                                  % (path, result.stderr.strip()[:200]))
@@ -1054,15 +1058,15 @@ http {
         vnc_dir.mkdir(exist_ok=True)
         for name in SECRET_FILES:
             _write_private(self.secrets_dir / name, self.host.randhex(24) + '\n')
-        # Administrative and participant-service credentials are random even on
-        # an isolated classroom LAN. Friendly participant identities do not
-        # require predictable privileged passwords.
-        _write_private(self.secrets_dir / 'iris-admin-password', self.host.randhex(24) + '\n')
+        # Facilitators use one memorable room credential across the four admin
+        # interfaces. Internal service and database credentials remain random.
+        _write_private(self.secrets_dir / 'iris-admin-password',
+                       FACILITATOR_PASSWORD + '\n')
         # Wazuh credentials are "username:password". These are the accounts
         # shown to organizers/participants; machine-to-machine API secrets are
         # still generated independently below.
         _write_private(self.secrets_dir / 'wazuh_admin',
-                       'admin:' + self.host.randhex(24))
+                       FACILITATOR_USERNAME + ':' + FACILITATOR_PASSWORD)
         _write_private(self.secrets_dir / 'wazuh_writer',
                        'writer:' + self.host.randhex(24))
         _write_private(self.secrets_dir / 'wazuh_reader',
@@ -1115,7 +1119,7 @@ http {
             raise LifecycleError('partial facilitator secrets; restore the runtime before '
                                  'continuing')
         for name in missing:
-            _write_private(self.secrets_dir / name, self.host.randhex(24) + '\n')
+            _write_private(self.secrets_dir / name, FACILITATOR_PASSWORD + '\n')
         _write_private(marker, 'ready\n')
 
     def _ensure_registration_enrollment_code(self):
@@ -1173,6 +1177,7 @@ http {
             'POSTGRES_DB': 'iris_db',
             'POSTGRES_ADMIN_USER': 'iris', 'POSTGRES_ADMIN_PASSWORD': postgres_pw,
             'POSTGRES_SERVER': 'iris-db', 'POSTGRES_PORT': '5432',
+            'IRIS_ADM_USERNAME': FACILITATOR_USERNAME,
             'IRIS_SECRET_KEY': self._secret('iris-secret-key'),
             'IRIS_SECURITY_PASSWORD_SALT': self._secret('iris-password-salt'),
             'IRIS_ADM_PASSWORD': self._secret('iris-admin-password'),
@@ -1452,7 +1457,7 @@ http {
                           for team in self.teams],
                 'users': ctfd_users,
                 'user_mode': 'teams', 'registration_visible': dynamic, 'schema': 'ctfd-3.7.7',
-                'facilitator': {'name': 'admin',
+                'facilitator': {'name': FACILITATOR_USERNAME,
                                 'email': 'facilitator@silent-ridge.invalid',
                                 'password': self._secret('ctfd-facilitator-password')},
             }
@@ -1495,7 +1500,7 @@ http {
                           if not dynamic else {}),
                 'desktops': {name: {'password': credentials['desktops'][name]['password']}
                              for name in credentials['desktops']},
-                'facilitator': {'username': 'admin',
+                'facilitator': {'username': FACILITATOR_USERNAME,
                                 'password': self._secret('guac-facilitator-password')},
             }, indent=2))
 
@@ -1747,7 +1752,9 @@ http {
         try:
             self._run([
                 'powershell.exe', '-NoProfile', '-NonInteractive', '-Command',
-                'Start-Service -Name iphlpsvc -ErrorAction Stop',
+                ("$service = Get-Service -Name iphlpsvc -ErrorAction Stop; "
+                 "if ($service.Status -ne 'Running') { "
+                 "Start-Service -Name iphlpsvc -ErrorAction Stop }"),
             ])
             for worker_id, desktop, relay, relay_port in relays:
                 rule = self._guacamole_relay_rule_name(worker_id, relay_port)
@@ -2157,8 +2164,9 @@ http {
         """Run argv with stdin text through the real subprocess runner."""
         if hasattr(self.runner, 'run_stdin'):
             return self.runner.run_stdin([str(a) for a in argv], text, check=True)
+        creationflags = getattr(subprocess, 'CREATE_NO_WINDOW', 0) if os.name == 'nt' else 0
         completed = subprocess.run([str(a) for a in argv], input=text, capture_output=True,
-                                   text=True, timeout=120)
+                                   text=True, timeout=120, creationflags=creationflags)
         if completed.returncode != 0:
             raise LifecycleError('provisioning SQL failed: %s' % completed.stderr.strip()[:300])
         return completed.stdout.strip()
@@ -2180,7 +2188,9 @@ http {
                 max_teams=self.profile['registration']['max_teams'],
                 members_per_team=self.profile['registration']['members_per_team']),
             enrollment_code=self._secret('registration-enrollment-code'))
-        _secure_private(registration_path)
+        if not getattr(self, '_registration_acl_secured', False):
+            _secure_private(registration_path)
+            self._registration_acl_secured = True
         claimed = registration.claim_pending()
         if claimed is None:
             return None
@@ -2332,8 +2342,14 @@ http {
 
     def _write_registration_heartbeat(self):
         token = os.environ.get('RIDGE_REGISTRATION_WORKER_TOKEN', '')
-        _write_private(self.registration_heartbeat_path, json.dumps({
-            'pid': os.getpid(), 'token': token, 'updated': time.time()}) + '\n')
+        value = json.dumps({
+            'pid': os.getpid(), 'token': token, 'updated': time.time()}) + '\n'
+        if getattr(self, '_registration_heartbeat_acl_secured', False):
+            self.registration_heartbeat_path.write_text(value, encoding='utf-8')
+            os.chmod(self.registration_heartbeat_path, stat.S_IRUSR | stat.S_IWUSR)
+        else:
+            _write_private(self.registration_heartbeat_path, value)
+            self._registration_heartbeat_acl_secured = True
 
     def _registration_worker_status(self):
         if not self.profile.get('registration', {}).get('enabled', False):
@@ -2379,7 +2395,8 @@ http {
         (self.runtime / 'registration-profile.json').write_text(
             json.dumps(self.profile, indent=2), encoding='utf-8')
         creationflags = (getattr(subprocess, 'CREATE_NEW_PROCESS_GROUP', 0) |
-                         getattr(subprocess, 'DETACHED_PROCESS', 0))
+                         getattr(subprocess, 'DETACHED_PROCESS', 0) |
+                         getattr(subprocess, 'CREATE_NO_WINDOW', 0))
         token = self.host.randhex(24)
         environment = dict(os.environ, RIDGE_REGISTRATION_WORKER_TOKEN=token)
         process = subprocess.Popen(command, cwd=str(ROOT), stdout=log, stderr=log,
@@ -2656,8 +2673,16 @@ http {
         path = self.runtime / 'deploy-journal.sqlite'
         if path.is_file() and path.stat().st_size:
             journal = Journal.open(path)
-            journal.check_fingerprints(self.profile, self.profile['event']['release_id'],
-                                       release_fingerprint)
+            # A failed first provisioning can leave an empty NEW journal before
+            # the controller state database exists.  A reviewed rebuild should
+            # be able to resume that setup without treating it as a live-run
+            # migration; there is no participant state to migrate at this point.
+            journal.check_fingerprints(
+                self.profile,
+                self.profile['event']['release_id'],
+                release_fingerprint,
+                migrate=(journal.state == 'NEW' and not self.state_path.is_file()),
+            )
             return journal
         return Journal.create(path, self.profile, self.profile['event']['release_id'],
                               release_fingerprint)
@@ -2843,11 +2868,23 @@ http {
         journal = Journal.open(self.runtime / 'deploy-journal.sqlite')
         with journal.lock(self.operator):
             if volumes and self._remote_worker_ids():
-                raise LifecycleError(
-                    'down --volumes refused: remote desktop workers are configured and the '
-                    'current recovery-set format does not capture their named volumes. Stop '
-                    'without --volumes; do not erase worker volumes until a verified export '
-                    'has been collected from every worker. Nothing was stopped or removed.')
+                remote_volumes = []
+                prefix = self.event + '-'
+                for worker_id in self._remote_worker_ids():
+                    context = self._worker(worker_id)['docker_context']
+                    names = self._run([
+                        'docker', '--context', context, 'volume', 'ls',
+                        '--format', '{{.Name}}',
+                    ]).splitlines()
+                    remote_volumes.extend('%s:%s' % (worker_id, name)
+                                          for name in names if name.startswith(prefix))
+                if remote_volumes:
+                    raise LifecycleError(
+                        'down --volumes refused: remote desktop workers own event volumes '
+                        'that the current recovery-set format does not capture (%s). Stop '
+                        'without --volumes; do not erase worker volumes until a verified '
+                        'export has been collected from every worker. Nothing was stopped '
+                        'or removed.' % ', '.join(remote_volumes[:3]))
             verified = None
             if volumes:
                 from ridge.deploy import recovery

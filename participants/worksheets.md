@@ -1,8 +1,9 @@
 # Optional investigation notes
 
 These notes are optional aids for your team workspace. They are not a report to
-submit, a scoring requirement, or an approval step. Claim tickets in IRIS and
-answer their questions in CTFd; accepted answers publish findings automatically.
+submit, a scoring requirement, or an approval step. Divide open ticket IDs among
+the team and answer their questions in CTFd; accepted answers publish findings
+automatically.
 
 | Source / record | Observation | Time correction | Interpretation | Remaining uncertainty |
 |---|---|---|---|---|

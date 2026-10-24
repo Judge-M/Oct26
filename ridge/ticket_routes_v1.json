@@ -1,0 +1,292 @@
+{
+  "T01": {
+    "tools": [
+      "Wireshark"
+    ],
+    "evidence": [
+      "/evidence/endpoint/events.csv",
+      "/evidence/network/sensor.pcap"
+    ],
+    "directions": [
+      "Open Wireshark > File > Open > /evidence/network/sensor.pcap.",
+      "Select View > Time Display Format > UTC Date and Time of Day.",
+      "Enter udp.dstport == 514 in the display filter and press Enter. Do not use udp == 514; that is not the UDP port field.",
+      "Select a packet and expand its protocol fields. For syslog, inspect the embedded proxy record; the outer collector addresses are not incident endpoints.",
+      "The capture carries a requester address, not a workstation name. Record the requester address from the plan download, then open /evidence/identity/auth.csv and correlate that address to an account and session.",
+      "Open /evidence/endpoint/events.csv and find rows for that account to read its workstation name. The address column in that file is not the same address, so correlate by account rather than assuming every address field has one meaning."
+    ]
+  },
+  "T02": {
+    "tools": [
+      "Wireshark"
+    ],
+    "evidence": [
+      "/evidence/network/dns.pcap"
+    ],
+    "directions": [
+      "Open Wireshark > File > Open > /evidence/network/dns.pcap.",
+      "Select View > Time Display Format > UTC Date and Time of Day.",
+      "Enter dns in the display filter and press Enter.",
+      "Select a packet and expand its protocol fields. For syslog, inspect the embedded proxy record; the outer collector addresses are not incident endpoints."
+    ]
+  },
+  "T03": {
+    "tools": [
+      "Autopsy"
+    ],
+    "evidence": [
+      "/evidence/browser/downloads.csv"
+    ],
+    "directions": [
+      "Copy the prepared case template to ~/Cases/WS17; keep /evidence and /originals mounted read-only.",
+      "Open Autopsy > Open Existing Case > ~/Cases/WS17/WS17.aut.",
+      "In Data Sources, expand the prepared evidence source and locate browser/downloads.csv.",
+      "Select the record; use the Text tab and its source reference. Compare the cited source under /evidence with the original under /originals."
+    ]
+  },
+  "T04": {
+    "tools": [
+      "Autopsy"
+    ],
+    "evidence": [
+      "/evidence/endpoint/events.csv"
+    ],
+    "directions": [
+      "Copy the prepared case template to ~/Cases/WS17; keep /evidence and /originals mounted read-only.",
+      "Open Autopsy > Open Existing Case > ~/Cases/WS17/WS17.aut.",
+      "In Data Sources, expand the prepared evidence source and locate endpoint/events.csv.",
+      "Select the record; use the Text tab and its source reference. Compare the cited source under /evidence with the original under /originals."
+    ]
+  },
+  "T05": {
+    "tools": [
+      "Autopsy"
+    ],
+    "evidence": [
+      "/evidence/disk/WS17-fat16.img"
+    ],
+    "directions": [
+      "Copy the prepared case template to ~/Cases/WS17; keep /evidence and /originals mounted read-only.",
+      "Open Autopsy > Open Existing Case > ~/Cases/WS17/WS17.aut.",
+      "In Data Sources, expand the prepared evidence source and locate Deleted Files; inspect the entry ending OVECACH.TXT.",
+      "Select the record; use the Text tab and its source reference. Compare the cited source under /evidence with the original under /originals."
+    ]
+  },
+  "T06": {
+    "tools": [
+      "Wazuh"
+    ],
+    "evidence": [
+      "/evidence/wazuh/telemetry.jsonl"
+    ],
+    "directions": [
+      "Open the Wazuh shortcut and sign in with the supplied read-only account.",
+      "Open Discover and choose the silent-ridge-* data view.",
+      "Set an absolute UTC range of 2026-10-15 08:00:00 through 09:30:00.",
+      "Search data.session:S-41. Expand a row to inspect fields; compare adjacent records and policy."
+    ]
+  },
+  "T07": {
+    "tools": [
+      "Wazuh"
+    ],
+    "evidence": [
+      "/evidence/identity/late-auth.csv",
+      "/evidence/identity/policy.txt",
+      "/evidence/wazuh/telemetry.jsonl"
+    ],
+    "directions": [
+      "Open the Wazuh shortcut and sign in with the supplied read-only account.",
+      "Open Discover and choose the silent-ridge-* data view.",
+      "Set an absolute UTC range of 2026-10-15 08:00:00 through 09:30:00.",
+      "Search data.action:session_refresh. Expand a row to inspect fields; compare adjacent records and policy.",
+      "The reset is not a session_refresh: the selection above only matches the refresh record. Search the data view again for action data.action:password_reset, which is the record this question asks about."
+    ]
+  },
+  "T08": {
+    "tools": [
+      "Autopsy"
+    ],
+    "evidence": [
+      "/evidence/server/access.csv"
+    ],
+    "directions": [
+      "Copy the prepared case template to ~/Cases/WS17; keep /evidence and /originals mounted read-only.",
+      "Open Autopsy > Open Existing Case > ~/Cases/WS17/WS17.aut.",
+      "In Data Sources, expand the prepared evidence source and locate server/access.csv.",
+      "Select the record; use the Text tab and its source reference. Compare the cited source under /evidence with the original under /originals."
+    ]
+  },
+  "T09": {
+    "tools": [
+      "Evidence file manager"
+    ],
+    "evidence": [
+      "/evidence/server/version-comparison.csv"
+    ],
+    "directions": [
+      "Open Evidence on the desktop, then server/version-comparison.csv.",
+      "Open the CSV in the text viewer.",
+      "Compare named fields and preserve the distinction between metadata and document contents."
+    ]
+  },
+  "T10": {
+    "tools": [
+      "Wazuh"
+    ],
+    "evidence": [
+      "/evidence/wazuh/telemetry.jsonl"
+    ],
+    "directions": [
+      "Open the Wazuh shortcut and sign in with the supplied read-only account.",
+      "Open Discover and choose the silent-ridge-* data view.",
+      "Set an absolute UTC range of 2026-10-15 08:00:00 through 09:30:00.",
+      "Search data.host:WS-22. Expand a row to inspect fields; compare adjacent records and policy."
+    ]
+  },
+  "T11": {
+    "tools": [
+      "Wazuh"
+    ],
+    "evidence": [
+      "/evidence/wazuh/telemetry.jsonl"
+    ],
+    "directions": [
+      "Open the Wazuh shortcut and sign in with the supplied read-only account.",
+      "Open Discover and choose the silent-ridge-* data view.",
+      "Set an absolute UTC range of 2026-10-15 08:00:00 through 09:30:00.",
+      "Search data.host:WS-31. Expand a row to inspect fields; compare adjacent records and policy."
+    ]
+  },
+  "T12": {
+    "tools": [
+      "Wazuh"
+    ],
+    "evidence": [
+      "/evidence/server/collection.txt",
+      "/evidence/wazuh/telemetry.jsonl"
+    ],
+    "directions": [
+      "Open the Wazuh shortcut and sign in with the supplied read-only account.",
+      "Open Discover and choose the silent-ridge-* data view.",
+      "Use a data view without a time field for coverage records: these describe collection intervals, not individual event timestamps.",
+      "Search data.type:coverage. Expand a row to inspect fields; compare adjacent records and policy."
+    ]
+  },
+  "T13": {
+    "tools": [
+      "Autopsy"
+    ],
+    "evidence": [
+      "/evidence/prepared/windows-process.json"
+    ],
+    "directions": [
+      "Copy the prepared case template to ~/Cases/WS17; keep /evidence and /originals mounted read-only.",
+      "Open Autopsy > Open Existing Case > ~/Cases/WS17/WS17.aut.",
+      "In Data Sources, expand the prepared evidence source and locate prepared/windows-process.json.",
+      "Select the record; use the Text tab and its source reference. Compare the cited source under /evidence with the original under /originals."
+    ]
+  },
+  "T14": {
+    "tools": [
+      "Autopsy"
+    ],
+    "evidence": [
+      "/evidence/prepared/windows-task.json"
+    ],
+    "directions": [
+      "Copy the prepared case template to ~/Cases/WS17; keep /evidence and /originals mounted read-only.",
+      "Open Autopsy > Open Existing Case > ~/Cases/WS17/WS17.aut.",
+      "In Data Sources, expand the prepared evidence source and locate prepared/windows-task.json.",
+      "Select the record; use the Text tab and its source reference. Compare the cited source under /evidence with the original under /originals."
+    ]
+  },
+  "T15": {
+    "tools": [
+      "Autopsy"
+    ],
+    "evidence": [
+      "/evidence/prepared/memory-processes.json"
+    ],
+    "directions": [
+      "Copy the prepared case template to ~/Cases/WS17; keep /evidence and /originals mounted read-only.",
+      "Open Autopsy > Open Existing Case > ~/Cases/WS17/WS17.aut.",
+      "In Data Sources, expand the prepared evidence source and locate prepared/memory-processes.json.",
+      "Select the record; use the Text tab and its source reference. Compare the cited source under /evidence with the original under /originals."
+    ]
+  },
+  "T16": {
+    "tools": [
+      "Autopsy"
+    ],
+    "evidence": [
+      "/evidence/prepared/windows-connections.json"
+    ],
+    "directions": [
+      "Copy the prepared case template to ~/Cases/WS17; keep /evidence and /originals mounted read-only.",
+      "Open Autopsy > Open Existing Case > ~/Cases/WS17/WS17.aut.",
+      "In Data Sources, expand the prepared evidence source and locate prepared/windows-connections.json.",
+      "Select the record; use the Text tab and its source reference. Compare the cited source under /evidence with the original under /originals.",
+      "Before answering, use the Process-to-network correlation board above the question list. Join /evidence/prepared/windows-process.json, memory-processes.json, and windows-connections.json on the viewer PID.",
+      "Draw the chain parent executable and PID \u2192 viewer PID \u2192 cache argument \u2192 remote address and port. Record separately what the graph cannot prove; a relationship between records is not evidence that a human read the payload."
+    ]
+  },
+  "T17": {
+    "tools": [
+      "Cutter"
+    ],
+    "evidence": [
+      "/evidence/binary/brief-viewer-training"
+    ],
+    "directions": [
+      "Open Cutter > Open > /evidence/binary/brief-viewer-training. Use normal analysis; do not run or debug it.",
+      "Open Windows > Strings.",
+      "Select the relevant string or function. Inspect references and the graph/disassembly.",
+      "Compare configuration with runtime evidence; distinguish possible behavior from observed behavior."
+    ]
+  },
+  "T18": {
+    "tools": [
+      "Cutter"
+    ],
+    "evidence": [
+      "/evidence/binary/brief-viewer-training"
+    ],
+    "directions": [
+      "Open Cutter > Open > /evidence/binary/brief-viewer-training. Use normal analysis; do not run or debug it.",
+      "Open Functions > classify_version.",
+      "Select the relevant string or function. Inspect references and the graph/disassembly.",
+      "Compare configuration with runtime evidence; distinguish possible behavior from observed behavior."
+    ]
+  },
+  "T19": {
+    "tools": [
+      "Evidence file manager"
+    ],
+    "evidence": [
+      "/evidence/network/dlp-metadata.json"
+    ],
+    "directions": [
+      "Open Evidence on the desktop, then network/dlp-metadata.json.",
+      "Open metadata and compare its sha256 with server/catalog.csv.",
+      "Compare named fields and preserve the distinction between metadata and document contents."
+    ]
+  },
+  "T20": {
+    "tools": [
+      "Wazuh"
+    ],
+    "evidence": [
+      "/evidence/wazuh/telemetry.jsonl"
+    ],
+    "directions": [
+      "Open the Wazuh shortcut and sign in with the supplied read-only account.",
+      "Open Discover and choose the silent-ridge-* data view.",
+      "Set an absolute UTC range of 2026-10-15 08:00:00 through 09:30:00.",
+      "Search data.request:req-72. Expand a row to inspect fields; compare adjacent records and policy.",
+      "Complete the Capstone assessment workspace above the question list before submitting the four final values. Put supported facts, unsupported claims, unresolved gaps, and recommended actions in separate fields.",
+      "Cite at least one released source beside every confirmed statement. The workspace stays in this browser and is not published as a finding."
+    ]
+  }
+}
+

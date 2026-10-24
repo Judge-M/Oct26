@@ -66,7 +66,9 @@ class SubprocessRunner:
     """Real runner. Executes argv directly; ``shell=True`` is never used."""
 
     def run(self, argv, *, check=True):
-        completed = subprocess.run(list(argv), capture_output=True, text=True, timeout=300)
+        creationflags = getattr(subprocess, 'CREATE_NO_WINDOW', 0) if os.name == 'nt' else 0
+        completed = subprocess.run(list(argv), capture_output=True, text=True, timeout=300,
+                                   creationflags=creationflags)
         if check and completed.returncode != 0:
             raise CommandError(list(argv), completed.returncode, completed.stderr.strip())
         return completed.stdout.strip()

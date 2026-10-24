@@ -62,10 +62,48 @@ class QueueStateTests(unittest.TestCase):
             self.assertIn(fragment,state['status'])
 
     def test_page_template_renders_the_explanations(self):
-        for text in ('id="queue-status"','{{queue.status}}','queue.notes.get',
-                     'Claim ticket</button></form>{% else %}',
-                     "'Choose up to three available tickets' if queue.claimable"):
+        for text in ('id="queue-status"','Progress: %s of %s questions answered',
+                     'All tickets for your team',
+                     'All unfinished tickets are open to your team'):
             self.assertIn(text,PAGE)
+
+    def test_page_provides_team_local_iris_status_controls(self):
+        self.assertIn('Four-person team workflow',PAGE)
+        self.assertIn('name="action" value="work_status"',PAGE)
+        self.assertIn("('working','Working')",PAGE)
+        self.assertIn("('needs_review','Needs review')",PAGE)
+        self.assertIn('never hide questions or limit parallel work',PAGE)
+        self.assertNotIn('/case/tasks?cid=',PAGE)
+        self.assertIn('IRIS incident queue',PAGE)
+        self.assertIn("Your team's status:",PAGE)
+        self.assertIn('Live scoreboard display',PAGE)
+        self.assertIn('{{ctfd}}/scoreboard',PAGE)
+        self.assertIn('<strong>Start here</strong>',PAGE)
+        self.assertIn('for step in route.directions',PAGE)
+        self.assertIn('How these tools fit together',PAGE)
+        self.assertIn('Follow this loop for every ticket',PAGE)
+        self.assertIn('choose work from the full IRIS queue',PAGE)
+        self.assertIn('return to IRIS to see the verified finding',PAGE)
+        self.assertNotIn('<details><summary>How the tools fit together</summary>',PAGE)
+        self.assertIn('IRIS — choose and coordinate work',PAGE)
+        self.assertIn('CTFd — do the questions and earn points',PAGE)
+        self.assertIn('Open {{t.id}} questions, hints &amp; scoring in CTFd',PAGE)
+        self.assertIn('class="primary-action"',PAGE)
+
+    def test_correlation_and_capstone_workspaces_are_in_question_sequence(self):
+        current=PAGE.index('<section id="current-questions">')
+        self.assertGreater(PAGE.index('{{correlation_workspace()}}'),current)
+        self.assertGreater(PAGE.index('{{capstone_workspace()}}'),current)
+        self.assertIn("q.ticket > 'T16'",PAGE)
+        self.assertIn("q.ticket == 'T20'",PAGE)
+
+    def test_feedback_banners_have_a_dismiss_button(self):
+        self.assertIn('id="dismiss-answer-result"',PAGE)
+        self.assertIn('aria-label="Dismiss message"',PAGE)
+        self.assertIn("message_kind=='hint' else 'Try again'",PAGE)
+        self.assertIn("dismissAnswerResult.addEventListener('click'",PAGE)
+        self.assertIn('aria-label="Dismiss operational update"',PAGE)
+        self.assertIn("dismissUpdateX.addEventListener('click'",PAGE)
 
 
 if __name__=='__main__':unittest.main()

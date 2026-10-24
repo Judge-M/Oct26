@@ -69,12 +69,12 @@ class RidgeCredit(db.Model):
 
 REGISTRATION_PAGE = r'''
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Operation Silent Ridge — team registration</title>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><base target="_blank"><title>Operation Silent Ridge — team registration</title>
 <style>
 body{font:16px system-ui,sans-serif;max-width:960px;margin:2rem auto;padding:0 1rem;color:#17212b}
 main{border:1px solid #ccd6df;border-radius:12px;padding:2rem;box-shadow:0 4px 18px #0001}
 h1{margin-top:0}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem}
-.card{background:#f4f7fa;border-radius:8px;padding:1rem}.error{background:#fee9e7;color:#8c1d18;padding:1rem;border-radius:8px}
+.card{background:#f4f7fa;border-radius:8px;padding:1rem}.error{position:relative;background:#fee9e7;color:#8c1d18;padding:1rem 3rem 1rem 1rem;border-radius:8px}.banner-close{position:absolute;right:.4rem;top:.25rem;margin:0;padding:.1rem .5rem;background:transparent;color:inherit;font-size:1.5rem}
 .start{background:#eaf2fb;border-left:5px solid #1257a6;border-radius:8px;padding:1rem 1.25rem;margin:1.25rem 0}
 .start h2{margin-top:0}.start ol{padding-left:1.4rem}.start li{margin:.65rem 0;line-height:1.45}
 .notice{background:#fff6cf;border-radius:8px;padding:.85rem 1rem;margin:1rem 0}.recovery{background:#e8f5ec;border-left:5px solid #287a3d;border-radius:8px;padding:1rem 1.25rem;margin:1rem 0}.recovery p{overflow-wrap:anywhere}.compact li{margin:.45rem 0}
@@ -93,16 +93,17 @@ persistent handout.</p>
 <div class="grid">
   <div class="card"><strong>Browser services</strong><br>IRIS, CTFd, and Wazuh run from your own laptop browser.</div>
   <div class="card"><strong>Three GUI workstations</strong><br>Two Autopsy seats plus one Wireshark/Cutter/Linux seat.</div>
-  <div class="card"><strong>Five seats</strong><br>Each team receives five participant CTFd accounts.</div>
+  <div class="card"><strong>Four-person teams</strong><br>Use CTFd seats 1–4. Seat 5 is a spare recovery login.</div>
 </div>
 <section class="start">
   <h2>Start here</h2>
   <ol>
     <li><strong>Register once.</strong> One captain enters the team name, a contact name, and the enrollment code below.</li>
     <li><strong>Save the private handout.</strong> Bookmark its retrieval link and use <em>Print / save handout</em>. It is the way back to every generated login.</li>
-    <li><strong>Work from your own laptop browser.</strong> Use IRIS to claim tickets, CTFd to answer questions and view help, and Wazuh to search the prepared telemetry.</li>
+    <li><strong>Use IRIS to divide work and review shared findings.</strong> Every ticket is open to every team. Mark assigned tickets Working and use Needs review for coordinator handoff.</li>
+    <li><strong>Use CTFd for the investigation workflow.</strong> Open any ticket's questions, hints, answer forms, and scoring. Correct answers publish findings back to IRIS.</li>
     <li><strong>Use Guacamole only for investigation tools.</strong> Open the three team desktops for Autopsy, Wireshark, Cutter, and the evidence files. Do not browse ordinary websites inside those desktops.</li>
-    <li><strong>Repeat the investigation loop.</strong> Claim in IRIS, investigate the named evidence, answer in CTFd, and read the verified finding that publishes back to IRIS.</li>
+    <li><strong>Repeat the investigation loop.</strong> Choose a ticket in IRIS, investigate the named evidence, answer in CTFd, and review the verified finding that publishes back to IRIS.</li>
   </ol>
 </section>
 <div class="grid">
@@ -110,8 +111,8 @@ persistent handout.</p>
   <div class="card"><strong>Read-only work</strong><br>Do not execute recovered programs, scan or contact external systems, or change the original evidence.</div>
   <div class="card"><strong>Need a facilitator?</strong><br>Raise a hand for a lost retrieval link, failed login, stuck desktop, or service outage. Your accepted answers are retained.</div>
 </div>
-{% if error %}<p class="error">{{ error }}</p>{% endif %}
-{% if not registration_open and not error %}<p class="error"><strong>Team setup is temporarily unavailable.</strong> Please wait a minute and try again. If this message remains, raise your hand for a facilitator. Do not submit a second registration.</p>{% endif %}
+{% if error %}<p class="error" role="alert"><button type="button" class="banner-close" aria-label="Dismiss error" onclick="this.parentElement.remove()">×</button>{{ error }}</p>{% endif %}
+{% if not registration_open and not error %}<p class="error" role="alert"><button type="button" class="banner-close" aria-label="Dismiss error" onclick="this.parentElement.remove()">×</button><strong>Team setup is temporarily unavailable.</strong> Please wait a minute and try again. If this message remains, raise your hand for a facilitator. Do not submit a second registration.</p>{% endif %}
 <h2>Register your team</h2>
 <form method="post">
 <input type="hidden" name="nonce" value="{{ nonce }}">
@@ -123,43 +124,61 @@ persistent handout.</p>
 {% elif view == 'pending' %}
 <h1>{{ registration.team_name }}</h1><p>Your team slot is reserved. The event host is starting your three workstations and creating the application accounts.</p>
 <p>Status: <strong id="registration-status">{{ registration.status }}</strong>. This page will update when provisioning finishes.</p>
-<section class="recovery"><h2>Save your private return link now</h2><p><a href="{{ retrieve_url }}">{{ retrieve_url }}</a></p><p>This unguessable link is the only participant-facing way back to your generated credentials. Bookmark it or copy it somewhere private.</p></section>
+<section class="recovery"><h2>Save your private return link now</h2><p><a href="{{ retrieve_url }}" target="_blank" rel="noopener">{{ retrieve_url }}</a></p><p>This unguessable link is the only participant-facing way back to your generated credentials. Bookmark it or copy it somewhere private.</p></section>
 <div class="actions"><button type="button" onclick="copyValue({{ retrieve_url|tojson }},'pending-copy-status')">Copy private return link</button><button type="button" onclick="location.reload()">Check now</button><span id="pending-copy-status" role="status"></span></div><script>async function copyValue(value,statusId){await navigator.clipboard.writeText(value);document.getElementById(statusId).textContent='Copied.';}setInterval(async()=>{try{const r=await fetch({{ status_url|tojson }},{cache:'no-store'}),s=await r.json();document.getElementById('registration-status').textContent=s.status;if(!['pending','provisioning'].includes(s.status))location.reload();}catch(e){}},5000);</script>
 {% elif view == 'needs_operator' %}
 <h1>{{ registration.team_name }} — facilitator assistance needed</h1>
 <p>Your team registration is saved, but automated setup could not finish. <strong>Raise your hand for a facilitator.</strong> Do not register again.</p>
-<section class="recovery"><h2>Keep your private return link</h2><p><a href="{{ retrieve_url }}">{{ retrieve_url }}</a></p><p>Bookmark or copy this link. Return to it after a facilitator repairs your team setup.</p></section>
+<section class="recovery"><h2>Keep your private return link</h2><p><a href="{{ retrieve_url }}" target="_blank" rel="noopener">{{ retrieve_url }}</a></p><p>Bookmark or copy this link. Return to it after a facilitator repairs your team setup.</p></section>
 <div class="actions"><button type="button" onclick="copyValue({{ retrieve_url|tojson }},'operator-copy-status')">Copy private return link</button><button type="button" onclick="location.reload()">Check again</button><span id="operator-copy-status" role="status"></span></div>
 <script>async function copyValue(value,statusId){await navigator.clipboard.writeText(value);document.getElementById(statusId).textContent='Copied.';}</script>
 {% elif view == 'ready' %}
-<h1>{{ registration.team_name }} — team handout</h1>
+<h1>{{ registration.team_name }} — Team Handout</h1>
 <p>Registration is complete. Do not post this page, its link, or these passwords in a public chat.</p>
-<section class="recovery"><h2>Your permanent private return link</h2><p><a href="{{ retrieve_url }}">{{ retrieve_url }}</a></p><p>Bookmark this link. Anyone who has it can read your team credentials.</p></section>
-<div class="actions no-print"><button type="button" onclick="copyValue({{ retrieve_url|tojson }},'copy-status')">Copy return link</button><a class="button" href="{{ download_url }}" download>Download private handout</a><button type="button" onclick="window.print()">Print / save handout</button><button type="button" onclick="copyAll()">Copy labelled handout</button><span id="copy-status" role="status"></span></div>
+<section class="recovery"><h2>Your permanent private return link</h2><p><a href="{{ retrieve_url }}" target="_blank" rel="noopener">{{ retrieve_url }}</a></p><p>Bookmark this link. Anyone who has it can read your team credentials.</p></section>
+<div class="actions no-print"><button type="button" onclick="copyValue({{ retrieve_url|tojson }},'copy-status')">Copy return link</button><a class="button" href="{{ download_url }}" target="_blank" rel="noopener" download>Download private handout</a><button type="button" onclick="window.print()">Print / save handout</button><button type="button" onclick="copyAll()">Copy labelled handout</button><span id="copy-status" role="status"></span></div>
 <section class="start">
   <h2>Your first five moves</h2>
   <ol>
     <li>Every participant chooses one personal CTFd seat below and signs in. Do not use the IRIS team login in CTFd.</li>
-    <li>One teammate opens IRIS with the team login and confirms that the incident queue appears.</li>
+    <li>One teammate opens IRIS with the team login. IRIS shows every ticket and the team's shared verified findings; CTFd holds the questions, hints, answers, and scoring.</li>
     <li>Open the prepared Wazuh view in a normal laptop browser. Use its historical time range when a question names Wazuh.</li>
     <li>Open Guacamole, divide the three desktop connections across the team, and use them only for the evidence tools.</li>
-    <li>Claim one available IRIS ticket, open its questions in CTFd, investigate the named evidence, and submit only the requested value.</li>
+    <li>Assign three different ticket IDs to the investigators, open their questions in CTFd, and submit only the requested value.</li>
+  </ol>
+</section>
+<section class="start" aria-labelledby="delegation-title">
+  <h2 id="delegation-title">Divide the work before anyone starts</h2>
+  <p><strong>The captain is not a required technical role.</strong> Any teammate with this private handout can take over coordination. Say the assignments out loud and keep the handout open on at least two team laptops.</p>
+  <div class="grid">
+    <div class="card"><strong>Person 1 — coordinator and CTFd recorder</strong><br>Keep IRIS and CTFd open. Assign three different ticket IDs, read questions and answer formats aloud, submit the analysts' values, confirm accepted answers, and assign replacement work.</div>
+    <div class="card"><strong>Person 2 — network and Wazuh analyst</strong><br>Take one Guacamole desktop. Start with tickets naming Wireshark or Wazuh. Follow the ticket's exact filter, query, and evidence path.</div>
+    <div class="card"><strong>Person 3 — disk and endpoint analyst</strong><br>Take one Guacamole desktop. Start with tickets naming Autopsy and use the prepared case and evidence path shown on the ticket.</div>
+    <div class="card"><strong>Person 4 — binary and file analyst</strong><br>Take the third Guacamole desktop. Start with Cutter or Evidence file manager tickets, and do not execute recovered files.</div>
+  </div>
+  <ol>
+    <li>Each of the four people signs into CTFd using seats 1–4. Keep seat 5 unused as a recovery login.</li>
+    <li>The coordinator assigns one different ticket ID to each investigator. Each investigator marks it Working in IRIS, then Needs review when handing results to the coordinator.</li>
+    <li>Each analyst follows the ticket's <strong>Start here</strong> directions and reports the answer, source path, and any limitation to the recorder.</li>
+    <li>The coordinator submits in CTFd, confirms the finding in IRIS, and assigns the next unfinished ticket.</li>
+    <li>If someone is stuck, rotate the ticket or desktop. If the captain leaves, another teammate uses this same handout and continues the coordinator checklist.</li>
   </ol>
 </section>
 <p class="notice"><strong>Keep this page open.</strong> It is your permanent credential and recovery sheet. Help 1 and 2 are free; Help 3 is the full walkthrough and leaves the question worth 1 point.</p>
 <h2>Browser services</h2>
 <div class="table-wrap"><table><tr><th>Service</th><th>URL</th><th>Username</th><th>Password</th></tr>
-<tr><td>IRIS</td><td><a href="{{ iris_url }}">{{ iris_url }}</a></td><td><code data-copy>{{ credentials.iris.username }}</code></td><td><span class="secret" data-copy>{{ credentials.iris.password }}</span></td></tr>
-  <tr><td>Wazuh Discover</td><td><a href="{{ wazuh_url }}">Open prepared telemetry view</a></td><td><code>{{ credentials.wazuh.username }}</code></td><td><span class="secret">{{ credentials.wazuh.password }}</span></td></tr>
+<tr><td>IRIS</td><td><a href="{{ iris_url }}" target="_blank" rel="noopener">{{ iris_url }}</a></td><td><code data-copy>{{ credentials.iris.username }}</code></td><td><span class="secret" data-copy>{{ credentials.iris.password }}</span></td></tr>
+  <tr><td>Wazuh Discover</td><td><a href="{{ wazuh_url }}" target="_blank" rel="noopener">Open prepared telemetry view</a></td><td><code>{{ credentials.wazuh.username }}</code></td><td><span class="secret">{{ credentials.wazuh.password }}</span></td></tr>
 </table></div>
 <h2>Participant CTFd seats</h2>
-<p>Open <a href="{{ ctfd_url }}">{{ ctfd_url }}</a>. CTFd requires one of the personal seat logins below. Your internal team ID is <code>{{ credentials.ctfd.team }}</code>; your seats are already attached to it, so there is no team join password to enter.</p>
+<p>Open <a href="{{ ctfd_url }}" target="_blank" rel="noopener">{{ ctfd_url }}</a>. CTFd requires one of the personal seat logins below. Your internal team ID is <code>{{ credentials.ctfd.team }}</code>; your seats are already attached to it, so there is no team join password to enter.</p>
+<p><strong>Live scoreboard:</strong> <a href="{{ scoreboard_url }}" target="_blank" rel="noopener">{{ scoreboard_url }}</a></p>
 <div class="table-wrap"><table><tr><th>Seat</th><th>Username</th><th>Password</th></tr>
 {% for member in credentials.ctfd.members %}<tr><td>{{ loop.index }}</td><td><code data-copy>{{ member.username }}</code></td><td><span class="secret" data-copy>{{ member.password }}</span></td></tr>{% endfor %}
 </table></div>
 <h2>GUI workstations</h2>
-  <p>Log into Guacamole once with the account below. All three desktops contain the same complete evidence toolbox. The labels are suggested starting roles so five people can divide the work; they are not tool restrictions. <strong>No separate VNC or desktop password is needed:</strong> Guacamole provides the participant-facing connection.</p>
-<p>Guacamole username: <code data-copy>{{ credentials.guacamole.username }}</code><br>Password: <span class="secret" data-copy>{{ credentials.guacamole.password }}</span><br><a href="{{ guac_url }}">Open Guacamole</a></p>
+  <p>Log into Guacamole once with the account below. The three investigators each take one desktop; the coordinator works in IRIS and CTFd. All three desktops contain the complete evidence toolbox. <strong>No separate VNC or desktop password is needed:</strong> Guacamole provides the participant-facing connection.</p>
+<p>Guacamole username: <code data-copy>{{ credentials.guacamole.username }}</code><br>Password: <span class="secret" data-copy>{{ credentials.guacamole.password }}</span><br><a href="{{ guac_url }}" target="_blank" rel="noopener">Open Guacamole</a></p>
   <div class="table-wrap"><table><tr><th>Connection name</th><th>Suggested role</th><th>Best starting work</th><th>Installed tools</th></tr>
   {% for desktop in registration.result.desktop_urls %}<tr><td><code>{{ desktop.connection_name }}</code></td><td>{{ desktop.name }}</td><td>{{ desktop.guidance }}</td><td>{{ desktop.tools|join(', ') }}</td></tr>{% endfor %}
 </table></div>
@@ -220,7 +239,10 @@ def load(app):
             if request.path not in ('/api/v1/scoreboard', '/api/v1/scoreboard/top/10') or request.method != 'GET':
                 abort(403)
         if request.path == '/challenges':
-            return redirect('/silent-ridge')
+            # CTFd sends every successful login to /challenges. Participants
+            # should enter the exercise, while administrators need the stock
+            # admin panel and have no team identity for /silent-ridge.
+            return redirect('/admin' if is_admin() else '/silent-ridge')
 
     @app.route('/silent-ridge/register', methods=['GET', 'POST'])
     def ridge_register():
@@ -269,12 +291,13 @@ def load(app):
             private = registration_store.get(access_code, include_private=True)
             registration['result'] = registration.get('result') or {}
             credentials = private['credentials']
-            iris_url = os.environ['IRIS_PUBLIC_URL']
-            ctfd_url = os.environ['CTFD_PUBLIC_URL']
+            iris_url = os.environ['IRIS_PUBLIC_URL'].rstrip('/') + '/silent-ridge'
+            ctfd_base_url = os.environ['CTFD_PUBLIC_URL'].rstrip('/')
+            ctfd_url = ctfd_base_url + '/login'
             wazuh_url = participant_wazuh_url(os.environ['WAZUH_PUBLIC_URL'])
             guac_url = os.environ.get(
-                'GUACAMOLE_PUBLIC_URL', ctfd_url.rstrip('/') + ':8082')
-            retrieve_url = ctfd_url.rstrip('/') + request.path
+                'GUACAMOLE_PUBLIC_URL', ctfd_base_url + ':8082')
+            retrieve_url = ctfd_base_url + request.path
             copy_text = credential_handout_text(
                 registration, credentials, retrieval_url=retrieve_url,
                 ctfd_url=ctfd_url, iris_url=iris_url, wazuh_url=wazuh_url,
@@ -282,6 +305,7 @@ def load(app):
             response = make_response(render_template_string(
                 REGISTRATION_PAGE, view='ready', registration=registration,
                 credentials=credentials, iris_url=iris_url, ctfd_url=ctfd_url,
+                scoreboard_url=ctfd_base_url + '/scoreboard',
                 wazuh_url=wazuh_url, guac_url=guac_url,
                 retrieve_url=retrieve_url,
                 download_url=retrieve_url.rstrip('/') + '/download',
@@ -312,15 +336,17 @@ def load(app):
             return _private_handout_response(
                 make_response('The private handout is not ready yet.\n', 409))
         credentials = registration_store.get(access_code, include_private=True)['credentials']
-        ctfd_url = os.environ['CTFD_PUBLIC_URL']
+        ctfd_base_url = os.environ['CTFD_PUBLIC_URL'].rstrip('/')
+        ctfd_url = ctfd_base_url + '/login'
         text = credential_handout_text(
             registration, credentials,
-            retrieval_url=(ctfd_url.rstrip('/') +
+            retrieval_url=(ctfd_base_url +
                            request.path.rsplit('/download', 1)[0]),
-            ctfd_url=ctfd_url, iris_url=os.environ['IRIS_PUBLIC_URL'],
+            ctfd_url=ctfd_url,
+            iris_url=os.environ['IRIS_PUBLIC_URL'].rstrip('/') + '/silent-ridge',
             wazuh_url=participant_wazuh_url(os.environ['WAZUH_PUBLIC_URL']),
             guac_url=os.environ.get('GUACAMOLE_PUBLIC_URL',
-                                    ctfd_url.rstrip('/') + ':8082'))
+                                    ctfd_base_url + ':8082'))
         response = make_response(text)
         response.headers['Content-Type'] = 'text/plain; charset=utf-8'
         response.headers['Content-Disposition'] = (
@@ -342,6 +368,8 @@ def load(app):
     @authed_only
     def ridge_questions():
         message = ''
+        message_kind = ''
+        message_question = ''
         try:
             # CTFd's stock CSRF session does not guarantee a value for this
             # event-specific nonce on every authenticated session.  Generate
@@ -357,30 +385,42 @@ def load(app):
                 if action == 'unlock_hint':
                     bridge('ctfd', team, 'hint', question=request.form['question'])
                     message = 'Explicit walkthrough unlocked. Assisted scoring is active: this question is now worth 1 of 4 points.'
+                    message_kind = 'hint'
                 elif action == 'answer':
                     result = bridge('ctfd', team, 'answer', question=request.form['question'], answer=request.form['answer'])
                     if result['correct']:
                         if result.get('assessment_published'):
-                            message = ('Correct — %d point%s earned. Capstone complete: the final incident '
+                            message = ('Correct. Your team earned %d point%s. Capstone complete: the final incident '
                                        'assessment and containment actions are now unlocked below.') % (
                                 result['value'], '' if result['value'] == 1 else 's')
                         else:
-                            message = 'Correct — %d point%s earned. Findings synchronization pending.' % (
+                            message = ('Correct. Your team earned %d point%s. The answer is saved for your '
+                                       'team; every other team still has its own independent copy. Findings '
+                                       'synchronization is pending.') % (
                                 result['value'], '' if result['value'] == 1 else 's')
+                        message_kind = 'correct'
                     else:
-                        message = 'Not yet. Try the next free help level or unlock the explicit walkthrough.'
+                        message = ('Not correct yet. No points were lost and you can try again. Check the answer '
+                                   'format, use the next free help level, or unlock the explicit walkthrough.')
+                        message_kind = 'incorrect'
                 else:
                     abort(400)
                 session['ridge_message'] = message
-                return redirect('/silent-ridge#' + request.form.get('question',''), code=303)
+                session['ridge_message_kind'] = message_kind
+                session['ridge_message_question'] = request.form.get('question', '')
+                return redirect('/silent-ridge#answer-result', code=303)
             message = session.pop('ridge_message', '')
+            message_kind = session.pop('ridge_message_kind', '')
+            message_question = session.pop('ridge_message_question', '')
             snapshot = bridge('ctfd', team, 'snapshot')
             questions = bridge('ctfd', team, 'questions', question=request.args.get('question'))
             response = make_response(render_template_string(
                 PAGE, lane='ctfd', snapshot=snapshot, questions=questions,
                 queue=queue_state(snapshot),
                 iris=os.environ['IRIS_PUBLIC_URL'], ctfd=os.environ['CTFD_PUBLIC_URL'], csrf=session['nonce'],
-                message=message, story=participant_context(snapshot, questions)))
+                message=message, message_kind=message_kind,
+                message_question=message_question,
+                story=participant_context(snapshot, questions)))
             # Claim and answer state is shared and changes outside the CTFd
             # process. Prevent a cached pre-claim page from hiding the current
             # ticket's question forms; the status poll already uses no-store.

@@ -80,15 +80,18 @@ class WorkflowTests(unittest.TestCase):
         self.assertTrue(all(q['solved_by'] is None and q['answerable'] for q in questions))
         self.assertTrue(self.state.answer('1','A0','answer')['correct'])
         self.assertTrue(self.state.answer('1','A1','answer')['closed'])
-        self.assertEqual(self.state.questions('2'),[])
+        self.assertEqual({q['ticket'] for q in self.state.questions('2')},{'A','B'})
+        self.assertTrue(all(q['answerable'] for q in self.state.questions('2')))
         self.assertEqual({r['id']:r['points'] for r in self.state.snapshot()['scores']},{'0':8,'1':8,'2':0})
         self.drain();self.state.claim('1','C',0)
         self.assertEqual(sum(v[0]=='ticket' for v in self.deliveries.values()),3)
         self.assertEqual(sum(v[0]=='finding' for v in self.deliveries.values()),4)
 
-    def test_unrelated_direct_read_submission_and_wrong_owner(self):
+    def test_released_questions_are_shared_but_locked_questions_are_hidden(self):
         self.state.claim('0','A',0)
-        for team,q in [('0','B0'),('0','C0'),('1','A0'),('0','missing')]:
+        self.assertEqual(self.state.questions('0','B0')[0]['ticket'],'B')
+        self.assertEqual(self.state.questions('1','A0')[0]['ticket'],'A')
+        for team,q in [('0','C0'),('0','missing')]:
             with self.subTest(team=team,q=q):
                 with self.assertRaises(PermissionError):self.state.questions(team,q)
                 with self.assertRaises(PermissionError):self.state.answer(team,q,'answer')
@@ -128,7 +131,7 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(scores['0'],1)
         self.assertEqual(scores['1'],4)
         with self.assertRaises(PermissionError):
-            self.state.unlock_hint('2','B1')
+            self.state.unlock_hint('2','C1')
 
     def test_ambiguous_remote_success_retry_restart(self):
         self.state.claim('0','A',0);self.drain()
